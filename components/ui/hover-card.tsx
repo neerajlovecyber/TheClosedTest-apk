@@ -1,42 +1,38 @@
 import { NativeOnlyAnimatedView } from '@/components/ui/native-only-animated-view';
 import { TextClassContext } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
-import * as PopoverPrimitive from '@rn-primitives/popover';
+import * as HoverCardPrimitive from '@rn-primitives/hover-card';
 import * as React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { FadeIn, FadeOut } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
-const Popover = PopoverPrimitive.Root;
+const HoverCard = HoverCardPrimitive.Root;
 
-const PopoverTrigger = PopoverPrimitive.Trigger;
+const HoverCardTrigger = HoverCardPrimitive.Trigger;
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function PopoverContent({
+function HoverCardContent({
   className,
   align = 'center',
   sideOffset = 4,
-  portalHost,
   ...props
-}: PopoverPrimitive.ContentProps &
-  React.RefAttributes<PopoverPrimitive.ContentRef> & {
-    portalHost?: string;
-  }) {
+}: HoverCardPrimitive.ContentProps & React.RefAttributes<HoverCardPrimitive.ContentRef>) {
   return (
-    <PopoverPrimitive.Portal hostName={portalHost}>
+    <HoverCardPrimitive.Portal>
       <FullWindowOverlay>
-        <PopoverPrimitive.Overlay style={Platform.select({ native: StyleSheet.absoluteFill })}>
-          <NativeOnlyAnimatedView entering={FadeIn.duration(200)} exiting={FadeOut}>
+        <HoverCardPrimitive.Overlay style={Platform.select({ native: StyleSheet.absoluteFill })}>
+          <NativeOnlyAnimatedView entering={FadeIn} exiting={FadeOut}>
             <TextClassContext.Provider value="text-popover-foreground">
-              <PopoverPrimitive.Content
+              <HoverCardPrimitive.Content
                 align={align}
                 sideOffset={sideOffset}
                 className={cn(
-                  'bg-popover border-border outline-hidden z-50 w-72 rounded-md border p-4 shadow-md shadow-black/5',
+                  'bg-popover border-border outline-hidden z-50 w-64 rounded-md border p-4 shadow-md shadow-black/5',
                   Platform.select({
                     web: cn(
-                      'animate-in fade-in-0 zoom-in-95 origin-(--radix-popover-content-transform-origin) cursor-auto',
+                      'animate-in fade-in-0 zoom-in-95 origin-(--radix-hover-card-content-transform-origin) cursor-default [&>*]:cursor-auto',
                       props.side === 'bottom' && 'slide-in-from-top-2',
                       props.side === 'top' && 'slide-in-from-bottom-2'
                     ),
@@ -47,10 +43,10 @@ function PopoverContent({
               />
             </TextClassContext.Provider>
           </NativeOnlyAnimatedView>
-        </PopoverPrimitive.Overlay>
+        </HoverCardPrimitive.Overlay>
       </FullWindowOverlay>
-    </PopoverPrimitive.Portal>
+    </HoverCardPrimitive.Portal>
   );
 }
 
-export { Popover, PopoverContent, PopoverTrigger };
+export { HoverCard, HoverCardContent, HoverCardTrigger };
