@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { useSSO, type StartSSOFlowParams } from '@clerk/clerk-expo';
 import * as AuthSession from 'expo-auth-session';
@@ -63,22 +64,22 @@ export function SocialConnections() {
   }
 
   return (
-    <View className="gap-2 sm:flex-row sm:gap-3">
+    <View className="w-full gap-2">
       {SOCIAL_CONNECTION_STRATEGIES.map((strategy) => {
         return (
           <Button
             key={strategy.type}
-            variant="outline"
-            size="sm"
-            className="sm:flex-1"
+            size="lg"
+            className="w-full flex-row gap-3"
             onPress={onSocialLoginPress(strategy.type)}>
             <Image
-              className={cn('size-4', strategy.useTint && Platform.select({ web: 'dark:invert' }))}
+              className={cn('size-5', strategy.useTint && Platform.select({ web: 'dark:invert' }))}
               tintColor={Platform.select({
                 native: strategy.useTint ? (colorScheme === 'dark' ? 'white' : 'black') : undefined,
               })}
               source={strategy.source}
             />
+            <Text className="text-primary-foreground font-semibold">Continue with Google</Text>
           </Button>
         );
       })}
