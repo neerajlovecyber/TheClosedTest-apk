@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { View, ScrollView, RefreshControl, Image } from 'react-native';
+import { View, ScrollView, RefreshControl, Image, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { BellIcon, ActivityIcon, CheckCircleIcon, FlameIcon, StarIcon } from 'lucide-react-native';
 import { useUser } from '@clerk/clerk-expo';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
     const { user } = useUser();
+    const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
 
     // Dummy Data
@@ -70,26 +72,25 @@ export default function HomeScreen() {
                 {dueTasks.length > 0 ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-4">
                         {dueTasks.map(task => (
-                            <Card key={task.id} className="w-80 mr-4">
-                                <CardContent className="flex-row gap-4">
-                                    <Image
-                                        source={{ uri: 'https://github.com/shadcn.png' }}
-                                        className="size-16 rounded-xl bg-muted border border-border"
-                                    />
-                                    <View className="flex-1 justify-between py-0.5">
-                                        <View className="flex-row justify-between items-start">
-                                            <Text className="font-bold text-lg leading-tight flex-1 mr-2">{task.appName}</Text>
-                                            <View className="bg-destructive/10 px-2 py-0.5 rounded-full">
-                                                <Text className="text-[10px] text-destructive font-bold uppercase">{task.dueIn}</Text>
+                            <TouchableOpacity key={task.id} onPress={() => router.push(`/app-details/${task.id}`)} activeOpacity={0.8}>
+                                <Card className="w-80 mr-4">
+                                    <CardContent className="flex-row gap-4">
+                                        <Image
+                                            source={{ uri: 'https://github.com/shadcn.png' }}
+                                            className="size-16 rounded-xl bg-muted border border-border"
+                                        />
+                                        <View className="flex-1 justify-between py-0.5">
+                                            <View className="flex-row justify-between items-start">
+                                                <Text className="font-bold text-lg leading-tight flex-1 mr-2">{task.appName}</Text>
+                                                <View className="bg-destructive/10 px-2 py-0.5 rounded-full">
+                                                    <Text className="text-[10px] text-destructive font-bold uppercase">{task.dueIn}</Text>
+                                                </View>
                                             </View>
+                                            <Text className="text-muted-foreground text-sm">Owner: {task.owner}</Text>
                                         </View>
-                                        <Text className="text-muted-foreground text-sm">Owner: {task.owner}</Text>
-                                        <Button size="sm" className="h-7 mt-1" variant="outline">
-                                            <Text className="text-xs">Upload Proof</Text>
-                                        </Button>
-                                    </View>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
+                            </TouchableOpacity>
                         ))}
                     </ScrollView>
                 ) : (
