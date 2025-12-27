@@ -13,15 +13,19 @@ export const store = mutation({
         // Check if we've already stored this identity before.
         const user = await ctx.db
             .query("users")
-            .withIndex("by_token_identifier", (q) =>
+            .withIndex("by_tokenIdentifier", (q) =>
                 q.eq("tokenIdentifier", identity.tokenIdentifier)
             )
             .unique();
 
         if (user !== null) {
-            // If we've seen this identity before but the name has changed, patch the value.
-            if (user.name !== identity.name) {
-                await ctx.db.patch(user._id, { name: identity.name });
+            // If we've seen this identity before but the name/email has changed, patch the value.
+            if (user.name !== identity.name || user.email !== identity.email) {
+                await ctx.db.patch(user._id, {
+                    name: identity.name,
+                    email: identity.email,
+                    updatedAt: Date.now()
+                });
             }
             return user._id;
         }
@@ -31,6 +35,12 @@ export const store = mutation({
             name: identity.name!,
             tokenIdentifier: identity.tokenIdentifier,
             email: identity.email!,
+            // Defaults
+            reputation: 100,
+            appsCount: 0,
+            isGroupMember: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
         });
     },
 });

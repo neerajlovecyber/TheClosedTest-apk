@@ -1,11 +1,12 @@
+
 import '@/global.css';
 
 import { NAV_THEME } from '@/lib/theme';
-import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
@@ -30,19 +31,34 @@ export default function RootLayout() {
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <Routes />
+          <InitialLayout />
           <PortalHost />
         </ThemeProvider>
       </ConvexProviderWithClerk>
-
     </ClerkProvider>
   );
 }
 
 SplashScreen.preventAutoHideAsync();
 
-function Routes() {
+function InitialLayout() {
   const { isSignedIn, isLoaded } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!isLoaded) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (isSignedIn && inAuthGroup) {
+      // Redirect to tabs if signed in and in auth group
+      router.replace('/(tabs)');
+    } else if (!isSignedIn && !inAuthGroup) {
+      // Redirect to welcome if not signed in
+      router.replace('/(auth)/welcome');
+    }
+  }, [isSignedIn, isLoaded, segments]);
 
   React.useEffect(() => {
     if (isLoaded) {
@@ -56,23 +72,10 @@ function Routes() {
 
   return (
     <Stack>
-      {/* Screens only shown when the user is NOT signed in */}
-      <Stack.Protected guard={!isSignedIn}>
-        <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
-      </Stack.Protected>
-
-      {/* Screens only shown when the user IS signed in */}
-      <Stack.Protected guard={isSignedIn}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack.Protected>
-
-      {/* Screens outside the guards are accessible to everyone (e.g. not found) */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
+      <Stack.Screen name="add-app" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="app-details/[id]" options={{ presentation: 'modal', headerShown: false }} />
     </Stack>
   );
 }
-
-const DEFAULT_AUTH_SCREEN_OPTIONS = {
-  title: '',
-  headerShadowVisible: false,
-  headerTransparent: true,
-};
