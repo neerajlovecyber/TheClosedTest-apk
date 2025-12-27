@@ -20,22 +20,12 @@ const SOCIAL_CONNECTION_STRATEGIES: {
   source: ImageSourcePropType;
   useTint?: boolean;
 }[] = [
-  {
-    type: 'oauth_apple',
-    source: { uri: 'https://img.clerk.com/static/apple.png?width=160' },
-    useTint: true,
-  },
-  {
-    type: 'oauth_google',
-    source: { uri: 'https://img.clerk.com/static/google.png?width=160' },
-    useTint: false,
-  },
-  {
-    type: 'oauth_github',
-    source: { uri: 'https://img.clerk.com/static/github.png?width=160' },
-    useTint: true,
-  },
-];
+    {
+      type: 'oauth_google',
+      source: { uri: 'https://img.clerk.com/static/google.png?width=160' },
+      useTint: false,
+    },
+  ];
 
 export function SocialConnections() {
   useWarmUpBrowser();
@@ -97,7 +87,7 @@ export function SocialConnections() {
 }
 
 const useWarmUpBrowser = Platform.select({
-  web: () => {},
+  web: () => { },
   default: () => {
     React.useEffect(() => {
       // Preloads the browser for Android devices to reduce authentication load time
