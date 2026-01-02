@@ -22,6 +22,13 @@ export default function MarketplaceScreen() {
     const dummyRecruiting = [
         { _id: 'dm1', title: 'SSB Buddy', packageName: 'com.example.ssb', iconUrl: 'https://github.com/shadcn.png', currentTesters: 0, requiredTesters: 14, status: 'recruiting', ownerName: 'Neeraj Singh', ownerAvatar: 'https://github.com/shadcn.png', reputation: 100 },
         { _id: 'dm2', title: 'Crypto Tracker', packageName: 'com.game.test', iconUrl: 'https://github.com/shadcn.png', currentTesters: 8, requiredTesters: 20, status: 'recruiting', ownerName: 'Alex Doe', ownerAvatar: 'https://github.com/shadcn.png', reputation: 95 },
+        { _id: 'dm5', title: 'Language Learner', packageName: 'com.edu.lang', iconUrl: 'https://github.com/shadcn.png', currentTesters: 2, requiredTesters: 10, status: 'recruiting', ownerName: 'Maria G', ownerAvatar: 'https://github.com/shadcn.png', reputation: 98 },
+        { _id: 'dm6', title: 'Budget Planner', packageName: 'com.fin.budget', iconUrl: 'https://github.com/shadcn.png', currentTesters: 5, requiredTesters: 15, status: 'recruiting', ownerName: 'Tom H', ownerAvatar: 'https://github.com/shadcn.png', reputation: 90 },
+        { _id: 'dm7', title: 'Yoga Daily', packageName: 'com.health.yoga', iconUrl: 'https://github.com/shadcn.png', currentTesters: 1, requiredTesters: 20, status: 'recruiting', ownerName: 'Lisa K', ownerAvatar: 'https://github.com/shadcn.png', reputation: 99 },
+        { _id: 'dm8', title: 'Task Master', packageName: 'com.prod.task', iconUrl: 'https://github.com/shadcn.png', currentTesters: 10, requiredTesters: 12, status: 'recruiting', ownerName: 'David B', ownerAvatar: 'https://github.com/shadcn.png', reputation: 88 },
+        { _id: 'dm9', title: 'Recipe Book', packageName: 'com.food.recipe', iconUrl: 'https://github.com/shadcn.png', currentTesters: 4, requiredTesters: 8, status: 'recruiting', ownerName: 'Chef P', ownerAvatar: 'https://github.com/shadcn.png', reputation: 96 },
+        { _id: 'dm10', title: 'Travel Log', packageName: 'com.travel.log', iconUrl: 'https://github.com/shadcn.png', currentTesters: 6, requiredTesters: 10, status: 'recruiting', ownerName: 'Wander L', ownerAvatar: 'https://github.com/shadcn.png', reputation: 93 },
+        { _id: 'dm11', title: 'Photo Editor', packageName: 'com.art.photo', iconUrl: 'https://github.com/shadcn.png', currentTesters: 3, requiredTesters: 18, status: 'recruiting', ownerName: 'Pixel A', ownerAvatar: 'https://github.com/shadcn.png', reputation: 97 },
     ];
 
     const dummyFilled = [
@@ -116,23 +123,23 @@ export default function MarketplaceScreen() {
                             />
                         </View>
 
-                        {/* In Progress / Recent Filled Section */}
-                        {displayFilled && displayFilled.length > 0 && (
-                            <View>
-                                <Text className="text-lg font-bold mb-3 px-1">Recently Filled</Text>
-                                <FlatList
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    data={displayFilled}
-                                    renderItem={HorizontalAppCard}
-                                    keyExtractor={item => item._id}
-                                    contentContainerStyle={{ paddingRight: 16 }}
-                                />
-                            </View>
-                        )}
-
                         <Text className="text-lg font-bold px-1">Recruiting Now</Text>
                     </View>
+                }
+                ListFooterComponent={
+                    displayFilled && displayFilled.length > 0 ? (
+                        <View className="mt-6 mb-20">
+                            <Text className="text-lg font-bold mb-3 px-1">Recently Filled</Text>
+                            <FlatList
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                data={displayFilled}
+                                renderItem={HorizontalAppCard}
+                                keyExtractor={item => item._id}
+                                contentContainerStyle={{ paddingRight: 16 }}
+                            />
+                        </View>
+                    ) : null
                 }
                 ListEmptyComponent={
                     <View className="items-center py-10">
