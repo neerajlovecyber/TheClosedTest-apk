@@ -34,35 +34,15 @@ export default function MarketplaceScreen() {
     const dummyFilled = [
         { _id: 'dm3', title: 'Fitness Pro', packageName: 'com.util.pro', iconUrl: 'https://github.com/shadcn.png', currentTesters: 12, requiredTesters: 12, status: 'filled', ownerName: 'Sarah M', ownerAvatar: 'https://github.com/shadcn.png', reputation: 98 },
         { _id: 'dm4', title: 'Puzzle Master', packageName: 'com.game.puz', iconUrl: 'https://github.com/shadcn.png', currentTesters: 20, requiredTesters: 20, status: 'filled', ownerName: 'John D', ownerAvatar: 'https://github.com/shadcn.png', reputation: 92 },
+        { _id: 'dm12', title: 'Music Stream', packageName: 'com.media.music', iconUrl: 'https://github.com/shadcn.png', currentTesters: 50, requiredTesters: 50, status: 'filled', ownerName: 'Audio X', ownerAvatar: 'https://github.com/shadcn.png', reputation: 95 },
+        { _id: 'dm13', title: 'Weather Now', packageName: 'com.info.weather', iconUrl: 'https://github.com/shadcn.png', currentTesters: 15, requiredTesters: 15, status: 'filled', ownerName: 'Sky Watch', ownerAvatar: 'https://github.com/shadcn.png', reputation: 89 },
+        { _id: 'dm14', title: 'Notes Keep', packageName: 'com.prod.notes', iconUrl: 'https://github.com/shadcn.png', currentTesters: 10, requiredTesters: 10, status: 'filled', ownerName: 'Write On', ownerAvatar: 'https://github.com/shadcn.png', reputation: 94 },
+        { _id: 'dm15', title: 'Calorie Count', packageName: 'com.health.cal', iconUrl: 'https://github.com/shadcn.png', currentTesters: 25, requiredTesters: 25, status: 'filled', ownerName: 'Fit Life', ownerAvatar: 'https://github.com/shadcn.png', reputation: 91 },
+        { _id: 'dm16', title: 'Code Editor', packageName: 'com.dev.code', iconUrl: 'https://github.com/shadcn.png', currentTesters: 30, requiredTesters: 30, status: 'filled', ownerName: 'Dev Tool', ownerAvatar: 'https://github.com/shadcn.png', reputation: 97 },
     ];
 
     const displayRecruiting = (recruitingApps && recruitingApps.length > 0) ? recruitingApps : dummyRecruiting;
     const displayFilled = (filledApps && filledApps.length > 0) ? filledApps : dummyFilled;
-
-    const filteredRecruiting = displayRecruiting?.filter(app => app.title.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const HorizontalAppCard = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            onPress={() => router.push(`/app-details/${item._id}`)}
-            activeOpacity={0.7}
-            className="mr-3"
-        >
-            <Card className="w-36">
-                <CardContent>
-                    <Image
-                        source={{ uri: item.iconUrl }}
-                        className="w-10 h-10 rounded-lg bg-muted mb-2"
-                    />
-                    <Text className="font-bold text-sm leading-tight mb-1" numberOfLines={1}>{item.title}</Text>
-                    <Text className="text-xs text-muted-foreground mb-1" numberOfLines={1}>{item.ownerName}</Text>
-
-                    <View className="bg-secondary/50 px-1.5 py-0.5 rounded self-start">
-                        <Text className="text-[10px] font-medium text-foreground">Filled</Text>
-                    </View>
-                </CardContent>
-            </Card>
-        </TouchableOpacity>
-    );
 
     const VerticalAppCard = ({ item }: { item: any }) => (
         <TouchableOpacity
@@ -77,7 +57,7 @@ export default function MarketplaceScreen() {
                     />
                     <View className="flex-1 justify-between py-0.5">
                         <View className="flex-row justify-between items-start">
-                            <Text className="font-bold text-lg leading-tight flex-1 mr-2">{item.title}</Text>
+                            <Text className="font-bold text-sm leading-tight flex-1 mr-2">{item.title}</Text>
                             <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
                                 <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
                             </View>
@@ -101,55 +81,81 @@ export default function MarketplaceScreen() {
         </TouchableOpacity>
     );
 
+    const allApps = [...(displayRecruiting || []), ...(displayFilled || [])];
+    const filteredAllApps = allApps.filter(app => app.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const chunkArray = (arr: any[], size: number) => {
+        const chunked = [];
+        if (!arr) return [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunked.push(arr.slice(i, i + size));
+        }
+        return chunked;
+    };
+
+    const groupedRecruiting = chunkArray(displayRecruiting || [], 3);
+
     return (
         <View className="flex-1 bg-background">
-            <FlatList
-                data={filteredRecruiting}
-                renderItem={VerticalAppCard}
-                keyExtractor={(item) => item._id}
-                contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
-                ListHeaderComponent={
-                    <View className="gap-6 mb-4">
-                        {/* Search Bar */}
-                        <View className="relative">
-                            <View className="absolute left-3 top-3 z-10">
-                                <Icon as={SearchIcon} className="size-5 text-muted-foreground" />
-                            </View>
-                            <Input
-                                placeholder="Search apps..."
-                                className="pl-10 h-11"
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                            />
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+                <View className="gap-6">
+                    {/* Search Bar */}
+                    <View className="relative">
+                        <View className="absolute left-3 top-3 z-10">
+                            <Icon as={SearchIcon} className="size-5 text-muted-foreground" />
                         </View>
-
-                        <Text className="text-lg font-bold px-1">Recruiting Now</Text>
+                        <Input
+                            placeholder="Search apps..."
+                            className="pl-10 h-11"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
                     </View>
-                }
-                ListFooterComponent={
-                    displayFilled && displayFilled.length > 0 ? (
-                        <View className="mt-6 mb-20">
-                            <Text className="text-lg font-bold mb-3 px-1">Recently Filled</Text>
+
+                    {/* Recruiting Now / Latest */}
+                    <View>
+                        <Text className="text-lg font-bold px-1 mb-3">Latest Opportunities</Text>
+                        {groupedRecruiting.length > 0 ? (
                             <FlatList
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
-                                data={displayFilled}
-                                renderItem={HorizontalAppCard}
-                                keyExtractor={item => item._id}
-                                contentContainerStyle={{ paddingRight: 16 }}
+                                data={groupedRecruiting}
+                                keyExtractor={(item, index) => `group-${index}`}
+                                renderItem={({ item: group }) => (
+                                    <View className="w-[85vw] max-w-sm mr-4">
+                                        {group.map((app: any) => (
+                                            <VerticalAppCard key={app._id} item={app} />
+                                        ))}
+                                    </View>
+                                )}
                             />
-                        </View>
-                    ) : null
-                }
-                ListEmptyComponent={
-                    <View className="items-center py-10">
-                        <Text className="text-muted-foreground">No apps found.</Text>
-                        <Button variant="link" onPress={() => router.push('/add-app')}>
-                            <Text>Add your first app</Text>
-                        </Button>
+                        ) : (
+                            <View className="items-center py-4">
+                                <Text className="text-muted-foreground">No new apps.</Text>
+                            </View>
+                        )}
                     </View>
-                }
-            />
+
+                    {/* All Apps */}
+                    <View>
+                        <Text className="text-lg font-bold px-1 mb-3">All Apps</Text>
+                        {filteredAllApps.length > 0 ? (
+                            <View>
+                                {filteredAllApps.map((app) => (
+                                    <VerticalAppCard key={app._id} item={app} />
+                                ))}
+                            </View>
+                        ) : (
+                            <View className="items-center py-10">
+                                <Text className="text-muted-foreground">No apps found.</Text>
+                                <Button variant="link" onPress={() => router.push('/add-app')}>
+                                    <Text>Add your first app</Text>
+                                </Button>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </ScrollView>
 
             {/* Quick Add App FAB */}
             <View className="absolute bottom-6 right-6">
