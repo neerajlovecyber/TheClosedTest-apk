@@ -43,6 +43,7 @@
     "expo": "^54.0.30",
     "expo-auth-session": "~7.0.10",
     "expo-constants": "~18.0.12",
+    "expo-image-picker": "^17.0.10",
     "expo-linking": "~8.0.10",
     "expo-router": "~6.0.19",
     "expo-secure-store": "~15.0.8",

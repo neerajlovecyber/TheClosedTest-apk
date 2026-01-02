@@ -10,23 +10,39 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
+import { TouchableOpacity, ActivityIndicator } from 'react-native';
 
 export default function AddAppScreen() {
     const router = useRouter();
+
     const createApp = useMutation(api.apps.createApp);
 
     const [title, setTitle] = useState('');
-    const [packageName, setPackageName] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
-    const [iconUrl, setIconUrl] = useState('https://github.com/shadcn.png'); // Placeholder
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [instructions, setInstructions] = useState('');
     const [requiredTesters, setRequiredTesters] = useState('12');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            setSelectedImage(result.assets[0].uri);
+        }
+    };
+
     const handleSubmit = async () => {
-        if (!title || !packageName || !playStoreUrl || !instructions) {
+        if (!title || !playStoreUrl || !instructions) {
             Alert.alert('Error', 'Please fill in all required fields');
             return;
         }
@@ -39,14 +55,21 @@ export default function AddAppScreen() {
 
         setIsSubmitting(true);
         try {
+            if (selectedImage) {
+                console.log("Mock uploading image:", selectedImage);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate upload
+            }
+
             await createApp({
                 title,
-                packageName,
+                packageName: "com.placeholder.app", // Dummy value since removed from UI
                 playStoreUrl,
-                iconUrl,
+                iconUrl: selectedImage || 'https://github.com/shadcn.png', // Use local URI or default for mock
                 instructions,
                 requiredTesters: testers,
             });
+
+
 
             Alert.alert('Success', 'App added successfully!');
             router.back();
@@ -80,42 +103,45 @@ export default function AddAppScreen() {
                             <CardTitle>App Details</CardTitle>
                         </CardHeader>
                         <CardContent className="gap-4">
+                            <View className="mb-6 items-center">
+                                <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+                                    {selectedImage ? (
+                                        <View className="relative">
+                                            <Image source={{ uri: selectedImage }} className="size-28 rounded-2xl border-2 border-primary/20" />
+                                            <View className="absolute -top-2 -right-2 bg-background rounded-full p-1 border border-border shadow-sm">
+                                                <Icon as={UploadIcon} className="size-4 text-primary" />
+                                            </View>
+                                        </View>
+                                    ) : (
+                                        <View className="size-28 rounded-2xl bg-muted/50 border-2 border-dashed border-muted-foreground/30 items-center justify-center gap-2">
+                                            <Icon as={ImagePlusIcon} className="size-8 text-muted-foreground" />
+                                            <Text className="text-xs text-muted-foreground font-medium">Upload Icon</Text>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+
                             <View>
-                                <Label nativeID="appName">App Name *</Label>
+                                <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name</Label>
                                 <Input
                                     nativeID="appName"
                                     placeholder="e.g. Flappy Bird 2"
                                     value={title}
                                     onChangeText={setTitle}
+                                    className="bg-background/50 border-primary/20 focus:border-primary"
                                 />
                             </View>
 
-                            <View>
-                                <Label nativeID="packageName">Package Name *</Label>
-                                <Input
-                                    nativeID="packageName"
-                                    placeholder="e.g. com.example.flappybird"
-                                    value={packageName}
-                                    onChangeText={setPackageName}
-                                />
-                            </View>
+
 
                             <View>
-                                <Label nativeID="playUrl">Google Play Link *</Label>
+                                <Label nativeID="playUrl" className="text-base font-semibold mb-1.5">Google Play Link</Label>
                                 <Input
                                     nativeID="playUrl"
                                     placeholder="https://play.google.com/..."
                                     value={playStoreUrl}
                                     onChangeText={setPlayStoreUrl}
-                                />
-                            </View>
-
-                            <View>
-                                <Label nativeID="iconUrl">Icon URL (Placeholder for now)</Label>
-                                <Input
-                                    nativeID="iconUrl"
-                                    value={iconUrl}
-                                    onChangeText={setIconUrl}
+                                    className="bg-background/50 border-primary/20 focus:border-primary"
                                 />
                             </View>
                         </CardContent>
