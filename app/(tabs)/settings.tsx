@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/text';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import {
+    CheckCircleIcon,
     ChevronRightIcon,
     FileTextIcon,
     InfoIcon,
@@ -72,16 +73,25 @@ function UserProfile() {
     }, [user]);
 
     return (
-        <View className="flex-row items-center gap-4 px-4 py-6">
-            <Avatar alt={`${userName}'s avatar`} className="h-16 w-16">
+        <View className="flex-row items-center gap-4 px-6 py-6 mb-2">
+            <Avatar alt={`${userName}'s avatar`} className="h-16 w-16 border-2 border-border">
                 <AvatarImage source={imageSource} />
-                <AvatarFallback>
-                    <Text className="text-lg">{initials}</Text>
+                <AvatarFallback className="bg-primary/10">
+                    <Text className="text-xl font-bold text-primary">{initials}</Text>
                 </AvatarFallback>
             </Avatar>
             <View className="flex-1">
-                <Text className="text-xl font-semibold">{userName}</Text>
-                <Text className="text-muted-foreground">{email}</Text>
+                <View className="flex-row items-center gap-1.5">
+                    <Text className="text-xl font-bold text-foreground">{userName}</Text>
+                    {/* Simulated Verification Badge */}
+                    <Icon as={CheckCircleIcon} className="size-4 text-blue-500 fill-blue-500/10" />
+                </View>
+                <Text className="text-muted-foreground font-medium">{email}</Text>
+                <View className="flex-row items-center mt-1.5">
+                    <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-900/50">
+                        <Text className="text-[10px] text-green-700 dark:text-green-400 font-bold uppercase tracking-wide">Google Group Member</Text>
+                    </View>
+                </View>
             </View>
         </View>
     );
@@ -106,7 +116,13 @@ export default function SettingsScreen() {
 
     return (
         <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 40 }}>
-            <View className="max-w-[600px] w-full mx-auto">
+            <View className="flex-1">
+                {/* Header */}
+                <View className="px-6 pt-2 pb-2">
+                    <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
+                    <Text className="text-sm text-muted-foreground font-medium mt-0.5">Manage your preferences</Text>
+                </View>
+
                 <UserProfile />
 
                 <View className="px-4 gap-6">

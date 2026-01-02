@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, ScrollView, RefreshControl, Image, TouchableOpacity } from 'react-native';
+import { AppCard } from '@/components/AppCard';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,25 +73,18 @@ export default function HomeScreen() {
                 {dueTasks.length > 0 ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-4">
                         {dueTasks.map(task => (
-                            <TouchableOpacity key={task.id} onPress={() => router.push(`/app-details/${task.id}`)} activeOpacity={0.8}>
-                                <Card className="w-80 mr-4">
-                                    <CardContent className="flex-row gap-4">
-                                        <Image
-                                            source={{ uri: 'https://github.com/shadcn.png' }}
-                                            className="size-16 rounded-xl bg-muted border border-border"
-                                        />
-                                        <View className="flex-1 justify-between py-0.5">
-                                            <View className="flex-row justify-between items-start">
-                                                <Text className="font-bold text-lg leading-tight flex-1 mr-2">{task.appName}</Text>
-                                                <View className="bg-destructive/10 px-2 py-0.5 rounded-full">
-                                                    <Text className="text-[10px] text-destructive font-bold uppercase">{task.dueIn}</Text>
-                                                </View>
-                                            </View>
-                                            <Text className="text-muted-foreground text-sm">Owner: {task.owner}</Text>
-                                        </View>
-                                    </CardContent>
-                                </Card>
-                            </TouchableOpacity>
+                            <View key={task.id} className="w-80 mr-4">
+                                <AppCard
+                                    item={{
+                                        _id: String(task.id),
+                                        title: task.appName,
+                                        ownerName: task.owner,
+                                        dueIn: task.dueIn
+                                    }}
+                                    variant="testing"
+                                    onPress={() => router.push(`/app-details/${task.id}`)}
+                                />
+                            </View>
                         ))}
                     </ScrollView>
                 ) : (
@@ -111,23 +105,18 @@ export default function HomeScreen() {
                 </View>
 
                 {myApps.map(app => (
-                    <Card key={app.id} className="mb-4">
-                        <CardContent className="flex-row gap-4">
-                            <Image
-                                source={{ uri: 'https://github.com/shadcn.png' }}
-                                className="size-20 rounded-xl bg-muted border border-border"
-                            />
-                            <View className="flex-1 justify-between py-0.5">
-                                <Text className="font-bold text-lg leading-tight">{app.name}</Text>
-                                <Text className="text-muted-foreground text-sm">
-                                    {app.testers} / {app.maxTesters} Testers Joined
-                                </Text>
-                                <View className="h-2 bg-secondary rounded-full mt-1 overflow-hidden">
-                                    <View className="h-full bg-primary" style={{ width: `${(app.testers / app.maxTesters) * 100}%` }} />
-                                </View>
-                            </View>
-                        </CardContent>
-                    </Card>
+                    <AppCard
+                        key={app.id}
+                        item={{
+                            _id: String(app.id),
+                            title: app.name,
+                            currentTesters: app.testers,
+                            requiredTesters: app.maxTesters,
+                            status: 'recruiting' // defaulting for demo
+                        }}
+                        variant="my-app"
+                        onPress={() => { }}
+                    />
                 ))}
             </View>
         </ScrollView>

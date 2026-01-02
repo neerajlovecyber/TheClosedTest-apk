@@ -66,16 +66,23 @@ export default function MarketplaceScreen() {
 
     return (
         <View className="flex-1 bg-background">
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+
+
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
                 <View className="gap-6">
+                    <View className="mb-2">
+                        <Text className="text-3xl font-extrabold text-foreground tracking-tight">Marketplace</Text>
+                        <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
+                    </View>
                     {/* Search Bar */}
+                    {/* Compact Search Bar - Optional if header search icon is used, but keeping for utility */}
                     <View className="relative">
                         <View className="absolute left-3 top-3 z-10">
-                            <Icon as={SearchIcon} className="size-5 text-muted-foreground" />
+                            <Icon as={SearchIcon} className="size-4 text-muted-foreground" />
                         </View>
                         <Input
-                            placeholder="Search apps..."
-                            className="pl-10 h-11"
+                            placeholder="Find specific apps..."
+                            className="pl-9 h-10 bg-secondary/30 border-border/50"
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                         />

@@ -1,5 +1,6 @@
 
 import '@/global.css';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { NAV_THEME } from '@/lib/theme';
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
@@ -24,7 +25,35 @@ export {
 } from 'expo-router';
 
 export default function RootLayout() {
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, setColorScheme } = useColorScheme();
+  const [isColorSchemeLoaded, setIsColorSchemeLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const theme = await AsyncStorage.getItem('theme');
+        if (theme === 'dark' || theme === 'light') {
+          setColorScheme(theme);
+        }
+      } catch (e) {
+        console.log('Error loading theme:', e);
+      } finally {
+        setIsColorSchemeLoaded(true);
+      }
+    })();
+  }, []);
+
+  React.useEffect(() => {
+    if (isColorSchemeLoaded && colorScheme) {
+      AsyncStorage.setItem('theme', colorScheme).catch((err) => {
+        console.log('Error saving theme:', err);
+      });
+    }
+  }, [colorScheme, isColorSchemeLoaded]);
+
+  if (!isColorSchemeLoaded) {
+    return null;
+  }
 
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}>
