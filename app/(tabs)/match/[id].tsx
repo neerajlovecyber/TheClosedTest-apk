@@ -259,7 +259,7 @@ export default function MatchDashboardScreen() {
                             inputBackgroundColor="#f3f4f6"
                             placeholder="Type a message..."
                             showSenderAvatar={false}
-                            showReceiverAvatar={true}
+                            showReceiverAvatar={false}
                         />
                     </View>
                 </KeyboardAvoidingView>

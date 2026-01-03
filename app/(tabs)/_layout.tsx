@@ -14,7 +14,7 @@ export default function TabLayout() {
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
             <Tabs
                 screenOptions={{
-                    tabBarHideOnKeyboard: true,
+                    tabBarHideOnKeyboard: false,
                     headerTitleAlign: 'left',
                     headerTitleStyle: { paddingLeft: 16 },
                     tabBarStyle: {
