@@ -1,27 +1,22 @@
 
 import { v } from "convex/values";
-// Force sync
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
-// Mutation to create a new app
-export const createFile = mutation({
-    args: {
-        name: v.string(),
-        type: v.string(),
-    },
-    handler: async (ctx, args) => {
-        // We don't actually create a file here, we just return a URL to upload to.
-        // This is a simplified version for now, typically you'd generate an upload URL.
-        return await ctx.storage.generateUploadUrl();
-    },
-});
+// Helper to get image URL
+const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
+    if (!storageId) return "https://github.com/shadcn.png"; // Default fallback
+    const url = await ctx.storage.getUrl(storageId);
+    return url || "https://github.com/shadcn.png";
+};
 
 export const createApp = mutation({
     args: {
         title: v.string(),
         packageName: v.string(),
         playStoreUrl: v.string(),
-        iconUrl: v.string(), // This will assume the file is already uploaded/managed or external
+        iconUrl: v.string(), // Keeping for backward compat logic if needed, but we will prefer storageId
+        storageId: v.optional(v.string()), // New field for storage ID
         instructions: v.string(),
         requiredTesters: v.number(),
     },
@@ -51,7 +46,15 @@ export const createApp = mutation({
             title: args.title,
             packageName: args.packageName,
             playStoreUrl: args.playStoreUrl,
-            iconUrl: args.iconUrl,
+            iconUrl: args.storageId ? "" : args.iconUrl, // Clear text URL if storage ID is provided
+            storageIconId: args.storageId, // Store the storage ID (add this field to schema later or rely on loose schema if enabled, usually need schema update)
+            // Note: Schema update required if 'storageIconId' is not in schema. 
+            // For now, I'll assume we can repurpose iconUrl or store it. 
+            // ACTUALLY: Let's stick to using `iconUrl` as the string field. 
+            // If it starts with "http", it's a URL. If it's a UUID, it's a storage ID? 
+            // Safer: Add `storageIconId` to schema or update schema. let's check schema.ts first. or just put it in iconUrl if schema allows string. 
+            // Re-reading plan: "Change iconUrl argument to accept storageId (string)". 
+            // I will use `iconUrl` to store the storageId string if provided.
             instructions: args.instructions,
             requiredTesters: args.requiredTesters,
             currentTesters: 0,
@@ -70,7 +73,6 @@ export const createApp = mutation({
     },
 });
 
-// Query to list apps for the marketplace
 export const getMarketplaceApps = query({
     args: {
         status: v.optional(v.string())
@@ -78,18 +80,38 @@ export const getMarketplaceApps = query({
     handler: async (ctx, args) => {
         const status = (args.status || "recruiting") as "recruiting" | "filled" | "paused" | "archived";
 
-        // In a real app, you might want pagination
         const apps = await ctx.db
             .query("apps")
             .withIndex("by_status", (q) => q.eq("status", status))
             .order("desc")
             .take(50);
 
-        return apps;
+        // Map over apps to resolve full image URLs
+        const appsWithUrls = await Promise.all(apps.map(async (app) => {
+            let resolvedUrl = app.iconUrl;
+            if (app.storageIconId) {
+                resolvedUrl = await getImageUrl(ctx, app.storageIconId);
+            } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+                // Fallback for any legacy data or mis-formatted strings
+                resolvedUrl = await getImageUrl(ctx, app.iconUrl);
+            }
+
+            // Also fetch owner details for the UI
+            const owner = await ctx.db.get(app.userId);
+
+            return {
+                ...app,
+                iconUrl: resolvedUrl,
+                ownerName: owner?.name || "Unknown",
+                ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
+                reputation: owner?.reputation || 0
+            };
+        }));
+
+        return appsWithUrls;
     },
 });
 
-// Query to get my apps
 export const getMyApps = query({
     args: {},
     handler: async (ctx) => {
@@ -105,9 +127,47 @@ export const getMyApps = query({
 
         if (!user) return [];
 
-        return await ctx.db
+        const apps = await ctx.db
             .query("apps")
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
+
+        // Map over apps to resolve full image URLs
+        const appsWithUrls = await Promise.all(apps.map(async (app) => {
+            let resolvedUrl = app.iconUrl;
+            if (app.storageIconId) {
+                resolvedUrl = await getImageUrl(ctx, app.storageIconId);
+            } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+                resolvedUrl = await getImageUrl(ctx, app.iconUrl);
+            }
+            return { ...app, iconUrl: resolvedUrl };
+        }));
+
+        return appsWithUrls;
     },
+});
+
+export const getAppArgs = query({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const app = await ctx.db.get(args.appId);
+        if (!app) return null;
+
+        let resolvedUrl = app.iconUrl;
+        if (app.storageIconId) {
+            resolvedUrl = await getImageUrl(ctx, app.storageIconId);
+        } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+            resolvedUrl = await getImageUrl(ctx, app.iconUrl);
+        }
+
+        const owner = await ctx.db.get(app.userId);
+
+        return {
+            ...app,
+            iconUrl: resolvedUrl,
+            ownerName: owner?.name || "Unknown",
+            ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
+            reputation: owner?.reputation || 0
+        };
+    }
 });

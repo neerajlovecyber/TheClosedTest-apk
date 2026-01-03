@@ -9,6 +9,8 @@
  */
 
 import type * as apps from "../apps.js";
+import type * as files from "../files.js";
+import type * as matches from "../matches.js";
 import type * as users from "../users.js";
 
 import type {
@@ -19,6 +21,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   apps: typeof apps;
+  files: typeof files;
+  matches: typeof matches;
   users: typeof users;
 }>;
 

@@ -23,6 +23,7 @@ export default defineSchema({
         packageName: v.string(),
         playStoreUrl: v.string(),
         iconUrl: v.string(),
+        storageIconId: v.optional(v.string()),
         instructions: v.string(),
         requiredTesters: v.number(), // e.g., 12
         currentTesters: v.number(),

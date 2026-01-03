@@ -1,20 +1,30 @@
 import React, { useState } from 'react';
-import { View, ScrollView, RefreshControl, Image, TouchableOpacity } from 'react-native';
+import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { BellIcon, ActivityIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon } from 'lucide-react-native';
+import { BellIcon, ActivityIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, ArrowRightIcon, XIcon, CheckIcon } from 'lucide-react-native';
 import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 export default function HomeScreen() {
     const { user } = useUser();
     const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
 
-    // Dummy Data
+    // Convex Data
+    const incomingRequests = useQuery(api.matches.getIncomingRequests) || [];
+    const myApps = useQuery(api.apps.getMyApps) || [];
+
+    // Mutations
+    const acceptSwap = useMutation(api.matches.acceptSwap);
+    const rejectSwap = useMutation(api.matches.rejectSwap);
+
+    // Dummy Data for fallback (Stats)
     const userName = user?.firstName || "Tester";
     const reputation = 100;
     const streak = 5;
@@ -22,14 +32,42 @@ export default function HomeScreen() {
         { id: 1, appName: "Flappy Bird 2", owner: "John Doe", dueIn: "4 hours" },
         { id: 2, appName: "Crypto Tracker", owner: "Jane Smith", dueIn: "6 hours" }
     ];
-    const myApps = [
-        { id: 1, name: "My Awesome Game", testers: 8, maxTesters: 12 },
-    ];
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
-        setTimeout(() => setRefreshing(false), 2000);
+        // Convex queries auto-update, but good for UI feel
+        setTimeout(() => setRefreshing(false), 1000);
     }, []);
+
+    const handleAccept = async (matchId: any) => {
+        try {
+            await acceptSwap({ matchId });
+            Alert.alert("Success", "Swap accepted! You can now start testing.");
+        } catch (error: any) {
+            Alert.alert("Error", "Failed to accept swap.");
+        }
+    };
+
+    const handleReject = async (matchId: any) => {
+        Alert.alert(
+            "Reject Request",
+            "Are you sure you want to reject this request?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Reject",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await rejectSwap({ matchId });
+                        } catch (error: any) {
+                            Alert.alert("Error", "Failed to reject swap.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     return (
         <ScrollView
@@ -65,6 +103,51 @@ export default function HomeScreen() {
                     </Card>
                 </View>
             </View>
+
+            {/* Pending Requests Section */}
+            {incomingRequests.length > 0 && (
+                <View className="px-6 pt-6">
+                    <Text className="text-xl font-bold mb-4 text-primary">Pending Requests</Text>
+                    <View className="gap-3">
+                        {incomingRequests.map((req: any) => (
+                            <Card key={req._id} className="border-primary/30 bg-primary/5">
+                                <CardContent className="p-4">
+                                    <View className="flex-row justify-between items-start mb-3">
+                                        <View className="flex-row items-center gap-3">
+                                            <Image
+                                                source={{ uri: req.requestor?.avatarUrl || 'https://github.com/shadcn.png' }}
+                                                className="w-10 h-10 rounded-full bg-muted"
+                                            />
+                                            <View>
+                                                <Text className="font-bold text-base">{req.requestor?.name || 'User'}</Text>
+                                                <Text className="text-xs text-muted-foreground">Wants to swap tests</Text>
+                                            </View>
+                                        </View>
+                                        <View className="bg-background px-2 py-1 rounded text-xs font-bold border border-border">
+                                            <Text className="text-[10px] text-muted-foreground uppercase">Offers: {req.offeredApp?.title}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View className="flex-row items-center justify-between mt-2">
+                                        <Text className="text-sm font-medium">
+                                            For your app: <Text className="font-bold text-primary">{req.myApp?.title}</Text>
+                                        </Text>
+                                        <View className="flex-row gap-2">
+                                            <Button size="sm" variant="destructive" className="h-8 px-3" onPress={() => handleReject(req._id)}>
+                                                <Icon as={XIcon} className="size-4 text-destructive-foreground" />
+                                            </Button>
+                                            <Button size="sm" className="h-8 px-4 bg-green-600" onPress={() => handleAccept(req._id)}>
+                                                <Text className="text-white font-bold mr-1">Accept</Text>
+                                                <Icon as={CheckIcon} className="size-4 text-white" />
+                                            </Button>
+                                        </View>
+                                    </View>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </View>
+                </View>
+            )}
 
             {/* Attention Needed Section */}
             <View className="p-6">
@@ -108,20 +191,23 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {myApps.map(app => (
-                    <AppCard
-                        key={app.id}
-                        item={{
-                            _id: String(app.id),
-                            title: app.name,
-                            currentTesters: app.testers,
-                            requiredTesters: app.maxTesters,
-                            status: 'recruiting' // defaulting for demo
-                        }}
-                        variant="my-app"
-                        onPress={undefined}
-                    />
-                ))}
+                {myApps.length > 0 ? (
+                    myApps.map((app) => (
+                        <AppCard
+                            key={app._id}
+                            item={app}
+                            variant="my-app"
+                            onPress={undefined}
+                        />
+                    ))
+                ) : (
+                    <View className="items-center py-8 bg-muted/10 rounded-xl border border-dashed border-muted-foreground/20">
+                        <Text className="text-muted-foreground mb-4">You haven't added any apps yet.</Text>
+                        <Button variant="outline" onPress={() => router.push('/add-app')}>
+                            <Text>Add Your First App</Text>
+                        </Button>
+                    </View>
+                )}
             </View>
         </ScrollView>
     );
