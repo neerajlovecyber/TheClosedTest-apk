@@ -90,7 +90,7 @@ export default function HomeScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             >
                 {/* Header Section */}
-                <View className="px-6 py-8">
+                <View className="px-6 pt-8 pb-4">
                     <View className="flex-row justify-between items-start mb-4">
                         <View>
                             <Text className="text-3xl font-bold text-foreground">Hello, {userName}!</Text>
@@ -128,7 +128,7 @@ export default function HomeScreen() {
                 </View>
 
                 {/* Attention Needed Section - FIRST */}
-                <View className="p-6">
+                <View className="px-6 pb-4">
                     <Text className="text-xl font-bold mb-4">⚡ Attention Needed</Text>
 
                     {dueTasks.length > 0 ? (
