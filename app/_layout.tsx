@@ -1,5 +1,6 @@
 
 import '@/global.css';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { NAV_THEME } from '@/lib/theme';
@@ -64,9 +65,11 @@ export default function RootLayout() {
     <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <InitialLayout />
-          <PortalHost />
+          <KeyboardProvider>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            <InitialLayout />
+            <PortalHost />
+          </KeyboardProvider>
         </ThemeProvider>
       </ConvexProviderWithClerk>
     </ClerkProvider>

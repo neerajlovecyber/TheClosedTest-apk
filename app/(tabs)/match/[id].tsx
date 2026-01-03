@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, FlatList, Keyboard, useWindowDimensions, Pressable } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -8,16 +8,20 @@ import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProofUploader } from '@/components/ProofUploader';
 import { ProofReviewer } from '@/components/ProofReviewer';
 import { ProgressGrid } from '@/components/ProgressGrid';
 import { RejectionReasonModal } from '@/components/RejectionReasonModal';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+
+import Chat from '@codsod/react-native-chat';
 
 const isWeb = Platform.OS === 'web';
 
 export default function MatchDashboardScreen() {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
     const router = useRouter();
     const matchId = id as Id<"matches">;
@@ -208,45 +212,60 @@ export default function MatchDashboardScreen() {
         </View>
     );
 
-    const renderChatContent = () => (
-        <View style={!isWeb ? { width: SCREEN_WIDTH } : undefined} className="flex-1">
-            <Header title="Chat" subtitle={`with ${partner?.name || 'Partner'}`} />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-                className="flex-1"
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 100}
-            >
-                <FlatList
-                    data={messages}
-                    keyExtractor={(msg) => msg._id}
-                    className="flex-1 px-4"
-                    contentContainerStyle={{ paddingBottom: isWeb ? 20 : 20 }}
-                    renderItem={({ item: msg }) => (
-                        <View className={`mb-3 max-w-[80%] ${msg.isMe ? 'self-end' : 'self-start'}`}>
-                            <View className={`p-3 rounded-2xl ${msg.isMe ? 'bg-primary rounded-tr-sm' : 'bg-secondary rounded-tl-sm'}`}>
-                                <Text className={msg.isMe ? 'text-primary-foreground' : 'text-foreground'}>{msg.content}</Text>
-                            </View>
-                            <Text className="text-[10px] text-muted-foreground mt-1 mx-1">
-                                {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </Text>
-                        </View>
-                    )}
-                />
-                <View className="p-3 border-t border-border flex-row items-center bg-background mb-2">
-                    <TextInput
-                        className="flex-1 bg-secondary p-3 rounded-full mr-3 text-foreground"
-                        placeholder="Type a message..."
-                        placeholderTextColor="#9ca3af"
-                        value={newMessage}
-                        onChangeText={setNewMessage}
-                    />
-                    <TouchableOpacity onPress={handleSendMessage} className="bg-primary p-3 rounded-full">
-                        <Icon as={SendIcon} className="text-primary-foreground size-5" />
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
-        </View>
-    );
+    const renderChatContent = () => {
+        // Map Convex messages to expected format (newest first)
+        const chatMessages = messages.map((msg) => ({
+            _id: msg._id as unknown as number, // Cast to satisfy strict number type in library definition, assuming runtime allows string
+            text: msg.content,
+            createdAt: new Date(msg.sentAt),
+            user: {
+                _id: msg.isMe ? 1 : 2,
+                name: msg.senderName || (msg.isMe ? "Me" : "Partner"),
+                avatar: msg.senderAvatar,
+            },
+        })).reverse();
+
+        const onSendMessage = (text: any) => {
+            // The library passes the text content of the message
+            const content = typeof text === 'string' ? text : text?.text || "";
+            if (content) {
+                sendMessageMutation({
+                    matchId,
+                    content: content,
+                    type: "text"
+                });
+            }
+        };
+
+        return (
+            <View style={!isWeb ? { width: SCREEN_WIDTH } : undefined} className="flex-1 bg-background">
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                    style={{ flex: 1 }}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+                >
+                    <View style={{ flex: 1 }}>
+                        <Chat
+                            messages={chatMessages}
+                            setMessages={onSendMessage}
+                            user={{
+                                _id: 1,
+                                name: "Me",
+                            }}
+                            themeColor="#000000"
+                            themeTextColor="#ffffff"
+                            inputBorderColor="#e5e7eb"
+                            backgroundColor="#ffffff"
+                            inputBackgroundColor="#f3f4f6"
+                            placeholder="Type a message..."
+                            showSenderAvatar={false}
+                            showReceiverAvatar={true}
+                        />
+                    </View>
+                </KeyboardAvoidingView>
+            </View>
+        );
+    };
 
     // Mobile Render Item for FlatList
     const renderMobileItem = ({ item }: { item: typeof activeTab }) => {
