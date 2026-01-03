@@ -264,9 +264,6 @@ export default function AppDetailsScreen() {
                     <View className="mb-20">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="font-bold text-lg">Active Testers ({testers?.length || 0})</Text>
-                            <View className="bg-primary/10 px-3 py-1 rounded-full">
-                                <Text className="text-primary font-bold text-xs">Day {Math.max(...(testers?.map(t => t.day) || [1]))}/14</Text>
-                            </View>
                         </View>
 
                         {testers && testers.length > 0 ? (
