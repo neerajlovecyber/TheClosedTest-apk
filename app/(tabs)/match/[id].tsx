@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -7,7 +7,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon } from 'lucide-react-native';
+import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProofUploader } from '@/components/ProofUploader';
 import { ProofReviewer } from '@/components/ProofReviewer';
@@ -35,6 +35,7 @@ export default function MatchDashboardScreen() {
 
     // Mutations
     const sendMessageMutation = useMutation(api.matches.sendMessage);
+    const cancelMatchMutation = useMutation(api.matches.cancelMatch);
 
     // Navigation State - Initialize from URL parameter
     const [activeTab, setActiveTab] = useState<'today' | 'progress' | 'chat'>(
@@ -150,6 +151,30 @@ export default function MatchDashboardScreen() {
         }
     };
 
+    const handleLeaveMatch = () => {
+        Alert.alert(
+            "Stop Testing?",
+            "Are you sure you want to cancel this match? This action cannot be undone and you will lose your progress.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Stop Testing",
+                    style: "destructive",
+                    onPress: async () => {
+                        if (!matchId) return;
+                        try {
+                            await cancelMatchMutation({ matchId });
+                            router.replace("/(tabs)/");
+                        } catch (e) {
+                            console.error(e);
+                            Alert.alert("Error", "Failed to cancel match");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     // Shared Tab Content
     const renderTodayContent = () => (
         <ScrollView
@@ -208,6 +233,14 @@ export default function MatchDashboardScreen() {
                         <Text className="text-muted-foreground">Loading progress...</Text>
                     </View>
                 )}
+
+                <TouchableOpacity
+                    onPress={handleLeaveMatch}
+                    className="mt-4 mb-8 flex-row items-center justify-center p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full"
+                >
+                    <Icon as={XCircleIcon} className="text-red-500 size-5 mr-2" />
+                    <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner.name.split(' ')[0]}</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );

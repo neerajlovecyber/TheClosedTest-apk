@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, TextInput, Modal, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { Text } from 'react-native';
 import { Icon } from '@/components/ui/icon';
 import { XIcon, AlertTriangleIcon, SendIcon } from 'lucide-react-native';
 import { useMutation } from 'convex/react';
@@ -101,13 +101,13 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
                                         key={index}
                                         onPress={() => handleQuickReason(quickReason)}
                                         className={`px-3 py-2 rounded-full ${reason === quickReason
-                                                ? 'bg-red-500'
-                                                : 'bg-secondary'
+                                            ? 'bg-red-500'
+                                            : 'bg-secondary'
                                             }`}
                                     >
                                         <Text className={`text-xs ${reason === quickReason
-                                                ? 'text-white font-bold'
-                                                : 'text-foreground'
+                                            ? 'text-white font-bold'
+                                            : 'text-foreground'
                                             }`}>
                                             {quickReason}
                                         </Text>

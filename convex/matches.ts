@@ -1072,3 +1072,47 @@ export const deleteOldMessages = internalMutation({
         console.log(`Deleted ${oldMessages.length} old messages`);
     },
 });
+
+export const cancelMatch = mutation({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) throw new Error("Match not found");
+
+        if (match.user1Id !== user._id && match.user2Id !== user._id) {
+            throw new Error("Not authorized");
+        }
+
+        await ctx.db.patch(args.matchId, { status: "cancelled" });
+
+        const checkAndRevertStatus = async (appId: Id<"apps">) => {
+            const app = await ctx.db.get(appId);
+            if (app && app.status === "filled") {
+                const activeMatches = await ctx.db
+                    .query("matches")
+                    .filter((q) => q.and(
+                        q.or(q.eq(q.field("app1Id"), appId), q.eq(q.field("app2Id"), appId)),
+                        q.eq(q.field("status"), "active")
+                    ))
+                    .collect();
+
+                if (activeMatches.length < app.requiredTesters) {
+                    await ctx.db.patch(appId, { status: "recruiting", updatedAt: Date.now() });
+                }
+            }
+        };
+
+        await checkAndRevertStatus(match.app1Id);
+        await checkAndRevertStatus(match.app2Id);
+    }
+});
