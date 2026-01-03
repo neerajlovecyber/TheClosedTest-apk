@@ -70,22 +70,6 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
         );
     }
 
-    // Already approved
-    if (partnerProof.status === "approved") {
-        return (
-            <Card className="bg-green-500/10 border-green-500/30 mb-6">
-                <CardContent className="p-4">
-                    <View className="flex-row items-center mb-2">
-                        <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-2" />
-                        <Text className="font-bold text-green-600 text-lg">Approved!</Text>
-                    </View>
-                    <Text className="text-muted-foreground">
-                        You approved {partnerProof.partnerName}'s Day {partnerProof.day} proof.
-                    </Text>
-                </CardContent>
-            </Card>
-        );
-    }
 
     // Already rejected (partner needs to re-upload)
     if (partnerProof.status === "rejected") {
@@ -104,103 +88,134 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
         );
     }
 
-    // Pending review - show full review UI
-
+    // Determine if we should show the full proof details (images/comments)
+    // Show if: pending (always), or approved AND user toggled 'See Proof'
+    const isApproved = partnerProof.status === "approved";
     const images = partnerProof.urls || [];
 
     return (
         <View>
-            {/* Header */}
-            <View className="flex-row items-center mb-4">
-                <View className="bg-primary/10 p-2 rounded-full mr-3">
-                    <Icon as={UserIcon} className="text-primary size-5" />
-                </View>
-                <View className="flex-1">
-                    <Text className="font-bold text-lg">{partnerProof.partnerName}'s Proof</Text>
-                    <Text className="text-sm text-muted-foreground">Day {partnerProof.day} • Pending your review</Text>
-                </View>
-            </View>
-
-            {/* Image Gallery */}
-            {images.length > 0 && (
-                <View className="mb-4">
-                    {/* Main Image - Portrait orientation for mobile screenshots */}
-                    <View className="rounded-xl overflow-hidden bg-muted mb-2">
-                        <Image
-                            source={{ uri: images[currentImageIndex] }}
-                            className="w-full aspect-[9/16]"
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    {/* Image Thumbnails */}
-                    {images.length > 1 && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            {images.map((url, index) => (
-                                <TouchableOpacity
-                                    key={index}
-                                    onPress={() => setCurrentImageIndex(index)}
-                                    className={`mr-2 rounded-lg overflow-hidden border-2 ${currentImageIndex === index ? 'border-primary' : 'border-transparent'
-                                        }`}
-                                >
-                                    <Image
-                                        source={{ uri: url }}
-                                        className="w-16 h-16"
-                                    />
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    )}
-
-                    {/* Image Counter */}
-                    <View className="absolute right-2 top-2 bg-black/60 px-2 py-1 rounded-full">
-                        <Text className="text-white text-xs font-bold">
-                            {currentImageIndex + 1}/{images.length}
-                        </Text>
-                    </View>
-                </View>
-            )}
-
-            {/* Partner's Comment */}
-            {partnerProof.comment && (
-                <Card className="bg-secondary/20 mb-4">
-                    <CardContent className="p-3 flex-row">
-                        <Icon as={MessageSquareIcon} className="text-muted-foreground size-4 mr-2 mt-0.5" />
-                        <Text className="text-sm text-foreground flex-1 italic">"{partnerProof.comment}"</Text>
+            {/* Approved State Summary Card */}
+            {isApproved && (
+                <Card className="bg-green-500/10 border-green-500/30 mb-4">
+                    <CardContent className="p-4">
+                        <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                                <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-3" />
+                                <View>
+                                    <Text className="font-bold text-green-600 text-lg">Approved</Text>
+                                    <Text className="text-muted-foreground text-xs">
+                                        Day {partnerProof.day} proof accepted.
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Action Buttons */}
-            <View className="flex-row gap-3">
-                <TouchableOpacity
-                    onPress={handleApprove}
-                    disabled={isReviewing}
-                    className="flex-1 bg-green-500 p-4 rounded-xl flex-row items-center justify-center"
-                >
-                    {isReviewing ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <>
-                            <Icon as={CheckCircleIcon} className="text-white size-5 mr-2" />
-                            <Text className="text-white font-bold text-lg">Accept</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={handleRejectPress}
-                    disabled={isReviewing}
-                    className="flex-1 bg-red-500 p-4 rounded-xl flex-row items-center justify-center"
-                >
-                    <Icon as={XCircleIcon} className="text-white size-5 mr-2" />
-                    <Text className="text-white font-bold text-lg">Reject</Text>
-                </TouchableOpacity>
-            </View>
+            {/* Main Content (Images & Details) */}
+            <View className={isApproved ? "opacity-90" : ""}>
+                {/* Header (Only show if NOT approved, to avoid redundancy) */}
+                {!isApproved && (
+                    <View className="flex-row items-center mb-4">
+                        <View className="bg-primary/10 p-2 rounded-full mr-3">
+                            <Icon as={UserIcon} className="text-primary size-5" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="font-bold text-lg">{partnerProof.partnerName}'s Proof</Text>
+                            <Text className="text-sm text-muted-foreground">Day {partnerProof.day} • Pending your review</Text>
+                        </View>
+                    </View>
+                )}
 
-            {/* Help Text */}
-            <Text className="text-xs text-muted-foreground text-center mt-3">
-                Accept if the screenshot shows genuine app usage. Reject if it looks fake or insufficient.
-            </Text>
+                {/* Image Gallery */}
+                {images.length > 0 && (
+                    <View className="mb-4">
+                        {/* Main Image - Portrait orientation for mobile screenshots */}
+                        <View className="items-center mb-2">
+                            <View className="rounded-xl overflow-hidden bg-muted border border-border h-96 aspect-[9/16]">
+                                <Image
+                                    source={{ uri: images[currentImageIndex] }}
+                                    className="w-full h-full"
+                                    resizeMode="cover"
+                                />
+                            </View>
+                        </View>
+
+                        {/* Image Thumbnails */}
+                        {images.length > 1 && (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                {images.map((url, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        onPress={() => setCurrentImageIndex(index)}
+                                        className={`mr-2 rounded-lg overflow-hidden border-2 ${currentImageIndex === index ? 'border-primary' : 'border-transparent'
+                                            }`}
+                                    >
+                                        <Image
+                                            source={{ uri: url }}
+                                            className="w-16 h-16"
+                                        />
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        )}
+
+                        {/* Image Counter */}
+                        <View className="absolute right-2 top-2 bg-black/60 px-2 py-1 rounded-full">
+                            <Text className="text-white text-xs font-bold">
+                                {currentImageIndex + 1}/{images.length}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
+                {/* Partner's Comment */}
+                {partnerProof.comment && (
+                    <Card className="bg-secondary/20 mb-4">
+                        <CardContent className="p-3 flex-row">
+                            <Icon as={MessageSquareIcon} className="text-muted-foreground size-4 mr-2 mt-0.5" />
+                            <Text className="text-sm text-foreground flex-1 italic">"{partnerProof.comment}"</Text>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Action Buttons (Only if NOT approved) */}
+                {!isApproved && (
+                    <View className="flex-row gap-3">
+                        <TouchableOpacity
+                            onPress={handleApprove}
+                            disabled={isReviewing}
+                            className="flex-1 bg-green-500 p-4 rounded-xl flex-row items-center justify-center"
+                        >
+                            {isReviewing ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <>
+                                    <Icon as={CheckCircleIcon} className="text-white size-5 mr-2" />
+                                    <Text className="text-white font-bold text-lg">Accept</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={handleRejectPress}
+                            disabled={isReviewing}
+                            className="flex-1 bg-red-500 p-4 rounded-xl flex-row items-center justify-center"
+                        >
+                            <Icon as={XCircleIcon} className="text-white size-5 mr-2" />
+                            <Text className="text-white font-bold text-lg">Reject</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Help Text (Only if NOT approved) */}
+                {!isApproved && (
+                    <Text className="text-xs text-muted-foreground text-center mt-3">
+                        Accept if the screenshot shows genuine app usage. Reject if it looks fake or insufficient.
+                    </Text>
+                )}
+            </View>
         </View>
     );
 }

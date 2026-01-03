@@ -834,6 +834,17 @@ export const reviewProof = mutation({
                     reputation: (uploader.reputation || 100) + 1
                 });
             }
+
+            // Delete storage files to save space
+            if (proof.storageIds && proof.storageIds.length > 0) {
+                for (const storageId of proof.storageIds) {
+                    await ctx.storage.delete(storageId);
+                }
+                // Clear storageIds from the proof record
+                await ctx.db.patch(proof._id, {
+                    storageIds: []
+                });
+            }
         } else if (args.status === "rejected") {
             const uploader = await ctx.db.get(proof.uploaderId);
             if (uploader) {
