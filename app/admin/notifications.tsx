@@ -49,7 +49,6 @@ export default function NotificationsAdminScreen() {
     const [sending, setSending] = useState(false);
 
     const stats = useQuery(api.admin.getNotificationStats);
-    const currentUser = useQuery(api.users.getCurrentUser);
     const sendTestNotification = useAction(api.admin.sendTestNotification);
     const sendBroadcastNotification = useAction(api.admin.sendBroadcastNotification);
 
@@ -144,35 +143,6 @@ export default function NotificationsAdminScreen() {
                         </Text>
                         <Text className="text-xs text-muted-foreground">Total users</Text>
                     </View>
-                </View>
-
-                {/* Debug Info */}
-                <View className="bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/30 mb-4">
-                    <Text className="text-sm font-bold text-yellow-600 mb-2">🔍 Debug Info</Text>
-                    {currentUser ? (
-                        <>
-                            <Text className="text-xs text-foreground mb-1">
-                                User: {currentUser.name || 'N/A'}
-                            </Text>
-                            <Text className="text-xs text-foreground mb-1">
-                                Has Push Token: {currentUser.pushToken ? '✅ YES' : '❌ NO'}
-                            </Text>
-                            {currentUser.pushToken && (
-                                <View className="bg-background p-2 rounded mt-2">
-                                    <Text className="text-[10px] text-muted-foreground font-mono" selectable>
-                                        {currentUser.pushToken}
-                                    </Text>
-                                </View>
-                            )}
-                            {!currentUser.pushToken && (
-                                <Text className="text-xs text-red-600 mt-2">
-                                    ⚠️ No push token found! Make sure you're on a physical device or development build.
-                                </Text>
-                            )}
-                        </>
-                    ) : (
-                        <Text className="text-xs text-muted-foreground">Loading...</Text>
-                    )}
                 </View>
 
                 {/* Templates Section */}
