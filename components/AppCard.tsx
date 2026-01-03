@@ -22,6 +22,7 @@ export interface AppItem {
     isFilled?: boolean;
     isNew?: boolean;
     hasUnread?: boolean;
+    isReviewPending?: boolean;
 }
 
 interface AppCardProps {
@@ -75,6 +76,11 @@ export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps
                     {isTesting && item.dueIn && (
                         <View className="bg-destructive/10 px-2 py-0.5 rounded-full">
                             <Text className="text-[10px] text-destructive font-bold uppercase">{item.dueIn}</Text>
+                        </View>
+                    )}
+                    {isTesting && item.isReviewPending && (
+                        <View className="bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full ml-1">
+                            <Text className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Review Needed</Text>
                         </View>
                     )}
                 </View>

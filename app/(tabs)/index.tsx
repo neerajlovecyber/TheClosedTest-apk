@@ -148,7 +148,9 @@ export default function HomeScreen() {
                                             title: task.name,
                                             ownerName: task.owner,
                                             dueIn: `Day ${task.day} of ${task.totalDays}`,
-                                            iconUrl: task.iconUrl
+                                            iconUrl: task.iconUrl,
+                                            isReviewPending: task.isReviewPending,
+                                            hasUnread: task.hasUnread
                                         }}
                                         variant="testing"
                                         onPress={() => router.push({ pathname: '/(tabs)/match/[id]', params: { id: task.id } })}

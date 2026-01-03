@@ -17,44 +17,101 @@ export default function TestsScreen() {
     const pendingTasks = testingApps.filter((t: any) => t.needsAttention);
     const completedTasks = testingApps.filter((t: any) => !t.needsAttention);
 
-    const TaskCard = ({ item, isCompleted = false }: { item: any; isCompleted?: boolean }) => (
-        <TouchableOpacity
-            onPress={() => router.push(`/(tabs)/match/${item.id}` as any)}
-            activeOpacity={0.7}
-        >
-            <Card className={`mb-3 ${isCompleted ? 'opacity-70' : ''}`}>
-                <CardContent className="p-3 flex-row items-center gap-3">
-                    <Image
-                        source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
-                        className="w-14 h-14 rounded-xl bg-muted"
-                    />
-                    <View className="flex-1">
-                        <View className="flex-row items-center gap-2">
-                            <Text className="font-bold text-base" numberOfLines={1}>{item.name}</Text>
-                            {item.hasUnread && (
-                                <View className="bg-red-500 w-3 h-3 rounded-full border-2 border-background shadow-sm" />
+    const TaskCard = ({ item }: { item: any }) => {
+        const isMyTaskDone = item.myProofStatus === "approved" || item.myProofStatus === "pending";
+        const isPartnerTaskDone = item.partnerProofStatus === "approved";
+
+        return (
+            <TouchableOpacity
+                onPress={() => router.push(`/(tabs)/match/${item.id}` as any)}
+                activeOpacity={0.7}
+            >
+                <Card className={`mb-3 ${isMyTaskDone && isPartnerTaskDone ? 'opacity-80' : ''}`}>
+                    <CardContent className="p-4">
+                        {/* Header: App Name & Notifications */}
+                        <View className="flex-row items-center justify-between mb-3">
+                            <View className="flex-row items-center gap-3 flex-1">
+                                <Image
+                                    source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
+                                    className="w-10 h-10 rounded-xl bg-muted"
+                                />
+                                <View className="flex-1">
+                                    <View className="flex-row items-center gap-2">
+                                        <Text className="font-bold text-lg leading-tight" numberOfLines={1}>{item.name}</Text>
+                                        {item.hasUnread && (
+                                            <View className="bg-red-500 w-2.5 h-2.5 rounded-full border border-background shadow-sm" />
+                                        )}
+                                    </View>
+                                    <Text className="text-muted-foreground text-xs font-medium">Day {item.day} of {item.totalDays}</Text>
+                                </View>
+                            </View>
+
+                            {item.isReviewPending && (
+                                <View className="bg-orange-100 dark:bg-orange-900/40 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
+                                    <Text className="text-xs font-bold text-orange-700 dark:text-orange-400">Review Needed</Text>
+                                </View>
                             )}
                         </View>
-                        <Text className="text-muted-foreground text-sm">Day {item.day} of {item.totalDays}</Text>
-                        <View className="flex-row items-center mt-1 gap-2">
-                            <View className="bg-secondary/50 px-2 py-0.5 rounded">
-                                <Text className="text-xs text-muted-foreground">For: {item.relatedMyApp}</Text>
+
+                        {/* Status Grid */}
+                        <View className="flex-row gap-3">
+                            {/* MY Status */}
+                            <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
+                                <View className={`h-8 w-8 rounded-full items-center justify-center ${item.myProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
+                                    item.myProofStatus === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                                        'bg-muted'
+                                    }`}>
+                                    {item.myProofStatus === 'approved' ? (
+                                        <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
+                                    ) : item.myProofStatus === 'pending' ? (
+                                        <Icon as={ClockIcon} className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                    ) : (
+                                        <Icon as={AlertCircleIcon} className="size-4 text-muted-foreground" />
+                                    )}
+                                </View>
+                                <View>
+                                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">My Upload</Text>
+                                    <Text className={`text-sm font-bold ${item.myProofStatus === 'approved' ? 'text-green-600' :
+                                        item.myProofStatus === 'pending' ? 'text-yellow-600' :
+                                            'text-muted-foreground'
+                                        }`}>
+                                        {item.myProofStatus === 'approved' ? 'Done' :
+                                            item.myProofStatus === 'pending' ? 'Pending' : 'Required'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* PARTNER Status */}
+                            <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
+                                <View className={`h-8 w-8 rounded-full items-center justify-center ${item.partnerProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
+                                    item.partnerProofStatus === 'pending' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                        'bg-muted'
+                                    }`}>
+                                    {item.partnerProofStatus === 'approved' ? (
+                                        <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
+                                    ) : item.partnerProofStatus === 'pending' ? (
+                                        <Icon as={ClockIcon} className="size-4 text-blue-600 dark:text-blue-400" />
+                                    ) : (
+                                        <Icon as={ClockIcon} className="size-4 text-muted-foreground opacity-50" />
+                                    )}
+                                </View>
+                                <View>
+                                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Partner</Text>
+                                    <Text className={`text-sm font-bold ${item.partnerProofStatus === 'approved' ? 'text-green-600' :
+                                        item.partnerProofStatus === 'pending' ? 'text-blue-600' :
+                                            'text-muted-foreground'
+                                        }`}>
+                                        {item.partnerProofStatus === 'approved' ? 'Done' :
+                                            item.partnerProofStatus === 'pending' ? 'Uploaded' : 'Waiting'}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
-                    </View>
-                    {isCompleted ? (
-                        <View className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full">
-                            <Icon as={CheckCircleIcon} className="size-5 text-green-600" />
-                        </View>
-                    ) : (
-                        <View className="bg-orange-100 dark:bg-orange-900/30 p-2 rounded-full">
-                            <Icon as={AlertCircleIcon} className="size-5 text-orange-600" />
-                        </View>
-                    )}
-                </CardContent>
-            </Card>
-        </TouchableOpacity>
-    );
+                    </CardContent>
+                </Card>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View className="flex-1 bg-background">
@@ -81,7 +138,7 @@ export default function TestsScreen() {
 
                     {pendingTasks.length > 0 ? (
                         pendingTasks.map((item: any) => (
-                            <TaskCard key={item.id} item={item} isCompleted={false} />
+                            <TaskCard key={item.id} item={item} />
                         ))
                     ) : (
                         <Card className="bg-green-500/10 border-green-500/30">
@@ -108,7 +165,7 @@ export default function TestsScreen() {
                         </View>
 
                         {completedTasks.map((item: any) => (
-                            <TaskCard key={item.id} item={item} isCompleted={true} />
+                            <TaskCard key={item.id} item={item} />
                         ))}
                     </View>
                 )}

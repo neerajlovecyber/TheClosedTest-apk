@@ -422,15 +422,41 @@ export const getMyActiveTests = query({
                     ))
                     .first();
 
-                // If proof is approved, task is complete for today - don't show
-                const needsAttention = !todayProof || todayProof.status !== "approved";
-
                 let resolvedUrl = appToTest?.iconUrl;
                 if (appToTest?.storageIconId) {
                     resolvedUrl = await getImageUrl(ctx, appToTest.storageIconId);
                 } else if (appToTest?.iconUrl && !appToTest.iconUrl.startsWith("http")) {
                     resolvedUrl = await getImageUrl(ctx, appToTest.iconUrl);
                 }
+
+                // Check partner's proof status
+                const partnerProof = await ctx.db
+                    .query("proofs")
+                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                    .filter((q) => q.and(
+                        q.eq(q.field("uploaderId"), ownerId),
+                        q.eq(q.field("day"), day)
+                    ))
+                    .first();
+
+                const myProofStatus = todayProof?.status || "not_uploaded";
+                const partnerProofStatus = partnerProof?.status || "not_uploaded";
+
+                // Needs review if partner uploaded and it's pending review from me
+                // Note: I am the "reviewer" for the app I am testing?
+                // Wait.
+                // Requestor (User 1) tests App 2 (owned by User 2).
+                // Proofs are uploaded by the tester.
+                // So I upload proof for App 2. Owner (User 2) reviews it.
+                // User 2 uploads proof for App 1 (my app). I review it.
+
+                // So 'partnerProof' here refers to the proof uploaded by the partner for MY app (App 1 if I am User 1).
+                // I need to review 'partnerProof'.
+                const isReviewPending = partnerProofStatus === "pending";
+
+                // If proof is approved, task is complete for today - don't show
+                // BUT also show if I need to review partner's proof
+                const needsAttention = (!todayProof || todayProof.status !== "approved") || isReviewPending;
 
                 const lastRead = isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
                 const hasUnread = (match.lastActivity || 0) > lastRead;
@@ -446,7 +472,9 @@ export const getMyActiveTests = query({
                     relatedMyApp: myApp?.title || "My App",
                     iconUrl: resolvedUrl || "https://github.com/shadcn.png",
                     needsAttention,
-                    proofStatus: todayProof?.status || "not_uploaded",
+                    myProofStatus,
+                    partnerProofStatus,
+                    isReviewPending,
                     hasUnread
                 };
             })
