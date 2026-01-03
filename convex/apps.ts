@@ -280,8 +280,35 @@ export const deleteApp = mutation({
 
         if (app.userId !== user._id) throw new Error("Not authorized");
 
+        // 1. Find all matches involving this app
+        const matchesAsApp1 = await ctx.db
+            .query("matches")
+            .filter((q) => q.eq(q.field("app1Id"), args.appId))
+            .collect();
+
+        const matchesAsApp2 = await ctx.db
+            .query("matches")
+            .filter((q) => q.eq(q.field("app2Id"), args.appId))
+            .collect();
+
+        const allMatches = [...matchesAsApp1, ...matchesAsApp2];
+
+        // 2. Process matches
+        for (const match of allMatches) {
+            if (match.status === "pending") {
+                // Delete pending swap requests
+                await ctx.db.delete(match._id);
+            } else if (match.status === "active") {
+                // Cancel active tests - both parties lose progress
+                await ctx.db.patch(match._id, {
+                    status: "cancelled",
+                    lastActivity: Date.now()
+                });
+            }
+        }
+
+        // 3. Delete the app record
         await ctx.db.delete(args.appId);
-        // TODO: Cascading delete for matches? For now, we leave them or handle them separately.
     }
 });
 

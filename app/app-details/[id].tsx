@@ -349,7 +349,7 @@ export default function AppDetailsScreen() {
                                                     try {
                                                         setIsSubmitting(true);
                                                         await deleteApp({ appId: app._id });
-                                                        router.replace("/(tabs)/apps" as any);
+                                                        router.replace("/(tabs)/" as any);
                                                     } catch (err: any) {
                                                         Alert.alert("Error", err.message);
                                                     } finally {
