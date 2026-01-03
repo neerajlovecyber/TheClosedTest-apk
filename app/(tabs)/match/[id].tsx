@@ -54,6 +54,11 @@ export default function MatchDashboardScreen() {
     const { match, app, partner, day } = matchDetails;
     const currentDay = day > 14 ? 14 : day;
 
+    // Calculate unread status
+    const isUser1 = partner ? match.user1Id !== partner._id : true;
+    const lastRead = isUser1 ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
+    const hasUnread = match.lastActivity > lastRead;
+
     const handleRejectPress = (proofId: Id<"proofs">) => {
         setProofToReject(proofId);
         setRejectionModalVisible(true);
@@ -74,8 +79,6 @@ export default function MatchDashboardScreen() {
             <Text className="text-lg font-bold">{title}</Text>
         </View>
     );
-
-
 
     // Timeline Item
     const renderTimelineItem = ({ item }: { item: any }) => {
@@ -170,7 +173,7 @@ export default function MatchDashboardScreen() {
                     <View className="flex-row items-center justify-between">
                         <Text className="text-sm text-muted-foreground">Day {currentDay} of 14</Text>
                         <View className="bg-primary/10 px-2 py-1 rounded-full">
-                            <Text className="text-xs font-bold text-primary">{Math.round((match.day || 1) / 14 * 100)}% Complete</Text>
+                            <Text className="text-xs font-bold text-primary">{Math.round((currentDay / 14) * 100)}% Complete</Text>
                         </View>
                     </View>
                 </View>
@@ -196,7 +199,7 @@ export default function MatchDashboardScreen() {
                                 {/* Partner Stats */}
                                 <View className="flex-1 items-center">
                                     <View className="flex-row items-center mb-1">
-                                        <Text className="font-bold text-base text-muted-foreground">{partner.name.split(' ')[0]}</Text>
+                                        <Text className="font-bold text-base text-muted-foreground">{partner?.name?.split(' ')[0] || "Partner"}</Text>
                                     </View>
                                     <Text className="text-3xl font-black text-foreground">
                                         {summary.partnerApproved}<Text className="text-sm text-muted-foreground font-medium">/{summary.totalDays}</Text>
@@ -216,7 +219,7 @@ export default function MatchDashboardScreen() {
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={{ paddingHorizontal: 16 }}
                     >
-                        {days.map((item) => (
+                        {days.map((item: any) => (
                             <View key={item.day}>
                                 {renderTimelineItem({ item })}
                             </View>
@@ -263,7 +266,7 @@ export default function MatchDashboardScreen() {
                         className="flex-row items-center justify-center p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-8"
                     >
                         <Icon as={XCircleIcon} className="text-red-500 size-5 mr-2" />
-                        <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner.name.split(' ')[0]}</Text>
+                        <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner?.name?.split(' ')[0] || "Partner"}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -278,13 +281,21 @@ export default function MatchDashboardScreen() {
             {renderOverviewContent()}
 
             {/* Chat Floating Button */}
-            <TouchableOpacity
-                onPress={() => setChatVisible(true)}
-                className="absolute bottom-6 right-6 w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/30 z-50 p-0"
-                activeOpacity={0.8}
-            >
-                <Icon as={MessageSquareIcon} className="text-primary-foreground size-6" />
-            </TouchableOpacity>
+            <View className="absolute bottom-6 right-6 z-50">
+                <TouchableOpacity
+                    onPress={() => setChatVisible(true)}
+                    className="w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/30 p-0"
+                    activeOpacity={0.8}
+                >
+                    <Icon as={MessageSquareIcon} className="text-primary-foreground size-6" />
+                </TouchableOpacity>
+
+                {hasUnread && (
+                    <View className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-background items-center justify-center">
+                        <View className="w-2 h-2 bg-white rounded-full" />
+                    </View>
+                )}
+            </View>
 
             <MatchChat
                 visible={chatVisible}

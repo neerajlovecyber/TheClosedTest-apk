@@ -21,6 +21,7 @@ export interface AppItem {
     dueIn?: string;
     isFilled?: boolean;
     isNew?: boolean;
+    hasUnread?: boolean;
 }
 
 interface AppCardProps {
@@ -45,7 +46,12 @@ export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps
             <View className="flex-1 justify-between py-0.5">
                 {/* Header Row: Title & Badge */}
                 <View className="flex-row justify-between items-start">
-                    <Text className="font-bold text-sm leading-tight flex-1 mr-2" numberOfLines={2}>{item.title}</Text>
+                    <View className="flex-1 flex-row items-center gap-1.5 mr-2">
+                        <Text className="font-bold text-sm leading-tight shrink" numberOfLines={2}>{item.title}</Text>
+                        {item.hasUnread && (
+                            <View className="bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-background shadow-sm" />
+                        )}
+                    </View>
 
                     {/* Variant Specific Badges */}
                     {variant === 'marketplace' && (

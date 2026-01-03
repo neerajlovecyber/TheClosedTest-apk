@@ -277,7 +277,12 @@ export default function AppDetailsScreen() {
                                         className="size-10 rounded-full bg-muted"
                                     />
                                     <View className="flex-1">
-                                        <Text className="font-bold">{tester.testerName}</Text>
+                                        <View className="flex-row items-center gap-2">
+                                            <Text className="font-bold">{tester.testerName}</Text>
+                                            {tester.hasUnread && (
+                                                <View className="bg-red-500 w-2.5 h-2.5 rounded-full border border-background shadow-sm" />
+                                            )}
+                                        </View>
                                         <Text className="text-xs text-muted-foreground">Day {tester.day} of 14</Text>
                                     </View>
                                     <View className="items-end">

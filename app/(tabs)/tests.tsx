@@ -29,7 +29,12 @@ export default function TestsScreen() {
                         className="w-14 h-14 rounded-xl bg-muted"
                     />
                     <View className="flex-1">
-                        <Text className="font-bold text-base" numberOfLines={1}>{item.name}</Text>
+                        <View className="flex-row items-center gap-2">
+                            <Text className="font-bold text-base" numberOfLines={1}>{item.name}</Text>
+                            {item.hasUnread && (
+                                <View className="bg-red-500 w-3 h-3 rounded-full border-2 border-background shadow-sm" />
+                            )}
+                        </View>
                         <Text className="text-muted-foreground text-sm">Day {item.day} of {item.totalDays}</Text>
                         <View className="flex-row items-center mt-1 gap-2">
                             <View className="bg-secondary/50 px-2 py-0.5 rounded">

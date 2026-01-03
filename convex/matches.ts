@@ -432,6 +432,9 @@ export const getMyActiveTests = query({
                     resolvedUrl = await getImageUrl(ctx, appToTest.iconUrl);
                 }
 
+                const lastRead = isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
+                const hasUnread = (match.lastActivity || 0) > lastRead;
+
                 return {
                     id: match._id,
                     name: appToTest?.title || "Unknown App",
@@ -443,7 +446,8 @@ export const getMyActiveTests = query({
                     relatedMyApp: myApp?.title || "My App",
                     iconUrl: resolvedUrl || "https://github.com/shadcn.png",
                     needsAttention,
-                    proofStatus: todayProof?.status || "not_uploaded"
+                    proofStatus: todayProof?.status || "not_uploaded",
+                    hasUnread
                 };
             })
         );
@@ -1039,6 +1043,12 @@ export const getProgressData = query({
 export const getAppTesters = query({
     args: { appId: v.id("apps") },
     handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        const user = identity ? await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique() : null;
+
         const app = await ctx.db.get(args.appId);
         if (!app) return [];
 
@@ -1079,13 +1089,18 @@ export const getAppTesters = query({
                 ))
                 .first();
 
+            const isUser1 = match.user1Id === user?._id;
+            const lastRead = isUser1 ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
+            const hasUnread = (match.lastActivity || 0) > lastRead;
+
             return {
                 matchId: match._id,
                 testerName: tester?.name || "Unknown",
                 testerAvatar: tester?.avatarUrl || "https://github.com/shadcn.png",
                 day,
                 status: proof ? proof.status : "pending",
-                uploadedToday: !!proof
+                uploadedToday: !!proof,
+                hasUnread
             };
         }));
     }

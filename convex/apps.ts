@@ -190,10 +190,23 @@ export const getMyApps = query({
 
             const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
 
+            // Check if any active match has unread messages for this user (app owner)
+            let hasUnread = false;
+            const allActiveMatches = [...matchesAsApp1, ...matchesAsApp2];
+            for (const m of allActiveMatches) {
+                const isUser1 = m.user1Id === user._id;
+                const lastRead = isUser1 ? (m.lastRead1 || 0) : (m.lastRead2 || 0);
+                if ((m.lastActivity || 0) > lastRead) {
+                    hasUnread = true;
+                    break;
+                }
+            }
+
             return {
                 ...app,
                 iconUrl: resolvedUrl,
-                currentTesters: actualTesters
+                currentTesters: actualTesters,
+                hasUnread
             };
         }));
 
