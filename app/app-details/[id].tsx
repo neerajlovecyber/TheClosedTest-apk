@@ -7,7 +7,7 @@ import * as Linking from 'expo-linking';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, StarIcon, SmartphoneIcon, ExternalLinkIcon, ShareIcon, CheckCircleIcon, XIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, StarIcon, SmartphoneIcon, ExternalLinkIcon, ShareIcon, CheckCircleIcon, XIcon, Trash2Icon, EditIcon, UsersIcon } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -32,6 +32,9 @@ export default function AppDetailsScreen() {
 
     // Check Match Status
     const matchStatus = useQuery(api.matches.getMatchStatus, { appId });
+
+    // Fetch testers (only for owner)
+    const testers = useQuery(api.matches.getAppTesters, { appId });
 
     const [selectedMyApp, setSelectedMyApp] = useState<Id<"apps"> | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -255,6 +258,60 @@ export default function AppDetailsScreen() {
                         You must offer one of your apps for mutual testing.
                     </Text>
                 </View>
+
+                {/* Testers Section (Owner Only) */}
+                {app.isMine && (
+                    <View className="mb-20">
+                        <View className="flex-row justify-between items-center mb-4">
+                            <Text className="font-bold text-lg">Active Testers ({testers?.length || 0})</Text>
+                            <View className="bg-primary/10 px-3 py-1 rounded-full">
+                                <Text className="text-primary font-bold text-xs">Day {Math.max(...(testers?.map(t => t.day) || [1]))}/14</Text>
+                            </View>
+                        </View>
+
+                        {testers && testers.length > 0 ? (
+                            testers.map((tester) => (
+                                <View
+                                    key={tester.matchId}
+                                    className="flex-row items-center gap-3 p-4 bg-secondary/20 rounded-xl mb-3 border border-border/50"
+                                >
+                                    <Image
+                                        source={{ uri: tester.testerAvatar }}
+                                        className="size-10 rounded-full bg-muted"
+                                    />
+                                    <View className="flex-1">
+                                        <Text className="font-bold">{tester.testerName}</Text>
+                                        <Text className="text-xs text-muted-foreground">Day {tester.day} of 14</Text>
+                                    </View>
+                                    <View className="items-end">
+                                        {tester.uploadedToday ? (
+                                            <View className="flex-row items-center gap-1 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-lg">
+                                                <Icon as={CheckCircleIcon} className="size-3 text-green-600 dark:text-green-400" />
+                                                <Text className="text-[10px] font-bold text-green-600 dark:text-green-400">UPLOADED</Text>
+                                            </View>
+                                        ) : (
+                                            <View className="flex-row items-center gap-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-lg">
+                                                <Icon as={XIcon} className="size-3 text-orange-600 dark:text-orange-400" />
+                                                <Text className="text-[10px] font-bold text-orange-600 dark:text-orange-400">PENDING</Text>
+                                            </View>
+                                        )}
+                                        <TouchableOpacity
+                                            onPress={() => router.push({ pathname: "/(tabs)/match/[id]", params: { id: tester.matchId } } as any)}
+                                            className="mt-1"
+                                        >
+                                            <Text className="text-xs text-primary font-medium">View Progress</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))
+                        ) : (
+                            <View className="items-center py-10 bg-muted/5 rounded-xl border border-dashed border-border">
+                                <Icon as={UsersIcon} className="size-8 text-muted-foreground mb-2 opacity-50" />
+                                <Text className="text-muted-foreground text-center">No active testers yet. Share your app to get started!</Text>
+                            </View>
+                        )}
+                    </View>
+                )}
             </ScrollView>
 
             {/* Action Button */}
@@ -265,59 +322,49 @@ export default function AppDetailsScreen() {
                             <Text className="text-muted-foreground font-semibold">Your App Listing</Text>
                         </View>
                     ) : (
-                        <View className="gap-3">
+                        <View className="flex-row gap-3">
                             <Button
-                                variant="secondary"
-                                onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)}
-                                className="w-full"
+                                size="lg"
+                                variant="outline"
+                                onPress={() => Alert.alert("Coming Soon", "Edit functionality is under development.")}
+                                className="flex-1 rounded-xl border-primary/20"
+                                disabled={isSubmitting}
                             >
-                                <Text>View Public Listing</Text>
+                                <Icon as={EditIcon} className="size-4 text-primary mr-2" />
+                                <Text className="font-bold">Edit</Text>
                             </Button>
                             <Button
                                 size="lg"
                                 variant="outline"
                                 onPress={() => {
                                     Alert.alert(
-                                        "Manage App",
-                                        "What would you like to do?",
+                                        "Delete App",
+                                        "Are you sure? This cannot be undone.",
                                         [
                                             { text: "Cancel", style: "cancel" },
-                                            { text: "Edit", onPress: () => Alert.alert("Coming Soon", "Edit functionality is under development.") },
                                             {
                                                 text: "Delete",
                                                 style: "destructive",
-                                                onPress: () => {
-                                                    Alert.alert(
-                                                        "Delete App",
-                                                        "Are you sure? This cannot be undone.",
-                                                        [
-                                                            { text: "Cancel", style: "cancel" },
-                                                            {
-                                                                text: "Delete",
-                                                                style: "destructive",
-                                                                onPress: async () => {
-                                                                    try {
-                                                                        setIsSubmitting(true);
-                                                                        await deleteApp({ appId: app._id });
-                                                                        router.replace("/(tabs)/apps" as any); // Go back to My Apps list (or home)
-                                                                    } catch (err: any) {
-                                                                        Alert.alert("Error", err.message);
-                                                                    } finally {
-                                                                        setIsSubmitting(false);
-                                                                    }
-                                                                }
-                                                            }
-                                                        ]
-                                                    );
+                                                onPress: async () => {
+                                                    try {
+                                                        setIsSubmitting(true);
+                                                        await deleteApp({ appId: app._id });
+                                                        router.replace("/(tabs)/apps" as any);
+                                                    } catch (err: any) {
+                                                        Alert.alert("Error", err.message);
+                                                    } finally {
+                                                        setIsSubmitting(false);
+                                                    }
                                                 }
                                             }
                                         ]
                                     );
                                 }}
-                                className="w-full"
+                                className="flex-1 rounded-xl border-destructive/20"
                                 disabled={isSubmitting}
                             >
-                                <Text>Manage Options</Text>
+                                <Icon as={Trash2Icon} className="size-4 text-destructive mr-2" />
+                                <Text className="font-bold text-destructive">Delete</Text>
                             </Button>
                         </View>
                     )

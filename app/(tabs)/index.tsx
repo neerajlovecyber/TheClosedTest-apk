@@ -191,7 +191,7 @@ export default function HomeScreen() {
                                 key={app._id}
                                 item={app}
                                 variant="my-app"
-                                onPress={undefined}
+                                onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'my-app' } } as any)}
                             />
                         ))
                     ) : (

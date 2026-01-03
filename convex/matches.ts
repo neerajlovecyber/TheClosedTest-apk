@@ -953,3 +953,59 @@ export const getProgressData = query({
         };
     }
 });
+
+export const getAppTesters = query({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const app = await ctx.db.get(args.appId);
+        if (!app) return [];
+
+        // Find all active matches for this app
+        const matchesAsApp1 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), args.appId),
+                q.eq(q.field("status"), "active")
+            ))
+            .collect();
+
+        const matchesAsApp2 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), args.appId),
+                q.eq(q.field("status"), "active")
+            ))
+            .collect();
+
+        const allMatches = [...matchesAsApp1, ...matchesAsApp2];
+
+        return await Promise.all(allMatches.map(async (match) => {
+            const isApp1 = match.app1Id === args.appId;
+            const testerId = isApp1 ? match.user2Id : match.user1Id;
+            const tester = await ctx.db.get(testerId);
+
+            // Calculate current day
+            const currentDay = Math.floor((Date.now() - (match.startDate || Date.now())) / (1000 * 60 * 60 * 24)) + 1;
+            const day = currentDay > 14 ? 14 : currentDay;
+
+            // Check if tester uploaded proof for today
+            const proof = await ctx.db
+                .query("proofs")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .filter((q) => q.and(
+                    q.eq(q.field("uploaderId"), testerId),
+                    q.eq(q.field("day"), day)
+                ))
+                .first();
+
+            return {
+                matchId: match._id,
+                testerName: tester?.name || "Unknown",
+                testerAvatar: tester?.avatarUrl || "https://github.com/shadcn.png",
+                day,
+                status: proof ? proof.status : "pending",
+                uploadedToday: !!proof
+            };
+        }));
+    }
+});
