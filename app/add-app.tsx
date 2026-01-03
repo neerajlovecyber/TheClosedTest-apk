@@ -180,14 +180,16 @@ export default function AddAppScreen() {
                             </View>
 
                             <View>
-                                <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name</Label>
+                                <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name (max 30)</Label>
                                 <Input
                                     nativeID="appName"
                                     placeholder="e.g. Flappy Bird 2"
                                     value={title}
                                     onChangeText={setTitle}
+                                    maxLength={30}
                                     className="bg-background/50 border-primary/20 focus:border-primary"
                                 />
+                                <Text className="text-xs text-muted-foreground text-right mt-1">{title.length}/30</Text>
                             </View>
 
                             <View>
@@ -197,6 +199,7 @@ export default function AddAppScreen() {
                                     placeholder="https://play.google.com/..."
                                     value={playStoreUrl}
                                     onChangeText={setPlayStoreUrl}
+                                    maxLength={200}
                                     className="bg-background/50 border-primary/20 focus:border-primary"
                                 />
                                 {packageName ? (
@@ -218,7 +221,7 @@ export default function AddAppScreen() {
                         </CardHeader>
                         <CardContent className="gap-4">
                             <View>
-                                <Label nativeID="testers">Testers Needed (max 12 after update) *</Label>
+                                <Label nativeID="testers">Testers Needed (max 12) *</Label>
                                 <Input
                                     nativeID="testers"
                                     keyboardType="numeric"
@@ -229,14 +232,16 @@ export default function AddAppScreen() {
                             </View>
 
                             <View>
-                                <Label nativeID="instructions">Instructions for Testers *</Label>
+                                <Label nativeID="instructions">Instructions for Testers (max 250) *</Label>
                                 <Textarea
                                     nativeID="instructions"
                                     placeholder="Explain how to test your app..."
                                     value={instructions}
                                     onChangeText={setInstructions}
+                                    maxLength={250}
                                     className="h-32"
                                 />
+                                <Text className="text-xs text-muted-foreground text-right mt-1">{instructions.length}/250</Text>
                                 <View className="flex-row flex-wrap gap-2 mt-3">
                                     <Button variant="outline" size="sm" onPress={() => addInstruction("Keep installed for 14 days")}>
                                         <Text>+ 14 Days</Text>
@@ -244,8 +249,11 @@ export default function AddAppScreen() {
                                     <Button variant="outline" size="sm" onPress={() => addInstruction("Open daily")}>
                                         <Text>+ Open Daily</Text>
                                     </Button>
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Test login flow")}>
-                                        <Text>+ Test Login</Text>
+                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Upload 1 min recording")}>
+                                        <Text>+ Rec 1m</Text>
+                                    </Button>
+                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Upload screenshot")}>
+                                        <Text>+ Screenshot</Text>
                                     </Button>
                                 </View>
                             </View>

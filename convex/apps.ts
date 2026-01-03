@@ -161,13 +161,80 @@ export const getAppArgs = query({
         }
 
         const owner = await ctx.db.get(app.userId);
+        const identity = await ctx.auth.getUserIdentity();
+
+        // Check if current user owns this app
+        let isMine = false;
+        if (identity) {
+            const currentUser = await ctx.db
+                .query("users")
+                .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+                .unique();
+            if (currentUser && currentUser._id === app.userId) {
+                isMine = true;
+            }
+        }
 
         return {
             ...app,
             iconUrl: resolvedUrl,
             ownerName: owner?.name || "Unknown",
             ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
-            reputation: owner?.reputation || 0
+            reputation: owner?.reputation || 0,
+            isMine
         };
+    }
+});
+
+export const deleteApp = mutation({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const app = await ctx.db.get(args.appId);
+        if (!app) throw new Error("App not found");
+
+        if (app.userId !== user._id) throw new Error("Not authorized");
+
+        await ctx.db.delete(args.appId);
+        // TODO: Cascading delete for matches? For now, we leave them or handle them separately.
+    }
+});
+
+export const updateApp = mutation({
+    args: {
+        appId: v.id("apps"),
+        title: v.optional(v.string()),
+        instructions: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const app = await ctx.db.get(args.appId);
+        if (!app) throw new Error("App not found");
+
+        if (app.userId !== user._id) throw new Error("Not authorized");
+
+        await ctx.db.patch(args.appId, {
+            title: args.title ?? app.title,
+            instructions: args.instructions ?? app.instructions,
+            updatedAt: Date.now(),
+        });
     }
 });

@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { View, ScrollView, Image, Linking, TouchableOpacity, Alert, Modal, Pressable } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -12,7 +13,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 
 export default function AppDetailsScreen() {
-    const { id } = useLocalSearchParams();
+    const { id, source } = useLocalSearchParams();
     const router = useRouter();
     const appId = id as Id<"apps">;
 
@@ -24,6 +25,7 @@ export default function AppDetailsScreen() {
 
     // Mutation
     const requestSwap = useMutation(api.matches.requestSwap);
+    const deleteApp = useMutation(api.apps.deleteApp);
 
     const [selectedMyApp, setSelectedMyApp] = useState<Id<"apps"> | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -37,8 +39,8 @@ export default function AppDetailsScreen() {
     }, [myApps]);
 
     const handleOpenPlayStore = async () => {
-        if (app?.playStoreLink && await Linking.canOpenURL(app.playStoreLink)) {
-            await Linking.openURL(app.playStoreLink);
+        if (app?.playStoreUrl && await Linking.canOpenURL(app.playStoreUrl)) {
+            await Linking.openURL(app.playStoreUrl);
         }
     };
 
@@ -81,6 +83,19 @@ export default function AppDetailsScreen() {
 
     const selectedAppData = myApps.find(a => a._id === selectedMyApp);
 
+    const handleShare = async () => {
+        try {
+            const deepLink = Linking.createURL(`/app-details/${appId}`);
+            await Share.share({
+                message: `Help me test "${app.title}" on TheClosedTest! Open this link to view details and request a swap: ${deepLink}`,
+                title: `Test ${app.title}`,
+                url: deepLink, // iOS support
+            });
+        } catch (error: any) {
+            Alert.alert(error.message);
+        }
+    };
+
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom', 'left', 'right']}>
             <View className="flex-row items-center px-4 py-3 border-b border-border justify-between">
@@ -90,7 +105,7 @@ export default function AppDetailsScreen() {
                     </Button>
                     <Text className="text-lg font-bold ml-2">App Details</Text>
                 </View>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" onPress={handleShare}>
                     <Icon as={ShareIcon} className="text-foreground size-5" />
                 </Button>
             </View>
@@ -104,7 +119,11 @@ export default function AppDetailsScreen() {
                     />
                     <View className="flex-1">
                         <Text className="text-2xl font-bold" numberOfLines={1}>{app.title}</Text>
-                        <Text className="text-muted-foreground">{app.packageName}</Text>
+                        <Text className="text-muted-foreground mb-2">{app.packageName}</Text>
+                        <TouchableOpacity onPress={handleOpenPlayStore} className="flex-row items-center bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full self-start">
+                            <Icon as={ExternalLinkIcon} className="size-3.5 text-green-700 dark:text-green-400 mr-1.5" />
+                            <Text className="text-green-700 dark:text-green-400 font-bold text-xs">Open in Play Store</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -115,10 +134,6 @@ export default function AppDetailsScreen() {
                         <Text className="text-foreground leading-relaxed">
                             {app.instructions || "No specific instructions provided."}
                         </Text>
-                        <TouchableOpacity onPress={handleOpenPlayStore} className="flex-row items-center mt-3">
-                            <Text className="text-primary font-bold mr-2">Open in Play Store</Text>
-                            <Icon as={ExternalLinkIcon} className="size-4 text-primary" />
-                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -185,16 +200,80 @@ export default function AppDetailsScreen() {
                 </View>
             </ScrollView>
 
-            {/* Bottom Action Button */}
-            <View className="p-4 border-t border-border bg-background">
-                <Button
-                    size="lg"
-                    className="w-full rounded-xl"
-                    onPress={handleRequestSwap}
-                    disabled={isSubmitting}
-                >
-                    <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
-                </Button>
+            {/* Action Button */}
+            <View className="p-4 border-t border-border bg-background safe-bottom">
+                {app.isMine ? (
+                    source === 'marketplace' ? (
+                        <View className="w-full py-3 items-center justify-center bg-secondary/30 rounded-xl">
+                            <Text className="text-muted-foreground font-semibold">Your App Listing</Text>
+                        </View>
+                    ) : (
+                        <View className="gap-3">
+                            <Button
+                                variant="secondary"
+                                onPress={() => router.push({ pathname: `/app-details/${app._id}`, params: { source: 'marketplace' } })}
+                                className="w-full"
+                            >
+                                <Text>View Public Listing</Text>
+                            </Button>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                onPress={() => {
+                                    Alert.alert(
+                                        "Manage App",
+                                        "What would you like to do?",
+                                        [
+                                            { text: "Cancel", style: "cancel" },
+                                            { text: "Edit", onPress: () => Alert.alert("Coming Soon", "Edit functionality is under development.") },
+                                            {
+                                                text: "Delete",
+                                                style: "destructive",
+                                                onPress: () => {
+                                                    Alert.alert(
+                                                        "Delete App",
+                                                        "Are you sure? This cannot be undone.",
+                                                        [
+                                                            { text: "Cancel", style: "cancel" },
+                                                            {
+                                                                text: "Delete",
+                                                                style: "destructive",
+                                                                onPress: async () => {
+                                                                    try {
+                                                                        setIsSubmitting(true);
+                                                                        await deleteApp({ appId: app._id });
+                                                                        router.replace('/(tabs)/apps'); // Go back to My Apps list (or home)
+                                                                    } catch (err: any) {
+                                                                        Alert.alert("Error", err.message);
+                                                                    } finally {
+                                                                        setIsSubmitting(false);
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    );
+                                                }
+                                            }
+                                        ]
+                                    );
+                                }}
+                                className="w-full"
+                                disabled={isSubmitting}
+                            >
+                                <Text>Manage Options</Text>
+                            </Button>
+                        </View>
+                    )
+                ) : (
+                    <Button
+                        size="lg"
+                        onPress={handleRequestSwap}
+                        className="w-full rounded-xl"
+                        disabled={isSubmitting}
+                    >
+                        <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
+                    </Button>
+                )}
             </View>
 
             {/* App Selection Modal */}

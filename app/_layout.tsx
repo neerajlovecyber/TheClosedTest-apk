@@ -70,10 +70,15 @@ export default function RootLayout() {
 
 SplashScreen.preventAutoHideAsync();
 
+import { useStoreUserEffect } from '@/hooks/useStoreUserEffect';
+
 function InitialLayout() {
   const { isSignedIn, isLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // Sync user with Convex
+  useStoreUserEffect();
 
   React.useEffect(() => {
     if (!isLoaded) return;
