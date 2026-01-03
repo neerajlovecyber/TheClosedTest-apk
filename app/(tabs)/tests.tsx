@@ -36,7 +36,7 @@ export default function TestsScreen() {
                 iconUrl: item.iconUrl
             }}
             variant="testing"
-            onPress={undefined}
+            onPress={() => router.push(`/(tabs)/match/${item.id}` as any)}
         />
     );
 

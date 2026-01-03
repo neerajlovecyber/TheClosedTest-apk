@@ -54,6 +54,14 @@ export default function TabLayout() {
                         tabBarIcon: ({ color }) => <Icon as={SettingsIcon} color={color} className="size-6" />,
                     }}
                 />
+                <Tabs.Screen
+                    name="match/[id]"
+                    options={{
+                        href: null,
+                        headerShown: false,
+                        tabBarStyle: { display: 'flex' } // Explicitly keep tab bar visible? Default is visible.
+                    }}
+                />
             </Tabs>
         </View>
     );

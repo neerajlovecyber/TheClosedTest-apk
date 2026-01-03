@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Request a swap (Create a pending match)
 export const requestSwap = mutation({
@@ -368,4 +369,231 @@ export const getMyActiveTests = query({
 
         return enrichedMatches;
     },
+});
+
+export const getMatchDetails = query({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return null;
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) return null;
+
+        let isTester = false;
+        let isOwner = false;
+        let appToTestId: Id<"apps">;
+        let myAppId: Id<"apps">;
+        let ownerId: Id<"users">;
+
+        if (match.user1Id === user._id) {
+            isTester = true;
+            appToTestId = match.app2Id;
+            myAppId = match.app1Id;
+            ownerId = match.user2Id;
+        } else if (match.user2Id === user._id) {
+            isTester = true;
+            appToTestId = match.app1Id as Id<"apps">;
+            myAppId = match.app2Id as Id<"apps">;
+            ownerId = match.user1Id as Id<"users">;
+        } else {
+            return null; // Not involved
+        }
+
+        const appToTest = await ctx.db.get(appToTestId);
+        const myApp = await ctx.db.get(myAppId);
+        const owner = await ctx.db.get(ownerId);
+
+        let resolvedUrl = appToTest?.iconUrl;
+        if (appToTest?.storageIconId) {
+            resolvedUrl = await getImageUrl(ctx, appToTest.storageIconId);
+        } else if (appToTest?.iconUrl && !appToTest.iconUrl.startsWith("http")) {
+            resolvedUrl = await getImageUrl(ctx, appToTest.iconUrl);
+        }
+
+        // Also fetch App Stats or similar if needed
+        // Just return what we need for the dashboard
+
+        // Determine partner (the other user in the match)
+        const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
+        const partner = await ctx.db.get(partnerId as Id<"users">);
+
+        return {
+            match,
+            app: {
+                ...appToTest,
+                iconUrl: resolvedUrl || "https://github.com/shadcn.png"
+            },
+            owner, // This is the owner of the app being tested
+            partner, // This is the swap partner (could be same as owner if I am tester)
+            startDate: match.startDate,
+            day: Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1,
+            isTester: true,
+        };
+    }
+});
+
+export const getMessages = query({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return [];
+
+        const messages = await ctx.db
+            .query("messages")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .order("asc")
+            .collect();
+
+        const messagesWithSender = await Promise.all(
+            messages.map(async (msg) => {
+                const sender = await ctx.db.get(msg.senderId);
+                return {
+                    ...msg,
+                    senderName: sender?.name || "Unknown",
+                    senderAvatar: sender?.avatarUrl,
+                    isMe: sender?.tokenIdentifier === identity.tokenIdentifier
+                };
+            })
+        );
+        return messagesWithSender;
+    }
+});
+
+export const sendMessage = mutation({
+    args: {
+        matchId: v.id("matches"),
+        content: v.string(),
+        type: v.union(v.literal("text"), v.literal("image"), v.literal("video")),
+        storageId: v.optional(v.string())
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Auth required");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+        if (!user) throw new Error("User not found");
+
+        await ctx.db.insert("messages", {
+            matchId: args.matchId,
+            senderId: user._id,
+            content: args.content,
+            type: args.type,
+            storageId: args.storageId,
+            sentAt: Date.now()
+        });
+    }
+});
+
+export const getProofs = query({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return [];
+
+        const proofs = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .collect();
+
+        const proofsWithUrls = await Promise.all(proofs.map(async (p) => {
+            const url = await getImageUrl(ctx, p.storageId);
+            return { ...p, url };
+        }));
+
+        return proofsWithUrls;
+    }
+});
+
+export const uploadProof = mutation({
+    args: {
+        matchId: v.id("matches"),
+        storageId: v.string(),
+        day: v.number(),
+        type: v.union(v.literal("image"), v.literal("video")),
+        comment: v.optional(v.string())
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Auth required");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) throw new Error("Match not found");
+
+        await ctx.db.insert("proofs", {
+            matchId: args.matchId,
+            uploaderId: user._id,
+            day: args.day,
+            type: args.type,
+            storageId: args.storageId,
+            status: "pending",
+            comment: args.comment,
+            submittedAt: Date.now()
+        });
+    }
+});
+
+export const reviewProof = mutation({
+    args: {
+        proofId: v.id("proofs"),
+        status: v.union(v.literal("approved"), v.literal("rejected")),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Auth required");
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+        if (!user) throw new Error("User not found");
+
+        const proof = await ctx.db.get(args.proofId);
+        if (!proof) throw new Error("Proof not found");
+
+        const match = await ctx.db.get(proof.matchId);
+        if (!match) throw new Error("Match not found");
+
+        if (proof.uploaderId === user._id) {
+            throw new Error("Cannot review your own proof");
+        }
+
+        await ctx.db.patch(args.proofId, {
+            status: args.status
+        });
+
+        if (args.status === "approved") {
+            const uploader = await ctx.db.get(proof.uploaderId);
+            if (uploader) {
+                await ctx.db.patch(uploader._id, {
+                    reputation: (uploader.reputation || 100) + 1
+                });
+            }
+        } else if (args.status === "rejected") {
+            const uploader = await ctx.db.get(proof.uploaderId);
+            if (uploader) {
+                await ctx.db.patch(uploader._id, {
+                    reputation: Math.max(0, (uploader.reputation || 100) - 1)
+                });
+            }
+        }
+    }
 });
