@@ -64,17 +64,20 @@ export default defineSchema({
         uploaderId: v.id("users"),
         day: v.number(), // 1-14
         type: v.union(v.literal("image"), v.literal("video")),
-        storageId: v.string(), // Convex Storage ID
+        storageIds: v.array(v.string()), // Multiple Convex Storage IDs (up to 5)
         status: v.union(
             v.literal("pending"),
             v.literal("approved"),
             v.literal("rejected")
         ),
         comment: v.optional(v.string()),
+        rejectionReason: v.optional(v.string()), // Required when rejected
         submittedAt: v.number(),
+        reviewedAt: v.optional(v.number()),
     })
         .index("by_matchId", ["matchId"])
-        .index("by_match_day", ["matchId", "day"]),
+        .index("by_match_day", ["matchId", "day"])
+        .index("by_uploader_day", ["uploaderId", "matchId", "day"]),
 
     messages: defineTable({
         matchId: v.id("matches"),

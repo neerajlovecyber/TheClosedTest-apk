@@ -503,14 +503,28 @@ export const getProofs = query({
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) return [];
 
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
         const proofs = await ctx.db
             .query("proofs")
             .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
             .collect();
 
         const proofsWithUrls = await Promise.all(proofs.map(async (p) => {
-            const url = await getImageUrl(ctx, p.storageId);
-            return { ...p, url };
+            // Get all image URLs
+            const urls = await Promise.all(
+                (p.storageIds || []).map(async (sid) => await getImageUrl(ctx, sid))
+            );
+            return {
+                ...p,
+                urls,
+                isMe: user?._id === p.uploaderId
+            };
         }));
 
         return proofsWithUrls;
@@ -520,7 +534,7 @@ export const getProofs = query({
 export const uploadProof = mutation({
     args: {
         matchId: v.id("matches"),
-        storageId: v.string(),
+        storageIds: v.array(v.string()), // Up to 5 images
         day: v.number(),
         type: v.union(v.literal("image"), v.literal("video")),
         comment: v.optional(v.string())
@@ -528,6 +542,14 @@ export const uploadProof = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Auth required");
+
+        // Validate max 5 images
+        if (args.storageIds.length > 5) {
+            throw new Error("Maximum 5 images allowed");
+        }
+        if (args.storageIds.length === 0) {
+            throw new Error("At least 1 image required");
+        }
 
         const user = await ctx.db
             .query("users")
@@ -539,12 +561,46 @@ export const uploadProof = mutation({
         const match = await ctx.db.get(args.matchId);
         if (!match) throw new Error("Match not found");
 
+        // Check if user already has an approved proof for this day
+        const existingApproved = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .filter((q) => q.and(
+                q.eq(q.field("uploaderId"), user._id),
+                q.eq(q.field("day"), args.day),
+                q.eq(q.field("status"), "approved")
+            ))
+            .first();
+
+        if (existingApproved) {
+            throw new Error("Already approved for this day. Cannot re-upload.");
+        }
+
+        // Delete any existing pending/rejected proof for this day (replace)
+        const existingProofs = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .filter((q) => q.and(
+                q.eq(q.field("uploaderId"), user._id),
+                q.eq(q.field("day"), args.day),
+                q.or(
+                    q.eq(q.field("status"), "pending"),
+                    q.eq(q.field("status"), "rejected")
+                )
+            ))
+            .collect();
+
+        // Delete old proofs for this day
+        for (const oldProof of existingProofs) {
+            await ctx.db.delete(oldProof._id);
+        }
+
         await ctx.db.insert("proofs", {
             matchId: args.matchId,
             uploaderId: user._id,
             day: args.day,
             type: args.type,
-            storageId: args.storageId,
+            storageIds: args.storageIds,
             status: "pending",
             comment: args.comment,
             submittedAt: Date.now()
@@ -556,10 +612,17 @@ export const reviewProof = mutation({
     args: {
         proofId: v.id("proofs"),
         status: v.union(v.literal("approved"), v.literal("rejected")),
+        rejectionReason: v.optional(v.string())
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Auth required");
+
+        // Require rejection reason if rejecting
+        if (args.status === "rejected" && !args.rejectionReason) {
+            throw new Error("Rejection reason is required");
+        }
+
         const user = await ctx.db
             .query("users")
             .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
@@ -576,8 +639,14 @@ export const reviewProof = mutation({
             throw new Error("Cannot review your own proof");
         }
 
+        if (proof.status !== "pending") {
+            throw new Error("Proof has already been reviewed");
+        }
+
         await ctx.db.patch(args.proofId, {
-            status: args.status
+            status: args.status,
+            rejectionReason: args.status === "rejected" ? args.rejectionReason : undefined,
+            reviewedAt: Date.now()
         });
 
         if (args.status === "approved") {
@@ -595,5 +664,232 @@ export const reviewProof = mutation({
                 });
             }
         }
+
+        // Notify the uploader
+        await ctx.db.insert("notifications", {
+            userId: proof.uploaderId,
+            type: "proof_update",
+            title: args.status === "approved" ? "Proof Approved!" : "Proof Rejected",
+            body: args.status === "approved"
+                ? `Your Day ${proof.day} proof was approved!`
+                : `Your Day ${proof.day} proof was rejected: ${args.rejectionReason}`,
+            data: { matchId: proof.matchId, proofId: proof._id },
+            read: false,
+            createdAt: Date.now()
+        });
+    }
+});
+
+
+// Get current user's proof for today
+export const getTodayProof = query({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return null;
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) return null;
+
+        const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
+        const day = currentDay > 14 ? 14 : currentDay;
+
+        // Find user's proof for today
+        const todayProof = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .filter((q) => q.and(
+                q.eq(q.field("uploaderId"), user._id),
+                q.eq(q.field("day"), day)
+            ))
+            .first();
+
+        if (!todayProof) {
+            return {
+                day,
+                status: "not_uploaded" as const,
+                canUpload: true
+            };
+        }
+
+        // Get image URLs
+        const urls = await Promise.all(
+            (todayProof.storageIds || []).map(async (sid) => {
+                const url = await ctx.storage.getUrl(sid);
+                return url || "";
+            })
+        );
+
+        return {
+            ...todayProof,
+            day,
+            urls,
+            canUpload: todayProof.status !== "approved",
+            canEdit: todayProof.status === "pending"
+        };
+    }
+});
+
+// Get partner's pending proofs to review
+export const getPartnerTodayProof = query({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return null;
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) return null;
+
+        // Get partner ID
+        const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
+        const partner = await ctx.db.get(partnerId);
+
+        const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
+        const day = currentDay > 14 ? 14 : currentDay;
+
+        // Find partner's pending proof for today
+        const partnerProof = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .filter((q) => q.and(
+                q.eq(q.field("uploaderId"), partnerId),
+                q.eq(q.field("day"), day),
+                q.eq(q.field("status"), "pending")
+            ))
+            .first();
+
+        if (!partnerProof) {
+            return {
+                day,
+                hasPending: false,
+                partnerName: partner?.name || "Partner"
+            };
+        }
+
+        // Get image URLs
+        const urls = await Promise.all(
+            (partnerProof.storageIds || []).map(async (sid) => {
+                const url = await ctx.storage.getUrl(sid);
+                return url || "";
+            })
+        );
+
+        return {
+            ...partnerProof,
+            day,
+            urls,
+            hasPending: true,
+            partnerName: partner?.name || "Partner"
+        };
+    }
+});
+
+// Get full 14-day progress data for both users
+export const getProgressData = query({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return null;
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) return null;
+
+        const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
+        const partner = await ctx.db.get(partnerId);
+
+        // Get my app and partner's app
+        const isUser1 = match.user1Id === user._id;
+        const myAppId = isUser1 ? match.app1Id : match.app2Id;
+        const partnerAppId = isUser1 ? match.app2Id : match.app1Id;
+        const myApp = await ctx.db.get(myAppId);
+        const partnerApp = await ctx.db.get(partnerAppId);
+
+        const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+        // Get all proofs for this match
+        const allProofs = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .collect();
+
+        // Group proofs by day and user
+        const myProofs = allProofs.filter(p => p.uploaderId === user._id);
+        const partnerProofs = allProofs.filter(p => p.uploaderId === partnerId);
+
+        // Build 14-day grid
+        const days = [];
+        for (let day = 1; day <= 14; day++) {
+            const myProofForDay = myProofs.find(p => p.day === day);
+            const partnerProofForDay = partnerProofs.find(p => p.day === day);
+
+            const isFutureDay = day > currentDay;
+
+            days.push({
+                day,
+                isFuture: isFutureDay,
+                isToday: day === currentDay,
+                myStatus: isFutureDay ? "future" : (myProofForDay?.status || "missed"),
+                partnerStatus: isFutureDay ? "future" : (partnerProofForDay?.status || "missed"),
+                myProof: myProofForDay ? {
+                    status: myProofForDay.status,
+                    comment: myProofForDay.comment,
+                    rejectionReason: myProofForDay.rejectionReason,
+                    submittedAt: myProofForDay.submittedAt
+                } : null,
+                partnerProof: partnerProofForDay ? {
+                    status: partnerProofForDay.status,
+                    comment: partnerProofForDay.comment,
+                    submittedAt: partnerProofForDay.submittedAt
+                } : null
+            });
+        }
+
+        // Calculate summary stats
+        const myApprovedCount = myProofs.filter(p => p.status === "approved").length;
+        const partnerApprovedCount = partnerProofs.filter(p => p.status === "approved").length;
+        const myPendingCount = myProofs.filter(p => p.status === "pending").length;
+        const partnerPendingCount = partnerProofs.filter(p => p.status === "pending").length;
+
+        return {
+            days,
+            currentDay: currentDay > 14 ? 14 : currentDay,
+            summary: {
+                myApproved: myApprovedCount,
+                partnerApproved: partnerApprovedCount,
+                myPending: myPendingCount,
+                partnerPending: partnerPendingCount,
+                totalDays: 14
+            },
+            partnerName: partner?.name || "Partner",
+            myAppName: myApp?.title || "My App",
+            partnerAppName: partnerApp?.title || "Partner's App"
+        };
     }
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, FlatList, Keyboard, Dimensions } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, FlatList, Keyboard, useWindowDimensions, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -7,36 +7,41 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { UploadIcon, CheckCircleIcon, XCircleIcon, ClockIcon, InfoIcon, CameraIcon, SendIcon, MessageSquareIcon, UserIcon, FlaskConicalIcon, SmartphoneIcon } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ProofUploader } from '@/components/ProofUploader';
+import { ProofReviewer } from '@/components/ProofReviewer';
+import { ProgressGrid } from '@/components/ProgressGrid';
+import { RejectionReasonModal } from '@/components/RejectionReasonModal';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const isWeb = Platform.OS === 'web';
 
 export default function MatchDashboardScreen() {
+    const { width: SCREEN_WIDTH } = useWindowDimensions();
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const matchId = id as Id<"matches">;
 
     // Queries
     const matchDetails = useQuery(api.matches.getMatchDetails, { matchId });
-    const proofs = useQuery(api.matches.getProofs, { matchId }) || [];
+    const todayProof = useQuery(api.matches.getTodayProof, { matchId });
+    const partnerProof = useQuery(api.matches.getPartnerTodayProof, { matchId });
+    const progressData = useQuery(api.matches.getProgressData, { matchId });
     const messages = useQuery(api.matches.getMessages, { matchId }) || [];
 
     // Mutations
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
-    const uploadProofMutation = useMutation(api.matches.uploadProof);
-    const reviewProofMutation = useMutation(api.matches.reviewProof);
     const sendMessageMutation = useMutation(api.matches.sendMessage);
 
     // Navigation State
-    const [activeTab, setActiveTab] = useState<'testing' | 'myapp' | 'chat'>('testing');
+    const [activeTab, setActiveTab] = useState<'today' | 'progress' | 'chat'>('today');
     const flatListRef = useRef<FlatList>(null);
-    const tabs: ('testing' | 'myapp' | 'chat')[] = ['testing', 'myapp', 'chat'];
+    const tabs: ('today' | 'progress' | 'chat')[] = ['today', 'progress', 'chat'];
 
     const [newMessage, setNewMessage] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+    const [rejectionModalVisible, setRejectionModalVisible] = useState(false);
+    const [proofToReject, setProofToReject] = useState<Id<"proofs"> | null>(null);
+    const [instructionsExpanded, setInstructionsExpanded] = useState(false);
 
     useEffect(() => {
         const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -47,18 +52,13 @@ export default function MatchDashboardScreen() {
         };
     }, []);
 
-    // Sync FlatList with activeTab state when updated via Pill
+    // Sync FlatList with tab (mobile only)
     useEffect(() => {
-        const targetIndex = tabs.indexOf(activeTab);
-        // Only scroll if the index is valid and different from current visual position (we rely on user action mostly)
-        // If the user swiped, onMomentumScrollEnd sets the tab. We shouldn't scroll again.
-        // But if user clicked pill, we MUST scroll.
-        // We can distinguish by storing the 'expected' index.
-        // For simplicity: We always try to scroll to the active tab's index.
-        // FlatList prevents glitchy loops if already there.
-        flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+        if (!isWeb) {
+            const targetIndex = tabs.indexOf(activeTab);
+            flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+        }
     }, [activeTab]);
-
 
     if (!matchDetails) {
         return (
@@ -68,44 +68,8 @@ export default function MatchDashboardScreen() {
         );
     }
 
-    const { match, app, partner, day, isTester } = matchDetails;
+    const { match, app, partner, day } = matchDetails;
     const currentDay = day > 14 ? 14 : day;
-
-    const handleUpload = async () => {
-        try {
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: false,
-                quality: 0.8,
-            });
-
-            if (!result.canceled) {
-                setIsUploading(true);
-                const asset = result.assets[0];
-                const postUrl = await generateUploadUrl();
-                const response = await fetch(postUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": asset.mimeType || "image/jpeg" },
-                    body: await (await fetch(asset.uri)).blob(),
-                });
-                if (!response.ok) throw new Error("Upload failed");
-                const { storageId } = await response.json();
-
-                await uploadProofMutation({
-                    matchId,
-                    storageId,
-                    day: currentDay,
-                    type: "image",
-                    comment: "Daily screenshot upload"
-                });
-                Alert.alert("Success", "Proof uploaded!");
-            }
-        } catch (error: any) {
-            Alert.alert("Error", error.message);
-        } finally {
-            setIsUploading(false);
-        }
-    };
 
     const handleSendMessage = async () => {
         if (!newMessage.trim()) return;
@@ -117,159 +81,183 @@ export default function MatchDashboardScreen() {
         setNewMessage('');
     };
 
-    const handleReview = async (proofId: Id<"proofs">, status: "approved" | "rejected") => {
-        await reviewProofMutation({ proofId, status });
+    const handleRejectPress = (proofId: Id<"proofs">) => {
+        setProofToReject(proofId);
+        setRejectionModalVisible(true);
     };
 
-    // Component: Header (Minimal - No Back, No Icon)
-    const Header = () => (
-        <View className="mb-6 px-4 pt-4">
-            <View className="flex-row items-center justify-between mb-4">
-                <View>
-                    <Text className="text-2xl font-bold">{app.title}</Text>
-                    <Text className="text-sm text-muted-foreground">Day {currentDay} / 14</Text>
-                </View>
-                {/* Removed Back Button and User Icon as requested */}
+    // Header Component
+    const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
+        <View className="mb-4 px-4 pt-4">
+            <Text className="text-2xl font-bold">{title}</Text>
+            {subtitle && <Text className="text-sm text-muted-foreground">{subtitle}</Text>}
+        </View>
+    );
+
+    // Section Title
+    const SectionTitle = ({ icon: IconComponent, title }: { icon: any; title: string }) => (
+        <View className="flex-row items-center mb-3 mt-4">
+            <Icon as={IconComponent} className="text-primary size-5 mr-2" />
+            <Text className="text-lg font-bold">{title}</Text>
+        </View>
+    );
+
+    // Tab Button (Web only)
+    const TabButton = ({ tab, label, icon: IconComponent }: { tab: typeof activeTab; label: string; icon: any }) => (
+        <TouchableOpacity
+            onPress={() => setActiveTab(tab)}
+            className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${activeTab === tab ? 'bg-primary' : 'bg-secondary/30'}`}
+        >
+            <Icon as={IconComponent} className={`size-5 mr-2 ${activeTab === tab ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
+            <Text className={`font-bold ${activeTab === tab ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{label}</Text>
+        </TouchableOpacity>
+    );
+
+    // Status color helper
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'approved': return 'bg-green-500';
+            case 'pending': return 'bg-orange-500';
+            case 'rejected': return 'bg-red-500';
+            case 'missed': return 'bg-gray-400';
+            default: return 'bg-gray-200';
+        }
+    };
+
+    // Shared Tab Content
+    const TodayContent = () => (
+        <ScrollView
+            className="flex-1"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: isWeb ? 40 : 120 }}
+            style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
+        >
+            <Header title={app?.title || 'Testing App'} subtitle={`Day ${currentDay} of 14`} />
+            <View className="px-4">
+                {/* Collapsible Instructions */}
+                <Pressable
+                    onPress={() => setInstructionsExpanded(!instructionsExpanded)}
+                    className="bg-secondary/30 rounded-xl p-3 mb-4 flex-row items-center justify-between"
+                >
+                    <View className="flex-row items-center flex-1">
+                        <Icon as={InfoIcon} className="text-primary size-4 mr-2" />
+                        <Text className="font-medium text-sm">Testing Instructions</Text>
+                    </View>
+                    <Icon as={instructionsExpanded ? ChevronUpIcon : ChevronDownIcon} className="text-muted-foreground size-5" />
+                </Pressable>
+                {instructionsExpanded && (
+                    <Card className="bg-secondary/10 mb-4 -mt-2">
+                        <CardContent className="p-3">
+                            <Text className="text-muted-foreground text-sm">{app?.instructions || 'Follow the testing instructions'}</Text>
+                        </CardContent>
+                    </Card>
+                )}
+
+                <SectionTitle icon={UploadIcon} title="Your Daily Proof" />
+                <ProofUploader matchId={matchId} currentDay={currentDay} todayProof={todayProof} />
+
+                <View className="h-px bg-border my-6" />
+
+                <SectionTitle icon={EyeIcon} title="Review Partner's Proof" />
+                <ProofReviewer matchId={matchId} partnerProof={partnerProof} onReject={handleRejectPress} />
+            </View>
+        </ScrollView>
+    );
+
+    const ProgressContent = () => (
+        <View style={!isWeb ? { width: SCREEN_WIDTH } : undefined} className="flex-1">
+            <Header title="Testing Progress" subtitle="14-day overview" />
+            <View className="px-4 flex-1">
+                {progressData ? (
+                    <ProgressGrid
+                        days={progressData.days}
+                        currentDay={progressData.currentDay}
+                        summary={progressData.summary}
+                        partnerName={progressData.partnerName}
+                        myAppName={progressData.myAppName}
+                        partnerAppName={progressData.partnerAppName}
+                    />
+                ) : (
+                    <View className="items-center justify-center py-10">
+                        <Text className="text-muted-foreground">Loading progress...</Text>
+                    </View>
+                )}
             </View>
         </View>
     );
 
-    const renderItem = ({ item }: { item: 'testing' | 'myapp' | 'chat' }) => {
-        if (item === 'testing') {
-            return (
-                <ScrollView
-                    className="flex-1"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    style={{ width: SCREEN_WIDTH }}
-                >
-                    <Header />
-                    <View className="px-4">
-                        <Text className="text-lg font-bold mb-2">Today's Task</Text>
-                        <TouchableOpacity
-                            onPress={handleUpload}
-                            className="w-full aspect-video rounded-xl border-2 border-dashed border-border bg-card items-center justify-center mb-6"
-                        >
-                            {isUploading ? (
-                                <Text className="text-muted-foreground">Uploading...</Text>
-                            ) : (
-                                <View className="items-center">
-                                    <Icon as={CameraIcon} className="text-primary size-8 mb-2" />
-                                    <Text className="font-medium">Upload Screenshot</Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-
-                        <Card className="bg-secondary/20 mb-6">
-                            <CardContent className="p-4">
-                                <Text className="font-bold mb-2">Instructions</Text>
-                                <Text className="text-muted-foreground text-sm">{app.instructions}</Text>
-                            </CardContent>
-                        </Card>
-
-                        <Text className="font-bold mb-4">Your Progress</Text>
-                        {proofs.map((p, i) => (
-                            <View key={i} className="flex-row items-center mb-3">
-                                <View className={`w-2 h-2 rounded-full mr-3 ${p.status === 'approved' ? 'bg-green-500' : 'bg-orange-500'}`} />
-                                <Text className="flex-1">Day {p.day}</Text>
-                                <Text className="text-xs capitalize text-muted-foreground">{p.status}</Text>
-                            </View>
-                        ))}
+    const ChatContent = () => (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            className="flex-1"
+            style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
+        >
+            <FlatList
+                data={messages}
+                keyExtractor={(msg) => msg._id}
+                className="flex-1 px-4"
+                ListHeaderComponent={<Header title="Chat" subtitle={`with ${partner?.name || 'Partner'}`} />}
+                contentContainerStyle={{ paddingBottom: isWeb ? 20 : 100 }}
+                renderItem={({ item: msg }) => (
+                    <View className={`mb-3 max-w-[80%] ${msg.isMe ? 'self-end' : 'self-start'}`}>
+                        <View className={`p-3 rounded-2xl ${msg.isMe ? 'bg-primary rounded-tr-sm' : 'bg-secondary rounded-tl-sm'}`}>
+                            <Text className={msg.isMe ? 'text-primary-foreground' : 'text-foreground'}>{msg.content}</Text>
+                        </View>
+                        <Text className="text-[10px] text-muted-foreground mt-1 mx-1">
+                            {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
                     </View>
-                </ScrollView>
-            );
-        }
+                )}
+            />
+            <View className="p-3 border-t border-border flex-row items-center bg-background" style={{ marginBottom: isWeb ? 0 : (isKeyboardVisible ? 0 : 80) }}>
+                <TextInput
+                    className="flex-1 bg-secondary p-3 rounded-full mr-3 text-foreground"
+                    placeholder="Type a message..."
+                    placeholderTextColor="#9ca3af"
+                    value={newMessage}
+                    onChangeText={setNewMessage}
+                />
+                <TouchableOpacity onPress={handleSendMessage} className="bg-primary p-3 rounded-full">
+                    <Icon as={SendIcon} className="text-primary-foreground size-5" />
+                </TouchableOpacity>
+            </View>
+        </KeyboardAvoidingView>
+    );
 
-        if (item === 'myapp') {
-            return (
-                <ScrollView
-                    className="flex-1"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    style={{ width: SCREEN_WIDTH }}
-                >
-                    <Header />
-                    <View className="px-4">
-                        <Text className="text-lg font-bold mb-4">Partner's Progress</Text>
-                        {proofs.length === 0 ? (
-                            <View className="items-center py-10">
-                                <Text className="text-muted-foreground">No proofs submitted yet.</Text>
-                            </View>
-                        ) : (
-                            proofs.map((proof) => (
-                                <Card key={proof._id} className="mb-4">
-                                    <CardContent className="p-3">
-                                        <View className="flex-row justify-between items-center mb-2">
-                                            <Text className="font-bold">Day {proof.day}</Text>
-                                            <Text className={`text-xs capitalize font-bold ${proof.status === 'approved' ? 'text-green-600' :
-                                                proof.status === 'rejected' ? 'text-red-600' : 'text-orange-600'
-                                                }`}>{proof.status}</Text>
-                                        </View>
-                                        {proof.url && (
-                                            <Image source={{ uri: proof.url }} className="w-full h-40 rounded-lg bg-muted mb-3" resizeMode="cover" />
-                                        )}
-                                        {proof.status === 'pending' && (
-                                            <View className="flex-row gap-2 mt-2">
-                                                <TouchableOpacity onPress={() => handleReview(proof._id, 'approved')} className="flex-1 bg-green-100 p-2 rounded items-center mr-2">
-                                                    <Text className="text-green-700 font-bold text-xs">Accept</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => handleReview(proof._id, 'rejected')} className="flex-1 bg-red-100 p-2 rounded items-center">
-                                                    <Text className="text-red-700 font-bold text-xs">Reject</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            ))
-                        )}
-                    </View>
-                </ScrollView>
-            );
-        }
-
-        if (item === 'chat') {
-            return (
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    className="flex-1"
-                    style={{ width: SCREEN_WIDTH }}
-                >
-                    <FlatList
-                        data={messages}
-                        keyExtractor={(item) => item._id}
-                        className="flex-1 px-4"
-                        ListHeaderComponent={<Header />}
-                        contentContainerStyle={{ paddingBottom: 100 }}
-                        renderItem={({ item }) => (
-                            <View className={`mb-3 max-w-[80%] ${item.isMe ? 'self-end' : 'self-start'}`}>
-                                <View className={`p-3 rounded-2xl ${item.isMe ? 'bg-primary rounded-tr-sm' : 'bg-secondary rounded-tl-sm'}`}>
-                                    <Text className={item.isMe ? 'text-primary-foreground' : 'text-foreground'}>{item.content}</Text>
-                                </View>
-                                <Text className="text-[10px] text-muted-foreground mt-1 mx-1">
-                                    {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
-                            </View>
-                        )}
-                    />
-                    <View className="p-3 border-t border-border flex-row items-center bg-background" style={{ marginBottom: isKeyboardVisible ? 0 : 80 }}>
-                        <TextInput
-                            className="flex-1 bg-secondary p-3 rounded-full mr-3 text-foreground"
-                            placeholder="Type a message..."
-                            placeholderTextColor="#9ca3af"
-                            value={newMessage}
-                            onChangeText={setNewMessage}
-                        />
-                        <TouchableOpacity onPress={handleSendMessage} className="bg-primary p-3 rounded-full">
-                            <Icon as={SendIcon} className="text-primary-foreground size-5" />
-                        </TouchableOpacity>
-                    </View>
-                </KeyboardAvoidingView>
-            );
-        }
+    // Mobile Render Item for FlatList
+    const renderMobileItem = ({ item }: { item: typeof activeTab }) => {
+        if (item === 'today') return <TodayContent />;
+        if (item === 'progress') return <ProgressContent />;
+        if (item === 'chat') return <ChatContent />;
         return null;
     };
 
+    // WEB LAYOUT
+    if (isWeb) {
+        return (
+            <SafeAreaView className="flex-1 bg-background">
+                {/* Tab Bar */}
+                <View className="flex-row px-4 pt-4 gap-2 mb-4">
+                    <TabButton tab="today" label="Today" icon={CalendarCheckIcon} />
+                    <TabButton tab="progress" label="Progress" icon={BarChart3Icon} />
+                    <TabButton tab="chat" label="Chat" icon={MessageSquareIcon} />
+                </View>
 
+                {/* Content */}
+                {activeTab === 'today' && <TodayContent />}
+                {activeTab === 'progress' && <ProgressContent />}
+                {activeTab === 'chat' && <ChatContent />}
+
+                <RejectionReasonModal
+                    visible={rejectionModalVisible}
+                    proofId={proofToReject}
+                    onClose={() => { setRejectionModalVisible(false); setProofToReject(null); }}
+                />
+            </SafeAreaView>
+        );
+    }
+
+    // MOBILE LAYOUT (Original swipe design)
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
             <View className="flex-1 relative">
@@ -279,7 +267,7 @@ export default function MatchDashboardScreen() {
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
-                    renderItem={renderItem}
+                    renderItem={renderMobileItem}
                     keyExtractor={(item) => item}
                     onMomentumScrollEnd={(event) => {
                         const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -290,7 +278,7 @@ export default function MatchDashboardScreen() {
                     }}
                 />
 
-                {/* --- Floating Navigation Pill --- */}
+                {/* Floating Navigation Pill (Mobile only) */}
                 {!isKeyboardVisible && (
                     <View className="absolute bottom-5 left-4 right-4 items-center">
                         <View className="flex-row bg-foreground/90 rounded-full shadow-lg p-1.5 px-2">
@@ -301,11 +289,11 @@ export default function MatchDashboardScreen() {
                                     className={`flex-row items-center px-4 py-2.5 rounded-full ${activeTab === tab ? 'bg-background' : 'bg-transparent'}`}
                                 >
                                     <Icon
-                                        as={tab === 'testing' ? FlaskConicalIcon : tab === 'myapp' ? SmartphoneIcon : MessageSquareIcon}
+                                        as={tab === 'today' ? CalendarCheckIcon : tab === 'progress' ? BarChart3Icon : MessageSquareIcon}
                                         className={`size-5 ${activeTab === tab ? 'text-foreground' : 'text-background'}`}
                                     />
                                     {activeTab === tab && <Text className="text-foreground font-bold ml-2 text-sm">
-                                        {tab === 'testing' ? 'Testing' : tab === 'myapp' ? 'My App' : 'Chat'}
+                                        {tab === 'today' ? 'Today' : tab === 'progress' ? 'Progress' : 'Chat'}
                                     </Text>}
                                 </TouchableOpacity>
                             ))}
@@ -313,6 +301,12 @@ export default function MatchDashboardScreen() {
                     </View>
                 )}
             </View>
+
+            <RejectionReasonModal
+                visible={rejectionModalVisible}
+                proofId={proofToReject}
+                onClose={() => { setRejectionModalVisible(false); setProofToReject(null); }}
+            />
         </SafeAreaView>
     );
 }
