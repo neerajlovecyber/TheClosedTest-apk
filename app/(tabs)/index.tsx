@@ -90,7 +90,7 @@ export default function HomeScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             >
                 {/* Header Section */}
-                <View className="px-6 py-8 bg-card border-b border-border">
+                <View className="px-6 py-8">
                     <View className="flex-row justify-between items-start mb-4">
                         <View>
                             <Text className="text-3xl font-bold text-foreground">Hello, {userName}!</Text>
@@ -102,14 +102,14 @@ export default function HomeScreen() {
                     </View>
 
                     <View className="flex-row gap-4 mt-2">
-                        <Card className="flex-1 bg-primary/10 border-primary/20">
+                        <Card className="flex-1 bg-primary/10 border-primary/20 shadow-none">
                             <CardContent className="p-4 items-center">
                                 <Icon as={StarIcon} className="text-primary mb-2 size-6" />
                                 <Text className="font-bold text-2xl text-primary">{reputation}</Text>
                                 <Text className="text-xs text-muted-foreground uppercase font-bold">Reputation</Text>
                             </CardContent>
                         </Card>
-                        <Card className="flex-1 bg-orange-500/10 border-orange-500/20">
+                        <Card className="flex-1 bg-orange-500/10 border-orange-500/20 shadow-none">
                             <CardContent className="p-4 items-center">
                                 <Icon as={FlameIcon} className="text-orange-500 mb-2 size-6" />
                                 <Text className="font-bold text-2xl text-orange-500">{streak}</Text>
