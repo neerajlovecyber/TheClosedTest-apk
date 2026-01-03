@@ -102,18 +102,26 @@ export default function HomeScreen() {
                     </View>
 
                     <View className="flex-row gap-4 mt-2">
-                        <Card className="flex-1 bg-primary/10 border-primary/20 shadow-none">
-                            <CardContent className="p-4 items-center">
-                                <Icon as={StarIcon} className="text-primary mb-2 size-6" />
-                                <Text className="font-bold text-2xl text-primary">{reputation}</Text>
-                                <Text className="text-xs text-muted-foreground uppercase font-bold">Reputation</Text>
+                        <Card className="flex-1 border-border bg-card shadow-sm">
+                            <CardContent className="p-3 flex-row items-center gap-3">
+                                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
+                                    <Icon as={StarIcon} className="text-primary size-5" />
+                                </View>
+                                <View>
+                                    <Text className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Reputation</Text>
+                                    <Text className="text-xl font-bold text-foreground">{reputation}</Text>
+                                </View>
                             </CardContent>
                         </Card>
-                        <Card className="flex-1 bg-orange-500/10 border-orange-500/20 shadow-none">
-                            <CardContent className="p-4 items-center">
-                                <Icon as={FlameIcon} className="text-orange-500 mb-2 size-6" />
-                                <Text className="font-bold text-2xl text-orange-500">{streak}</Text>
-                                <Text className="text-xs text-muted-foreground uppercase font-bold">Details Streak</Text>
+                        <Card className="flex-1 border-border bg-card shadow-sm">
+                            <CardContent className="p-3 flex-row items-center gap-3">
+                                <View className="h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 dark:bg-orange-500/20">
+                                    <Icon as={FlameIcon} className="text-orange-500 size-5" />
+                                </View>
+                                <View>
+                                    <Text className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Streak</Text>
+                                    <Text className="text-xl font-bold text-foreground">{streak}</Text>
+                                </View>
                             </CardContent>
                         </Card>
                     </View>
