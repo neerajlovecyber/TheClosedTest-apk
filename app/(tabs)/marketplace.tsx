@@ -70,7 +70,7 @@ export default function MarketplaceScreen() {
                         </View>
                         <Input
                             placeholder="Find specific apps..."
-                            className="pl-9 h-10 bg-secondary/30 border-border/50"
+                            className="pl-9 h-10 bg-card border-border shadow-sm text-foreground"
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                         />
