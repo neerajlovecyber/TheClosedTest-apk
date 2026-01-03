@@ -768,7 +768,7 @@ export const reviewProof = mutation({
             const uploader = await ctx.db.get(proof.uploaderId);
             if (uploader) {
                 await ctx.db.patch(uploader._id, {
-                    reputation: Math.max(0, (uploader.reputation || 100) - 1)
+                    reputation: Math.max(0, (uploader.reputation || 100) - 5)
                 });
             }
         }

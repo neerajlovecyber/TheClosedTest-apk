@@ -242,7 +242,7 @@ export default function MatchDashboardScreen() {
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
                     style={{ flex: 1 }}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 125 : 105}
                 >
                     <View style={{ flex: 1 }}>
                         <Chat
@@ -318,6 +318,7 @@ export default function MatchDashboardScreen() {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
                 renderItem={renderMobileItem}
                 keyExtractor={(item) => item}
                 getItemLayout={(data, index) => ({
