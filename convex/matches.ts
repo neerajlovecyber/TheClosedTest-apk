@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { api, internal } from "./_generated/api";
 
 // Helper to calculate current testing day (Day 1 to 14) based on midnight reset (IST/Local time logic)
 const calculateDay = (startDate: number) => {
@@ -97,16 +98,14 @@ export const requestSwap = mutation({
             createdAt: now,
         });
 
-        // Optional: Create initial notification for user2
-        await ctx.db.insert("notifications", {
+        // Create notification and send push notification automatically
+        await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
             userId: targetApp.userId,
             type: "request",
             title: "New Swap Request",
             body: `${user.name || "A user"} wants to swap tests with you!`,
             data: { matchId, appId: args.targetAppId },
-            read: false,
-            createdAt: now,
-        })
+        });
 
         return matchId;
     },
@@ -242,6 +241,15 @@ export const acceptSwap = mutation({
             data: { matchId: match._id },
             read: false,
             createdAt: Date.now(),
+        });
+
+        // Notify the requestor
+        await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+            userId: match.user1Id,
+            type: "acceptance",
+            title: "Swap Accepted!",
+            body: `${user.name || "User"} accepted your swap request.`,
+            data: { matchId: match._id },
         });
 
         return true;
@@ -568,6 +576,19 @@ export const sendMessage = mutation({
             storageId: args.storageId,
             sentAt: Date.now()
         });
+
+        // Notify partner about new message
+        const matchData = await ctx.db.get(args.matchId);
+        if (matchData) {
+            const partnerId = matchData.user1Id === user._id ? matchData.user2Id : matchData.user1Id;
+            await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                userId: partnerId,
+                type: "message",
+                title: "New Message",
+                body: `${user.name || "Your partner"} sent you a message`,
+                data: { matchId: args.matchId, type: "message" },
+            });
+        }
     }
 });
 
@@ -679,6 +700,19 @@ export const uploadProof = mutation({
             comment: args.comment,
             submittedAt: Date.now()
         });
+
+        // Notify partner about proof upload
+        const matchInfo = await ctx.db.get(args.matchId);
+        if (matchInfo) {
+            const partnerId = matchInfo.user1Id === user._id ? matchInfo.user2Id : matchInfo.user1Id;
+            await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                userId: partnerId,
+                type: "proof_update",
+                title: "Screenshot Uploaded",
+                body: `${user.name || "Your partner"} uploaded Day ${args.day} screenshot`,
+                data: { matchId: args.matchId, day: args.day },
+            });
+        }
     }
 });
 
@@ -740,7 +774,7 @@ export const reviewProof = mutation({
         }
 
         // Notify the uploader
-        await ctx.db.insert("notifications", {
+        await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
             userId: proof.uploaderId,
             type: "proof_update",
             title: args.status === "approved" ? "Proof Approved!" : "Proof Rejected",
@@ -748,8 +782,6 @@ export const reviewProof = mutation({
                 ? `Your Day ${proof.day} proof was approved!`
                 : `Your Day ${proof.day} proof was rejected: ${args.rejectionReason}`,
             data: { matchId: proof.matchId, proofId: proof._id },
-            read: false,
-            createdAt: Date.now()
         });
     }
 });
@@ -1019,4 +1051,24 @@ export const getAppTesters = query({
             };
         }));
     }
+});
+
+// Cleanup: Delete messages older than 14 days
+export const deleteOldMessages = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+        const cutoffTime = Date.now() - FOURTEEN_DAYS_MS;
+
+        const oldMessages = await ctx.db
+            .query("messages")
+            .filter((q) => q.lt(q.field("sentAt"), cutoffTime))
+            .collect();
+
+        for (const msg of oldMessages) {
+            await ctx.db.delete(msg._id);
+        }
+
+        console.log(`Deleted ${oldMessages.length} old messages`);
+    },
 });

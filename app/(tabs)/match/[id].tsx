@@ -18,7 +18,7 @@ const isWeb = Platform.OS === 'web';
 
 export default function MatchDashboardScreen() {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
     const router = useRouter();
     const matchId = id as Id<"matches">;
 
@@ -32,8 +32,10 @@ export default function MatchDashboardScreen() {
     // Mutations
     const sendMessageMutation = useMutation(api.matches.sendMessage);
 
-    // Navigation State
-    const [activeTab, setActiveTab] = useState<'today' | 'progress' | 'chat'>('today');
+    // Navigation State - Initialize from URL parameter
+    const [activeTab, setActiveTab] = useState<'today' | 'progress' | 'chat'>(
+        (tab as 'today' | 'progress' | 'chat') || 'today'
+    );
     const flatListRef = useRef<FlatList>(null);
     const tabs: ('today' | 'progress' | 'chat')[] = ['today', 'progress', 'chat'];
 
@@ -63,6 +65,19 @@ export default function MatchDashboardScreen() {
             isUserTabPress.current = false;
         }
     }, [activeTab]);
+
+    // Handle initial tab from URL parameter (for deep linking)
+    useEffect(() => {
+        if (!isWeb && tab && flatListRef.current) {
+            const targetIndex = tabs.indexOf(tab as 'today' | 'progress' | 'chat');
+            if (targetIndex !== -1) {
+                // Small delay to ensure FlatList is ready
+                setTimeout(() => {
+                    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+                }, 100);
+            }
+        }
+    }, [tab]);
 
     if (!matchDetails) {
         return (
@@ -132,7 +147,7 @@ export default function MatchDashboardScreen() {
     };
 
     // Shared Tab Content
-    const TodayContent = () => (
+    const renderTodayContent = () => (
         <ScrollView
             className="flex-1"
             showsVerticalScrollIndicator={false}
@@ -171,7 +186,7 @@ export default function MatchDashboardScreen() {
         </ScrollView>
     );
 
-    const ProgressContent = () => (
+    const renderProgressContent = () => (
         <View style={!isWeb ? { width: SCREEN_WIDTH } : undefined} className="flex-1">
             <Header title="Testing Progress" subtitle="14-day overview" />
             <View className="px-4 flex-1">
@@ -193,49 +208,51 @@ export default function MatchDashboardScreen() {
         </View>
     );
 
-    const ChatContent = () => (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            className="flex-1"
-            style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
-        >
-            <FlatList
-                data={messages}
-                keyExtractor={(msg) => msg._id}
-                className="flex-1 px-4"
-                ListHeaderComponent={<Header title="Chat" subtitle={`with ${partner?.name || 'Partner'}`} />}
-                contentContainerStyle={{ paddingBottom: isWeb ? 20 : 100 }}
-                renderItem={({ item: msg }) => (
-                    <View className={`mb-3 max-w-[80%] ${msg.isMe ? 'self-end' : 'self-start'}`}>
-                        <View className={`p-3 rounded-2xl ${msg.isMe ? 'bg-primary rounded-tr-sm' : 'bg-secondary rounded-tl-sm'}`}>
-                            <Text className={msg.isMe ? 'text-primary-foreground' : 'text-foreground'}>{msg.content}</Text>
+    const renderChatContent = () => (
+        <View style={!isWeb ? { width: SCREEN_WIDTH } : undefined} className="flex-1">
+            <Header title="Chat" subtitle={`with ${partner?.name || 'Partner'}`} />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                className="flex-1"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 120 : 100}
+            >
+                <FlatList
+                    data={messages}
+                    keyExtractor={(msg) => msg._id}
+                    className="flex-1 px-4"
+                    contentContainerStyle={{ paddingBottom: isWeb ? 20 : 20 }}
+                    renderItem={({ item: msg }) => (
+                        <View className={`mb-3 max-w-[80%] ${msg.isMe ? 'self-end' : 'self-start'}`}>
+                            <View className={`p-3 rounded-2xl ${msg.isMe ? 'bg-primary rounded-tr-sm' : 'bg-secondary rounded-tl-sm'}`}>
+                                <Text className={msg.isMe ? 'text-primary-foreground' : 'text-foreground'}>{msg.content}</Text>
+                            </View>
+                            <Text className="text-[10px] text-muted-foreground mt-1 mx-1">
+                                {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Text>
                         </View>
-                        <Text className="text-[10px] text-muted-foreground mt-1 mx-1">
-                            {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                    </View>
-                )}
-            />
-            <View className="p-3 border-t border-border flex-row items-center bg-background">
-                <TextInput
-                    className="flex-1 bg-secondary p-3 rounded-full mr-3 text-foreground"
-                    placeholder="Type a message..."
-                    placeholderTextColor="#9ca3af"
-                    value={newMessage}
-                    onChangeText={setNewMessage}
+                    )}
                 />
-                <TouchableOpacity onPress={handleSendMessage} className="bg-primary p-3 rounded-full">
-                    <Icon as={SendIcon} className="text-primary-foreground size-5" />
-                </TouchableOpacity>
-            </View>
-        </KeyboardAvoidingView>
+                <View className="p-3 border-t border-border flex-row items-center bg-background mb-2">
+                    <TextInput
+                        className="flex-1 bg-secondary p-3 rounded-full mr-3 text-foreground"
+                        placeholder="Type a message..."
+                        placeholderTextColor="#9ca3af"
+                        value={newMessage}
+                        onChangeText={setNewMessage}
+                    />
+                    <TouchableOpacity onPress={handleSendMessage} className="bg-primary p-3 rounded-full">
+                        <Icon as={SendIcon} className="text-primary-foreground size-5" />
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
+        </View>
     );
 
     // Mobile Render Item for FlatList
     const renderMobileItem = ({ item }: { item: typeof activeTab }) => {
-        if (item === 'today') return <TodayContent />;
-        if (item === 'progress') return <ProgressContent />;
-        if (item === 'chat') return <ChatContent />;
+        if (item === 'today') return renderTodayContent();
+        if (item === 'progress') return renderProgressContent();
+        if (item === 'chat') return renderChatContent();
         return null;
     };
 
@@ -251,9 +268,9 @@ export default function MatchDashboardScreen() {
                 </View>
 
                 {/* Content */}
-                {activeTab === 'today' && <TodayContent />}
-                {activeTab === 'progress' && <ProgressContent />}
-                {activeTab === 'chat' && <ChatContent />}
+                {activeTab === 'today' && renderTodayContent()}
+                {activeTab === 'progress' && renderProgressContent()}
+                {activeTab === 'chat' && renderChatContent()}
 
                 <RejectionReasonModal
                     visible={rejectionModalVisible}
@@ -275,6 +292,7 @@ export default function MatchDashboardScreen() {
             </View>
 
             {/* Swipeable Content */}
+            {/* Swipeable Content */}
             <FlatList
                 ref={flatListRef}
                 data={tabs}
@@ -283,6 +301,18 @@ export default function MatchDashboardScreen() {
                 showsHorizontalScrollIndicator={false}
                 renderItem={renderMobileItem}
                 keyExtractor={(item) => item}
+                getItemLayout={(data, index) => ({
+                    length: SCREEN_WIDTH,
+                    offset: SCREEN_WIDTH * index,
+                    index,
+                })}
+                initialScrollIndex={tabs.indexOf(activeTab)}
+                onScrollToIndexFailed={(info) => {
+                    const wait = new Promise(resolve => setTimeout(resolve, 500));
+                    wait.then(() => {
+                        flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+                    });
+                }}
                 onMomentumScrollEnd={(event) => {
                     const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
                     const newTab = tabs[index];

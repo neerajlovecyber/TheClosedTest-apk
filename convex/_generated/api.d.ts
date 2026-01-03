@@ -13,6 +13,9 @@ import type * as apps from "../apps.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
 import type * as matches from "../matches.js";
+import type * as notificationHelper from "../notificationHelper.js";
+import type * as notifications from "../notifications.js";
+import type * as triggers from "../triggers.js";
 import type * as users from "../users.js";
 
 import type {
@@ -27,6 +30,9 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   files: typeof files;
   matches: typeof matches;
+  notificationHelper: typeof notificationHelper;
+  notifications: typeof notifications;
+  triggers: typeof triggers;
   users: typeof users;
 }>;
 

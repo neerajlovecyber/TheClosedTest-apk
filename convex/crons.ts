@@ -10,4 +10,11 @@ crons.daily(
     internal.admin.internalSnapshotDailyStats
 );
 
+// Delete messages older than 14 days every day
+crons.daily(
+    "cleanup-messages",
+    { hourUTC: 1, minuteUTC: 0 },
+    internal.matches.deleteOldMessages
+);
+
 export default crons;

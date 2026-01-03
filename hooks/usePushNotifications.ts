@@ -67,15 +67,31 @@ export function usePushNotifications() {
         });
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            console.log(response);
+            console.log('Notification tapped:', response);
+
+            // Handle navigation based on notification data
+            const data = response.notification.request.content.data;
+
+            if (data?.matchId) {
+                // Navigate to the match page
+                const router = require('expo-router').router;
+
+                // If it's a message notification, open the chat tab
+                if (data.type === 'message') {
+                    router.push(`/(tabs)/match/${data.matchId}?tab=chat`);
+                } else {
+                    // For other notifications, open the default (today) tab
+                    router.push(`/(tabs)/match/${data.matchId}`);
+                }
+            }
         });
 
         return () => {
             if (notificationListener.current) {
-                Notifications.removeNotificationSubscription(notificationListener.current);
+                notificationListener.current.remove();
             }
             if (responseListener.current) {
-                Notifications.removeNotificationSubscription(responseListener.current);
+                responseListener.current.remove();
             }
         };
     }, []);
