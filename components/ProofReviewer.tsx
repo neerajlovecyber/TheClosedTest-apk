@@ -20,6 +20,7 @@ interface ProofReviewerProps {
         comment?: string;
         hasPending?: boolean;
         partnerName?: string;
+        status?: string;
     } | null;
     onReviewComplete?: () => void;
     onReject?: (proofId: Id<"proofs">) => void;
@@ -54,13 +55,13 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
         onReject?.(partnerProof._id);
     };
 
-    // No pending proofs to review
-    if (!partnerProof || !partnerProof.hasPending) {
+    // Partner hasn't uploaded yet
+    if (!partnerProof || partnerProof.status === "not_uploaded") {
         return (
             <Card className="bg-secondary/30 mb-6">
                 <CardContent className="p-6 items-center">
                     <Icon as={ClockIcon} className="text-muted-foreground size-12 mb-3" />
-                    <Text className="text-lg font-bold text-center">No Proofs to Review</Text>
+                    <Text className="text-lg font-bold text-center">Waiting for Partner</Text>
                     <Text className="text-muted-foreground text-center mt-1">
                         {partnerProof?.partnerName || "Your partner"} hasn't uploaded today's proof yet.
                     </Text>
@@ -68,6 +69,42 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
             </Card>
         );
     }
+
+    // Already approved
+    if (partnerProof.status === "approved") {
+        return (
+            <Card className="bg-green-500/10 border-green-500/30 mb-6">
+                <CardContent className="p-4">
+                    <View className="flex-row items-center mb-2">
+                        <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-2" />
+                        <Text className="font-bold text-green-600 text-lg">Approved!</Text>
+                    </View>
+                    <Text className="text-muted-foreground">
+                        You approved {partnerProof.partnerName}'s Day {partnerProof.day} proof.
+                    </Text>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    // Already rejected (partner needs to re-upload)
+    if (partnerProof.status === "rejected") {
+        return (
+            <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
+                <CardContent className="p-4">
+                    <View className="flex-row items-center mb-2">
+                        <Icon as={XCircleIcon} className="text-orange-500 size-6 mr-2" />
+                        <Text className="font-bold text-orange-600 text-lg">Waiting for Re-upload</Text>
+                    </View>
+                    <Text className="text-muted-foreground">
+                        You rejected {partnerProof.partnerName}'s proof. Waiting for them to upload again.
+                    </Text>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    // Pending review - show full review UI
 
     const images = partnerProof.urls || [];
 

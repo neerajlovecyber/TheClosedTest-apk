@@ -178,6 +178,46 @@ export const acceptSwap = mutation({
             lastActivity: Date.now(),
         });
 
+        // Check if either app is now filled and update status
+        const app1 = await ctx.db.get(match.app1Id);
+        const app2 = await ctx.db.get(match.app2Id);
+
+        // Count active testers for app1
+        if (app1 && app1.status === "recruiting") {
+            const app1Matches = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.or(
+                        q.eq(q.field("app1Id"), app1._id),
+                        q.eq(q.field("app2Id"), app1._id)
+                    ),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            if (app1Matches.length >= app1.requiredTesters) {
+                await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
+            }
+        }
+
+        // Count active testers for app2
+        if (app2 && app2.status === "recruiting") {
+            const app2Matches = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.or(
+                        q.eq(q.field("app1Id"), app2._id),
+                        q.eq(q.field("app2Id"), app2._id)
+                    ),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            if (app2Matches.length >= app2.requiredTesters) {
+                await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
+            }
+        }
+
         // Notify the requestor
         await ctx.db.insert("notifications", {
             userId: match.user1Id,
@@ -346,6 +386,23 @@ export const getMyActiveTests = query({
                 const myApp = await ctx.db.get(myAppId);
                 const owner = await ctx.db.get(ownerId);
 
+                // Calculate current day
+                const currentDay = Math.floor((Date.now() - (match.startDate || Date.now())) / (1000 * 60 * 60 * 24)) + 1;
+                const day = currentDay > 14 ? 14 : currentDay;
+
+                // Check if user has uploaded proof for today and if it's approved
+                const todayProof = await ctx.db
+                    .query("proofs")
+                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                    .filter((q) => q.and(
+                        q.eq(q.field("uploaderId"), user._id),
+                        q.eq(q.field("day"), day)
+                    ))
+                    .first();
+
+                // If proof is approved, task is complete for today - don't show
+                const needsAttention = !todayProof || todayProof.status !== "approved";
+
                 let resolvedUrl = appToTest?.iconUrl;
                 if (appToTest?.storageIconId) {
                     resolvedUrl = await getImageUrl(ctx, appToTest.storageIconId);
@@ -358,16 +415,19 @@ export const getMyActiveTests = query({
                     name: appToTest?.title || "Unknown App",
                     status: match.status,
                     startDate: match.startDate,
-                    day: Math.floor((Date.now() - (match.startDate || Date.now())) / (1000 * 60 * 60 * 24)) + 1, // Simple Day Calc
+                    day,
                     totalDays: 14,
                     owner: owner?.name || "Unknown User",
                     relatedMyApp: myApp?.title || "My App",
-                    iconUrl: resolvedUrl || "https://github.com/shadcn.png"
+                    iconUrl: resolvedUrl || "https://github.com/shadcn.png",
+                    needsAttention,
+                    proofStatus: todayProof?.status || "not_uploaded"
                 };
             })
         );
 
-        return enrichedMatches;
+        // Only return matches that need attention
+        return enrichedMatches.filter(m => m.needsAttention);
     },
 });
 
@@ -739,7 +799,7 @@ export const getTodayProof = query({
     }
 });
 
-// Get partner's pending proofs to review
+// Get partner's proof for today (any status)
 export const getPartnerTodayProof = query({
     args: { matchId: v.id("matches") },
     handler: async (ctx, args) => {
@@ -765,20 +825,20 @@ export const getPartnerTodayProof = query({
         const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
         const day = currentDay > 14 ? 14 : currentDay;
 
-        // Find partner's pending proof for today
+        // Find partner's proof for today (any status)
         const partnerProof = await ctx.db
             .query("proofs")
             .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
             .filter((q) => q.and(
                 q.eq(q.field("uploaderId"), partnerId),
-                q.eq(q.field("day"), day),
-                q.eq(q.field("status"), "pending")
+                q.eq(q.field("day"), day)
             ))
             .first();
 
         if (!partnerProof) {
             return {
                 day,
+                status: "not_uploaded" as const,
                 hasPending: false,
                 partnerName: partner?.name || "Partner"
             };
@@ -796,7 +856,7 @@ export const getPartnerTodayProof = query({
             ...partnerProof,
             day,
             urls,
-            hasPending: true,
+            hasPending: partnerProof.status === "pending",
             partnerName: partner?.name || "Partner"
         };
     }

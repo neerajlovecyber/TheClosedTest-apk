@@ -52,11 +52,15 @@ export default function MatchDashboardScreen() {
         };
     }, []);
 
-    // Sync FlatList with tab (mobile only)
+    // Track if tab change was from user tap (not swipe)
+    const isUserTabPress = useRef(false);
+
+    // Sync FlatList with tab only when user taps tab button
     useEffect(() => {
-        if (!isWeb) {
+        if (!isWeb && isUserTabPress.current) {
             const targetIndex = tabs.indexOf(activeTab);
             flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+            isUserTabPress.current = false;
         }
     }, [activeTab]);
 
@@ -102,10 +106,13 @@ export default function MatchDashboardScreen() {
         </View>
     );
 
-    // Tab Button (Web only)
+    // Tab Button
     const TabButton = ({ tab, label, icon: IconComponent }: { tab: typeof activeTab; label: string; icon: any }) => (
         <TouchableOpacity
-            onPress={() => setActiveTab(tab)}
+            onPress={() => {
+                isUserTabPress.current = true;
+                setActiveTab(tab);
+            }}
             className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${activeTab === tab ? 'bg-primary' : 'bg-secondary/30'}`}
         >
             <Icon as={IconComponent} className={`size-5 mr-2 ${activeTab === tab ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
@@ -209,7 +216,7 @@ export default function MatchDashboardScreen() {
                     </View>
                 )}
             />
-            <View className="p-3 border-t border-border flex-row items-center bg-background" style={{ marginBottom: isWeb ? 0 : (isKeyboardVisible ? 0 : 80) }}>
+            <View className="p-3 border-t border-border flex-row items-center bg-background">
                 <TextInput
                     className="flex-1 bg-secondary p-3 rounded-full mr-3 text-foreground"
                     placeholder="Type a message..."
@@ -236,8 +243,8 @@ export default function MatchDashboardScreen() {
     if (isWeb) {
         return (
             <SafeAreaView className="flex-1 bg-background">
-                {/* Tab Bar */}
-                <View className="flex-row px-4 pt-4 gap-2 mb-4">
+                {/* Tab Bar - Clean fixed tabs at top */}
+                <View className="flex-row px-4 py-3 gap-2 border-b border-border/50 bg-background">
                     <TabButton tab="today" label="Today" icon={CalendarCheckIcon} />
                     <TabButton tab="progress" label="Progress" icon={BarChart3Icon} />
                     <TabButton tab="chat" label="Chat" icon={MessageSquareIcon} />
@@ -257,50 +264,33 @@ export default function MatchDashboardScreen() {
         );
     }
 
-    // MOBILE LAYOUT (Original swipe design)
+    // MOBILE LAYOUT - Tabs at top + swipe to switch
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
-            <View className="flex-1 relative">
-                <FlatList
-                    ref={flatListRef}
-                    data={tabs}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={renderMobileItem}
-                    keyExtractor={(item) => item}
-                    onMomentumScrollEnd={(event) => {
-                        const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-                        const newTab = tabs[index];
-                        if (newTab && newTab !== activeTab) {
-                            setActiveTab(newTab);
-                        }
-                    }}
-                />
-
-                {/* Floating Navigation Pill (Mobile only) */}
-                {!isKeyboardVisible && (
-                    <View className="absolute bottom-5 left-4 right-4 items-center">
-                        <View className="flex-row bg-foreground/90 rounded-full shadow-lg p-1.5 px-2">
-                            {tabs.map(tab => (
-                                <TouchableOpacity
-                                    key={tab}
-                                    onPress={() => setActiveTab(tab)}
-                                    className={`flex-row items-center px-4 py-2.5 rounded-full ${activeTab === tab ? 'bg-background' : 'bg-transparent'}`}
-                                >
-                                    <Icon
-                                        as={tab === 'today' ? CalendarCheckIcon : tab === 'progress' ? BarChart3Icon : MessageSquareIcon}
-                                        className={`size-5 ${activeTab === tab ? 'text-foreground' : 'text-background'}`}
-                                    />
-                                    {activeTab === tab && <Text className="text-foreground font-bold ml-2 text-sm">
-                                        {tab === 'today' ? 'Today' : tab === 'progress' ? 'Progress' : 'Chat'}
-                                    </Text>}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                )}
+        <SafeAreaView className="flex-1 bg-background" edges={['left', 'right']}>
+            {/* Tab Bar - Clean fixed tabs at top */}
+            <View className="flex-row px-4 py-3 gap-2 border-b border-border/50 bg-background">
+                <TabButton tab="today" label="Today" icon={CalendarCheckIcon} />
+                <TabButton tab="progress" label="Progress" icon={BarChart3Icon} />
+                <TabButton tab="chat" label="Chat" icon={MessageSquareIcon} />
             </View>
+
+            {/* Swipeable Content */}
+            <FlatList
+                ref={flatListRef}
+                data={tabs}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                renderItem={renderMobileItem}
+                keyExtractor={(item) => item}
+                onMomentumScrollEnd={(event) => {
+                    const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                    const newTab = tabs[index];
+                    if (newTab && newTab !== activeTab) {
+                        setActiveTab(newTab);
+                    }
+                }}
+            />
 
             <RejectionReasonModal
                 visible={rejectionModalVisible}

@@ -25,8 +25,17 @@ export default function MarketplaceScreen() {
     const displayRecruiting = recruitingApps || [];
     const displayFilled = filledApps || [];
 
+    // Filter out filled apps from Latest Opportunities (only show non-filled recruiting apps)
+    const latestOpportunities = displayRecruiting.filter((app: any) => !app.isFilled);
+
+    // All Apps: recruiting first (non-filled), then filled apps at the end
     const allApps = [...displayRecruiting, ...displayFilled];
-    const filteredAllApps = allApps.filter(app => app.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    const sortedAllApps = allApps.sort((a: any, b: any) => {
+        if (a.isFilled && !b.isFilled) return 1;  // Filled goes after non-filled
+        if (!a.isFilled && b.isFilled) return -1; // Non-filled goes before filled
+        return 0; // Keep original order otherwise
+    });
+    const filteredAllApps = sortedAllApps.filter((app: any) => app.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const chunkArray = (arr: any[], size: number) => {
         const chunked = [];
@@ -37,7 +46,7 @@ export default function MarketplaceScreen() {
         return chunked;
     };
 
-    const groupedRecruiting = chunkArray(displayRecruiting || [], 3);
+    const groupedRecruiting = chunkArray(latestOpportunities || [], 3);
 
     return (
         <View className="flex-1 bg-background">

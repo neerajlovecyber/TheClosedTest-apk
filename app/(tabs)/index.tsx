@@ -33,19 +33,20 @@ export default function HomeScreen() {
     // Convex Data
     const incomingRequests = useQuery(api.matches.getIncomingRequests) || [];
     const myApps = useQuery(api.apps.getMyApps) || [];
+    const currentUser = useQuery(api.users.getCurrentUser);
+    const activeTasks = useQuery(api.matches.getMyActiveTests) || [];
 
     // Mutations
     const acceptSwap = useMutation(api.matches.acceptSwap);
     const rejectSwap = useMutation(api.matches.rejectSwap);
 
-    // Dummy Data for fallback (Stats)
+    // Actual user data
     const userName = user?.firstName || "Tester";
-    const reputation = 100;
-    const streak = 5;
-    const dueTasks = [
-        { id: 1, appName: "Flappy Bird 2", owner: "John Doe", dueIn: "4 hours" },
-        { id: 2, appName: "Crypto Tracker", owner: "Jane Smith", dueIn: "6 hours" }
-    ];
+    const reputation = currentUser?.reputation ?? 100;
+    const streak = 0; // Streak not tracked yet
+
+    // Get tasks due today (active matches that need attention)
+    const dueTasks = activeTasks.slice(0, 3); // Show max 3
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -118,9 +119,39 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Pending Requests Section */}
+                {/* Attention Needed Section - FIRST */}
+                <View className="p-6">
+                    <Text className="text-xl font-bold mb-4">⚡ Attention Needed</Text>
+
+                    {dueTasks.length > 0 ? (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-4">
+                            {dueTasks.map((task: any) => (
+                                <View key={task.id} className="w-80 mr-4">
+                                    <AppCard
+                                        item={{
+                                            _id: String(task.id),
+                                            title: task.name,
+                                            ownerName: task.owner,
+                                            dueIn: `Day ${task.day} of ${task.totalDays}`,
+                                            iconUrl: task.iconUrl
+                                        }}
+                                        variant="testing"
+                                        onPress={() => router.push({ pathname: '/(tabs)/match/[id]', params: { id: task.id } })}
+                                    />
+                                </View>
+                            ))}
+                        </ScrollView>
+                    ) : (
+                        <View className="p-6 bg-secondary rounded-xl items-center">
+                            <Icon as={CheckCircleIcon} className="text-green-500 mb-2 size-8" />
+                            <Text className="font-medium">You're all caught up!</Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Pending Requests Section - SECOND */}
                 {incomingRequests.length > 0 && (
-                    <View className="pt-6">
+                    <View className="pb-6">
                         <Text className="text-xl font-bold mb-4 text-primary px-6">Pending Requests</Text>
                         <ScrollView
                             horizontal
@@ -140,35 +171,6 @@ export default function HomeScreen() {
                         </ScrollView>
                     </View>
                 )}
-
-                {/* Attention Needed Section */}
-                <View className="p-6">
-                    <Text className="text-xl font-bold mb-4">Attention Needed</Text>
-
-                    {dueTasks.length > 0 ? (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-4">
-                            {dueTasks.map(task => (
-                                <View key={task.id} className="w-80 mr-4">
-                                    <AppCard
-                                        item={{
-                                            _id: String(task.id),
-                                            title: task.appName,
-                                            ownerName: task.owner,
-                                            dueIn: task.dueIn
-                                        }}
-                                        variant="testing"
-                                        onPress={() => router.push(`/app-details/${task.id}`)}
-                                    />
-                                </View>
-                            ))}
-                        </ScrollView>
-                    ) : (
-                        <View className="p-6 bg-secondary rounded-xl items-center">
-                            <Icon as={CheckCircleIcon} className="text-green-500 mb-2 size-8" />
-                            <Text className="font-medium">You're all caught up!</Text>
-                        </View>
-                    )}
-                </View>
 
                 {/* My Apps Overview */}
                 <View className="px-6 pb-20">

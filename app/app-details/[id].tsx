@@ -351,15 +351,21 @@ export default function AppDetailsScreen() {
                             </View>
                         )
                     ) : (
-                        // No Match -> Show Request Button
-                        <Button
-                            size="lg"
-                            onPress={handleRequestSwap}
-                            className="w-full rounded-xl"
-                            disabled={isSubmitting}
-                        >
-                            <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
-                        </Button>
+                        // No Match -> Show Request Button or Filled status
+                        app.isFilled ? (
+                            <View className="w-full py-4 items-center justify-center bg-red-100 dark:bg-red-900/30 rounded-xl">
+                                <Text className="text-red-600 dark:text-red-400 font-bold text-lg">Filled - Not Accepting Requests</Text>
+                            </View>
+                        ) : (
+                            <Button
+                                size="lg"
+                                onPress={handleRequestSwap}
+                                className="w-full rounded-xl"
+                                disabled={isSubmitting}
+                            >
+                                <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
+                            </Button>
+                        )
                     )
                 )}
             </View>

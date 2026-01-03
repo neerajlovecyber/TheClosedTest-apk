@@ -86,7 +86,7 @@ export const getMarketplaceApps = query({
             .order("desc")
             .take(50);
 
-        // Map over apps to resolve full image URLs
+        // Map over apps to resolve full image URLs and count active testers
         const appsWithUrls = await Promise.all(apps.map(async (app) => {
             let resolvedUrl = app.iconUrl;
             if (app.storageIconId) {
@@ -96,12 +96,41 @@ export const getMarketplaceApps = query({
                 resolvedUrl = await getImageUrl(ctx, app.iconUrl);
             }
 
+            // Count active matches where this app is being tested
+            const matchesAsApp1 = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.eq(q.field("app1Id"), app._id),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            const matchesAsApp2 = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.eq(q.field("app2Id"), app._id),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+
+            // Check if filled
+            const isFilled = actualTesters >= app.requiredTesters || app.status === "filled";
+
+            // Check if new (created in last 7 days)
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            const isNew = app.createdAt > sevenDaysAgo && !isFilled;
+
             // Also fetch owner details for the UI
             const owner = await ctx.db.get(app.userId);
 
             return {
                 ...app,
                 iconUrl: resolvedUrl,
+                currentTesters: actualTesters,
+                isFilled,
+                isNew,
                 ownerName: owner?.name || "Unknown",
                 ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
                 reputation: owner?.reputation || 0
@@ -132,18 +161,43 @@ export const getMyApps = query({
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
 
-        // Map over apps to resolve full image URLs
-        const appsWithUrls = await Promise.all(apps.map(async (app) => {
+        // Map over apps to resolve full image URLs and count active testers
+        const appsWithUrlsAndTesters = await Promise.all(apps.map(async (app) => {
             let resolvedUrl = app.iconUrl;
             if (app.storageIconId) {
                 resolvedUrl = await getImageUrl(ctx, app.storageIconId);
             } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
                 resolvedUrl = await getImageUrl(ctx, app.iconUrl);
             }
-            return { ...app, iconUrl: resolvedUrl };
+
+            // Count active matches where this app is being tested
+            // (app is either app1Id or app2Id in an active match)
+            const matchesAsApp1 = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.eq(q.field("app1Id"), app._id),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            const matchesAsApp2 = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.eq(q.field("app2Id"), app._id),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+
+            return {
+                ...app,
+                iconUrl: resolvedUrl,
+                currentTesters: actualTesters
+            };
         }));
 
-        return appsWithUrls;
+        return appsWithUrlsAndTesters;
     },
 });
 
@@ -175,9 +229,31 @@ export const getAppArgs = query({
             }
         }
 
+        // Count active testers
+        const matchesAsApp1 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), app._id),
+                q.eq(q.field("status"), "active")
+            ))
+            .collect();
+
+        const matchesAsApp2 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), app._id),
+                q.eq(q.field("status"), "active")
+            ))
+            .collect();
+
+        const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+        const isFilled = actualTesters >= app.requiredTesters || app.status === "filled";
+
         return {
             ...app,
             iconUrl: resolvedUrl,
+            currentTesters: actualTesters,
+            isFilled,
             ownerName: owner?.name || "Unknown",
             ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
             reputation: owner?.reputation || 0,

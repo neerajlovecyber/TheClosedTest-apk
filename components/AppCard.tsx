@@ -19,6 +19,8 @@ export interface AppItem {
     day?: number;
     totalDays?: number;
     dueIn?: string;
+    isFilled?: boolean;
+    isNew?: boolean;
 }
 
 interface AppCardProps {
@@ -30,6 +32,9 @@ interface AppCardProps {
 export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps) {
     const isMyApp = variant === 'my-app';
     const isTesting = variant === 'testing';
+
+    // Determine if filled (either from flag or by comparing testers)
+    const isFilled = item.isFilled || (item.currentTesters !== undefined && item.requiredTesters !== undefined && item.currentTesters >= item.requiredTesters);
 
     const Content = (
         <Card className="mb-3 p-1.5 flex-row gap-2">
@@ -44,14 +49,20 @@ export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps
 
                     {/* Variant Specific Badges */}
                     {variant === 'marketplace' && (
-                        <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                            <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
-                        </View>
+                        isFilled ? (
+                            <View className="bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
+                                <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Filled</Text>
+                            </View>
+                        ) : item.isNew ? (
+                            <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                                <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
+                            </View>
+                        ) : null
                     )}
                     {isMyApp && (
-                        <View className={`px-2 py-0.5 rounded-full ${item.status === 'filled' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary/10'}`}>
-                            <Text className={`text-[10px] font-bold uppercase ${item.status === 'filled' ? 'text-green-600 dark:text-green-400' : 'text-primary'}`}>
-                                {item.status || 'Active'}
+                        <View className={`px-2 py-0.5 rounded-full ${isFilled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary/10'}`}>
+                            <Text className={`text-[10px] font-bold uppercase ${isFilled ? 'text-green-600 dark:text-green-400' : 'text-primary'}`}>
+                                {isFilled ? 'Filled' : item.status || 'Active'}
                             </Text>
                         </View>
                     )}
@@ -89,8 +100,8 @@ export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps
                     {isMyApp && (
                         <View className="h-2 bg-secondary rounded-full overflow-hidden w-full">
                             <View
-                                className="h-full bg-primary"
-                                style={{ width: `${((item.currentTesters || 0) / (item.requiredTesters || 12)) * 100}%` }}
+                                className={`h-full ${isFilled ? 'bg-green-500' : 'bg-primary'}`}
+                                style={{ width: `${Math.min(100, ((item.currentTesters || 0) / (item.requiredTesters || 12)) * 100)}%` }}
                             />
                         </View>
                     )}
@@ -118,3 +129,4 @@ export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps
 
     return Content;
 }
+
