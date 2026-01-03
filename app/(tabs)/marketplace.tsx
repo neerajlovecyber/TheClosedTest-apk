@@ -85,7 +85,7 @@ export default function MarketplaceScreen() {
                                     renderItem={({ item: group }) => (
                                         <View className="w-[85vw] max-w-sm mr-4">
                                             {group.map((app: any) => (
-                                                <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: `/app-details/${app._id}`, params: { source: 'marketplace' } })} />
+                                                <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)} />
                                             ))}
                                         </View>
                                     )}
@@ -104,7 +104,7 @@ export default function MarketplaceScreen() {
                         {filteredAllApps.length > 0 ? (
                             <View>
                                 {filteredAllApps.map((app) => (
-                                    <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: `/app-details/${app._id}`, params: { source: 'marketplace' } })} />
+                                    <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)} />
                                 ))}
                             </View>
                         ) : (

@@ -46,8 +46,22 @@ export default function AppDetailsScreen() {
     }, [myApps]);
 
     const handleOpenPlayStore = async () => {
-        if (app?.playStoreUrl && await Linking.canOpenURL(app.playStoreUrl)) {
-            await Linking.openURL(app.playStoreUrl);
+        if (!app) return;
+        const playUrl = app.playStoreUrl;
+        const marketUrl = `market://details?id=${app.packageName}`;
+
+        try {
+            // Try market scheme first (deep link to Play Store app)
+            await Linking.openURL(marketUrl);
+        } catch (error) {
+            // Fallback to web URL
+            if (playUrl) {
+                Linking.openURL(playUrl).catch(() => {
+                    Alert.alert("Error", "Could not open Play Store. Please ensure you have it installed.");
+                });
+            } else {
+                Alert.alert("Error", "Play Store link not found.");
+            }
         }
     };
 
@@ -165,7 +179,11 @@ export default function AppDetailsScreen() {
                     <View className="flex-1">
                         <Text className="text-2xl font-bold" numberOfLines={1}>{app.title}</Text>
                         <Text className="text-muted-foreground mb-2">{app.packageName}</Text>
-                        <TouchableOpacity onPress={handleOpenPlayStore} className="flex-row items-center bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full self-start">
+                        <TouchableOpacity
+                            onPress={handleOpenPlayStore}
+                            className="flex-row items-center bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full self-start"
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
                             <Icon as={ExternalLinkIcon} className="size-3.5 text-green-700 dark:text-green-400 mr-1.5" />
                             <Text className="text-green-700 dark:text-green-400 font-bold text-xs">Open in Play Store</Text>
                         </TouchableOpacity>
@@ -182,16 +200,10 @@ export default function AppDetailsScreen() {
                     </View>
                 </View>
 
-                {/* Requester Info (Ideally fetched via user relation query, simplified for now) */}
                 <View className="flex-row justify-between items-center mb-4">
-                    <Text className="font-medium text-lg text-muted-foreground">Requester</Text>
-                    <View className="flex-row items-center bg-secondary/50 pl-1 pr-3 py-1 rounded-full gap-2">
-                        {/* Placeholder Avatar */}
-                        <View className="size-6 rounded-full bg-primary/20 items-center justify-center">
-                            <Icon as={UserIcon} className="size-4 text-primary" />
-                        </View>
-                        <Text className="font-medium">App Owner</Text>
-                        {/* We need to join user data in future query update */}
+                    <Text className="font-medium text-lg text-muted-foreground">App Owner</Text>
+                    <View className="flex-row items-center bg-secondary/50 px-3 py-1 rounded-full gap-2">
+                        <Text className="font-medium">{app.ownerName || "Unknown"}</Text>
                     </View>
                 </View>
 
@@ -256,7 +268,7 @@ export default function AppDetailsScreen() {
                         <View className="gap-3">
                             <Button
                                 variant="secondary"
-                                onPress={() => router.push({ pathname: `/app-details/${app._id}`, params: { source: 'marketplace' } })}
+                                onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)}
                                 className="w-full"
                             >
                                 <Text>View Public Listing</Text>
@@ -287,7 +299,7 @@ export default function AppDetailsScreen() {
                                                                     try {
                                                                         setIsSubmitting(true);
                                                                         await deleteApp({ appId: app._id });
-                                                                        router.replace('/(tabs)/apps'); // Go back to My Apps list (or home)
+                                                                        router.replace("/(tabs)/apps" as any); // Go back to My Apps list (or home)
                                                                     } catch (err: any) {
                                                                         Alert.alert("Error", err.message);
                                                                     } finally {
@@ -346,7 +358,7 @@ export default function AppDetailsScreen() {
                                     onPress={handleAcceptRequest}
                                     disabled={isSubmitting}
                                 >
-                                    <Text className="font-bold text-white">Accept Request</Text>
+                                    <Text className="font-bold text-white">Accept</Text>
                                 </Button>
                             </View>
                         )
@@ -425,5 +437,3 @@ export default function AppDetailsScreen() {
         </SafeAreaView >
     );
 }
-// Helper icon not originally imported
-function UserIcon(props: any) { return <Icon as={SmartphoneIcon} {...props} /> } // Fallback if UserIcon import fails or used differently
