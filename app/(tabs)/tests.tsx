@@ -7,16 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { CheckCircleIcon, ClockIcon, FlaskConicalIcon, PlusIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 export default function TestsScreen() {
     const router = useRouter();
-    // Dummy Data
-    // Dummy Data
-    const testingApps = [
-        { id: '1', name: "Super Calc", status: "pending", day: 5, totalDays: 14, owner: "Mike", relatedMyApp: "My Awesome Game" },
-        { id: '2', name: "Fitness Pro", status: "completed", day: 12, totalDays: 14, owner: "Sarah", relatedMyApp: "My Utility App" },
-        { id: '3', name: "Bird Watcher", status: "pending", day: 1, totalDays: 14, owner: "Tom", relatedMyApp: "My Awesome Game" },
-    ];
+    // Real Data
+    const testingApps = useQuery(api.matches.getMyActiveTests) || [];
 
     const groupedData: Array<{ title: string; data: typeof testingApps }> = Object.values(testingApps.reduce((acc: any, item) => {
         if (!acc[item.relatedMyApp]) {
@@ -35,7 +32,8 @@ export default function TestsScreen() {
                 dueIn: item.status !== 'completed' ? 'Due Today' : undefined,
                 day: item.day,
                 totalDays: item.totalDays,
-                status: item.status
+                status: item.status,
+                iconUrl: item.iconUrl
             }}
             variant="testing"
             onPress={undefined}
@@ -47,7 +45,7 @@ export default function TestsScreen() {
     return (
         <View className="flex-1 bg-background">
             {/* Header */}
-            <View className="px-6 py-4 border-b border-border">
+            <View className="px-6 py-4">
                 <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
                 <Text className="text-sm text-muted-foreground font-medium mt-0.5">Apps you are currently testing.</Text>
             </View>

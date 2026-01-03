@@ -291,6 +291,81 @@ export const getMatchStatus = query({
             };
         }
 
-        return null;
+    },
+});
+
+// Helper to get image URL
+const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
+    if (!storageId) return "https://github.com/shadcn.png";
+    const url = await ctx.storage.getUrl(storageId);
+    return url || "https://github.com/shadcn.png";
+};
+
+export const getMyActiveTests = query({
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return [];
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return [];
+
+        // 1. Matches where I request (user1), so I test app2 (user2's app)
+        const myRequests = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .filter((q) => q.eq(q.field("status"), "active"))
+            .collect();
+
+        // 2. Matches where I was requested (user2), so I test app1 (user1's app)
+        const requestsToMe = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .filter((q) => q.eq(q.field("status"), "active"))
+            .collect();
+
+        const allActiveMatches = [...myRequests, ...requestsToMe];
+
+        const enrichedMatches = await Promise.all(
+            allActiveMatches.map(async (match) => {
+                const isRequestor = match.user1Id === user._id;
+
+                // If I am requestor (user1), I test app2, and my app is app1
+                // If I am target (user2), I test app1, and my app is app2
+                const appToTestId = isRequestor ? match.app2Id : match.app1Id;
+                const myAppId = isRequestor ? match.app1Id : match.app2Id;
+                const ownerId = isRequestor ? match.user2Id : match.user1Id;
+
+                const appToTest = await ctx.db.get(appToTestId);
+                const myApp = await ctx.db.get(myAppId);
+                const owner = await ctx.db.get(ownerId);
+
+                let resolvedUrl = appToTest?.iconUrl;
+                if (appToTest?.storageIconId) {
+                    resolvedUrl = await getImageUrl(ctx, appToTest.storageIconId);
+                } else if (appToTest?.iconUrl && !appToTest.iconUrl.startsWith("http")) {
+                    resolvedUrl = await getImageUrl(ctx, appToTest.iconUrl);
+                }
+
+                return {
+                    id: match._id,
+                    name: appToTest?.title || "Unknown App",
+                    status: match.status,
+                    startDate: match.startDate,
+                    day: Math.floor((Date.now() - (match.startDate || Date.now())) / (1000 * 60 * 60 * 24)) + 1, // Simple Day Calc
+                    totalDays: 14,
+                    owner: owner?.name || "Unknown User",
+                    relatedMyApp: myApp?.title || "My App",
+                    iconUrl: resolvedUrl || "https://github.com/shadcn.png"
+                };
+            })
+        );
+
+        return enrichedMatches;
     },
 });
