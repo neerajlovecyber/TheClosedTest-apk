@@ -22,8 +22,8 @@
     "android": {
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/adaptive-icon/foreground.png",
+        "backgroundImage": "./assets/images/adaptive-icon/background.png"
       },
       "package": "com.theneerajsec.theclosedtest",
       "googleServicesFile": "./google-services.json"
@@ -40,6 +40,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
+      }
     }
   }
 }

@@ -43,6 +43,7 @@
     "expo": "^54.0.30",
     "expo-auth-session": "~7.0.10",
     "expo-constants": "~18.0.12",
+    "expo-dev-client": "~6.0.20",
     "expo-device": "^8.0.10",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "^17.0.10",
