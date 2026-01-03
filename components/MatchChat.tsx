@@ -19,12 +19,19 @@ export function MatchChat({ visible, onClose, matchId, partnerName }: MatchChatP
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const messages = useQuery(api.matches.getMessages, { matchId }) || [];
     const sendMessageMutation = useMutation(api.matches.sendMessage);
+    const markAsReadMutation = useMutation(api.matches.markMessagesAsRead);
     const [newMessage, setNewMessage] = useState('');
     const inputRef = useRef<TextInput>(null);
 
     const chatMessages = useMemo(() => {
         return [...messages].reverse();
     }, [messages]);
+
+    useEffect(() => {
+        if (visible) {
+            markAsReadMutation({ matchId });
+        }
+    }, [visible, matchId, markAsReadMutation]);
 
 
     const handleSend = async () => {

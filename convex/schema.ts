@@ -56,6 +56,8 @@ export default defineSchema({
         ),
         startDate: v.number(),
         lastActivity: v.number(),
+        lastRead1: v.optional(v.number()), // When User 1 last read the chat
+        lastRead2: v.optional(v.number()), // When User 2 last read the chat
         createdAt: v.number(),
     })
         .index("by_user1", ["user1Id"])

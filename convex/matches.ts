@@ -568,6 +568,9 @@ export const sendMessage = mutation({
             .unique();
         if (!user) throw new Error("User not found");
 
+        const matchData = await ctx.db.get(args.matchId);
+        if (!matchData) throw new Error("Match not found");
+
         await ctx.db.insert("messages", {
             matchId: args.matchId,
             senderId: user._id,
@@ -577,17 +580,52 @@ export const sendMessage = mutation({
             sentAt: Date.now()
         });
 
-        // Notify partner about new message
-        const matchData = await ctx.db.get(args.matchId);
-        if (matchData) {
-            const partnerId = matchData.user1Id === user._id ? matchData.user2Id : matchData.user1Id;
-            await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
-                userId: partnerId,
-                type: "message",
-                title: "New Message",
-                body: `${user.name || "Your partner"} sent you a message`,
-                data: { matchId: args.matchId, type: "message" },
+        // Update match's lastActivity and lastRead for sender
+        const now = Date.now();
+        if (matchData.user1Id === user._id) {
+            await ctx.db.patch(args.matchId, {
+                lastActivity: now,
+                lastRead1: now
             });
+        } else if (matchData.user2Id === user._id) {
+            await ctx.db.patch(args.matchId, {
+                lastActivity: now,
+                lastRead2: now
+            });
+        }
+
+        // Notify partner about new message
+        const partnerId = matchData.user1Id === user._id ? matchData.user2Id : matchData.user1Id;
+        await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+            userId: partnerId,
+            type: "message",
+            title: "New Message",
+            body: `${user.name || "Your partner"} sent you a message`,
+            data: { matchId: args.matchId, type: "message" },
+        });
+    }
+});
+
+export const markMessagesAsRead = mutation({
+    args: { matchId: v.id("matches") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+        if (!user) return;
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) return;
+
+        const now = Date.now();
+        if (match.user1Id === user._id) {
+            await ctx.db.patch(args.matchId, { lastRead1: now });
+        } else if (match.user2Id === user._id) {
+            await ctx.db.patch(args.matchId, { lastRead2: now });
         }
     }
 });
