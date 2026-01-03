@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
@@ -10,8 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
+import { Switch } from '@/components/ui/switch';
+import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
@@ -20,6 +22,7 @@ export default function AddAppScreen() {
 
     const createApp = useMutation(api.apps.createApp);
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const currentUser = useQuery(api.users.getCurrentUser);
 
     const [title, setTitle] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
@@ -28,6 +31,7 @@ export default function AddAppScreen() {
     const [instructions, setInstructions] = useState('');
     const [requiredTesters, setRequiredTesters] = useState('12');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasAddedEmail, setHasAddedEmail] = useState(false);
 
     // Processed image URI to display/upload
     const [processedImageUri, setProcessedImageUri] = useState<string | null>(null);
@@ -75,6 +79,16 @@ export default function AddAppScreen() {
     const handleSubmit = async () => {
         if (!title || !playStoreUrl || !instructions) {
             Alert.alert('Error', 'Please fill in all required fields');
+            return;
+        }
+
+        if (!currentUser?.isGroupMember) {
+            Alert.alert('Requirement', 'You must join the Google Group first.');
+            return;
+        }
+
+        if (!hasAddedEmail) {
+            Alert.alert('Requirement', 'You must confirm you have added the group email to your testers list.');
             return;
         }
 
@@ -156,6 +170,45 @@ export default function AddAppScreen() {
                 className="flex-1"
             >
                 <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 40 }}>
+                    {/* Prerequisites */}
+                    <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/50">
+                        <CardContent className="p-4 gap-4">
+                            <Text className="text-xl font-semibold leading-none tracking-tight text-amber-800 dark:text-amber-200">Prerequisites</Text>
+                            {/* 1. Google Group */}
+                            <View>
+                                <Text className="font-semibold mb-2 text-foreground">1. Join Community</Text>
+                                {!currentUser?.isGroupMember ? (
+                                    <View>
+                                        <Text className="text-sm text-muted-foreground mb-2">You must join our Google Group to test and be tested.</Text>
+                                        <GoogleGroupWidget className="mb-0" />
+                                    </View>
+                                ) : (
+                                    <View className="flex-row items-center gap-2 p-3 bg-green-100 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-900/50">
+                                        <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-5" />
+                                        <Text className="font-medium text-green-700 dark:text-green-400">You are a member of the Google Group</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* 2. Add Email */}
+                            <View>
+                                <Text className="font-semibold mb-2 text-foreground">2. Play Console Setup</Text>
+                                <Text className="text-sm text-muted-foreground mb-3">
+                                    Add <Text className="font-bold text-foreground">theclosedtest@googlegroups.com</Text> to your app's Closed Testing track testers in Google Play Console.
+                                </Text>
+                                <View className="flex-row items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                                    <Switch
+                                        checked={hasAddedEmail}
+                                        onCheckedChange={setHasAddedEmail}
+                                    />
+                                    <Text className="flex-1 text-sm font-medium">
+                                        I confirm I have added the email to my testers list.
+                                    </Text>
+                                </View>
+                            </View>
+                        </CardContent>
+                    </Card>
+
                     <Card className="mb-6">
                         <CardHeader>
                             <CardTitle>App Details</CardTitle>

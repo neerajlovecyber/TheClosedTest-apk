@@ -62,3 +62,25 @@ export const getCurrentUser = query({
         return user;
     }
 });
+
+export const confirmGroupMembership = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        await ctx.db.patch(user._id, {
+            isGroupMember: true,
+            updatedAt: Date.now(),
+        });
+    },
+});

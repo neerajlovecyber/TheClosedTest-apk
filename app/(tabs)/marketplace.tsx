@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/icon';
 import { SearchIcon, StarIcon, PlusIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
+import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 
 
 
@@ -58,6 +59,9 @@ export default function MarketplaceScreen() {
                         <Text className="text-3xl font-extrabold text-foreground tracking-tight">Marketplace</Text>
                         <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
                     </View>
+
+                    <GoogleGroupWidget />
+
                     {/* Search Bar */}
                     {/* Compact Search Bar - Optional if header search icon is used, but keeping for utility */}
                     <View className="relative">

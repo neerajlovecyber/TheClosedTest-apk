@@ -1,10 +1,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
 import {
     CheckCircleIcon,
@@ -57,6 +60,7 @@ function SettingItem({ icon, label, onPress, action, destructive }: SettingItemP
 
 function UserProfile() {
     const { user } = useUser();
+    const convexUser = useQuery(api.users.getCurrentUser);
 
     const { initials, imageSource, userName, email } = React.useMemo(() => {
         const userName = user?.fullName || user?.username || 'User';
@@ -87,15 +91,19 @@ function UserProfile() {
                     <Icon as={CheckCircleIcon} className="size-4 text-blue-500 fill-blue-500/10" />
                 </View>
                 <Text className="text-muted-foreground font-medium">{email}</Text>
-                <View className="flex-row items-center mt-1.5">
-                    <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-900/50">
-                        <Text className="text-[10px] text-green-700 dark:text-green-400 font-bold uppercase tracking-wide">Google Group Member</Text>
+
+                {convexUser?.isGroupMember && (
+                    <View className="flex-row items-center mt-1.5">
+                        <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-900/50">
+                            <Text className="text-[10px] text-green-700 dark:text-green-400 font-bold uppercase tracking-wide">Google Group Member</Text>
+                        </View>
                     </View>
-                </View>
+                )}
             </View>
         </View>
     );
 }
+
 
 export default function SettingsScreen() {
     const { signOut } = useAuth();
@@ -124,6 +132,10 @@ export default function SettingsScreen() {
                 </View>
 
                 <UserProfile />
+
+                <View className="px-4 mb-2">
+                    <GoogleGroupWidget />
+                </View>
 
                 <View className="px-4 gap-6">
                     {/* Appearance Section */}
