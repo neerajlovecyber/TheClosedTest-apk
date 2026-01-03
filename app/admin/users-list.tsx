@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
@@ -45,7 +45,7 @@ export default function AnalyticsScreen() {
     );
 
     return (
-        <View className="flex-1 bg-background">
+        <SafeAreaView className="flex-1 bg-background" edges={['top']}>
             <View className="px-6 py-4 flex-row items-center border-b border-border/50">
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Icon as={ArrowLeftIcon} className="text-foreground size-6" />

@@ -7,7 +7,7 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
 import { UsersIcon, AppWindowIcon, ZapIcon, FileCheckIcon, ArrowLeftIcon, TrendingUpIcon, ActivityIcon, UserPlusIcon, BarChartIcon } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 
 export default function AnalyticsOverviewScreen() {
     const router = useRouter();

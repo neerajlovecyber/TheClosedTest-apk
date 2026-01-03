@@ -29,18 +29,20 @@ export default function AdminDashboardScreen() {
                         className="flex-1"
                         onPress={() => router.push({ pathname: '/admin/users-list', params: { filter: 'active' } })}
                     >
-                        <Card className="border-border shadow-sm bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10">
-                            <CardContent className="p-4">
-                                <View className="flex-row items-center justify-between mb-2">
-                                    <View className="bg-blue-500/20 p-2 rounded-lg">
+                        <Card className="border-border shadow-sm h-32 bg-card">
+                            <CardContent className="p-4 flex-1 justify-between">
+                                <View className="flex-row items-start justify-between">
+                                    <View className="bg-blue-500/10 p-2 rounded-lg">
                                         <Icon as={ActivityIcon} className="text-blue-500 size-5" />
                                     </View>
-                                    <View className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                                        <Text className="text-green-600 font-bold text-[9px] uppercase">Live</Text>
+                                    <View className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-full">
+                                        <Text className="text-blue-600 dark:text-blue-400 font-bold text-[10px] uppercase tracking-wider">Live</Text>
                                     </View>
                                 </View>
-                                <Text className="text-3xl font-black text-foreground">{stats?.dau ?? '-'}</Text>
-                                <Text className="text-xs text-muted-foreground font-medium">Active Today</Text>
+                                <View>
+                                    <Text className="text-3xl font-extrabold text-foreground tracking-tight">{stats?.dau ?? '-'}</Text>
+                                    <Text className="text-xs text-muted-foreground font-medium mt-1">Active Today</Text>
+                                </View>
                             </CardContent>
                         </Card>
                     </TouchableOpacity>
@@ -50,20 +52,22 @@ export default function AdminDashboardScreen() {
                         className="flex-1"
                         onPress={() => router.push({ pathname: '/admin/users-list', params: { filter: 'new' } })}
                     >
-                        <Card className="border-border shadow-sm bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 dark:from-emerald-500/20 dark:to-emerald-600/10">
-                            <CardContent className="p-4">
-                                <View className="flex-row items-center justify-between mb-2">
-                                    <View className="bg-emerald-500/20 p-2 rounded-lg">
+                        <Card className="border-border shadow-sm h-32 bg-card">
+                            <CardContent className="p-4 flex-1 justify-between">
+                                <View className="flex-row items-start justify-between">
+                                    <View className="bg-emerald-500/10 p-2 rounded-lg">
                                         <Icon as={UserPlusIcon} className="text-emerald-500 size-5" />
                                     </View>
                                     {(stats?.newUsersToday ?? 0) > 0 && (
                                         <View className="bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                                            <Text className="text-emerald-600 font-bold text-[9px] uppercase">+{stats?.newUsersToday}</Text>
+                                            <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">+{stats?.newUsersToday}</Text>
                                         </View>
                                     )}
                                 </View>
-                                <Text className="text-3xl font-black text-foreground">{stats?.newUsersToday ?? '-'}</Text>
-                                <Text className="text-xs text-muted-foreground font-medium">New Users</Text>
+                                <View>
+                                    <Text className="text-3xl font-extrabold text-foreground tracking-tight">{stats?.newUsersToday ?? '-'}</Text>
+                                    <Text className="text-xs text-muted-foreground font-medium mt-1">New Users</Text>
+                                </View>
                             </CardContent>
                         </Card>
                     </TouchableOpacity>
@@ -90,32 +94,6 @@ export default function AdminDashboardScreen() {
                     </TouchableOpacity>
                 </Card>
 
-                {/* Summary Stats */}
-                <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">At a Glance</Text>
-                <Card className="border-border shadow-sm">
-                    <CardContent className="p-0">
-                        <View className="flex-row border-b border-border/50">
-                            <View className="flex-1 p-4 items-center border-r border-border/50">
-                                <Text className="text-2xl font-bold text-foreground">{stats?.totalUsers ?? '-'}</Text>
-                                <Text className="text-[10px] text-muted-foreground uppercase tracking-wider">Users</Text>
-                            </View>
-                            <View className="flex-1 p-4 items-center">
-                                <Text className="text-2xl font-bold text-foreground">{stats?.activeMatches ?? '-'}</Text>
-                                <Text className="text-[10px] text-muted-foreground uppercase tracking-wider">Matches</Text>
-                            </View>
-                        </View>
-                        <View className="flex-row">
-                            <View className="flex-1 p-4 items-center border-r border-border/50">
-                                <Text className="text-2xl font-bold text-foreground">{stats?.totalApps ?? '-'}</Text>
-                                <Text className="text-[10px] text-muted-foreground uppercase tracking-wider">Apps</Text>
-                            </View>
-                            <View className="flex-1 p-4 items-center">
-                                <Text className="text-2xl font-bold text-foreground">{stats?.totalProofs ?? '-'}</Text>
-                                <Text className="text-[10px] text-muted-foreground uppercase tracking-wider">Proofs</Text>
-                            </View>
-                        </View>
-                    </CardContent>
-                </Card>
             </ScrollView>
         </SafeAreaView>
     );
