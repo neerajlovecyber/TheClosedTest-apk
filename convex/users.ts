@@ -63,6 +63,15 @@ export const checkIn = mutation({
         if (!user) throw new Error("User not found");
 
         const today = new Date().toISOString().split('T')[0];
+
+        // Log daily activity for analytics
+        const existingLog = await ctx.db.query("daily_activity")
+            .withIndex("by_user_date", q => q.eq("userId", user._id).eq("date", today))
+            .unique();
+        if (!existingLog) {
+            await ctx.db.insert("daily_activity", { userId: user._id, date: today });
+        }
+
         const lastCheckIn = user.lastCheckInDate;
 
         if (lastCheckIn === today) {

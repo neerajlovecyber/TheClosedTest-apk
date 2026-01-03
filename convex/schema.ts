@@ -142,4 +142,11 @@ export default defineSchema({
         reportsCreated: v.number(),
     })
         .index("by_date", ["date"]),
+
+    daily_activity: defineTable({
+        userId: v.id("users"),
+        date: v.string(),
+    })
+        .index("by_date", ["date"])
+        .index("by_user_date", ["userId", "date"]),
 });

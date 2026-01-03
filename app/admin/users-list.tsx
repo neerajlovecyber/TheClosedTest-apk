@@ -7,22 +7,59 @@ import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
 import { ArrowLeftIcon } from 'lucide-react-native';
+import { SimpleBarChart } from '@/components/SimpleBarChart';
 
 export default function AnalyticsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const filter = (params.filter as 'active' | 'new' | 'all') || 'all';
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-    const users = useQuery(api.admin.getUsersByFilter, { filter });
+    const stats = useQuery(api.admin.getStats);
+    const users = useQuery(api.admin.getUsersByFilter, {
+        filter,
+        dateStr: selectedDate ?? undefined
+    });
 
     const getTitle = () => {
         switch (filter) {
             case 'active': return 'Daily Active Users';
-            case 'new': return 'New Users Today';
+            case 'new': return 'New Users';
             case 'all': return 'All Users';
             default: return 'Users';
         }
     };
+
+    // Prepare chart data (Last 7 days, zero-filled)
+    const chartData = React.useMemo(() => {
+        if (!stats) return [];
+
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            days.push(d.toISOString().split('T')[0]);
+        }
+
+        return days.map(dateStr => {
+            const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+            const historyItem = stats.history?.find((h: any) => h.date === dateStr);
+
+            let value = 0;
+            if (isToday) {
+                value = filter === 'active' ? (stats.dau || 0) : (stats.newUsersToday || 0);
+            } else if (historyItem) {
+                value = filter === 'active' ? historyItem.activeUsers : historyItem.activeUsers;
+            }
+
+            return {
+                date: dateStr,
+                value,
+                label: isToday ? 'Today' : dateStr.split('-').slice(1).join('/')
+            };
+        });
+    }, [stats, filter]);
 
     const UserRow = ({ item, index }: any) => (
         <View className={`flex-row items-center py-3 border-b border-border/50 ${index % 2 === 0 ? 'bg-secondary/10' : ''}`}>
@@ -50,10 +87,27 @@ export default function AnalyticsScreen() {
                 <TouchableOpacity onPress={() => router.back()} className="mr-4">
                     <Icon as={ArrowLeftIcon} className="text-foreground size-6" />
                 </TouchableOpacity>
-                <Text className="text-xl font-bold text-foreground">{getTitle()}</Text>
+                <View>
+                    <Text className="text-xl font-bold text-foreground">{getTitle()}</Text>
+                    {selectedDate && <Text className="text-xs text-primary font-medium">Filtering by: {selectedDate}</Text>}
+                </View>
             </View>
 
             <ScrollView className="flex-1 px-4">
+                {/* Chart Section */}
+                {chartData.length > 0 && (filter === 'active' || filter === 'new') && (
+                    <SimpleBarChart
+                        data={chartData}
+                        selectedDate={selectedDate}
+                        onSelectDate={setSelectedDate}
+                    />
+                )}
+
+                {/* Users List */}
+                <Text className="text-lg font-bold mb-2 mt-4">
+                    {selectedDate ? `Users on ${selectedDate}` : `All ${getTitle()}`}
+                </Text>
+
                 {users ? (
                     users.length > 0 ? (
                         users.map((user: any, index: number) => (
@@ -61,7 +115,12 @@ export default function AnalyticsScreen() {
                         ))
                     ) : (
                         <View className="py-20 items-center">
-                            <Text className="text-muted-foreground">No users found for this category.</Text>
+                            <Text className="text-muted-foreground">No users found for this selection.</Text>
+                            {selectedDate && (
+                                <TouchableOpacity onPress={() => setSelectedDate(null)} className="mt-4 bg-secondary py-2 px-4 rounded-full">
+                                    <Text className="text-xs font-bold">Clear Date Filter</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )
                 ) : (

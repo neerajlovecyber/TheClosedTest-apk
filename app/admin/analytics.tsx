@@ -3,15 +3,16 @@ import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
-import { UsersIcon, AppWindowIcon, ZapIcon, FileCheckIcon, ArrowLeftIcon, TrendingUpIcon, ActivityIcon, UserPlusIcon, BarChartIcon, FlameIcon, TrophyIcon } from 'lucide-react-native';
+import { UsersIcon, AppWindowIcon, ZapIcon, FileCheckIcon, ArrowLeftIcon, TrendingUpIcon, ActivityIcon, UserPlusIcon, BarChartIcon, FlameIcon, TrophyIcon, RefreshCwIcon } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 
 export default function AnalyticsOverviewScreen() {
     const router = useRouter();
     const stats = useQuery(api.admin.getStats);
+    const refreshStats = useMutation(api.admin.refreshDailyStats);
 
     const StatCard = ({ title, value, icon: IconComponent, trend, onPress, showChart }: any) => (
         <TouchableOpacity
@@ -79,6 +80,9 @@ export default function AnalyticsOverviewScreen() {
                     <Icon as={ArrowLeftIcon} className="text-foreground size-6" />
                 </TouchableOpacity>
                 <Text className="text-xl font-bold text-foreground">Full Analytics</Text>
+                <TouchableOpacity onPress={() => refreshStats()} className="ml-auto p-2 bg-secondary/20 rounded-full">
+                    <Icon as={RefreshCwIcon} className="text-foreground size-5" />
+                </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 40 }}>
