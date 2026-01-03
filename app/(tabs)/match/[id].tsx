@@ -113,10 +113,10 @@ export default function MatchDashboardScreen() {
                 isUserTabPress.current = true;
                 setActiveTab(tab);
             }}
-            className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${activeTab === tab ? 'bg-primary' : 'bg-secondary/30'}`}
+            className={`flex-1 flex-row items-center justify-center py-2 rounded-lg ${activeTab === tab ? 'bg-white dark:bg-black shadow-sm' : ''}`}
         >
-            <Icon as={IconComponent} className={`size-5 mr-2 ${activeTab === tab ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
-            <Text className={`font-bold ${activeTab === tab ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{label}</Text>
+            <Icon as={IconComponent} className={`size-4 mr-2 ${activeTab === tab ? 'text-foreground' : 'text-muted-foreground'}`} />
+            <Text className={`font-semibold text-sm ${activeTab === tab ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</Text>
         </TouchableOpacity>
     );
 
@@ -244,7 +244,7 @@ export default function MatchDashboardScreen() {
         return (
             <SafeAreaView className="flex-1 bg-background">
                 {/* Tab Bar - Clean fixed tabs at top */}
-                <View className="flex-row px-4 py-3 gap-2 border-b border-border/50 bg-background">
+                <View className="flex-row mx-4 my-3 p-1 bg-secondary/30 rounded-xl">
                     <TabButton tab="today" label="Today" icon={CalendarCheckIcon} />
                     <TabButton tab="progress" label="Progress" icon={BarChart3Icon} />
                     <TabButton tab="chat" label="Chat" icon={MessageSquareIcon} />
@@ -268,7 +268,7 @@ export default function MatchDashboardScreen() {
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['left', 'right']}>
             {/* Tab Bar - Clean fixed tabs at top */}
-            <View className="flex-row px-4 py-3 gap-2 border-b border-border/50 bg-background">
+            <View className="flex-row mx-4 my-3 p-1 bg-gray-200/80 dark:bg-gray-800 rounded-xl">
                 <TabButton tab="today" label="Today" icon={CalendarCheckIcon} />
                 <TabButton tab="progress" label="Progress" icon={BarChart3Icon} />
                 <TabButton tab="chat" label="Chat" icon={MessageSquareIcon} />
