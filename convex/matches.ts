@@ -426,8 +426,8 @@ export const getMyActiveTests = query({
             })
         );
 
-        // Only return matches that need attention
-        return enrichedMatches.filter(m => m.needsAttention);
+        // Return all active matches (UI will split into pending/completed)
+        return enrichedMatches;
     },
 });
 

@@ -45,8 +45,8 @@ export default function HomeScreen() {
     const reputation = currentUser?.reputation ?? 100;
     const streak = 0; // Streak not tracked yet
 
-    // Get tasks due today (active matches that need attention)
-    const dueTasks = activeTasks.slice(0, 3); // Show max 3
+    // Get tasks due today (only those needing attention)
+    const dueTasks = activeTasks.filter((t: any) => t.needsAttention).slice(0, 3);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
