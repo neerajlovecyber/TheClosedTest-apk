@@ -219,6 +219,78 @@ export const rejectSwap = mutation({
             status: "cancelled", // Or archived/deleted
         });
 
-        return true;
+    },
+});
+
+// Check if there is an existing match with a specific app (or its owner)
+export const getMatchStatus = query({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return null;
+
+        const targetApp = await ctx.db.get(args.appId);
+        if (!targetApp) return null;
+
+        // 1. Check if I sent a request to them (I am user1, they are user2)
+        const sentRequest = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .filter((q) =>
+                q.and(
+                    q.eq(q.field("user2Id"), targetApp.userId),
+                    q.or(
+                        q.eq(q.field("status"), "pending"),
+                        q.eq(q.field("status"), "active")
+                    )
+                )
+            )
+            .first();
+
+        if (sentRequest) {
+            return {
+                status: sentRequest.status, // "pending" or "active"
+                isRequestor: true,
+                matchId: sentRequest._id
+            };
+        }
+
+        // 2. Check if they sent a request to me (I am user2, they are user1)
+        // AND one of the apps involved is the one I'm looking at? 
+        // Actually, if they sent a request, they are offering THEIR app (app1) for MY app (app2).
+        // If I am viewing THEIR app (args.appId), then args.appId should be app1 in the match.
+
+        const receivedRequest = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .filter((q) =>
+                q.and(
+                    q.eq(q.field("user1Id"), targetApp.userId),
+                    q.or(
+                        q.eq(q.field("status"), "pending"),
+                        q.eq(q.field("status"), "active")
+                    )
+                )
+            )
+            .first();
+
+        if (receivedRequest) {
+            return {
+                status: receivedRequest.status,
+                isRequestor: false,
+                matchId: receivedRequest._id
+            };
+        }
+
+        return null;
     },
 });

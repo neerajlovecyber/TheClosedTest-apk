@@ -24,12 +24,19 @@ export default function AppDetailsScreen() {
     const myApps = useQuery(api.apps.getMyApps) || [];
 
     // Mutation
+    // Mutation
     const requestSwap = useMutation(api.matches.requestSwap);
+    const acceptSwap = useMutation(api.matches.acceptSwap);
+    const rejectSwap = useMutation(api.matches.rejectSwap);
     const deleteApp = useMutation(api.apps.deleteApp);
+
+    // Check Match Status
+    const matchStatus = useQuery(api.matches.getMatchStatus, { appId });
 
     const [selectedMyApp, setSelectedMyApp] = useState<Id<"apps"> | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasSentRequest, setHasSentRequest] = useState(false);
 
     // Initial selection if user has only one recruitng app
     React.useEffect(() => {
@@ -65,12 +72,50 @@ export default function AppDetailsScreen() {
                 message: "I'd like to test your app!"
             });
             Alert.alert("Success", "Swap request sent! Wait for the owner to accept.");
-            router.back();
+            setHasSentRequest(true); // Optimistic update
         } catch (error: any) {
             Alert.alert("Error", error.message || "Failed to send request");
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleAcceptRequest = async () => {
+        if (!matchStatus?.matchId) return;
+        try {
+            setIsSubmitting(true);
+            await acceptSwap({ matchId: matchStatus.matchId });
+            Alert.alert("Success", "Swap accepted! You can now start testing.");
+        } catch (error: any) {
+            Alert.alert("Error", "Failed to accept swap.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleRejectRequest = async () => {
+        if (!matchStatus?.matchId) return;
+        Alert.alert(
+            "Reject Request",
+            "Are you sure you want to reject this request?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Reject",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setIsSubmitting(true);
+                            await rejectSwap({ matchId: matchStatus.matchId });
+                        } catch (error: any) {
+                            Alert.alert("Error", "Failed to reject swap.");
+                        } finally {
+                            setIsSubmitting(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     if (!app) {
@@ -265,14 +310,57 @@ export default function AppDetailsScreen() {
                         </View>
                     )
                 ) : (
-                    <Button
-                        size="lg"
-                        onPress={handleRequestSwap}
-                        className="w-full rounded-xl"
-                        disabled={isSubmitting}
-                    >
-                        <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
-                    </Button>
+                    // Logic for Visitor (Not Owner)
+                    matchStatus?.status === 'active' ? (
+                        <Button
+                            size="lg"
+                            className="w-full rounded-xl bg-green-600"
+                            onPress={() => router.push('/(tabs)/tests')} // Or dashboard
+                        >
+                            <Text className="font-bold text-lg text-white">Active Swap - Go to Tests</Text>
+                        </Button>
+                    ) : matchStatus?.status === 'pending' || hasSentRequest ? (
+                        matchStatus?.isRequestor || hasSentRequest ? (
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="w-full rounded-xl opacity-80"
+                                disabled={true}
+                            >
+                                <Text className="font-bold text-lg">Request Sent</Text>
+                            </Button>
+                        ) : (
+                            <View className="flex-row gap-3">
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="flex-1 rounded-xl border-destructive/50"
+                                    onPress={handleRejectRequest}
+                                    disabled={isSubmitting}
+                                >
+                                    <Text className="font-bold text-destructive">Decline</Text>
+                                </Button>
+                                <Button
+                                    size="lg"
+                                    className="flex-1 rounded-xl bg-green-600"
+                                    onPress={handleAcceptRequest}
+                                    disabled={isSubmitting}
+                                >
+                                    <Text className="font-bold text-white">Accept Request</Text>
+                                </Button>
+                            </View>
+                        )
+                    ) : (
+                        // No Match -> Show Request Button
+                        <Button
+                            size="lg"
+                            onPress={handleRequestSwap}
+                            className="w-full rounded-xl"
+                            disabled={isSubmitting}
+                        >
+                            <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
+                        </Button>
+                    )
                 )}
             </View>
 
