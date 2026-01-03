@@ -137,3 +137,25 @@ export const confirmGroupMembership = mutation({
         });
     },
 });
+
+export const savePushToken = mutation({
+    args: { pushToken: v.string() },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return;
+
+        await ctx.db.patch(user._id, {
+            pushToken: args.pushToken,
+            updatedAt: Date.now(),
+        });
+    },
+});

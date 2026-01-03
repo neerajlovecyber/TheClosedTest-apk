@@ -43,9 +43,11 @@
     "expo": "^54.0.30",
     "expo-auth-session": "~7.0.10",
     "expo-constants": "~18.0.12",
+    "expo-device": "^8.0.10",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "^17.0.10",
     "expo-linking": "~8.0.10",
+    "expo-notifications": "^0.32.15",
     "expo-router": "~6.0.19",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.12",
@@ -65,7 +67,8 @@
     "react-native-worklets": "0.5.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.14",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "vexo-analytics": "^1.5.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

@@ -11,9 +11,14 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
-import { ConvexReactClient } from 'convex/react';
+import { ConvexReactClient, useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
+import { vexo, identifyDevice } from 'vexo-analytics';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import * as React from 'react';
+
+vexo('4beaa20e-2695-4263-aa86-5ddaf7ff29ee');
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,
@@ -74,11 +79,27 @@ import { useStoreUserEffect } from '@/hooks/useStoreUserEffect';
 
 function InitialLayout() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { user } = useUser();
   const segments = useSegments();
   const router = useRouter();
 
   // Sync user with Convex
   useStoreUserEffect();
+
+  const { expoPushToken } = usePushNotifications();
+  const savePushToken = useMutation(api.users.savePushToken);
+
+  React.useEffect(() => {
+    if (expoPushToken && isSignedIn) {
+      savePushToken({ pushToken: expoPushToken }).catch(e => console.error("Failed to save push token:", e));
+    }
+  }, [expoPushToken, isSignedIn]);
+
+  React.useEffect(() => {
+    if (user?.emailAddresses?.[0]?.emailAddress) {
+      identifyDevice(user.emailAddresses[0].emailAddress);
+    }
+  }, [user]);
 
   React.useEffect(() => {
     if (!isLoaded) return;

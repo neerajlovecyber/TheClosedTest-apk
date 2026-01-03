@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TheClosedTest-apk",
-    "slug": "TheClosedTest-apk",
+    "name": "theclosedtest",
+    "slug": "theclosedtest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "TheClosedTest-apk",
+    "scheme": "theclosedtest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -24,7 +24,9 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.theneerajsec.theclosedtest",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
