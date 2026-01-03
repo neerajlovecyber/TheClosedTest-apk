@@ -1208,3 +1208,30 @@ export const cancelMatch = mutation({
         await checkAndRevertStatus(match.app2Id);
     }
 });
+
+// Maintenance: Delete images for proofs that were ALREADY approved before the change
+export const cleanupOldApprovedProofs = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const proofs = await ctx.db
+            .query("proofs")
+            .filter((q) => q.eq(q.field("status"), "approved"))
+            .collect();
+
+        let count = 0;
+        for (const proof of proofs) {
+            if (proof.storageIds && proof.storageIds.length > 0) {
+                // Delete files
+                for (const storageId of proof.storageIds) {
+                    await ctx.storage.delete(storageId);
+                }
+                // Update record
+                await ctx.db.patch(proof._id, {
+                    storageIds: []
+                });
+                count++;
+            }
+        }
+        return `Cleaned up ${count} approved proofs`;
+    }
+});
