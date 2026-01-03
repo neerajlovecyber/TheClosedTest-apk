@@ -6,35 +6,47 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
-import { UsersIcon, AppWindowIcon, ZapIcon, FileCheckIcon, ArrowLeftIcon, TrendingUpIcon, ActivityIcon, UserPlusIcon, BarChartIcon } from 'lucide-react-native';
+import { UsersIcon, AppWindowIcon, ZapIcon, FileCheckIcon, ArrowLeftIcon, TrendingUpIcon, ActivityIcon, UserPlusIcon, BarChartIcon, FlameIcon, TrophyIcon } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 
 export default function AnalyticsOverviewScreen() {
     const router = useRouter();
     const stats = useQuery(api.admin.getStats);
 
-    const StatCard = ({ title, value, icon: IconComponent, trend, onPress }: any) => (
+    const StatCard = ({ title, value, icon: IconComponent, trend, onPress, showChart }: any) => (
         <TouchableOpacity
-            className="w-[48%] h-28 mb-3"
+            className="w-[48%] mb-3"
             onPress={onPress}
             disabled={!onPress}
         >
-            <Card className="border-border shadow-sm flex-1">
-                <CardContent className="p-3 justify-between flex-1">
-                    <View className="flex-row justify-between items-start">
-                        <View className="bg-primary/10 p-2 rounded-lg">
-                            <Icon as={IconComponent} className="text-primary size-5" />
+            <Card className="border-border shadow-sm">
+                <CardContent className="p-3">
+                    <View className="flex-row items-center justify-between mb-2">
+                        <View className="bg-secondary/30 p-1.5 rounded-md">
+                            <Icon as={IconComponent} className="text-foreground size-4" />
                         </View>
-                        {trend && (
-                            <View className="bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded text-xs">
-                                <Text className="text-green-600 font-bold text-[8px] uppercase">{trend}</Text>
+                        {showChart && (
+                            <View className="flex-row items-end gap-0.5 h-6">
+                                <View className="w-1 bg-primary/20 h-2 rounded-t-sm" />
+                                <View className="w-1 bg-primary/40 h-3 rounded-t-sm" />
+                                <View className="w-1 bg-primary/30 h-2.5 rounded-t-sm" />
+                                <View className="w-1 bg-primary/60 h-4 rounded-t-sm" />
+                                <View className="w-1 bg-primary h-5 rounded-t-sm" />
                             </View>
                         )}
+                        {!showChart && trend && (
+                            <Icon as={trend.includes('+') ? TrendingUpIcon : TrendingUpIcon} className={trend.includes('+') ? "text-green-500 size-4" : "text-red-500 size-4"} />
+                        )}
                     </View>
-                    <View>
-                        <Text className="text-xl font-bold text-foreground">{value ?? '-'}</Text>
-                        <Text className="text-xs text-muted-foreground" numberOfLines={1}>{title}</Text>
-                    </View>
+
+                    <Text className="text-2xl font-bold text-foreground">{value ?? '-'}</Text>
+                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5" numberOfLines={1}>{title}</Text>
+
+                    {trend && (
+                        <Text className="text-[10px] text-green-600 dark:text-green-400 mt-1.5 font-medium">
+                            {trend}
+                        </Text>
+                    )}
                 </CardContent>
             </Card>
         </TouchableOpacity>
@@ -77,13 +89,15 @@ export default function AnalyticsOverviewScreen() {
                         title="Daily Active Users"
                         value={stats?.dau}
                         icon={ActivityIcon}
-                        trend={stats?.dau ? "Today" : undefined}
+                        showChart={true}
                         onPress={() => router.push({ pathname: '/admin/users-list', params: { filter: 'active' } })}
                     />
                     <StatCard
                         title="New Users Today"
                         value={stats?.newUsersToday}
                         icon={UserPlusIcon}
+                        trend={stats?.trends?.newUsers !== undefined ? `${stats.trends.newUsers > 0 ? '+' : ''}${stats.trends.newUsers}% vs last week` : undefined}
+                        showChart={true}
                         onPress={() => router.push({ pathname: '/admin/users-list', params: { filter: 'new' } })}
                     />
                     <StatCard

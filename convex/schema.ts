@@ -12,6 +12,9 @@ export default defineSchema({
         appsCount: v.number(),
         pushToken: v.optional(v.string()), // Expo Push Token
         isGroupMember: v.boolean(), // Has confirmed joining Google Group
+        streak: v.optional(v.number()), // Current daily streak
+        bestStreak: v.optional(v.number()), // Highest streak
+        lastCheckInDate: v.optional(v.string()), // YYYY-MM-DD of last activity
         createdAt: v.number(),
         updatedAt: v.number(),
     })

@@ -37,13 +37,20 @@ export default function HomeScreen() {
     const activeTasks = useQuery(api.matches.getMyActiveTests) || [];
 
     // Mutations
+    const checkIn = useMutation(api.users.checkIn);
     const acceptSwap = useMutation(api.matches.acceptSwap);
     const rejectSwap = useMutation(api.matches.rejectSwap);
 
     // Actual user data
     const userName = user?.firstName || "Tester";
     const reputation = currentUser?.reputation ?? 100;
-    const streak = 0; // Streak not tracked yet
+    const streak = currentUser?.streak ?? 0;
+
+    React.useEffect(() => {
+        if (currentUser) {
+            checkIn();
+        }
+    }, [currentUser]);
 
     // Get tasks due today (only those needing attention)
     const dueTasks = activeTasks.filter((t: any) => t.needsAttention).slice(0, 3);
@@ -158,27 +165,29 @@ export default function HomeScreen() {
                 </View>
 
                 {/* Pending Requests Section - SECOND */}
-                {incomingRequests.length > 0 && (
-                    <View className="pb-6">
-                        <Text className="text-xl font-bold mb-4 text-primary px-6">Pending Requests</Text>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            className="pb-2"
-                            contentContainerStyle={{ paddingHorizontal: 24 }}
-                        >
-                            {incomingRequests.map((req: any) => (
-                                <PendingRequestCard
-                                    key={req._id}
-                                    request={req}
-                                    onAccept={handleAccept}
-                                    onReject={handleReject}
-                                    onAppPress={(appId) => router.push(`/app-details/${appId}`)}
-                                />
-                            ))}
-                        </ScrollView>
-                    </View>
-                )}
+                {
+                    incomingRequests.length > 0 && (
+                        <View className="pb-6">
+                            <Text className="text-xl font-bold mb-4 text-primary px-6">Pending Requests</Text>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                className="pb-2"
+                                contentContainerStyle={{ paddingHorizontal: 24 }}
+                            >
+                                {incomingRequests.map((req: any) => (
+                                    <PendingRequestCard
+                                        key={req._id}
+                                        request={req}
+                                        onAccept={handleAccept}
+                                        onReject={handleReject}
+                                        onAppPress={(appId) => router.push(`/app-details/${appId}`)}
+                                    />
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )
+                }
 
                 {/* My Apps Overview */}
                 <View className="px-6 pb-20">
@@ -229,6 +238,6 @@ export default function HomeScreen() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </View>
+        </View >
     );
 }

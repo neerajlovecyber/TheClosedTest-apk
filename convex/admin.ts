@@ -32,6 +32,18 @@ export const getStats = query({
         });
         const dau = activeUserIds.size;
 
+        // Trend Calculation
+        const lastWeekStart = now - 8 * 24 * 60 * 60 * 1000;
+        const lastWeekEnd = now - 7 * 24 * 60 * 60 * 1000;
+        const newUsersLastWeek = users.filter(u => u.createdAt >= lastWeekStart && u.createdAt < lastWeekEnd).length;
+
+        let newUsersTrend = 0;
+        if (newUsersLastWeek > 0) {
+            newUsersTrend = Math.round(((newUsersToday - newUsersLastWeek) / newUsersLastWeek) * 100);
+        } else if (newUsersToday > 0) {
+            newUsersTrend = 100;
+        }
+
         return {
             totalUsers,
             totalApps,
@@ -39,6 +51,10 @@ export const getStats = query({
             totalProofs,
             newUsersToday,
             dau,
+            trends: {
+                newUsers: newUsersTrend,
+                newUsersCountLastWeek: newUsersLastWeek
+            },
             recentUsers: users.sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
         };
     },

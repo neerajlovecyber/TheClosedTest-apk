@@ -39,9 +39,53 @@ export const store = mutation({
             reputation: 100,
             appsCount: 0,
             isGroupMember: false,
+            streak: 0,
+            bestStreak: 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),
         });
+    },
+});
+
+export const checkIn = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const today = new Date().toISOString().split('T')[0];
+        const lastCheckIn = user.lastCheckInDate;
+
+        if (lastCheckIn === today) {
+            return { streak: user.streak ?? 0, checkedIn: false };
+        }
+
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+        let newStreak = 1;
+        if (lastCheckIn === yesterday) {
+            newStreak = (user.streak ?? 0) + 1;
+        }
+
+        const newBest = Math.max(user.bestStreak ?? 0, newStreak);
+
+        await ctx.db.patch(user._id, {
+            streak: newStreak,
+            bestStreak: newBest,
+            lastCheckInDate: today,
+            updatedAt: Date.now(),
+        });
+
+        return { streak: newStreak, checkedIn: true };
     },
 });
 
