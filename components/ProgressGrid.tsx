@@ -73,47 +73,46 @@ export function ProgressGrid({
     return (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
             {/* Summary Cards */}
-            <View className="flex-row gap-3 mb-6">
-                {/* My Progress */}
-                <Card className="flex-1 bg-primary/10 border-primary/30">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center mb-2">
-                            <Icon as={TrophyIcon} className="text-primary size-5 mr-2" />
-                            <Text className="font-bold text-primary">You</Text>
+            {/* Unified Summary Card */}
+            <Card className="mb-6 bg-secondary/10 border-border">
+                <CardContent className="p-5 flex-row justify-between items-center">
+                    {/* My Stats */}
+                    <View className="flex-1 items-center">
+                        <View className="flex-row items-center mb-1">
+                            <Icon as={TrophyIcon} className="text-primary size-4 mr-1.5" />
+                            <Text className="font-bold text-base text-primary">You</Text>
                         </View>
-                        <Text className="text-3xl font-extrabold text-foreground">
-                            {summary.myApproved}<Text className="text-lg text-muted-foreground">/{summary.totalDays}</Text>
+                        <Text className="text-3xl font-black text-foreground">
+                            {summary.myApproved}<Text className="text-sm text-muted-foreground font-medium">/{summary.totalDays}</Text>
                         </Text>
-                        <Text className="text-xs text-muted-foreground mt-1">Days Approved</Text>
+                        <Text className="text-xs text-muted-foreground -mt-1 mb-1">Days Approved</Text>
                         {summary.myPending > 0 && (
-                            <View className="flex-row items-center mt-2">
-                                <View className="w-2 h-2 rounded-full bg-orange-500 mr-1" />
-                                <Text className="text-xs text-orange-600">{summary.myPending} pending</Text>
-                            </View>
+                            <Text className="text-xs text-orange-600 font-medium bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
+                                {summary.myPending} pending
+                            </Text>
                         )}
-                    </CardContent>
-                </Card>
+                    </View>
 
-                {/* Partner's Progress */}
-                <Card className="flex-1 bg-secondary/30 border-secondary/50">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center mb-2">
-                            <Icon as={TrophyIcon} className="text-muted-foreground size-5 mr-2" />
-                            <Text className="font-bold text-muted-foreground">{partnerName}</Text>
+                    {/* Divider */}
+                    <View className="h-16 w-px bg-border/50 mx-2" />
+
+                    {/* Partner Stats */}
+                    <View className="flex-1 items-center">
+                        <View className="flex-row items-center mb-1">
+                            <Text className="font-bold text-base text-muted-foreground">{partnerName.split(' ')[0]}</Text>
                         </View>
-                        <Text className="text-3xl font-extrabold text-foreground">
-                            {summary.partnerApproved}<Text className="text-lg text-muted-foreground">/{summary.totalDays}</Text>
+                        <Text className="text-3xl font-black text-foreground">
+                            {summary.partnerApproved}<Text className="text-sm text-muted-foreground font-medium">/{summary.totalDays}</Text>
                         </Text>
-                        <Text className="text-xs text-muted-foreground mt-1">Days Approved</Text>
+                        <Text className="text-xs text-muted-foreground -mt-1 mb-1">Days Approved</Text>
                         {summary.partnerPending > 0 && (
-                            <View className="flex-row items-center mt-2">
-                                <View className="w-2 h-2 rounded-full bg-orange-500 mr-1" />
-                                <Text className="text-xs text-orange-600">{summary.partnerPending} pending</Text>
-                            </View>
+                            <Text className="text-xs text-orange-600 font-medium bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
+                                {summary.partnerPending} pending
+                            </Text>
                         )}
-                    </CardContent>
-                </Card>
-            </View>
+                    </View>
+                </CardContent>
+            </Card>
 
             {/* Legend */}
             <View className="flex-row flex-wrap gap-4 mb-4 px-1">
@@ -157,40 +156,18 @@ export function ProgressGrid({
                         <View className="flex-row justify-center gap-1.5 mt-2">
                             {/* My Status */}
                             <View
-                                className={`w-4 h-4 rounded-full ${getStatusColor(dayData.myStatus)}`}
+                                className={`w-3.5 h-3.5 rounded-full ${getStatusColor(dayData.myStatus)}`}
                                 style={{ borderWidth: 2, borderColor: 'white' }}
                             />
                             {/* Partner Status */}
                             <View
-                                className={`w-4 h-4 rounded-full ${getStatusColor(dayData.partnerStatus)}`}
+                                className={`w-3.5 h-3.5 rounded-full ${getStatusColor(dayData.partnerStatus)}`}
                                 style={{ borderWidth: 2, borderColor: 'white' }}
                             />
-                        </View>
-
-                        {/* Labels */}
-                        <View className="flex-row justify-center gap-1 mt-1">
-                            <Text className="text-[8px] text-muted-foreground">You</Text>
-                            <Text className="text-[8px] text-muted-foreground">|</Text>
-                            <Text className="text-[8px] text-muted-foreground">Them</Text>
                         </View>
                     </TouchableOpacity>
                 ))}
             </View>
-
-            {/* Current Day Info */}
-            {currentDay <= 14 && (
-                <Card className="mt-6 bg-primary/5 border-primary/20">
-                    <CardContent className="p-4 flex-row items-center">
-                        <Icon as={CalendarIcon} className="text-primary size-6 mr-3" />
-                        <View className="flex-1">
-                            <Text className="font-bold text-primary">Day {currentDay} of 14</Text>
-                            <Text className="text-xs text-muted-foreground">
-                                {14 - currentDay} days remaining in this testing period
-                            </Text>
-                        </View>
-                    </CardContent>
-                </Card>
-            )}
         </ScrollView>
     );
 }
