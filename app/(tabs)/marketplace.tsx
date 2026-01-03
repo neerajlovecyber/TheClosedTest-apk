@@ -54,13 +54,13 @@ export default function MarketplaceScreen() {
 
 
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
-                <View className="gap-6">
-                    <View className="mb-2">
+                <View className="gap-3">
+                    <View className="mb-0">
                         <Text className="text-3xl font-extrabold text-foreground tracking-tight">Marketplace</Text>
                         <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
                     </View>
 
-                    <GoogleGroupWidget />
+                    <GoogleGroupWidget className="mb-0" />
 
                     {/* Search Bar */}
                     {/* Compact Search Bar - Optional if header search icon is used, but keeping for utility */}
