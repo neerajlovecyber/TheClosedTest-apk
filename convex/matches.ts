@@ -2,6 +2,21 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
+// Helper to calculate current testing day (Day 1 to 14) based on midnight reset (IST/Local time logic)
+const calculateDay = (startDate: number) => {
+    if (!startDate) return 1;
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000; // Adjust for IST
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    // Calculate calendar days since start
+    const startDay = Math.floor((startDate + IST_OFFSET) / DAY_MS);
+    const today = Math.floor((Date.now() + IST_OFFSET) / DAY_MS);
+
+    const diff = today - startDay;
+    const day = diff + 1;
+    return day > 14 ? 14 : day;
+};
+
 // Request a swap (Create a pending match)
 export const requestSwap = mutation({
     args: {
@@ -387,8 +402,7 @@ export const getMyActiveTests = query({
                 const owner = await ctx.db.get(ownerId);
 
                 // Calculate current day
-                const currentDay = Math.floor((Date.now() - (match.startDate || Date.now())) / (1000 * 60 * 60 * 24)) + 1;
-                const day = currentDay > 14 ? 14 : currentDay;
+                const day = calculateDay(match.startDate || Date.now());
 
                 // Check if user has uploaded proof for today and if it's approved
                 const todayProof = await ctx.db
@@ -496,7 +510,7 @@ export const getMatchDetails = query({
             owner, // This is the owner of the app being tested
             partner, // This is the swap partner (could be same as owner if I am tester)
             startDate: match.startDate,
-            day: Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1,
+            day: calculateDay(match.startDate),
             isTester: true,
         };
     }
@@ -760,8 +774,7 @@ export const getTodayProof = query({
         const match = await ctx.db.get(args.matchId);
         if (!match) return null;
 
-        const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
-        const day = currentDay > 14 ? 14 : currentDay;
+        const day = calculateDay(match.startDate);
 
         // Find user's proof for today
         const todayProof = await ctx.db
@@ -822,8 +835,7 @@ export const getPartnerTodayProof = query({
         const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
         const partner = await ctx.db.get(partnerId);
 
-        const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
-        const day = currentDay > 14 ? 14 : currentDay;
+        const day = calculateDay(match.startDate);
 
         // Find partner's proof for today (any status)
         const partnerProof = await ctx.db
@@ -891,7 +903,7 @@ export const getProgressData = query({
         const myApp = await ctx.db.get(myAppId);
         const partnerApp = await ctx.db.get(partnerAppId);
 
-        const currentDay = Math.floor((Date.now() - match.startDate) / (1000 * 60 * 60 * 24)) + 1;
+        const currentDay = calculateDay(match.startDate);
 
         // Get all proofs for this match
         const allProofs = await ctx.db
@@ -985,8 +997,7 @@ export const getAppTesters = query({
             const tester = await ctx.db.get(testerId);
 
             // Calculate current day
-            const currentDay = Math.floor((Date.now() - (match.startDate || Date.now())) / (1000 * 60 * 60 * 24)) + 1;
-            const day = currentDay > 14 ? 14 : currentDay;
+            const day = calculateDay(match.startDate || Date.now());
 
             // Check if tester uploaded proof for today
             const proof = await ctx.db
