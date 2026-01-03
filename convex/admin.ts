@@ -1,4 +1,4 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -169,5 +169,207 @@ export const getUsersByFilter = query({
 
         // Default 'all'
         return users.sort((a, b) => b.createdAt - a.createdAt);
+    },
+});
+
+// Get notification stats
+export const getNotificationStats = query({
+    args: {},
+    handler: async (ctx) => {
+        const users = await ctx.db.query("users").collect();
+        const totalUsers = users.length;
+        const totalUsersWithTokens = users.filter(u => u.pushToken).length;
+
+        return {
+            totalUsers,
+            totalUsersWithTokens,
+        };
+    },
+});
+
+// Send test notification to current user
+export const sendTestNotification = action({
+    args: {
+        title: v.string(),
+        body: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        console.log("🔍 Test notification - Identity:", identity.tokenIdentifier);
+
+        const user = await ctx.runQuery(internal.admin.getUserByIdentity, {
+            tokenIdentifier: identity.tokenIdentifier,
+        });
+
+        console.log("🔍 Test notification - User found:", {
+            hasUser: !!user,
+            userName: user?.name,
+            hasPushToken: !!user?.pushToken,
+            pushToken: user?.pushToken?.substring(0, 30) + '...',
+        });
+
+        if (!user || !user.pushToken) {
+            throw new Error("No push token found for your account");
+        }
+
+        console.log("📤 Sending test notification to:", user.pushToken);
+
+        // Send notification using Expo Push API
+        const message = {
+            to: user.pushToken,
+            sound: 'default',
+            title: args.title,
+            body: args.body,
+            data: { type: 'test' },
+        };
+
+        console.log("Message payload:", JSON.stringify(message));
+
+        const response = await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(message),
+        });
+
+        const responseText = await response.text();
+        console.log("Expo Push API Response:", responseText);
+
+        if (!response.ok) {
+            throw new Error(`Failed to send notification: ${response.status} - ${responseText}`);
+        }
+
+        const result = JSON.parse(responseText);
+        console.log("Parsed result:", result);
+
+        // Check if there were any errors in the response
+        if (result.data && result.data[0] && result.data[0].status === 'error') {
+            const errorMsg = result.data[0].message || 'Unknown error';
+            console.error("Push notification error:", errorMsg);
+            // Don't throw - return the error so UI can show it
+            return {
+                success: false,
+                error: errorMsg,
+                user: { name: user.name, email: user.email },
+                result
+            };
+        }
+
+        return {
+            success: true,
+            user: { name: user.name, email: user.email },
+            result
+        };
+    },
+});
+
+// Send broadcast notification to all users with push tokens
+export const sendBroadcastNotification = action({
+    args: {
+        title: v.string(),
+        body: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const users = await ctx.runQuery(internal.admin.getAllUsersWithTokens);
+
+        if (users.length === 0) {
+            throw new Error("No users with push tokens found");
+        }
+
+        console.log(`Sending broadcast to ${users.length} users`);
+
+        // Deduplicate by push token (multiple accounts on same device = one notification)
+        const uniqueTokens = new Map<string, any>();
+        users.forEach((user: any) => {
+            if (user.pushToken && !uniqueTokens.has(user.pushToken)) {
+                uniqueTokens.set(user.pushToken, user);
+            }
+        });
+
+        console.log(`Deduplicated to ${uniqueTokens.size} unique devices`);
+
+        // Prepare messages for unique devices only
+        const messages = Array.from(uniqueTokens.values()).map((user: any) => ({
+            to: user.pushToken,
+            sound: 'default',
+            title: args.title,
+            body: args.body,
+            data: { type: 'broadcast' },
+        }));
+
+        // Send in batches of 100 (Expo limit)
+        const batchSize = 100;
+        let successCount = 0;
+        let failureCount = 0;
+
+        for (let i = 0; i < messages.length; i += batchSize) {
+            const batch = messages.slice(i, i + batchSize);
+
+            try {
+                const response = await fetch('https://exp.host/--/api/v2/push/send', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(batch),
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    // Count successes and failures from response
+                    if (Array.isArray(result.data)) {
+                        result.data.forEach((item: any) => {
+                            if (item.status === 'ok') {
+                                successCount++;
+                            } else {
+                                failureCount++;
+                            }
+                        });
+                    } else {
+                        successCount += batch.length;
+                    }
+                } else {
+                    failureCount += batch.length;
+                }
+            } catch (error) {
+                failureCount += batch.length;
+            }
+        }
+
+        return {
+            successCount,
+            failureCount,
+            totalSent: messages.length,
+        };
+    },
+});
+
+// Internal query helpers for actions
+export const getUserByIdentity = internalQuery({
+    args: { tokenIdentifier: v.string() },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", args.tokenIdentifier)
+            )
+            .unique();
+    },
+});
+
+export const getAllUsersWithTokens = internalQuery({
+    args: {},
+    handler: async (ctx) => {
+        const users = await ctx.db.query("users").collect();
+        return users.filter(u => u.pushToken);
     },
 });
