@@ -1,11 +1,14 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
-import { FlaskConicalIcon, HomeIcon, SettingsIcon, StoreIcon } from 'lucide-react-native';
+import { FlaskConicalIcon, HomeIcon, SettingsIcon, StoreIcon, ShieldIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUser } from '@clerk/clerk-expo';
 
 export default function TabLayout() {
+    const { user } = useUser();
+    const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
     const insets = useSafeAreaInsets();
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -60,6 +63,15 @@ export default function TabLayout() {
                         href: null,
                         headerShown: false,
                         tabBarStyle: { display: 'flex' } // Explicitly keep tab bar visible? Default is visible.
+                    }}
+                />
+                <Tabs.Screen
+                    name="admin"
+                    options={{
+                        title: 'Admin',
+                        href: isAdmin ? '/admin' : null,
+                        tabBarIcon: ({ color }) => <Icon as={ShieldIcon} color={color} className="size-6" />,
+                        headerShown: false,
                     }}
                 />
             </Tabs>

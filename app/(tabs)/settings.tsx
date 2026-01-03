@@ -107,8 +107,11 @@ function UserProfile() {
 
 export default function SettingsScreen() {
     const { signOut } = useAuth();
+    const { user } = useUser();
     const { colorScheme, toggleColorScheme } = useColorScheme();
     const router = useRouter();
+
+    const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
 
     const handleShare = async () => {
         console.log('Share App');
@@ -187,6 +190,8 @@ export default function SettingsScreen() {
                             </CardContent>
                         </Card>
                     </View>
+
+
 
                     {/* Sign Out Button */}
                     <View className="pt-4">
