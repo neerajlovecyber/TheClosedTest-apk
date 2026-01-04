@@ -14,13 +14,22 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
     const user = useQuery(api.users.getCurrentUser);
     const confirmMembership = useMutation(api.users.confirmGroupMembership);
 
-    // If loading, don't show
-    if (user === undefined) return null;
-    // If not authenticated or error
-    if (user === null) return null;
-
     const [hasClickedLink, setHasClickedLink] = React.useState(false);
     const appState = React.useRef(AppState.currentState);
+
+    const handleJoinGroup = () => {
+        setHasClickedLink(true);
+        Linking.openURL("https://groups.google.com/g/theclosedtest");
+    };
+
+    const handleConfirm = async () => {
+        try {
+            await confirmMembership();
+            Alert.alert("Success", "Thanks for joining the group!");
+        } catch (err) {
+            Alert.alert("Error", "Failed to update profile.");
+        }
+    };
 
     React.useEffect(() => {
         const subscription = AppState.addEventListener('change', nextAppState => {
@@ -54,19 +63,10 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
         return () => subscription.remove();
     }, [hasClickedLink]);
 
-    const handleJoinGroup = () => {
-        setHasClickedLink(true);
-        Linking.openURL("https://groups.google.com/g/theclosedtest");
-    };
-
-    const handleConfirm = async () => {
-        try {
-            await confirmMembership();
-            Alert.alert("Success", "Thanks for joining the group!");
-        } catch (err) {
-            Alert.alert("Error", "Failed to update profile.");
-        }
-    };
+    // If loading, don't show
+    if (user === undefined) return null;
+    // If not authenticated or error
+    if (user === null) return null;
 
     // Compact State for Members
     if (user.isGroupMember) {
