@@ -41,6 +41,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "convex": "^1.31.2",
+    "dotenv": "^17.2.3",
     "expo": "^54.0.30",
     "expo-auth-session": "~7.0.10",
     "expo-constants": "~18.0.12",
