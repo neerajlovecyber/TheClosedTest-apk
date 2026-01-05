@@ -101,8 +101,8 @@ export default function EditAppScreen() {
         }
 
         const testers = parseInt(requiredTesters);
-        if (isNaN(testers) || testers < 0 || testers > 20) {
-            Alert.alert('Error', 'Please enter a number between 0 and 20 for required testers');
+        if (isNaN(testers) || testers < 0 || testers > 12) {
+            Alert.alert('Error', 'Please enter a number between 0 and 12 for required testers');
             return;
         }
 
@@ -234,13 +234,13 @@ export default function EditAppScreen() {
                         </CardHeader>
                         <CardContent className="gap-4">
                             <View>
-                                <Label nativeID="testers">Testers Needed (max 20) *</Label>
+                                <Label nativeID="testers">Testers Needed (max 12) *</Label>
                                 <Input
                                     nativeID="testers"
                                     keyboardType="numeric"
                                     value={requiredTesters}
                                     onChangeText={setRequiredTesters}
-                                    placeholder="20"
+                                    placeholder="12"
                                 />
                             </View>
 
@@ -262,8 +262,8 @@ export default function EditAppScreen() {
                                     <Button variant="outline" size="sm" onPress={() => addInstruction("Open daily")}>
                                         <Text>+ Open Daily</Text>
                                     </Button>
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Upload 1 min recording")}>
-                                        <Text>+ Rec 1m</Text>
+                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Leave constructive feedback")}>
+                                        <Text>+ Feedback</Text>
                                     </Button>
                                     <Button variant="outline" size="sm" onPress={() => addInstruction("Upload screenshot")}>
                                         <Text>+ Screenshot</Text>
