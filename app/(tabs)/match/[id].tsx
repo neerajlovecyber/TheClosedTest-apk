@@ -80,44 +80,7 @@ export default function MatchDashboardScreen() {
         </View>
     );
 
-    // Timeline Item
-    const renderTimelineItem = ({ item }: { item: any }) => {
-        const isCurrent = item.day === currentDay;
-        const myStatus = item.myStatus;
 
-        let cardBg = "bg-secondary/30";
-        let borderColor = "border-transparent";
-        let textColor = "text-muted-foreground";
-
-        if (myStatus === 'approved') {
-            cardBg = "bg-green-100 dark:bg-green-900/40";
-            borderColor = "border-green-200 dark:border-green-800";
-            textColor = "text-green-700 dark:text-green-400";
-        } else if (myStatus === 'rejected') {
-            cardBg = "bg-red-100 dark:bg-red-900/40";
-            borderColor = "border-red-200 dark:border-red-800";
-            textColor = "text-red-700 dark:text-red-400";
-        } else if (isCurrent) {
-            cardBg = "bg-primary/10";
-            borderColor = "border-primary";
-            textColor = "text-primary";
-        }
-
-        return (
-            <View className="mr-3 items-center">
-                <View className={`w-14 h-20 rounded-2xl items-center justify-center border ${cardBg} ${borderColor} ${isCurrent ? 'border-2' : 'border'}`}>
-                    <Text className={`text-xs font-medium mb-1 ${textColor}`}>Day</Text>
-                    <Text className={`text-xl font-bold ${textColor}`}>{item.day}</Text>
-
-                    <View className="mt-1 h-4 items-center justify-center">
-                        {myStatus === 'approved' && <Icon as={CheckCircle2Icon} className="text-green-600 dark:text-green-400 size-4" />}
-                        {myStatus === 'rejected' && <Icon as={XCircleIcon} className="text-red-600 dark:text-red-400 size-4" />}
-                        {myStatus === 'pending' && <View className={`w-2 h-2 rounded-full ${isCurrent ? 'bg-primary' : 'bg-orange-400'}`} />}
-                    </View>
-                </View>
-            </View>
-        );
-    };
 
     // Status color helper
     const getStatusColor = (status: string) => {
@@ -211,20 +174,10 @@ export default function MatchDashboardScreen() {
                     </View>
                 )}
 
-                {/* Horizontal Timeline */}
+                {/* Progress Grid */}
                 <View className="mb-6">
-                    <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">Timeline</Text>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 16 }}
-                    >
-                        {days.map((item: any) => (
-                            <View key={item.day}>
-                                {renderTimelineItem({ item })}
-                            </View>
-                        ))}
-                    </ScrollView>
+                    <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress</Text>
+                    <ProgressGrid days={days} currentDay={currentDay} />
                 </View>
 
                 {/* Today's Tasks */}
