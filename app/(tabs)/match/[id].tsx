@@ -38,6 +38,7 @@ export default function MatchDashboardScreen() {
 
     const [rejectionModalVisible, setRejectionModalVisible] = useState(false);
     const [proofToReject, setProofToReject] = useState<Id<"proofs"> | null>(null);
+    const [proofToRejectUrls, setProofToRejectUrls] = useState<string[]>([]);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
 
 
@@ -61,6 +62,14 @@ export default function MatchDashboardScreen() {
 
     const handleRejectPress = (proofId: Id<"proofs">) => {
         setProofToReject(proofId);
+        // If the proofId matches the partnerProof we loaded, use its URLs
+        // Note: partnerProof is the proof object for TODAY.
+        // If we reject a proof, it's usually the one displayed in ProofReviewer, which is `partnerProof`.
+        if (partnerProof && partnerProof.status !== 'not_uploaded' && partnerProof._id === proofId) {
+            setProofToRejectUrls(partnerProof.urls || []);
+        } else {
+            setProofToRejectUrls([]);
+        }
         setRejectionModalVisible(true);
     };
 
@@ -229,7 +238,8 @@ export default function MatchDashboardScreen() {
             <RejectionReasonModal
                 visible={rejectionModalVisible}
                 proofId={proofToReject}
-                onClose={() => { setRejectionModalVisible(false); setProofToReject(null); }}
+                storageIds={proofToRejectUrls}
+                onClose={() => { setRejectionModalVisible(false); setProofToReject(null); setProofToRejectUrls([]) }}
             />
         </SafeAreaView>
     );

@@ -123,13 +123,6 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
                             <Text className="font-bold text-green-600 text-lg">Day {currentDay} Complete!</Text>
                         </View>
                         <Text className="text-muted-foreground">Your proof has been approved. Great job!</Text>
-                        {todayProof.urls && todayProof.urls.length > 0 && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-3">
-                                {todayProof.urls.map((url, i) => (
-                                    <Image key={i} source={{ uri: url }} className="w-20 h-20 rounded-lg mr-2" />
-                                ))}
-                            </ScrollView>
-                        )}
                     </CardContent>
                 </Card>
             );

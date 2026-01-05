@@ -835,17 +835,6 @@ export const reviewProof = mutation({
                     reputation: (uploader.reputation || 100) + 1
                 });
             }
-
-            // Delete storage files to save space
-            if (proof.storageIds && proof.storageIds.length > 0) {
-                for (const storageId of proof.storageIds) {
-                    await ctx.storage.delete(storageId);
-                }
-                // Clear storageIds from the proof record
-                await ctx.db.patch(proof._id, {
-                    storageIds: []
-                });
-            }
         } else if (args.status === "rejected") {
             const uploader = await ctx.db.get(proof.uploaderId);
             if (uploader) {
@@ -853,6 +842,10 @@ export const reviewProof = mutation({
                     reputation: Math.max(0, (uploader.reputation || 100) - 5)
                 });
             }
+            // Clear storageIds since we deleted them (or intend to overwrite them)
+            await ctx.db.patch(proof._id, {
+                storageIds: []
+            });
         }
 
         // Notify the uploader
@@ -867,6 +860,7 @@ export const reviewProof = mutation({
         });
     }
 });
+
 
 
 // Get current user's proof for today
