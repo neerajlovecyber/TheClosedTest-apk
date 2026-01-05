@@ -68,57 +68,56 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
     // If not authenticated or error
     if (user === null) return null;
 
-    // Compact State for Members
     if (user.isGroupMember) {
         return (
-            <View className={cn("rounded-xl border shadow-sm shadow-black/5 mb-4 bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700", className)}>
-                <View className="p-3 flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-2 flex-1">
-                        <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-4 shrink-0" />
-                        <Text className="text-green-800 dark:text-green-200 font-medium text-sm flex-1">
-                            Verified Google Group Member
-                        </Text>
+            <Card className={cn("border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900/50 overflow-hidden", className)}>
+                <CardContent className="p-4 flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-3 flex-1">
+                        <View className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full">
+                            <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-5" />
+                        </View>
+                        <View className="flex-1">
+                            <Text className="text-green-800 dark:text-green-200 font-bold text-sm">
+                                Verified Member
+                            </Text>
+                            <Text className="text-green-700/70 dark:text-green-400/70 text-xs">
+                                Google Group Community
+                            </Text>
+                        </View>
                     </View>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-3 ml-2"
                         onPress={handleJoinGroup}
+                        className="h-8"
                     >
-                        <Text className="text-green-700 dark:text-green-300 text-xs">View</Text>
+                        <Text className="text-green-700 dark:text-green-300 text-xs font-semibold">Visit Group</Text>
                     </Button>
-                </View>
-            </View>
+                </CardContent>
+            </Card>
         );
     }
 
-    // Compact State for Non-Members
     return (
-        <View className={cn("rounded-xl border shadow-sm shadow-black/5 mb-4 bg-amber-50 dark:bg-amber-900 border-amber-200 dark:border-amber-700", className)}>
-            <View className="p-3 flex-row items-center justify-between gap-2">
-                <View className="flex-row items-center gap-2 flex-1">
-                    <Icon as={AlertTriangleIcon} className="text-amber-600 dark:text-amber-500 size-5 shrink-0" />
-                    <View className="flex-1">
-                        <Text className="font-bold text-amber-800 dark:text-amber-200 text-sm">
-                            Join Google Group
-                        </Text>
-                        <Text className="text-amber-700 dark:text-amber-300 text-xs leading-tight" numberOfLines={1}>
-                            Required to test apps
-                        </Text>
-                    </View>
+        <Card className={cn("border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/50 overflow-hidden", className)}>
+            <CardHeader className="pb-2 bg-amber-100/50 dark:bg-amber-900/20 border-b border-amber-200/50 dark:border-amber-900/30">
+                <View className="flex-row items-center gap-2">
+                    <Icon as={AlertTriangleIcon} className="text-amber-600 dark:text-amber-500 size-5" />
+                    <CardTitle className="text-amber-800 dark:text-amber-200 text-base">Join Google Group</CardTitle>
                 </View>
-
-                <View className="flex-row items-center gap-1.5 ml-auto">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-9 px-4 border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-800"
-                        onPress={handleJoinGroup}
-                    >
-                        <Text className="text-amber-800 dark:text-amber-200 text-sm font-semibold">Join</Text>
-                    </Button>
-                </View>
-            </View>
-        </View>
+            </CardHeader>
+            <CardContent className="p-4">
+                <Text className="text-amber-700 dark:text-amber-300 text-sm mb-4 leading-relaxed">
+                    You must be a member of our Google Group to test other apps and get testers for your own app.
+                </Text>
+                <Button
+                    size="sm"
+                    className="bg-amber-600 dark:bg-amber-700 shadow-sm shadow-amber-900/20"
+                    onPress={handleJoinGroup}
+                >
+                    <Text className="text-white font-bold">Join Community Now</Text>
+                </Button>
+            </CardContent>
+        </Card>
     );
 }

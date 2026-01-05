@@ -189,17 +189,7 @@ export default function AddAppScreen() {
                             {/* 1. Google Group */}
                             <View>
                                 <Text className="font-semibold mb-2 text-foreground">1. Join Community</Text>
-                                {!currentUser?.isGroupMember ? (
-                                    <View>
-                                        <Text className="text-sm text-muted-foreground mb-2">You must join our Google Group to test and be tested.</Text>
-                                        <GoogleGroupWidget className="mb-0" />
-                                    </View>
-                                ) : (
-                                    <View className="flex-row items-center gap-2 p-3 bg-green-100 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-900/50">
-                                        <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-5" />
-                                        <Text className="font-medium text-green-700 dark:text-green-400">You are a member of the Google Group</Text>
-                                    </View>
-                                )}
+                                <GoogleGroupWidget className="mb-0" />
                             </View>
 
                             {/* 2. Add Email */}
