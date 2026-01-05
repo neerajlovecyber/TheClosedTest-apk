@@ -17,8 +17,9 @@ import { api } from '@/convex/_generated/api';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { vexo, identifyDevice } from 'vexo-analytics';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import * as Updates from 'expo-updates';
 import * as React from 'react';
+import { useOTAUpdate } from '@/hooks/useOTAUpdate';
+import { UpdateBanner } from '@/components/UpdateBanner';
 
 vexo('4beaa20e-2695-4263-aa86-5ddaf7ff29ee');
 
@@ -125,40 +126,26 @@ function InitialLayout() {
     }
   }, [isLoaded]);
 
-  // Handle Expo Updates
-  React.useEffect(() => {
-    async function onFetchUpdateAsync() {
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
-        }
-      } catch (error) {
-        // You can also add an alert here if you want the user specialized in critical updates
-        console.error(`Error fetching latest Expo update: ${error}`);
-      }
-    }
-
-    if (!__DEV__) {
-      onFetchUpdateAsync();
-    }
-  }, []);
+  // Handle OTA Updates
+  const { isUpdateDownloaded, reloadApp } = useOTAUpdate();
 
   if (!isLoaded) {
     return null;
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
-      <Stack.Screen name="add-app" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="app-details/[id]" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="admin/users-list" options={{ headerShown: false }} />
-      <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
-      <Stack.Screen name="admin/notifications" options={{ headerShown: false }} />
-      <Stack.Screen name="admin/debug-push" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <UpdateBanner isVisible={isUpdateDownloaded} onReload={reloadApp} />
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="add-app" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="app-details/[id]" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="admin/users-list" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/debug-push" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }
