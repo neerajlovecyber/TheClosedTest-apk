@@ -110,8 +110,8 @@ export default function AddAppScreen() {
         }
 
         const testers = parseInt(requiredTesters);
-        if (isNaN(testers) || testers < 0 || testers > 20) {
-            Alert.alert('Error', 'Please enter a number between 0 and 20 for required testers');
+        if (isNaN(testers) || testers < 0 || testers > 12) {
+            Alert.alert('Error', 'Please enter a number between 0 and 12 for required testers');
             return;
         }
 
