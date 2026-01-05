@@ -31,4 +31,11 @@ crons.daily(
     internal.matches.cleanupOldProofsAction
 );
 
+// Cleanup old notifications (older than 14 days) daily at 2:00 AM UTC
+crons.daily(
+    "cleanup-notifications",
+    { hourUTC: 2, minuteUTC: 0 },
+    internal.notifications.cleanupOldNotifications
+);
+
 export default crons;

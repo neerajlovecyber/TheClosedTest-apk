@@ -5,11 +5,18 @@ import { Icon } from '@/components/ui/icon';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/clerk-expo';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 export default function TabLayout() {
     const { user } = useUser();
     const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
     const insets = useSafeAreaInsets();
+
+    // Check for unread tests
+    const activeTests = useQuery(api.matches.getMyActiveTests) || [];
+    const hasUnreadTests = activeTests.some((t: any) => t.hasUnread);
+
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
             <Tabs
@@ -48,7 +55,14 @@ export default function TabLayout() {
                     name="tests"
                     options={{
                         title: 'Tests',
-                        tabBarIcon: ({ color }) => <Icon as={FlaskConicalIcon} color={color} className="size-6" />,
+                        tabBarIcon: ({ color }) => (
+                            <View>
+                                <Icon as={FlaskConicalIcon} color={color} className="size-6" />
+                                {hasUnreadTests && (
+                                    <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-background z-10" />
+                                )}
+                            </View>
+                        ),
                     }}
                 />
                 <Tabs.Screen

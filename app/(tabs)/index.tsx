@@ -35,6 +35,7 @@ export default function HomeScreen() {
     const myApps = useQuery(api.apps.getMyApps) || [];
     const currentUser = useQuery(api.users.getCurrentUser);
     const activeTasks = useQuery(api.matches.getMyActiveTests) || [];
+    const unreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;
 
     // Mutations
     const checkIn = useMutation(api.users.checkIn);
@@ -103,8 +104,11 @@ export default function HomeScreen() {
                             <Text className="text-3xl font-bold text-foreground">Hello, {userName}!</Text>
                             <Text className="text-muted-foreground text-lg">Let's squash some bugs today.</Text>
                         </View>
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" className="relative" onPress={() => router.push('/notifications')}>
                             <Icon as={BellIcon} className="text-foreground" />
+                            {unreadCount > 0 && (
+                                <View className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-background z-10" />
+                            )}
                         </Button>
                     </View>
 
