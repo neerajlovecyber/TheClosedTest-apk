@@ -17,6 +17,7 @@ import { api } from '@/convex/_generated/api';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { vexo, identifyDevice } from 'vexo-analytics';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import * as Updates from 'expo-updates';
 import * as React from 'react';
 
 vexo('4beaa20e-2695-4263-aa86-5ddaf7ff29ee');
@@ -123,6 +124,26 @@ function InitialLayout() {
       SplashScreen.hideAsync();
     }
   }, [isLoaded]);
+
+  // Handle Expo Updates
+  React.useEffect(() => {
+    async function onFetchUpdateAsync() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (error) {
+        // You can also add an alert here if you want the user specialized in critical updates
+        console.error(`Error fetching latest Expo update: ${error}`);
+      }
+    }
+
+    if (!__DEV__) {
+      onFetchUpdateAsync();
+    }
+  }, []);
 
   if (!isLoaded) {
     return null;

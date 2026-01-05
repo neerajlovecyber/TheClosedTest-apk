@@ -8,6 +8,12 @@
     "scheme": "theclosedtest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
+    },
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
