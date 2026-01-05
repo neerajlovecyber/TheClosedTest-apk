@@ -23,7 +23,7 @@ import {
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
-import { Linking, ScrollView, View } from 'react-native';
+import { Linking, ScrollView, View, Share } from 'react-native';
 
 interface SettingItemProps {
     icon: React.ElementType;
@@ -114,11 +114,18 @@ export default function SettingsScreen() {
     const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
 
     const handleShare = async () => {
-        console.log('Share App');
+        try {
+            await Share.share({
+                message: 'Check out The Closed Test on Google Play Store: https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest',
+                url: 'https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest',
+            });
+        } catch (error) {
+            console.error('Error sharing app:', error);
+        }
     };
 
     const handleRate = () => {
-        console.log('Rate Us');
+        handleLink('https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest');
     };
 
     const handleLink = (url: string) => {
