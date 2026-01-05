@@ -328,7 +328,7 @@ export default function AppDetailsScreen() {
                             <Button
                                 size="lg"
                                 variant="outline"
-                                onPress={() => Alert.alert("Coming Soon", "Edit functionality is under development.")}
+                                onPress={() => router.push({ pathname: "/edit-app", params: { id: app._id } })}
                                 className="flex-1 rounded-xl border-primary/20"
                                 disabled={isSubmitting}
                             >

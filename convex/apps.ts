@@ -332,6 +332,9 @@ export const updateApp = mutation({
         title: v.optional(v.string()),
         instructions: v.optional(v.string()),
         iconUrl: v.optional(v.string()), // Added to support updating icon after upload
+        playStoreUrl: v.optional(v.string()),
+        packageName: v.optional(v.string()),
+        requiredTesters: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -353,6 +356,9 @@ export const updateApp = mutation({
             title: args.title ?? app.title,
             instructions: args.instructions ?? app.instructions,
             iconUrl: args.iconUrl ?? app.iconUrl,
+            playStoreUrl: args.playStoreUrl ?? app.playStoreUrl,
+            packageName: args.packageName ?? app.packageName,
+            requiredTesters: args.requiredTesters ?? app.requiredTesters,
             updatedAt: Date.now(),
         });
     }
