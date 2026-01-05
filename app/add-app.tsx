@@ -84,6 +84,11 @@ export default function AddAppScreen() {
     };
 
     const handleSubmit = async () => {
+        if (!processedImageUri) {
+            Alert.alert('Error', 'Please upload an app icon');
+            return;
+        }
+
         if (!title || !playStoreUrl || !instructions) {
             Alert.alert('Error', 'Please fill in all required fields');
             return;
@@ -233,7 +238,7 @@ export default function AddAppScreen() {
                                     ) : (
                                         <View className="size-28 rounded-2xl bg-muted/50 border-2 border-dashed border-muted-foreground/30 items-center justify-center gap-2">
                                             <Icon as={ImagePlusIcon} className="size-8 text-muted-foreground" />
-                                            <Text className="text-xs text-muted-foreground font-medium">Upload Icon</Text>
+                                            <Text className="text-xs text-muted-foreground font-medium">Upload Icon <Text className="text-red-500">*</Text></Text>
                                         </View>
                                     )}
                                 </TouchableOpacity>
@@ -309,8 +314,8 @@ export default function AddAppScreen() {
                                     <Button variant="outline" size="sm" onPress={() => addInstruction("Open daily")}>
                                         <Text>+ Open Daily</Text>
                                     </Button>
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Upload 1 min recording")}>
-                                        <Text>+ Rec 1m</Text>
+                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Leave constructive feedback")}>
+                                        <Text>+ Feedback</Text>
                                     </Button>
                                     <Button variant="outline" size="sm" onPress={() => addInstruction("Upload screenshot")}>
                                         <Text>+ Screenshot</Text>

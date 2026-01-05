@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { View, FlatList, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, FlatList, Image, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Text } from '@/components/ui/text';
@@ -13,12 +13,23 @@ import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 
-
-
-
 export default function MarketplaceScreen() {
     const router = useRouter();
+    const { width: windowWidth } = useWindowDimensions();
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any[] }) => {
+        if (viewableItems.length > 0) {
+            setActiveIndex(viewableItems[0].index || 0);
+        }
+    });
+
+    const viewabilityConfig = useRef({
+        itemVisiblePercentThreshold: 50
+    });
+
+    const myApps = useQuery(api.apps.getMyApps) || [];
 
     const recruitingApps = useQuery(api.apps.getMarketplaceApps, { status: 'recruiting' });
     const filledApps = useQuery(api.apps.getMarketplaceApps, { status: 'filled' });
@@ -81,19 +92,36 @@ export default function MarketplaceScreen() {
                         <View>
                             <Text className="text-lg font-bold px-1 mb-3">Latest Opportunities</Text>
                             {groupedRecruiting.length > 0 ? (
-                                <FlatList
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    data={groupedRecruiting}
-                                    keyExtractor={(item, index) => `group-${index}`}
-                                    renderItem={({ item: group }) => (
-                                        <View className="w-[85vw] max-w-sm mr-4">
-                                            {group.map((app: any) => (
-                                                <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)} />
-                                            ))}
-                                        </View>
-                                    )}
-                                />
+                                <View>
+                                    <FlatList
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        data={groupedRecruiting}
+                                        keyExtractor={(item, index) => `group-${index}`}
+                                        snapToInterval={windowWidth * 0.85 + 16} // 85vw + mr-4 (16px)
+                                        decelerationRate="fast"
+                                        snapToAlignment="start"
+                                        onViewableItemsChanged={onViewableItemsChanged.current}
+                                        viewabilityConfig={viewabilityConfig.current}
+                                        contentContainerStyle={{ paddingRight: 16 }} // spacer for last item
+                                        renderItem={({ item: group }) => (
+                                            <View style={{ width: windowWidth * 0.85 }} className="mr-4">
+                                                {group.map((app: any) => (
+                                                    <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)} />
+                                                ))}
+                                            </View>
+                                        )}
+                                    />
+                                    {/* Pagination Dots */}
+                                    <View className="flex-row justify-center mt-2 gap-2">
+                                        {groupedRecruiting.map((_, index) => (
+                                            <View
+                                                key={index}
+                                                className={`h-2 rounded-full transition-all ${index === activeIndex ? 'w-6 bg-primary' : 'w-2 bg-muted-foreground/30'}`}
+                                            />
+                                        ))}
+                                    </View>
+                                </View>
                             ) : (
                                 <View className="items-center py-4">
                                     <Text className="text-muted-foreground">No new apps.</Text>
@@ -114,9 +142,11 @@ export default function MarketplaceScreen() {
                         ) : (
                             <View className="items-center py-10">
                                 <Text className="text-muted-foreground">No apps found.</Text>
-                                <Button variant="link" onPress={() => router.push('/add-app')}>
-                                    <Text>Add your first app</Text>
-                                </Button>
+                                {myApps.length < 3 && (
+                                    <Button variant="link" onPress={() => router.push('/add-app')}>
+                                        <Text>Add your first app</Text>
+                                    </Button>
+                                )}
                             </View>
                         )}
                     </View>
@@ -124,11 +154,13 @@ export default function MarketplaceScreen() {
             </ScrollView>
 
             {/* Quick Add App FAB */}
-            <View className="absolute bottom-6 right-6">
-                <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" onPress={() => router.push('/add-app')}>
-                    <Icon as={PlusIcon} className="text-primary-foreground size-8" />
-                </Button>
-            </View>
+            {myApps.length < 3 && (
+                <View className="absolute bottom-6 right-6">
+                    <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" onPress={() => router.push('/add-app')}>
+                        <Icon as={PlusIcon} className="text-primary-foreground size-8" />
+                    </Button>
+                </View>
+            )}
         </View>
     );
 }

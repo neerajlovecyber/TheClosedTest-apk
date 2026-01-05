@@ -85,7 +85,7 @@ export const getMarketplaceApps = query({
             .query("apps")
             .withIndex("by_status", (q) => q.eq("status", status))
             .order("desc")
-            .take(50);
+            .take(100);
 
         // Map over apps to resolve full image URLs and count active testers
         const appsWithUrls = await Promise.all(apps.map(async (app) => {
@@ -138,7 +138,12 @@ export const getMarketplaceApps = query({
             };
         }));
 
-        return appsWithUrls;
+        // Sort by reputation (desc), then by creation time (desc)
+        return appsWithUrls.sort((a, b) => {
+            const repDiff = b.reputation - a.reputation;
+            if (repDiff !== 0) return repDiff;
+            return b.createdAt - a.createdAt;
+        });
     },
 });
 

@@ -198,14 +198,16 @@ export default function HomeScreen() {
                 {/* My Apps Overview */}
                 <View className="px-6 pb-20">
                     <View className="flex-row justify-between items-center mb-4">
-                        <Text className="text-xl font-bold">My Apps</Text>
-                        <TouchableOpacity
-                            className="flex-row items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-full"
-                            onPress={() => router.push('/add-app')}
-                        >
-                            <Icon as={PlusIcon} className="text-primary size-4" />
-                            <Text className="text-primary font-bold text-xs uppercase">New App</Text>
-                        </TouchableOpacity>
+                        <Text className="text-xl font-bold">My Apps ({myApps.length}/3)</Text>
+                        {myApps.length < 3 && (
+                            <TouchableOpacity
+                                className="flex-row items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-full"
+                                onPress={() => router.push('/add-app')}
+                            >
+                                <Icon as={PlusIcon} className="text-primary size-4" />
+                                <Text className="text-primary font-bold text-xs uppercase">New App</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {myApps.length > 0 ? (
