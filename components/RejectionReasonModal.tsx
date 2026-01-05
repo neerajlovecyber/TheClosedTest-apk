@@ -7,12 +7,9 @@ import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 
-import { deleteImageFromR2 } from '@/utils/image-uploader';
-
 interface RejectionReasonModalProps {
     visible: boolean;
     proofId: Id<"proofs"> | null;
-    storageIds?: string[]; // Added to allow deletion
     onClose: () => void;
     onRejected?: () => void;
 }
@@ -25,7 +22,7 @@ const QUICK_REASONS = [
     "App not opened properly"
 ];
 
-export function RejectionReasonModal({ visible, proofId, storageIds, onClose, onRejected }: RejectionReasonModalProps) {
+export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: RejectionReasonModalProps) {
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,17 +38,7 @@ export function RejectionReasonModal({ visible, proofId, storageIds, onClose, on
 
         setIsSubmitting(true);
         try {
-            // 1. Delete images from R2 first (if any)
-            if (storageIds && storageIds.length > 0) {
-                await Promise.all(storageIds.map(async (url) => {
-                    // Only delete if it's an R2 URL
-                    if (url && url.startsWith('http')) {
-                        await deleteImageFromR2(url);
-                    }
-                }));
-            }
-
-            // 2. Update status in DB
+            // Update status in DB
             await reviewProofMutation({
                 proofId,
                 status: "rejected",

@@ -238,8 +238,7 @@ export default function MatchDashboardScreen() {
             <RejectionReasonModal
                 visible={rejectionModalVisible}
                 proofId={proofToReject}
-                storageIds={proofToRejectUrls}
-                onClose={() => { setRejectionModalVisible(false); setProofToReject(null); setProofToRejectUrls([]) }}
+                onClose={() => { setRejectionModalVisible(false); setProofToReject(null); }}
             />
         </SafeAreaView>
     );

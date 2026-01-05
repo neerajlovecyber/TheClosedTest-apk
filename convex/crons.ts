@@ -24,4 +24,11 @@ crons.daily(
     internal.matches.checkMissedPenalties
 );
 
+// Cleanup old proof files (older than 3 days) daily at 4:30 AM UTC
+crons.daily(
+    "cleanup-proofs",
+    { hourUTC: 4, minuteUTC: 30 },
+    internal.matches.cleanupOldProofsAction
+);
+
 export default crons;
