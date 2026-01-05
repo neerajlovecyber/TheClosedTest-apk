@@ -18,9 +18,14 @@ type DayStatus = {
 interface ProgressGridProps {
     days: DayStatus[];
     currentDay: number;
+    summary: {
+        myApproved: number;
+        partnerApproved: number;
+        totalDays: number;
+    };
 }
 
-export function ProgressGrid({ days, currentDay }: ProgressGridProps) {
+export function ProgressGrid({ days, currentDay, summary }: ProgressGridProps) {
     const { width } = useWindowDimensions();
     // Decide layout based on screen width
     // 7 cols for tablet/desktop, 4 or 5 for phone? 
@@ -81,6 +86,22 @@ export function ProgressGrid({ days, currentDay }: ProgressGridProps) {
 
     return (
         <View>
+            {/* Unified Score Card Header */}
+            <View className="mx-4 mb-4 p-4 rounded-xl bg-card border border-border shadow-sm flex-row justify-between items-center">
+                <View className="items-center flex-1 border-r border-border/50">
+                    <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
+                        {summary.myApproved}/{summary.totalDays}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Approved</Text>
+                </View>
+                <View className="items-center flex-1">
+                    <Text className="text-3xl font-bold text-primary">
+                        {summary.partnerApproved}/{summary.totalDays}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">Partner Approved</Text>
+                </View>
+            </View>
+
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}

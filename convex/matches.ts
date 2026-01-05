@@ -911,6 +911,7 @@ export const getTodayProof = query({
         // Get image URLs
         const urls = await Promise.all(
             (todayProof.storageIds || []).map(async (sid) => {
+                if (sid.startsWith("http")) return sid;
                 const url = await ctx.storage.getUrl(sid);
                 return url || "";
             })
@@ -973,6 +974,7 @@ export const getPartnerTodayProof = query({
         // Get image URLs
         const urls = await Promise.all(
             (partnerProof.storageIds || []).map(async (sid) => {
+                if (sid.startsWith("http")) return sid;
                 const url = await ctx.storage.getUrl(sid);
                 return url || "";
             })

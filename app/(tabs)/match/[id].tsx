@@ -127,7 +127,7 @@ export default function MatchDashboardScreen() {
             <ScrollView
                 className="flex-1"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: isWeb ? 40 : 120 }}
+                contentContainerStyle={{ paddingBottom: isWeb ? 40 : 60 }}
                 style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
             >
                 {/* Header Section */}
@@ -141,44 +141,13 @@ export default function MatchDashboardScreen() {
                     </View>
                 </View>
 
-                {/* Unified Score Card */}
+                {/* Progress Grid with Integrated Score Card */}
                 {summary && (
-                    <View className="px-4 mb-6">
-                        <Card className="bg-secondary/10 border-border">
-                            <CardContent className="p-5 flex-row justify-between items-center">
-                                {/* My Stats */}
-                                <View className="flex-1 items-center">
-                                    <View className="flex-row items-center mb-1">
-                                        <Icon as={TrophyIcon} className="text-primary size-4 mr-1.5" />
-                                        <Text className="font-bold text-base text-primary">You</Text>
-                                    </View>
-                                    <Text className="text-3xl font-black text-foreground">
-                                        {summary.myApproved}<Text className="text-sm text-muted-foreground font-medium">/{summary.totalDays}</Text>
-                                    </Text>
-                                    <Text className="text-xs text-muted-foreground -mt-1 mb-1">Days Approved</Text>
-                                </View>
-                                {/* Divider */}
-                                <View className="h-10 w-px bg-border/50 mx-2" />
-                                {/* Partner Stats */}
-                                <View className="flex-1 items-center">
-                                    <View className="flex-row items-center mb-1">
-                                        <Text className="font-bold text-base text-muted-foreground">{partner?.name?.split(' ')[0] || "Partner"}</Text>
-                                    </View>
-                                    <Text className="text-3xl font-black text-foreground">
-                                        {summary.partnerApproved}<Text className="text-sm text-muted-foreground font-medium">/{summary.totalDays}</Text>
-                                    </Text>
-                                    <Text className="text-xs text-muted-foreground -mt-1 mb-1">Days Approved</Text>
-                                </View>
-                            </CardContent>
-                        </Card>
+                    <View className="mb-6 mt-4">
+                        <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
+                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} />
                     </View>
                 )}
-
-                {/* Progress Grid */}
-                <View className="mb-6">
-                    <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress</Text>
-                    <ProgressGrid days={days} currentDay={currentDay} />
-                </View>
 
                 {/* Today's Tasks */}
                 <View className="px-4">
