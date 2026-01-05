@@ -34,21 +34,21 @@ export function UpdateBanner({ onReload, isVisible }: UpdateBannerProps) {
                 zIndex: 1000,
             }}
         >
-            <View className="bg-primary px-4 py-3 rounded-2xl flex-row items-center justify-between shadow-lg shadow-primary/30">
+            <View className="bg-popover border border-border px-4 py-3 rounded-2xl flex-row items-center justify-between shadow-lg shadow-black/10">
                 <View className="flex-row items-center flex-1 gap-3">
-                    <View className="bg-white/20 p-2 rounded-full">
-                        <Icon as={RefreshCwIcon} className="text-white size-4" />
+                    <View className="bg-muted p-2 rounded-full">
+                        <Icon as={RefreshCwIcon} className="text-foreground size-4" />
                     </View>
                     <View className="flex-1">
-                        <Text className="text-white font-bold text-sm">Update Ready!</Text>
-                        <Text className="text-white/80 text-xs">Reload to apply the latest changes.</Text>
+                        <Text className="text-popover-foreground font-bold text-sm">Update Ready!</Text>
+                        <Text className="text-muted-foreground text-xs">Reload to apply the latest changes.</Text>
                     </View>
                 </View>
                 <TouchableOpacity
                     onPress={onReload}
-                    className="bg-white px-4 py-2 rounded-xl"
+                    className="bg-primary px-4 py-2 rounded-xl"
                 >
-                    <Text className="text-primary font-bold text-xs">RELOAD</Text>
+                    <Text className="text-primary-foreground font-bold text-xs">RELOAD</Text>
                 </TouchableOpacity>
             </View>
         </Animated.View>
