@@ -17,4 +17,11 @@ crons.daily(
     internal.matches.deleteOldMessages
 );
 
+// Check for missed day penalties daily at 12:30 AM IST (19:00 UTC)
+crons.daily(
+    "check-penalties",
+    { hourUTC: 19, minuteUTC: 0 },
+    internal.matches.checkMissedPenalties
+);
+
 export default crons;

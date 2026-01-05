@@ -1236,3 +1236,79 @@ export const cleanupOldApprovedProofs = mutation({
         return `Cleaned up ${count} approved proofs`;
     }
 });
+
+// Scheduled Job to check for missed penalties
+export const checkMissedPenalties = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        // Run this daily shortly after midnight IST to check the PREVIOUS day.
+        // E.g. Run at 12:30 AM IST (19:00 UTC previous day).
+
+        // We want to check for Day X-1.
+        // Let's recalculate "Current Day" based on NOW.
+        // If we run at 12:30 AM IST on "Day 5", current day is 5. We want to check Day 4.
+
+        // 1. Get all ACTIVE matches
+        const matches = await ctx.db
+            .query("matches")
+            .filter((q) => q.eq(q.field("status"), "active"))
+            .collect();
+
+        let penaltyCount = 0;
+
+        for (const match of matches) {
+            // Calculate CURRENT DAY for this match
+            // If match started 5 days ago, calculateDay returns 5.
+            const currentDayOfMatch = calculateDay(match.startDate);
+
+            // We check the day that JUST finished, i.e., currentDay - 1
+            const dayToCheck = currentDayOfMatch - 1;
+
+            if (dayToCheck < 1) continue; // Match just started today, nothing to check
+
+            // Users to check
+            const userIds = [match.user1Id, match.user2Id];
+
+            for (const userId of userIds) {
+                // Check if they uploaded for dayToCheck
+                const proof = await ctx.db
+                    .query("proofs")
+                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                    .filter((q) => q.and(
+                        q.eq(q.field("uploaderId"), userId),
+                        q.eq(q.field("day"), dayToCheck)
+                    ))
+                    .first();
+
+                // If NO proof exists (or status is not approved? No, just if they completely missed uploading)
+                // "Missed" usually means didn't upload. If they uploaded and it's rejected, they already got -5.
+                // We don't want to double penalize.
+
+                if (!proof) {
+                    // PENALIZE
+                    const user = await ctx.db.get(userId);
+                    if (user) {
+                        // Deduct 2 points, min 0
+                        await ctx.db.patch(user._id, {
+                            reputation: Math.max(0, (user.reputation || 100) - 2)
+                        });
+
+                        // Notify
+                        await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                            userId: userId,
+                            type: "alert",
+                            title: "Missed Day Penalty",
+                            body: `You missed Day ${dayToCheck}. -2 Reputation.`,
+                            data: { matchId: match._id }
+                        });
+
+                        penaltyCount++;
+                    }
+                }
+            }
+        }
+
+        console.log(`Checked penalties. Penalized ${penaltyCount} users.`);
+    }
+});
+
