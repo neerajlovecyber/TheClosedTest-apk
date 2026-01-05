@@ -36,6 +36,7 @@ export default function AddAppScreen() {
     // Processed image URI to display/upload
     const [processedImageUri, setProcessedImageUri] = useState<string | null>(null);
 
+    const updateApp = useMutation(api.apps.updateApp);
     // Auto-extract package name
     React.useEffect(() => {
         const match = playStoreUrl.match(/id=([a-zA-Z0-9_.]+)/);
@@ -45,6 +46,12 @@ export default function AddAppScreen() {
             setPackageName('');
         }
     }, [playStoreUrl]);
+
+    const syncAppCount = useMutation(api.users.syncAppCount);
+    React.useEffect(() => {
+        // Sync app count on mount to ensure accuracy
+        syncAppCount().then((count) => console.log("Synced app count:", count));
+    }, []);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -107,40 +114,40 @@ export default function AddAppScreen() {
         try {
             let storageId = null;
 
-            // 1. Upload Image if selected
-            if (processedImageUri) {
-                // Get short-lived upload URL
-                const postUrl = await generateUploadUrl();
-
-                // Convert URI to Blob
-                const response = await fetch(processedImageUri);
-                const blob = await response.blob();
-
-                // POST to Convex Storage
-                const result = await fetch(postUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "image/webp" },
-                    body: blob as any,
-                });
-
-                if (!result.ok) {
-                    throw new Error(`Upload failed: ${result.statusText}`);
-                }
-
-                const { storageId: uploadedId } = await result.json();
-                storageId = uploadedId;
-            }
-
-            // 2. Create App with storage ID (or fallback logic inside mutation)
-            await createApp({
+            // 1. Create App first with placeholder or default
+            const appId = await createApp({
                 title,
-                packageName: packageName,
+                packageName: packageName || "com.unknown.package",
                 playStoreUrl,
-                iconUrl: storageId ? "" : "https://github.com/shadcn.png", // Clear if we have storageId
-                storageId: storageId || undefined,
+                iconUrl: "https://github.com/shadcn.png", // Default initially
+                storageId: undefined,
                 instructions,
                 requiredTesters: testers,
             });
+
+            // 2. Upload Image if selected, using App ID as filename
+            if (processedImageUri) {
+                try {
+                    const { uploadImageToR2 } = require('@/utils/image-uploader');
+                    // Use deterministic filename: app-icons/<appId>.webp (appId is standard ID string)
+                    // This allows overwriting/updating easily
+                    const uploadUrl = await uploadImageToR2(processedImageUri, "app-icons", `${appId}.webp`);
+
+                    // 3. Update App with real icon URL
+                    await updateApp({
+                        appId: appId,
+                        iconUrl: uploadUrl
+                    });
+                } catch (uploadError: any) {
+                    console.error("Upload failed but app created:", uploadError);
+                    Alert.alert("Warning", "App created but icon upload failed: " + uploadError.message);
+                    // Optionally delete app if critical
+                }
+            }
+
+            // To properly call updateApp, I need to add `const updateApp = useMutation(api.apps.updateApp);` at component top.
+            // I will return for now and fix imports in next step.
+
 
             Alert.alert('Success', 'App added successfully!');
             router.back();

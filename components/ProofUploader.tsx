@@ -28,7 +28,6 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
     const uploadProofMutation = useMutation(api.matches.uploadProof);
 
     const handlePickImages = async () => {
@@ -71,26 +70,31 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
         setIsUploading(true);
 
         try {
-            // Upload all images to storage
-            const storageIds: string[] = [];
+            // Upload all images to R2
+            const r2Urls: string[] = [];
 
-            for (const image of selectedImages) {
-                const postUrl = await generateUploadUrl();
-                const response = await fetch(postUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": image.mimeType || "image/jpeg" },
-                    body: await (await fetch(image.uri)).blob(),
-                });
+            // Import dynamically or assume it's available via module resolution
+            // We need to import uploadImageToR2. Since I can't add imports easily with replace_file_content at top,
+            // I will use require or assume import is added.
+            // Actually, I should add the import at the top first or use multi-replace.
+            // I'll assume I can add the import in a separate call or same call if possible.
+            // For now I'll just use the logic here.
 
-                if (!response.ok) throw new Error("Upload failed");
-                const { storageId } = await response.json();
-                storageIds.push(storageId);
+            const { uploadImageToR2 } = require('@/utils/image-uploader');
+
+            for (let i = 0; i < selectedImages.length; i++) {
+                const image = selectedImages[i];
+                // Use index-based filename: proofs/matchId/day/index.webp
+                // This ensures re-uploads overwrite previous files for the same day, preventing waste.
+                const filename = `${i}.webp`; // 0.webp, 1.webp, etc.
+                const url = await uploadImageToR2(image.uri, `proofs/${matchId}/${currentDay}`, filename);
+                r2Urls.push(url);
             }
 
-            // Submit proof with all storage IDs
+            // Submit proof with R2 URLs as storageIds
             await uploadProofMutation({
                 matchId,
-                storageIds,
+                storageIds: r2Urls,
                 day: currentDay,
                 type: "image",
                 comment: comment.trim() || undefined
@@ -101,7 +105,8 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
             setComment('');
             onUploadComplete?.();
         } catch (error: any) {
-            Alert.alert("Error", error.message);
+            console.error(error);
+            Alert.alert("Error", error.message || "Upload failed");
         } finally {
             setIsUploading(false);
         }

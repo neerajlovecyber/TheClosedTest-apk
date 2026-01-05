@@ -350,6 +350,16 @@ export default function AppDetailsScreen() {
                                                 onPress: async () => {
                                                     try {
                                                         setIsSubmitting(true);
+
+                                                        // Delete image from R2 first
+                                                        try {
+                                                            const { deleteImageFromR2 } = require('@/utils/image-uploader');
+                                                            await deleteImageFromR2(`app-icons/${appId}.webp`);
+                                                        } catch (imgError) {
+                                                            console.warn("Failed to delete image", imgError);
+                                                            // Proceed anyway to delete app
+                                                        }
+
                                                         await deleteApp({ appId: app._id });
                                                         router.replace("/(tabs)/" as any);
                                                     } catch (err: any) {

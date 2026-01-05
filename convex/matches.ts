@@ -361,6 +361,7 @@ export const getMatchStatus = query({
 // Helper to get image URL
 const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
     if (!storageId) return "https://github.com/shadcn.png";
+    if (storageId.startsWith("http")) return storageId;
     const url = await ctx.storage.getUrl(storageId);
     return url || "https://github.com/shadcn.png";
 };

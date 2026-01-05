@@ -175,3 +175,35 @@ export const savePushToken = mutation({
         });
     },
 });
+
+export const syncAppCount = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const apps = await ctx.db
+            .query("apps")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .collect();
+
+        // Filter out archived apps if they don't count
+        const activeApps = apps.filter(app => app.status !== "archived");
+
+        await ctx.db.patch(user._id, {
+            appsCount: activeApps.length,
+            updatedAt: Date.now(),
+        });
+
+        return activeApps.length;
+    }
+});

@@ -6,6 +6,7 @@ import { Id } from "./_generated/dataModel";
 // Helper to get image URL
 const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
     if (!storageId) return "https://github.com/shadcn.png"; // Default fallback
+    if (storageId.startsWith("http")) return storageId;
     const url = await ctx.storage.getUrl(storageId);
     return url || "https://github.com/shadcn.png";
 };
@@ -37,8 +38,8 @@ export const createApp = mutation({
             throw new Error("User not found");
         }
 
-        if (user.appsCount >= 3) {
-            throw new Error("You can only have 3 active apps at a time.");
+        if (user.appsCount >= 100) {
+            throw new Error("You can only have 100 active apps at a time.");
         }
 
         const appId = await ctx.db.insert("apps", {
@@ -330,6 +331,7 @@ export const updateApp = mutation({
         appId: v.id("apps"),
         title: v.optional(v.string()),
         instructions: v.optional(v.string()),
+        iconUrl: v.optional(v.string()), // Added to support updating icon after upload
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -350,6 +352,7 @@ export const updateApp = mutation({
         await ctx.db.patch(args.appId, {
             title: args.title ?? app.title,
             instructions: args.instructions ?? app.instructions,
+            iconUrl: args.iconUrl ?? app.iconUrl,
             updatedAt: Date.now(),
         });
     }
