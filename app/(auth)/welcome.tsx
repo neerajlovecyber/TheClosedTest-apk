@@ -10,17 +10,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const ONBOARDING_STEPS = [
     {
         title: 'Welcome to The Closed Test',
-        description: 'Connect with developers and testers seamlessly.',
+        description: 'The easiest way for Android developers to get 12 testers for the Google Play closed testing requirement.',
         icon: '🚀',
     },
     {
-        title: 'Test & Validate',
-        description: 'Join closed testing groups and help improve apps before they launch.',
-        icon: '🧪',
+        title: 'Mutual Testing',
+        description: 'I test your app, you test mine. Simple 1-to-1 exchange to help each other pass the 14-day requirement.',
+        icon: '🤝',
+    },
+    {
+        title: 'Daily Proof System',
+        description: 'Upload screenshots daily to verify testing. Build reputation and trust with other developers.',
+        icon: '📸',
     },
     {
         title: 'Get Started',
-        description: 'Sign in to start your journey with us.',
+        description: 'Join our community of Android developers helping each other succeed.',
         icon: '✨',
     },
 ];
@@ -31,7 +36,7 @@ export default function WelcomeScreen() {
     const [activeIndex, setActiveIndex] = React.useState(0);
     const scrollViewRef = React.useRef<ScrollView>(null);
 
-    const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const handleScroll = React.useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const slideSize = event.nativeEvent.layoutMeasurement.width;
         const index = event.nativeEvent.contentOffset.x / slideSize;
         const roundIndex = Math.round(index);
@@ -43,13 +48,13 @@ export default function WelcomeScreen() {
         if (roundIndex !== activeIndex && !isNoomansLand) {
             setActiveIndex(roundIndex);
         }
-    };
+    }, [activeIndex]);
 
-    const handleNext = () => {
+    const handleNext = React.useCallback(() => {
         if (activeIndex < ONBOARDING_STEPS.length - 1) {
             scrollViewRef.current?.scrollTo({ x: (activeIndex + 1) * SCREEN_WIDTH, animated: true });
         }
-    };
+    }, [activeIndex]);
 
     return (
         <SafeAreaView className="flex-1 bg-background">

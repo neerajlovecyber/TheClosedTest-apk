@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, Image, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, memo } from 'react';
+import { View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -23,14 +24,14 @@ interface ProofUploaderProps {
     onUploadComplete?: () => void;
 }
 
-export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplete }: ProofUploaderProps) {
+function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete }: ProofUploaderProps) {
     const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
     const uploadProofMutation = useMutation(api.matches.uploadProof);
 
-    const handlePickImages = async () => {
+    const handlePickImages = useCallback(async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -50,18 +51,18 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
                     return;
                 }
 
-                setSelectedImages([...selectedImages, ...newImages]);
+                setSelectedImages(prev => [...prev, ...newImages]);
             }
         } catch (error: any) {
             Alert.alert("Error", error.message);
         }
-    };
+    }, [selectedImages.length]);
 
-    const removeImage = (index: number) => {
+    const removeImage = useCallback((index: number) => {
         setSelectedImages(images => images.filter((_, i) => i !== index));
-    };
+    }, []);
 
-    const handleUpload = async () => {
+    const handleUpload = useCallback(async () => {
         if (selectedImages.length === 0) {
             Alert.alert("Required", "Please select at least 1 image");
             return;
@@ -72,21 +73,11 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
         try {
             // Upload all images to R2
             const r2Urls: string[] = [];
-
-            // Import dynamically or assume it's available via module resolution
-            // We need to import uploadImageToR2. Since I can't add imports easily with replace_file_content at top,
-            // I will use require or assume import is added.
-            // Actually, I should add the import at the top first or use multi-replace.
-            // I'll assume I can add the import in a separate call or same call if possible.
-            // For now I'll just use the logic here.
-
             const { uploadImageToR2 } = require('@/utils/image-uploader');
 
             for (let i = 0; i < selectedImages.length; i++) {
                 const image = selectedImages[i];
-                // Use index-based filename: proofs/matchId/day/index.webp
-                // This ensures re-uploads overwrite previous files for the same day, preventing waste.
-                const filename = `${i}.webp`; // 0.webp, 1.webp, etc.
+                const filename = `${i}.webp`;
                 const url = await uploadImageToR2(image.uri, `proofs/${matchId}/${currentDay}`, filename);
                 r2Urls.push(url);
             }
@@ -110,79 +101,10 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
         } finally {
             setIsUploading(false);
         }
-    };
+    }, [selectedImages, matchId, currentDay, comment, uploadProofMutation, onUploadComplete]);
 
-    // Show status for already submitted proof
-    if (todayProof && todayProof.status) {
-        if (todayProof.status === "approved") {
-            return (
-                <Card className="bg-green-500/10 border-green-500/30 mb-6">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center mb-3">
-                            <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-2" />
-                            <Text className="font-bold text-green-600 text-lg">Day {currentDay} Complete!</Text>
-                        </View>
-                        <Text className="text-muted-foreground">Your proof has been approved. Great job!</Text>
-                    </CardContent>
-                </Card>
-            );
-        }
-
-        if (todayProof.status === "pending") {
-            return (
-                <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center mb-3">
-                            <Icon as={ClockIcon} className="text-orange-500 size-6 mr-2" />
-                            <Text className="font-bold text-orange-600 text-lg">Waiting for Review</Text>
-                        </View>
-                        <Text className="text-muted-foreground mb-3">
-                            Your Day {currentDay} proof is pending approval from your partner.
-                        </Text>
-                        {todayProof.urls && todayProof.urls.length > 0 && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
-                                {todayProof.urls.map((url, i) => (
-                                    <Image key={i} source={{ uri: url }} className="w-20 h-20 rounded-lg mr-2" />
-                                ))}
-                            </ScrollView>
-                        )}
-                        {todayProof.comment && (
-                            <Text className="text-sm text-muted-foreground italic">"{todayProof.comment}"</Text>
-                        )}
-                    </CardContent>
-                </Card>
-            );
-        }
-
-        if (todayProof.status === "rejected") {
-            return (
-                <View>
-                    <Card className="bg-red-500/10 border-red-500/30 mb-4">
-                        <CardContent className="p-4">
-                            <View className="flex-row items-center mb-2">
-                                <Icon as={AlertCircleIcon} className="text-red-500 size-6 mr-2" />
-                                <Text className="font-bold text-red-600 text-lg">Proof Rejected</Text>
-                            </View>
-                            <Text className="text-muted-foreground mb-2">
-                                Your Day {currentDay} proof was rejected. Please upload again.
-                            </Text>
-                            {todayProof.rejectionReason && (
-                                <View className="bg-red-500/5 p-3 rounded-lg">
-                                    <Text className="text-sm font-medium text-red-600">Reason:</Text>
-                                    <Text className="text-sm text-muted-foreground">{todayProof.rejectionReason}</Text>
-                                </View>
-                            )}
-                        </CardContent>
-                    </Card>
-                    {/* Show upload UI below */}
-                    {renderUploadUI()}
-                </View>
-            );
-        }
-    }
-
-    // Render upload UI
-    function renderUploadUI() {
+    // Memoized upload UI renderer
+    const renderUploadUI = useCallback(() => {
         return (
             <View>
                 {/* Selected Images Preview */}
@@ -196,7 +118,9 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
                                 <View key={index} className="relative mr-3">
                                     <Image
                                         source={{ uri: image.uri }}
-                                        className="w-24 h-24 rounded-xl"
+                                        style={{ width: 96, height: 96, borderRadius: 12 }}
+                                        contentFit="cover"
+                                        transition={150}
                                     />
                                     <TouchableOpacity
                                         onPress={() => removeImage(index)}
@@ -263,7 +187,86 @@ export function ProofUploader({ matchId, currentDay, todayProof, onUploadComplet
                 )}
             </View>
         );
+    }, [selectedImages, comment, isUploading, currentDay, handlePickImages, removeImage, handleUpload]);
+
+    // Show status for already submitted proof
+    if (todayProof && todayProof.status) {
+        if (todayProof.status === "approved") {
+            return (
+                <Card className="bg-green-500/10 border-green-500/30 mb-6">
+                    <CardContent className="p-4">
+                        <View className="flex-row items-center mb-3">
+                            <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-2" />
+                            <Text className="font-bold text-green-600 text-lg">Day {currentDay} Complete!</Text>
+                        </View>
+                        <Text className="text-muted-foreground">Your proof has been approved. Great job!</Text>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        if (todayProof.status === "pending") {
+            return (
+                <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
+                    <CardContent className="p-4">
+                        <View className="flex-row items-center mb-3">
+                            <Icon as={ClockIcon} className="text-orange-500 size-6 mr-2" />
+                            <Text className="font-bold text-orange-600 text-lg">Waiting for Review</Text>
+                        </View>
+                        <Text className="text-muted-foreground mb-3">
+                            Your Day {currentDay} proof is pending approval from your partner.
+                        </Text>
+                        {todayProof.urls && todayProof.urls.length > 0 && (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+                                {todayProof.urls.map((url, i) => (
+                                    <Image
+                                        key={i}
+                                        source={{ uri: url }}
+                                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8 }}
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                        transition={150}
+                                    />
+                                ))}
+                            </ScrollView>
+                        )}
+                        {todayProof.comment && (
+                            <Text className="text-sm text-muted-foreground italic">"{todayProof.comment}"</Text>
+                        )}
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        if (todayProof.status === "rejected") {
+            return (
+                <View>
+                    <Card className="bg-red-500/10 border-red-500/30 mb-4">
+                        <CardContent className="p-4">
+                            <View className="flex-row items-center mb-2">
+                                <Icon as={AlertCircleIcon} className="text-red-500 size-6 mr-2" />
+                                <Text className="font-bold text-red-600 text-lg">Proof Rejected</Text>
+                            </View>
+                            <Text className="text-muted-foreground mb-2">
+                                Your Day {currentDay} proof was rejected. Please upload again.
+                            </Text>
+                            {todayProof.rejectionReason && (
+                                <View className="bg-red-500/5 p-3 rounded-lg">
+                                    <Text className="text-sm font-medium text-red-600">Reason:</Text>
+                                    <Text className="text-sm text-muted-foreground">{todayProof.rejectionReason}</Text>
+                                </View>
+                            )}
+                        </CardContent>
+                    </Card>
+                    {/* Show upload UI below */}
+                    {renderUploadUI()}
+                </View>
+            );
+        }
     }
 
     return renderUploadUI();
 }
+
+// Export memoized component
+export const ProofUploader = memo(ProofUploaderComponent);

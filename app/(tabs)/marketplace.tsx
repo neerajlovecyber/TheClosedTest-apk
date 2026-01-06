@@ -1,6 +1,7 @@
 
-import React, { useState, useRef, useCallback } from 'react';
-import { View, FlatList, Image, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import React, { useState, useRef, useCallback, useMemo, memo, Suspense, lazy } from 'react';
+import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { LegendList } from '@legendapp/list';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Text } from '@/components/ui/text';
@@ -12,6 +13,14 @@ import { SearchIcon, StarIcon, PlusIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
+
+// Loading placeholder component
+const ListLoadingPlaceholder = memo(() => (
+    <View className="items-center justify-center py-8">
+        <ActivityIndicator size="small" />
+        <Text className="text-muted-foreground text-sm mt-2">Loading apps...</Text>
+    </View>
+));
 
 export default function MarketplaceScreen() {
     const router = useRouter();
@@ -37,33 +46,74 @@ export default function MarketplaceScreen() {
     const displayRecruiting = recruitingApps || [];
     const displayFilled = filledApps || [];
 
-    // Filter out filled apps from Latest Opportunities (only show non-filled recruiting apps)
-    const latestOpportunities = displayRecruiting.filter((app: any) => !app.isFilled);
+    // Memoize expensive computations
+    const latestOpportunities = useMemo(() =>
+        displayRecruiting.filter((app: any) => !app.isFilled),
+        [displayRecruiting]
+    );
 
-    // All Apps: recruiting first (non-filled), then filled apps at the end
-    const allApps = [...displayRecruiting, ...displayFilled];
-    const sortedAllApps = allApps.sort((a: any, b: any) => {
-        if (a.isFilled && !b.isFilled) return 1;  // Filled goes after non-filled
-        if (!a.isFilled && b.isFilled) return -1; // Non-filled goes before filled
-        return 0; // Keep original order otherwise
-    });
-    const filteredAllApps = sortedAllApps.filter((app: any) => app.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    const sortedAllApps = useMemo(() => {
+        const allApps = [...displayRecruiting, ...displayFilled];
+        return allApps.sort((a: any, b: any) => {
+            if (a.isFilled && !b.isFilled) return 1;
+            if (!a.isFilled && b.isFilled) return -1;
+            return 0;
+        });
+    }, [displayRecruiting, displayFilled]);
 
-    const chunkArray = (arr: any[], size: number) => {
+    const filteredAllApps = useMemo(() =>
+        sortedAllApps.filter((app: any) =>
+            app.title.toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        [sortedAllApps, searchQuery]
+    );
+
+    const groupedRecruiting = useMemo(() => {
         const chunked = [];
-        if (!arr) return [];
-        for (let i = 0; i < arr.length; i += size) {
-            chunked.push(arr.slice(i, i + size));
+        const arr = latestOpportunities || [];
+        for (let i = 0; i < arr.length; i += 3) {
+            chunked.push(arr.slice(i, i + 3));
         }
         return chunked;
-    };
+    }, [latestOpportunities]);
 
-    const groupedRecruiting = chunkArray(latestOpportunities || [], 3);
+    // Memoized callbacks for navigation
+    const handleAppPress = useCallback((appId: string) => {
+        router.push({ pathname: "/app-details/[id]", params: { id: appId, source: 'marketplace' } } as any);
+    }, [router]);
+
+    const handleAddApp = useCallback(() => {
+        router.push('/add-app');
+    }, [router]);
+
+    // Memoized render functions for LegendList
+    const renderAppItem = useCallback(({ item }: { item: any }) => (
+        <AppCard
+            key={item._id}
+            item={item}
+            onPress={() => handleAppPress(item._id)}
+        />
+    ), [handleAppPress]);
+
+    const keyExtractor = useCallback((item: any) => item._id, []);
+
+    // Horizontal carousel render item
+    const renderGroupItem = useCallback(({ item: group }: { item: any[] }) => (
+        <View style={{ width: windowWidth * 0.85 }} className="mr-4">
+            {group.map((app: any) => (
+                <AppCard
+                    key={app._id}
+                    item={app}
+                    onPress={() => handleAppPress(app._id)}
+                />
+            ))}
+        </View>
+    ), [windowWidth, handleAppPress]);
+
+    const groupKeyExtractor = useCallback((item: any[], index: number) => `group-${index}`, []);
 
     return (
         <View className="flex-1 bg-background">
-
-
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
                 <View className="gap-3">
                     <View className="mb-0">
@@ -74,7 +124,6 @@ export default function MarketplaceScreen() {
                     <GoogleGroupWidget className="mb-0" />
 
                     {/* Search Bar */}
-                    {/* Compact Search Bar - Optional if header search icon is used, but keeping for utility */}
                     <View className="relative">
                         <View className="absolute left-3 top-3 z-10">
                             <Icon as={SearchIcon} className="size-4 text-muted-foreground" />
@@ -93,24 +142,20 @@ export default function MarketplaceScreen() {
                             <Text className="text-lg font-bold px-1 mb-3">Latest Opportunities</Text>
                             {groupedRecruiting.length > 0 ? (
                                 <View>
-                                    <FlatList
+                                    <LegendList
                                         horizontal
                                         showsHorizontalScrollIndicator={false}
                                         data={groupedRecruiting}
-                                        keyExtractor={(item, index) => `group-${index}`}
-                                        snapToInterval={windowWidth * 0.85 + 16} // 85vw + mr-4 (16px)
+                                        keyExtractor={groupKeyExtractor}
+                                        snapToInterval={windowWidth * 0.85 + 16}
                                         decelerationRate="fast"
                                         snapToAlignment="start"
                                         onViewableItemsChanged={onViewableItemsChanged.current}
                                         viewabilityConfig={viewabilityConfig.current}
-                                        contentContainerStyle={{ paddingRight: 16 }} // spacer for last item
-                                        renderItem={({ item: group }) => (
-                                            <View style={{ width: windowWidth * 0.85 }} className="mr-4">
-                                                {group.map((app: any) => (
-                                                    <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)} />
-                                                ))}
-                                            </View>
-                                        )}
+                                        contentContainerStyle={{ paddingRight: 16 }}
+                                        renderItem={renderGroupItem}
+                                        recycleItems
+                                        estimatedItemSize={windowWidth * 0.85}
                                     />
                                     {/* Pagination Dots */}
                                     <View className="flex-row justify-center mt-2 gap-2">
@@ -130,20 +175,23 @@ export default function MarketplaceScreen() {
                         </View>
                     )}
 
-                    {/* All Apps */}
+                    {/* All Apps - Using LegendList for performance */}
                     <View>
                         <Text className="text-lg font-bold px-1 mb-3">{searchQuery ? 'Search Results' : 'All Apps'}</Text>
                         {filteredAllApps.length > 0 ? (
-                            <View>
-                                {filteredAllApps.map((app) => (
-                                    <AppCard key={app._id} item={app} onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'marketplace' } } as any)} />
-                                ))}
-                            </View>
+                            <LegendList
+                                data={filteredAllApps}
+                                keyExtractor={keyExtractor}
+                                renderItem={renderAppItem}
+                                recycleItems
+                                estimatedItemSize={120}
+                                scrollEnabled={false}
+                            />
                         ) : (
                             <View className="items-center py-10">
                                 <Text className="text-muted-foreground">No apps found.</Text>
                                 {myApps.length < 3 && (
-                                    <Button variant="link" onPress={() => router.push('/add-app')}>
+                                    <Button variant="link" onPress={handleAddApp}>
                                         <Text>Add your first app</Text>
                                     </Button>
                                 )}
@@ -156,7 +204,7 @@ export default function MarketplaceScreen() {
             {/* Quick Add App FAB */}
             {myApps.length < 3 && (
                 <View className="absolute bottom-6 right-6">
-                    <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" onPress={() => router.push('/add-app')}>
+                    <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" onPress={handleAddApp}>
                         <Icon as={PlusIcon} className="text-primary-foreground size-8" />
                     </Button>
                 </View>

@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Dimensions } from 'react-native';
+import React, { memo, useState, useCallback, useMemo } from 'react';
+import { View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -7,9 +8,11 @@ import { CheckCircleIcon, XCircleIcon, ClockIcon, UserIcon, MessageSquareIcon, I
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { useState } from 'react';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// Blurhash placeholder for images
+const IMAGE_PLACEHOLDER = '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7teleayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
 
 interface ProofReviewerProps {
     matchId: Id<"matches">;
@@ -26,13 +29,13 @@ interface ProofReviewerProps {
     onReject?: (proofId: Id<"proofs">) => void;
 }
 
-export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onReject }: ProofReviewerProps) {
+function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onReject }: ProofReviewerProps) {
     const [isReviewing, setIsReviewing] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const reviewProofMutation = useMutation(api.matches.reviewProof);
 
-    const handleApprove = async () => {
+    const handleApprove = useCallback(async () => {
         if (!partnerProof?._id) return;
 
         setIsReviewing(true);
@@ -48,12 +51,20 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
         } finally {
             setIsReviewing(false);
         }
-    };
+    }, [partnerProof?._id, reviewProofMutation, onReviewComplete]);
 
-    const handleRejectPress = () => {
+    const handleRejectPress = useCallback(() => {
         if (!partnerProof?._id) return;
         onReject?.(partnerProof._id);
-    };
+    }, [partnerProof?._id, onReject]);
+
+    const handleImageSelect = useCallback((index: number) => {
+        setCurrentImageIndex(index);
+    }, []);
+
+    // Memoize computed values
+    const isApproved = useMemo(() => partnerProof?.status === "approved", [partnerProof?.status]);
+    const images = useMemo(() => partnerProof?.urls || [], [partnerProof?.urls]);
 
     // Partner hasn't uploaded yet
     if (!partnerProof || partnerProof.status === "not_uploaded") {
@@ -87,11 +98,6 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
             </Card>
         );
     }
-
-    // Determine if we should show the full proof details (images/comments)
-    // Show if: pending (always), or approved AND user toggled 'See Proof'
-    const isApproved = partnerProof.status === "approved";
-    const images = partnerProof.urls || [];
 
     return (
         <View>
@@ -130,7 +136,7 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
                         </View>
                     )}
 
-                    {/* Image Gallery */}
+                    {/* Image Gallery with expo-image caching */}
                     {images.length > 0 && (
                         <View className="mb-4">
                             {/* Main Image - Portrait orientation for mobile screenshots */}
@@ -138,8 +144,12 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
                                 <View className="rounded-xl overflow-hidden bg-muted border border-border h-96 aspect-[9/16]">
                                     <Image
                                         source={{ uri: images[currentImageIndex] }}
-                                        className="w-full h-full"
-                                        resizeMode="cover"
+                                        style={{ width: '100%', height: '100%' }}
+                                        contentFit="cover"
+                                        placeholder={IMAGE_PLACEHOLDER}
+                                        placeholderContentFit="cover"
+                                        transition={200}
+                                        cachePolicy="memory-disk"
                                     />
                                 </View>
                             </View>
@@ -150,13 +160,17 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
                                     {images.map((url, index) => (
                                         <TouchableOpacity
                                             key={index}
-                                            onPress={() => setCurrentImageIndex(index)}
+                                            onPress={() => handleImageSelect(index)}
                                             className={`mr-2 rounded-lg overflow-hidden border-2 ${currentImageIndex === index ? 'border-primary' : 'border-transparent'
                                                 }`}
                                         >
                                             <Image
                                                 source={{ uri: url }}
-                                                className="w-16 h-16"
+                                                style={{ width: 64, height: 64 }}
+                                                contentFit="cover"
+                                                placeholder={IMAGE_PLACEHOLDER}
+                                                transition={150}
+                                                cachePolicy="memory-disk"
                                             />
                                         </TouchableOpacity>
                                     ))}
@@ -221,3 +235,6 @@ export function ProofReviewer({ matchId, partnerProof, onReviewComplete, onRejec
         </View>
     );
 }
+
+// Export memoized component
+export const ProofReviewer = memo(ProofReviewerComponent);

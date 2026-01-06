@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Pressable, useWindowDimensions, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -25,17 +25,11 @@ interface ProgressGridProps {
     };
 }
 
-export function ProgressGrid({ days, currentDay, summary }: ProgressGridProps) {
-    const { width } = useWindowDimensions();
-    // Decide layout based on screen width
-    // 7 cols for tablet/desktop, 4 or 5 for phone? 
-    // Actually 14 fits nicely in 7x2 grid if small enough, or standard list.
-    // Let's try flexible grid.
-
-    // Status Indicator Component
-    const StatusDot = ({ status, isMe }: { status: string, isMe?: boolean }) => {
+// Memoized Status Indicator Component
+const StatusDot = memo(({ status, isMe }: { status: string, isMe?: boolean }) => {
+    const { color, icon, iconColor } = useMemo(() => {
         let color = "bg-muted/50";
-        let icon = null;
+        let icon = null as any;
         let iconColor = "text-muted-foreground";
 
         switch (status) {
@@ -69,20 +63,26 @@ export function ProgressGrid({ days, currentDay, summary }: ProgressGridProps) {
                 break;
         }
 
-        if ((status === 'not_uploaded' || status === 'future') && !icon) {
-            return (
-                <View className={`w-5 h-5 rounded-full ${color} items-center justify-center`}>
-                    <View className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                </View>
-            );
-        }
+        return { color, icon, iconColor };
+    }, [status]);
 
+    if ((status === 'not_uploaded' || status === 'future') && !icon) {
         return (
             <View className={`w-5 h-5 rounded-full ${color} items-center justify-center`}>
-                {icon && <Icon as={icon} className={`size-3 ${iconColor}`} />}
+                <View className="w-1 h-1 rounded-full bg-muted-foreground/30" />
             </View>
         );
-    };
+    }
+
+    return (
+        <View className={`w-5 h-5 rounded-full ${color} items-center justify-center`}>
+            {icon && <Icon as={icon} className={`size-3 ${iconColor}`} />}
+        </View>
+    );
+});
+
+function ProgressGridComponent({ days, currentDay, summary }: ProgressGridProps) {
+    const { width } = useWindowDimensions();
 
     return (
         <View>
@@ -164,3 +164,6 @@ export function ProgressGrid({ days, currentDay, summary }: ProgressGridProps) {
         </View>
     );
 }
+
+// Export memoized component
+export const ProgressGrid = memo(ProgressGridComponent);

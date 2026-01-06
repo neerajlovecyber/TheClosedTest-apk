@@ -1,5 +1,7 @@
-import React from 'react';
-import { View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useMemo, useCallback, memo } from 'react';
+import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
+import { LegendList } from '@legendapp/list';
 import { AppCard } from '@/components/AppCard';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,109 +11,130 @@ import { useRouter } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
+// Memoized TaskCard component
+const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) => {
+    const isMyTaskDone = item.myProofStatus === "approved" || item.myProofStatus === "pending";
+    const isPartnerTaskDone = item.partnerProofStatus === "approved";
+
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.7}
+        >
+            <Card className={`mb-3 ${isMyTaskDone && isPartnerTaskDone ? 'opacity-80' : ''}`}>
+                <CardContent className="p-4">
+                    {/* Header: App Name & Notifications */}
+                    <View className="flex-row items-center justify-between mb-3">
+                        <View className="flex-row items-center gap-3 flex-1">
+                            <Image
+                                source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
+                                style={{ width: 40, height: 40, borderRadius: 12 }}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                                transition={150}
+                            />
+                            <View className="flex-1">
+                                <View className="flex-row items-center gap-2">
+                                    <Text className="font-bold text-lg leading-tight" numberOfLines={1}>{item.name}</Text>
+                                    {item.hasUnread && (
+                                        <View className="bg-red-500 w-2.5 h-2.5 rounded-full border border-background shadow-sm" />
+                                    )}
+                                </View>
+                                <Text className="text-muted-foreground text-xs font-medium">Day {item.day} of {item.totalDays}</Text>
+                            </View>
+                        </View>
+
+                        {item.isReviewPending && (
+                            <View className="bg-orange-100 dark:bg-orange-900/40 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
+                                <Text className="text-xs font-bold text-orange-700 dark:text-orange-400">Review Needed</Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Status Grid */}
+                    <View className="flex-row gap-3">
+                        {/* MY Status */}
+                        <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
+                            <View className={`h-8 w-8 rounded-full items-center justify-center ${item.myProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
+                                item.myProofStatus === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                                    'bg-muted'
+                                }`}>
+                                {item.myProofStatus === 'approved' ? (
+                                    <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
+                                ) : item.myProofStatus === 'pending' ? (
+                                    <Icon as={ClockIcon} className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                ) : (
+                                    <Icon as={AlertCircleIcon} className="size-4 text-muted-foreground" />
+                                )}
+                            </View>
+                            <View>
+                                <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">My Upload</Text>
+                                <Text className={`text-sm font-bold ${item.myProofStatus === 'approved' ? 'text-green-600' :
+                                    item.myProofStatus === 'pending' ? 'text-yellow-600' :
+                                        'text-muted-foreground'
+                                    }`}>
+                                    {item.myProofStatus === 'approved' ? 'Done' :
+                                        item.myProofStatus === 'pending' ? 'Pending' : 'Required'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* PARTNER Status */}
+                        <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
+                            <View className={`h-8 w-8 rounded-full items-center justify-center ${item.partnerProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
+                                item.partnerProofStatus === 'pending' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                    'bg-muted'
+                                }`}>
+                                {item.partnerProofStatus === 'approved' ? (
+                                    <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
+                                ) : item.partnerProofStatus === 'pending' ? (
+                                    <Icon as={ClockIcon} className="size-4 text-blue-600 dark:text-blue-400" />
+                                ) : (
+                                    <Icon as={ClockIcon} className="size-4 text-muted-foreground opacity-50" />
+                                )}
+                            </View>
+                            <View>
+                                <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Partner</Text>
+                                <Text className={`text-sm font-bold ${item.partnerProofStatus === 'approved' ? 'text-green-600' :
+                                    item.partnerProofStatus === 'pending' ? 'text-blue-600' :
+                                        'text-muted-foreground'
+                                    }`}>
+                                    {item.partnerProofStatus === 'approved' ? 'Done' :
+                                        item.partnerProofStatus === 'pending' ? 'Uploaded' : 'Waiting'}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                </CardContent>
+            </Card>
+        </TouchableOpacity>
+    );
+});
+
 export default function TestsScreen() {
     const router = useRouter();
     const testingApps = useQuery(api.matches.getMyActiveTests) || [];
 
-    // Split into pending (needs attention) and completed (proof approved today)
-    const pendingTasks = testingApps.filter((t: any) => t.needsAttention);
-    const completedTasks = testingApps.filter((t: any) => !t.needsAttention);
+    // Memoize the split between pending and completed tasks
+    const { pendingTasks, completedTasks } = useMemo(() => ({
+        pendingTasks: testingApps.filter((t: any) => t.needsAttention),
+        completedTasks: testingApps.filter((t: any) => !t.needsAttention)
+    }), [testingApps]);
 
-    const TaskCard = ({ item }: { item: any }) => {
-        const isMyTaskDone = item.myProofStatus === "approved" || item.myProofStatus === "pending";
-        const isPartnerTaskDone = item.partnerProofStatus === "approved";
+    // Memoized navigation handler
+    const handleTaskPress = useCallback((taskId: string) => {
+        router.push(`/(tabs)/match/${taskId}` as any);
+    }, [router]);
 
-        return (
-            <TouchableOpacity
-                onPress={() => router.push(`/(tabs)/match/${item.id}` as any)}
-                activeOpacity={0.7}
-            >
-                <Card className={`mb-3 ${isMyTaskDone && isPartnerTaskDone ? 'opacity-80' : ''}`}>
-                    <CardContent className="p-4">
-                        {/* Header: App Name & Notifications */}
-                        <View className="flex-row items-center justify-between mb-3">
-                            <View className="flex-row items-center gap-3 flex-1">
-                                <Image
-                                    source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
-                                    className="w-10 h-10 rounded-xl bg-muted"
-                                />
-                                <View className="flex-1">
-                                    <View className="flex-row items-center gap-2">
-                                        <Text className="font-bold text-lg leading-tight" numberOfLines={1}>{item.name}</Text>
-                                        {item.hasUnread && (
-                                            <View className="bg-red-500 w-2.5 h-2.5 rounded-full border border-background shadow-sm" />
-                                        )}
-                                    </View>
-                                    <Text className="text-muted-foreground text-xs font-medium">Day {item.day} of {item.totalDays}</Text>
-                                </View>
-                            </View>
+    // Memoized render item for LegendList
+    const renderTaskItem = useCallback(({ item }: { item: any }) => (
+        <TaskCard
+            item={item}
+            onPress={() => handleTaskPress(item.id)}
+        />
+    ), [handleTaskPress]);
 
-                            {item.isReviewPending && (
-                                <View className="bg-orange-100 dark:bg-orange-900/40 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
-                                    <Text className="text-xs font-bold text-orange-700 dark:text-orange-400">Review Needed</Text>
-                                </View>
-                            )}
-                        </View>
-
-                        {/* Status Grid */}
-                        <View className="flex-row gap-3">
-                            {/* MY Status */}
-                            <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
-                                <View className={`h-8 w-8 rounded-full items-center justify-center ${item.myProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
-                                    item.myProofStatus === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
-                                        'bg-muted'
-                                    }`}>
-                                    {item.myProofStatus === 'approved' ? (
-                                        <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
-                                    ) : item.myProofStatus === 'pending' ? (
-                                        <Icon as={ClockIcon} className="size-4 text-yellow-600 dark:text-yellow-400" />
-                                    ) : (
-                                        <Icon as={AlertCircleIcon} className="size-4 text-muted-foreground" />
-                                    )}
-                                </View>
-                                <View>
-                                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">My Upload</Text>
-                                    <Text className={`text-sm font-bold ${item.myProofStatus === 'approved' ? 'text-green-600' :
-                                        item.myProofStatus === 'pending' ? 'text-yellow-600' :
-                                            'text-muted-foreground'
-                                        }`}>
-                                        {item.myProofStatus === 'approved' ? 'Done' :
-                                            item.myProofStatus === 'pending' ? 'Pending' : 'Required'}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* PARTNER Status */}
-                            <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
-                                <View className={`h-8 w-8 rounded-full items-center justify-center ${item.partnerProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
-                                    item.partnerProofStatus === 'pending' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                                        'bg-muted'
-                                    }`}>
-                                    {item.partnerProofStatus === 'approved' ? (
-                                        <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
-                                    ) : item.partnerProofStatus === 'pending' ? (
-                                        <Icon as={ClockIcon} className="size-4 text-blue-600 dark:text-blue-400" />
-                                    ) : (
-                                        <Icon as={ClockIcon} className="size-4 text-muted-foreground opacity-50" />
-                                    )}
-                                </View>
-                                <View>
-                                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Partner</Text>
-                                    <Text className={`text-sm font-bold ${item.partnerProofStatus === 'approved' ? 'text-green-600' :
-                                        item.partnerProofStatus === 'pending' ? 'text-blue-600' :
-                                            'text-muted-foreground'
-                                        }`}>
-                                        {item.partnerProofStatus === 'approved' ? 'Done' :
-                                            item.partnerProofStatus === 'pending' ? 'Uploaded' : 'Waiting'}
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    </CardContent>
-                </Card>
-            </TouchableOpacity>
-        );
-    };
+    const keyExtractor = useCallback((item: any) => item.id, []);
 
     return (
         <View className="flex-1 bg-background">
@@ -137,9 +160,14 @@ export default function TestsScreen() {
                     </View>
 
                     {pendingTasks.length > 0 ? (
-                        pendingTasks.map((item: any) => (
-                            <TaskCard key={item.id} item={item} />
-                        ))
+                        <LegendList
+                            data={pendingTasks}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderTaskItem}
+                            recycleItems
+                            estimatedItemSize={140}
+                            scrollEnabled={false}
+                        />
                     ) : (
                         <Card className="bg-green-500/10 border-green-500/30">
                             <CardContent className="p-6 items-center">
@@ -164,9 +192,14 @@ export default function TestsScreen() {
                             </View>
                         </View>
 
-                        {completedTasks.map((item: any) => (
-                            <TaskCard key={item.id} item={item} />
-                        ))}
+                        <LegendList
+                            data={completedTasks}
+                            keyExtractor={keyExtractor}
+                            renderItem={renderTaskItem}
+                            recycleItems
+                            estimatedItemSize={140}
+                            scrollEnabled={false}
+                        />
                     </View>
                 )}
 
