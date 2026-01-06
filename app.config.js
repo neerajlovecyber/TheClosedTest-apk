@@ -10,7 +10,11 @@ export default ({ config }) => {
     const env = process.env.APP_ENV ||
         (process.env.EAS_BUILD_PROFILE === 'production' ? 'production' : 'development');
 
-    const envPath = path.resolve(__dirname, `.env.${env}`);
+    let envPath = path.resolve(__dirname, `.env.${env}`);
+
+    if (!fs.existsSync(envPath) && env === 'development') {
+        envPath = path.resolve(__dirname, '.env.production');
+    }
 
     if (fs.existsSync(envPath)) {
         dotenv.config({ path: envPath });
