@@ -25,7 +25,7 @@ const SOCIAL_CONNECTION_STRATEGIES: {
     {
       type: 'oauth_google',
       source: { uri: 'https://img.clerk.com/static/google.png?width=160' },
-      useTint: false,
+      useTint: true,
     },
   ];
 
@@ -137,16 +137,14 @@ export function SocialConnections() {
           <Button
             key={strategy.type}
             size="lg"
-            className="w-full flex-row gap-3"
+            className="w-full flex-row gap-3 rounded-2xl"
             onPress={onSocialLoginPress(strategy.type)}>
             <Image
-              className={cn('size-5', strategy.useTint && Platform.select({ web: 'dark:invert' }))}
-              tintColor={Platform.select({
-                native: strategy.useTint ? (colorScheme === 'dark' ? 'white' : 'black') : undefined,
-              })}
+              className="size-6"
+              tintColor="white"
               source={strategy.source}
             />
-            <Text className="text-primary-foreground font-semibold">Continue with Google</Text>
+            <Text className="text-primary-foreground text-lg font-semibold">Continue with Google</Text>
           </Button>
         );
       })}

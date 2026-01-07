@@ -5,7 +5,7 @@ export const THEME = {
     // Premium Neutral Light Theme
     background: 'hsl(0 0% 100%)',
     foreground: 'hsl(222 47% 11%)',
-    card: 'hsl(0 0% 100%)',
+    card: 'hsl(220 14% 98%)',
     cardForeground: 'hsl(222 47% 11%)',
     popover: 'hsl(0 0% 100%)',
     popoverForeground: 'hsl(222 47% 11%)',
@@ -42,7 +42,7 @@ export const THEME = {
     popoverForeground: 'hsl(210 40% 98%)',
     // Brighter Blue Primary for dark mode
     primary: 'hsl(217 91% 60%)',
-    primaryForeground: 'hsl(222 47% 5%)',
+    primaryForeground: 'hsl(0 0% 100%)',
     // Dark Slate Secondary
     secondary: 'hsl(217 33% 17%)',
     secondaryForeground: 'hsl(210 40% 98%)',
