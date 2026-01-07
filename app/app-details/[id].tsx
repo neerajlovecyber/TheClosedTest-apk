@@ -190,39 +190,39 @@ export default function AppDetailsScreen() {
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
                 {/* App Header Card */}
                 <View className="px-4 py-4 mb-2">
-                    <Card className="border-0 overflow-hidden bg-primary/5">
+                    <Card className="border-0 overflow-hidden bg-blue-950 shadow-lg">
                         <CardContent className="p-0">
                             {/* Main App Info */}
                             <View className="p-5 flex-row items-start gap-4">
                                 <Image
                                     source={{ uri: app.iconUrl || 'https://github.com/shadcn.png' }}
-                                    className="w-20 h-20 rounded-2xl bg-muted border border-border"
+                                    className="w-20 h-20 rounded-2xl bg-background"
                                 />
                                 <View className="flex-1 gap-1">
                                     <View>
-                                        <Text className="text-2xl font-bold text-foreground leading-tight" numberOfLines={2}>
+                                        <Text className="text-2xl font-bold text-white leading-tight" numberOfLines={2}>
                                             {app.title}
                                         </Text>
-                                        <Text className="text-muted-foreground text-sm" numberOfLines={1}>{app.packageName}</Text>
+                                        <Text className="text-blue-100 text-sm" numberOfLines={1}>{app.packageName}</Text>
                                     </View>
 
                                     <TouchableOpacity
                                         onPress={handleOpenPlayStore}
-                                        className="flex-row items-center bg-green-500/10 px-3 py-1.5 rounded-full self-start mt-2"
+                                        className="flex-row items-center bg-white px-3 py-1.5 rounded-full self-start mt-2"
                                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                     >
-                                        <Icon as={PlayIcon} className="size-3.5 text-green-600 dark:text-green-400 mr-1.5" />
-                                        <Text className="text-green-600 dark:text-green-400 font-bold text-xs">Play Store</Text>
+                                        <Icon as={PlayIcon} className="size-3.5 text-black mr-1.5" />
+                                        <Text className="text-black font-bold text-xs">Play Store</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
 
                             {/* Integrated Footer for Owner */}
-                            <View className="px-5 py-3 bg-primary/10 flex-row items-center justify-between border-t border-primary/10">
-                                <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                            <View className="px-5 py-4 flex-row items-center justify-between border-t border-white/10">
+                                <Text className="text-xs font-semibold text-blue-100 uppercase tracking-widest">
                                     Published by
                                 </Text>
-                                <Text className="text-sm font-bold text-foreground">
+                                <Text className="text-sm font-bold text-white">
                                     {app.ownerName || "Unknown"}
                                 </Text>
                             </View>
@@ -232,11 +232,11 @@ export default function AppDetailsScreen() {
 
                 {/* Progress Section */}
                 <View className="px-4 mb-6 gap-3">
-                    <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Progress</Text>
+
                     <Card className="border-0 overflow-hidden">
                         <CardContent className="p-5 gap-3">
                             <View className="flex-row justify-between items-center">
-                                <Text className="font-semibold text-foreground">Testing Goals</Text>
+                                <Text className="font-semibold text-foreground">Progress</Text>
                                 <Text className="font-bold text-primary">{app.currentTesters || 0} / {app.requiredTesters} testers</Text>
                             </View>
                             <View className="h-3 bg-secondary rounded-full overflow-hidden w-full">
@@ -245,11 +245,7 @@ export default function AppDetailsScreen() {
                                     style={{ width: `${Math.min(100, ((app.currentTesters || 0) / app.requiredTesters) * 100)}%` }}
                                 />
                             </View>
-                            <Text className="text-xs text-muted-foreground">
-                                {app.requiredTesters - (app.currentTesters || 0) > 0
-                                    ? `${app.requiredTesters - (app.currentTesters || 0)} more testers needed to reach ${app.requiredTesters}.`
-                                    : "Goal reached! Your app is ready for production access."}
-                            </Text>
+
                         </CardContent>
                     </Card>
                 </View>
