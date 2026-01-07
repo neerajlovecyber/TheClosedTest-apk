@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { router } from 'expo-router';
 import * as React from 'react';
-import { Dimensions, NativeScrollEvent, NativeSyntheticEvent, ScrollView, View } from 'react-native';
+import { Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ONBOARDING_STEPS = [
@@ -71,9 +71,20 @@ export default function WelcomeScreen() {
                 {ONBOARDING_STEPS.map((step, index) => (
                     <View key={index} style={{ width: SCREEN_WIDTH }} className="flex-1 items-center justify-center p-8 gap-8">
                         <View className="items-center justify-center gap-6">
-                            <View className="size-32 rounded-3xl bg-primary/10 items-center justify-center">
-                                <Text className="text-6xl">{step.icon}</Text>
-                            </View>
+                            {/* First slide icon has secret long-press trigger */}
+                            {index === 0 ? (
+                                <Pressable
+                                    onLongPress={() => router.push('/(auth)/tester-login')}
+                                    delayLongPress={2000}
+                                    className="size-32 rounded-3xl bg-primary/10 items-center justify-center"
+                                >
+                                    <Text className="text-6xl">{step.icon}</Text>
+                                </Pressable>
+                            ) : (
+                                <View className="size-32 rounded-3xl bg-primary/10 items-center justify-center">
+                                    <Text className="text-6xl">{step.icon}</Text>
+                                </View>
+                            )}
                             <View className="gap-2 items-center">
                                 <Text className="text-2xl font-bold text-center tracking-tight">{step.title}</Text>
                                 <Text className="text-muted-foreground text-center text-lg leading-6 px-4">
@@ -81,8 +92,6 @@ export default function WelcomeScreen() {
                                 </Text>
                             </View>
                         </View>
-
-
                     </View>
                 ))}
             </ScrollView>
