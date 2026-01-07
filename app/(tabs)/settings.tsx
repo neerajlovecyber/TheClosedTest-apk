@@ -9,52 +9,63 @@ import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
+import { LucideIcon } from 'lucide-react-native';
 import {
     CheckCircleIcon,
     ChevronRightIcon,
-    FileTextIcon,
     InfoIcon,
     LogOutIcon,
-    MoonStarIcon,
+    MessageSquareIcon,
+    MoonIcon,
     Share2Icon,
     ShieldIcon,
     StarIcon,
     SunIcon,
+    SparklesIcon,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
-import { Linking, ScrollView, View, Share } from 'react-native';
+import { Linking, ScrollView, View, Share, TouchableOpacity } from 'react-native';
 
 interface SettingItemProps {
-    icon: React.ElementType;
+    icon: LucideIcon;
     label: string;
+    subtitle?: string;
     onPress?: () => void;
     action?: React.ReactNode;
     destructive?: boolean;
+    iconColor?: string;
 }
 
-function SettingItem({ icon, label, onPress, action, destructive }: SettingItemProps) {
+function SettingItem({ icon, label, subtitle, onPress, action, destructive, iconColor }: SettingItemProps) {
     return (
-        <Button
-            variant="ghost"
-            className="flex-row items-center justify-between w-full h-14 px-4 border-b border-border/40 last:border-b-0"
+        <TouchableOpacity
+            className="flex-row items-center justify-between w-full py-4 px-4"
             onPress={onPress}
+            activeOpacity={0.7}
         >
-            <View className="flex-row items-center gap-3">
-                <Icon
-                    as={icon}
-                    className={`size-5 ${destructive ? 'text-destructive' : 'text-muted-foreground'}`}
-                />
-                <Text
-                    className={`text-base font-medium ${destructive ? 'text-destructive' : 'text-foreground'}`}
-                >
-                    {label}
-                </Text>
+            <View className="flex-row items-center gap-4 flex-1">
+                <View className={`h-10 w-10 rounded-xl items-center justify-center ${iconColor || 'bg-primary/10'}`}>
+                    <Icon
+                        as={icon}
+                        className={`size-5 ${destructive ? 'text-destructive' : iconColor ? 'text-white' : 'text-primary'}`}
+                    />
+                </View>
+                <View className="flex-1">
+                    <Text
+                        className={`text-base font-semibold ${destructive ? 'text-destructive' : 'text-foreground'}`}
+                    >
+                        {label}
+                    </Text>
+                    {subtitle && (
+                        <Text className="text-sm text-muted-foreground">{subtitle}</Text>
+                    )}
+                </View>
             </View>
             {action || (
                 <Icon as={ChevronRightIcon} className="size-5 text-muted-foreground/50" />
             )}
-        </Button>
+        </TouchableOpacity>
     );
 }
 
@@ -77,30 +88,34 @@ function UserProfile() {
     }, [user]);
 
     return (
-        <View className="flex-row items-center gap-4 px-6 py-6 mb-2">
-            <Avatar alt={`${userName}'s avatar`} className="h-16 w-16 border-2 border-border">
-                <AvatarImage source={imageSource} />
-                <AvatarFallback className="bg-primary/10">
-                    <Text className="text-xl font-bold text-primary">{initials}</Text>
-                </AvatarFallback>
-            </Avatar>
-            <View className="flex-1">
-                <View className="flex-row items-center gap-1.5">
-                    <Text className="text-xl font-bold text-foreground">{userName}</Text>
-                    {/* Simulated Verification Badge */}
-                    <Icon as={CheckCircleIcon} className="size-4 text-blue-500 fill-blue-500/10" />
-                </View>
-                <Text className="text-muted-foreground font-medium">{email}</Text>
-
-                {convexUser?.isGroupMember && (
-                    <View className="flex-row items-center mt-1.5">
-                        <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-900/50">
-                            <Text className="text-[10px] text-green-700 dark:text-green-400 font-bold uppercase tracking-wide">Google Group Member</Text>
-                        </View>
+        <Card className="mx-4 mb-4 border-0 overflow-hidden">
+            <CardContent className="p-5">
+                <View className="flex-row items-center gap-4">
+                    <View>
+                        <Avatar alt={`${userName}'s avatar`} className="h-20 w-20 border-4 border-primary/20">
+                            <AvatarImage source={imageSource} />
+                            <AvatarFallback className="bg-primary/10">
+                                <Text className="text-2xl font-bold text-primary">{initials}</Text>
+                            </AvatarFallback>
+                        </Avatar>
                     </View>
-                )}
-            </View>
-        </View>
+                    <View className="flex-1">
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-2xl font-bold text-foreground">{userName}</Text>
+                        </View>
+                        <Text className="text-muted-foreground font-medium mt-0.5">{email}</Text>
+
+                        {convexUser?.isGroupMember && (
+                            <View className="flex-row items-center mt-2">
+                                <View className="bg-green-500/10 px-3 py-1 rounded-full">
+                                    <Text className="text-xs text-green-600 dark:text-green-400 font-bold">✓ Verified Member</Text>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -136,26 +151,27 @@ export default function SettingsScreen() {
         <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 40 }}>
             <View className="flex-1">
                 {/* Header */}
-                <View className="px-6 pt-2 pb-2">
-                    <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
-                    <Text className="text-sm text-muted-foreground font-medium mt-0.5">Manage your preferences</Text>
+                <View className="px-6 pt-4 pb-6">
+                    <Text className="text-3xl font-black text-foreground tracking-tight">Settings</Text>
+                    <Text className="text-muted-foreground font-medium mt-1">Manage your account & preferences</Text>
                 </View>
 
                 <UserProfile />
 
-                <View className="px-4 mb-2">
+                <View className="px-4 mb-4">
                     <GoogleGroupWidget />
                 </View>
 
                 <View className="px-4 gap-6">
                     {/* Appearance Section */}
-                    <View className="gap-2">
-                        <Text className="text-sm font-medium text-muted-foreground px-1 uppercase tracking-wider">Preferences</Text>
-                        <Card className="overflow-hidden p-0 gap-0 border-0 bg-muted/30 dark:bg-muted/10 rounded-xl">
+                    <View className="gap-3">
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Appearance</Text>
+                        <Card className="overflow-hidden p-0 gap-0 border-0">
                             <CardContent className="p-0 gap-0">
                                 <SettingItem
-                                    icon={colorScheme === 'dark' ? MoonStarIcon : SunIcon}
+                                    icon={colorScheme === 'dark' ? MoonIcon : SunIcon}
                                     label="Dark Mode"
+                                    subtitle={colorScheme === 'dark' ? 'Currently using dark theme' : 'Currently using light theme'}
                                     onPress={toggleColorScheme}
                                     action={
                                         <Switch
@@ -169,49 +185,71 @@ export default function SettingsScreen() {
                     </View>
 
                     {/* Support Section */}
-                    <View className="gap-2">
-                        <Text className="text-sm font-medium text-muted-foreground px-1 uppercase tracking-wider">Support</Text>
-                        <Card className="overflow-hidden p-0 gap-0 border-0 bg-muted/30 dark:bg-muted/10 rounded-xl">
-                            <CardContent className="p-0 gap-0">
-                                <SettingItem icon={Share2Icon} label="Share App" onPress={handleShare} />
-                                <SettingItem icon={StarIcon} label="Rate Us" onPress={handleRate} />
+                    <View className="gap-3">
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Support Us</Text>
+                        <Card className="overflow-hidden p-0 gap-0 border-0">
+                            <CardContent className="p-0 gap-0 divide-y divide-border/30">
+                                <SettingItem
+                                    icon={Share2Icon}
+                                    label="Share App"
+                                    subtitle="Help others discover us"
+                                    onPress={handleShare}
+                                    iconColor="bg-blue-500"
+                                />
+                                <SettingItem
+                                    icon={StarIcon}
+                                    label="Rate Us"
+                                    subtitle="Leave a review on Play Store"
+                                    onPress={handleRate}
+                                    iconColor="bg-amber-500"
+                                />
                                 <SettingItem
                                     icon={InfoIcon}
                                     label="About Us"
+                                    subtitle="Learn more about our mission"
                                     onPress={() => router.push('/about-us')}
+                                    iconColor="bg-violet-500"
+                                />
+                                <SettingItem
+                                    icon={MessageSquareIcon}
+                                    label="Send Feedback"
+                                    subtitle="Report bugs or suggest features"
+                                    onPress={() => handleLink('https://theclosedtest.featurebase.app/')}
+                                    iconColor="bg-cyan-500"
                                 />
                             </CardContent>
                         </Card>
                     </View>
 
                     {/* Legal Section */}
-                    <View className="gap-2">
-                        <Text className="text-sm font-medium text-muted-foreground px-1 uppercase tracking-wider">Legal</Text>
-                        <Card className="overflow-hidden p-0 gap-0 border-0 bg-muted/30 dark:bg-muted/10 rounded-xl">
+                    <View className="gap-3">
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Legal</Text>
+                        <Card className="overflow-hidden p-0 gap-0 border-0">
                             <CardContent className="p-0 gap-0">
                                 <SettingItem
                                     icon={ShieldIcon}
                                     label="Privacy Policy"
+                                    subtitle="How we handle your data"
                                     onPress={() => router.push('/privacy-policy')}
+                                    iconColor="bg-green-500"
                                 />
                             </CardContent>
                         </Card>
                     </View>
 
-
-
                     {/* Sign Out Button */}
-                    <View className="pt-4">
+                    <View className="pt-2">
                         <Button
                             variant="destructive"
-                            className="w-full flex-row gap-2"
+                            size="lg"
+                            className="w-full flex-row gap-3 rounded-2xl"
                             onPress={() => signOut()}
                         >
-                            <Icon as={LogOutIcon} className="text-destructive-foreground size-4" />
-                            <Text>Log Out</Text>
+                            <Icon as={LogOutIcon} className="text-white size-5" />
+                            <Text className="text-white text-lg font-semibold">Log Out</Text>
                         </Button>
-                        <View className="items-center pt-4">
-                            <Text className="text-xs text-muted-foreground">Version 1.0.0</Text>
+                        <View className="items-center pt-6">
+                            <Text className="text-xs text-muted-foreground/60">The Closed Test • Version 1.0.0</Text>
                         </View>
                     </View>
 
