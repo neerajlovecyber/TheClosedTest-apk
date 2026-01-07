@@ -7,7 +7,22 @@ import * as Linking from 'expo-linking';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, StarIcon, SmartphoneIcon, ExternalLinkIcon, ShareIcon, CheckCircleIcon, XIcon, Trash2Icon, EditIcon, UsersIcon } from 'lucide-react-native';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    ArrowLeftIcon,
+    StarIcon,
+    SmartphoneIcon,
+    ExternalLinkIcon,
+    ShareIcon,
+    CheckCircleIcon,
+    XIcon,
+    Trash2Icon,
+    EditIcon,
+    UsersIcon,
+    InfoIcon,
+    PlayIcon
+} from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -172,146 +187,192 @@ export default function AppDetailsScreen() {
                 </Button>
             </View>
 
-            <ScrollView className="flex-1 px-6 pt-6">
-                {/* Header Section */}
-                <View className="flex-row items-center gap-4 mb-4">
-                    <Image
-                        source={{ uri: app.iconUrl || 'https://github.com/shadcn.png' }}
-                        className="w-16 h-16 rounded-xl bg-muted border border-border"
-                    />
-                    <View className="flex-1">
-                        <Text className="text-2xl font-bold" numberOfLines={1}>{app.title}</Text>
-                        <Text className="text-muted-foreground mb-2">{app.packageName}</Text>
-                        <TouchableOpacity
-                            onPress={handleOpenPlayStore}
-                            className="flex-row items-center bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-full self-start"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <Icon as={ExternalLinkIcon} className="size-3.5 text-green-700 dark:text-green-400 mr-1.5" />
-                            <Text className="text-green-700 dark:text-green-400 font-bold text-xs">Open in Play Store</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+                {/* App Header Card */}
+                <View className="px-4 py-4 mb-2">
+                    <Card className="border-0 overflow-hidden bg-primary/5">
+                        <CardContent className="p-0">
+                            {/* Main App Info */}
+                            <View className="p-5 flex-row items-start gap-4">
+                                <Image
+                                    source={{ uri: app.iconUrl || 'https://github.com/shadcn.png' }}
+                                    className="w-20 h-20 rounded-2xl bg-muted border border-border"
+                                />
+                                <View className="flex-1 gap-1">
+                                    <View>
+                                        <Text className="text-2xl font-bold text-foreground leading-tight" numberOfLines={2}>
+                                            {app.title}
+                                        </Text>
+                                        <Text className="text-muted-foreground text-sm" numberOfLines={1}>{app.packageName}</Text>
+                                    </View>
 
-                {/* Testing Instructions */}
-                <View className="mb-4">
-                    <Text className="font-bold text-lg mb-2">Testing Instructions</Text>
-                    <View className="bg-secondary/30 p-4 rounded-xl">
-                        <Text className="text-foreground leading-relaxed">
-                            {app.instructions || "No specific instructions provided."}
-                        </Text>
-                    </View>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-4">
-                    <Text className="font-medium text-lg text-muted-foreground">App Owner</Text>
-                    <View className="flex-row items-center bg-secondary/50 px-3 py-1 rounded-full gap-2">
-                        <Text className="font-medium">{app.ownerName || "Unknown"}</Text>
-                    </View>
-                </View>
-
-                {/* Progress */}
-                <View className="mb-5">
-                    <View className="flex-row justify-between items-center mb-2">
-                        <Text className="font-medium text-lg text-muted-foreground">Progress</Text>
-                        <Text className="font-bold text-lg">{app.currentTesters || 0} / {app.requiredTesters} testers</Text>
-                    </View>
-                    <View className="h-2 bg-secondary rounded-full overflow-hidden w-full">
-                        <View
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${Math.min(100, ((app.currentTesters || 0) / app.requiredTesters) * 100)}%` }}
-                        />
-                    </View>
-                </View>
-
-                {/* Select App to Offer */}
-                <View className="mb-5">
-                    <Text className="font-bold text-lg mb-2">My App to Offer</Text>
-
-                    {selectedAppData ? (
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            onPress={() => setIsModalVisible(true)}
-                            className="flex-row items-center gap-3 p-3 border border-primary/50 bg-primary/5 rounded-xl"
-                        >
-                            <Image
-                                source={{ uri: selectedAppData.iconUrl || 'https://github.com/shadcn.png' }}
-                                className="w-10 h-10 rounded-lg bg-muted"
-                            />
-                            <View className="flex-1">
-                                <Text className="font-medium text-lg">{selectedAppData.title}</Text>
-                                <Text className="text-xs text-muted-foreground">Click to change</Text>
+                                    <TouchableOpacity
+                                        onPress={handleOpenPlayStore}
+                                        className="flex-row items-center bg-green-500/10 px-3 py-1.5 rounded-full self-start mt-2"
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <Icon as={PlayIcon} className="size-3.5 text-green-600 dark:text-green-400 mr-1.5" />
+                                        <Text className="text-green-600 dark:text-green-400 font-bold text-xs">Play Store</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                            <Icon as={CheckCircleIcon} className="text-primary size-5" />
-                        </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            onPress={() => setIsModalVisible(true)}
-                            className="flex-row items-center gap-3 p-3 border border-dashed border-muted-foreground/40 rounded-xl bg-muted/10 justify-center h-16"
-                        >
-                            <Text className="text-muted-foreground font-medium">Select an app to swap...</Text>
-                        </TouchableOpacity>
-                    )}
 
-                    <Text className="text-muted-foreground text-sm mt-2">
-                        You must offer one of your apps for mutual testing.
-                    </Text>
+                            {/* Integrated Footer for Owner */}
+                            <View className="px-5 py-3 bg-primary/10 flex-row items-center justify-between border-t border-primary/10">
+                                <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                                    Published by
+                                </Text>
+                                <Text className="text-sm font-bold text-foreground">
+                                    {app.ownerName || "Unknown"}
+                                </Text>
+                            </View>
+                        </CardContent>
+                    </Card>
                 </View>
+
+                {/* Progress Section */}
+                <View className="px-4 mb-6 gap-3">
+                    <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Progress</Text>
+                    <Card className="border-0 overflow-hidden">
+                        <CardContent className="p-5 gap-3">
+                            <View className="flex-row justify-between items-center">
+                                <Text className="font-semibold text-foreground">Testing Goals</Text>
+                                <Text className="font-bold text-primary">{app.currentTesters || 0} / {app.requiredTesters} testers</Text>
+                            </View>
+                            <View className="h-3 bg-secondary rounded-full overflow-hidden w-full">
+                                <View
+                                    className="h-full bg-primary rounded-full"
+                                    style={{ width: `${Math.min(100, ((app.currentTesters || 0) / app.requiredTesters) * 100)}%` }}
+                                />
+                            </View>
+                            <Text className="text-xs text-muted-foreground">
+                                {app.requiredTesters - (app.currentTesters || 0) > 0
+                                    ? `${app.requiredTesters - (app.currentTesters || 0)} more testers needed to reach ${app.requiredTesters}.`
+                                    : "Goal reached! Your app is ready for production access."}
+                            </Text>
+                        </CardContent>
+                    </Card>
+                </View>
+
+                {/* Instructions Section */}
+                <View className="px-4 mb-6 gap-3">
+                    <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Instructions</Text>
+                    <Card className="border-0 overflow-hidden">
+                        <CardContent className="p-5">
+                            <View className="flex-row gap-3">
+                                <View className="mt-1">
+                                    <Icon as={InfoIcon} className="size-5 text-blue-500" />
+                                </View>
+                                <Text className="text-foreground leading-relaxed flex-1 text-base">
+                                    {app.instructions || "No specific testing instructions provided by the developer."}
+                                </Text>
+                            </View>
+                        </CardContent>
+                    </Card>
+                </View>
+
+                {/* My App to Offer (Only for non-owners) */}
+                {!app.isMine && (
+                    <View className="px-4 mb-6 gap-3">
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Your Offer</Text>
+                        <Card className="border-0 overflow-hidden">
+                            <CardContent className="p-0">
+                                {selectedAppData ? (
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        onPress={() => setIsModalVisible(true)}
+                                        className="p-4 flex-row items-center gap-4"
+                                    >
+                                        <Image
+                                            source={{ uri: selectedAppData.iconUrl || 'https://github.com/shadcn.png' }}
+                                            className="w-12 h-12 rounded-xl bg-muted"
+                                        />
+                                        <View className="flex-1">
+                                            <Text className="font-bold text-base text-foreground">{selectedAppData.title}</Text>
+                                            <Text className="text-xs text-muted-foreground">Tap to change app</Text>
+                                        </View>
+                                        <Icon as={CheckCircleIcon} className="text-green-500 size-6" />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        onPress={() => setIsModalVisible(true)}
+                                        className="p-6 items-center justify-center bg-secondary/20"
+                                    >
+                                        <View className="h-12 w-12 rounded-full bg-primary/10 items-center justify-center mb-2">
+                                            <Icon as={SmartphoneIcon} className="text-primary size-6" />
+                                        </View>
+                                        <Text className="font-semibold text-foreground">Select an App to Offer</Text>
+                                        <Text className="text-xs text-muted-foreground text-center mt-1">
+                                            You need to offer one of your apps for mutual testing
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
 
                 {/* Testers Section (Owner Only) */}
                 {app.isMine && (
-                    <View className="mb-20">
-                        <View className="flex-row justify-between items-center mb-4">
-                            <Text className="font-bold text-lg">Active Testers ({testers?.length || 0})</Text>
-                        </View>
-
-                        {testers && testers.length > 0 ? (
-                            testers.map((tester) => (
-                                <View
-                                    key={tester.matchId}
-                                    className="flex-row items-center gap-3 p-4 bg-secondary/20 rounded-xl mb-3 border border-border/50"
-                                >
-                                    <Image
-                                        source={{ uri: tester.testerAvatar }}
-                                        className="size-10 rounded-full bg-muted"
-                                    />
-                                    <View className="flex-1">
-                                        <View className="flex-row items-center gap-2">
-                                            <Text className="font-bold">{tester.testerName}</Text>
-                                            {tester.hasUnread && (
-                                                <View className="bg-red-500 w-2.5 h-2.5 rounded-full border border-background shadow-sm" />
-                                            )}
-                                        </View>
-                                        <Text className="text-xs text-muted-foreground">Day {tester.day} of 14</Text>
-                                    </View>
-                                    <View className="items-end">
-                                        {tester.uploadedToday ? (
-                                            <View className="flex-row items-center gap-1 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-lg">
-                                                <Icon as={CheckCircleIcon} className="size-3 text-green-600 dark:text-green-400" />
-                                                <Text className="text-[10px] font-bold text-green-600 dark:text-green-400">UPLOADED</Text>
-                                            </View>
-                                        ) : (
-                                            <View className="flex-row items-center gap-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-lg">
-                                                <Icon as={XIcon} className="size-3 text-orange-600 dark:text-orange-400" />
-                                                <Text className="text-[10px] font-bold text-orange-600 dark:text-orange-400">PENDING</Text>
-                                            </View>
-                                        )}
-                                        <TouchableOpacity
-                                            onPress={() => router.push({ pathname: "/(tabs)/match/[id]", params: { id: tester.matchId } } as any)}
-                                            className="mt-1"
+                    <View className="px-4 mb-20 gap-3">
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">
+                            Active Testers ({testers?.length || 0})
+                        </Text>
+                        <Card className="border-0 overflow-hidden">
+                            <CardContent className="p-0 divide-y divide-border/50">
+                                {testers && testers.length > 0 ? (
+                                    testers.map((tester) => (
+                                        <View
+                                            key={tester.matchId}
+                                            className="flex-row items-center gap-4 p-4"
                                         >
-                                            <Text className="text-xs text-primary font-medium">View Progress</Text>
-                                        </TouchableOpacity>
+                                            <Image
+                                                source={{ uri: tester.testerAvatar }}
+                                                className="size-10 rounded-full bg-muted"
+                                            />
+                                            <View className="flex-1">
+                                                <View className="flex-row items-center gap-2">
+                                                    <Text className="font-bold text-foreground">{tester.testerName}</Text>
+                                                    {tester.hasUnread && (
+                                                        <View className="bg-red-500 w-2 h-2 rounded-full" />
+                                                    )}
+                                                </View>
+                                                <Text className="text-xs text-muted-foreground">Day {tester.day} of 14</Text>
+                                            </View>
+
+                                            <View className="items-end gap-2">
+                                                {tester.uploadedToday ? (
+                                                    <View className="bg-green-500/10 px-2 py-1 rounded-md">
+                                                        <Text className="text-[10px] font-bold text-green-600 dark:text-green-400">UPLOADED</Text>
+                                                    </View>
+                                                ) : (
+                                                    <View className="bg-orange-500/10 px-2 py-1 rounded-md">
+                                                        <Text className="text-[10px] font-bold text-orange-600 dark:text-orange-400">PENDING</Text>
+                                                    </View>
+                                                )}
+
+                                                <TouchableOpacity
+                                                    onPress={() => router.push({ pathname: "/(tabs)/match/[id]", params: { id: tester.matchId } } as any)}
+                                                    className="flex-row items-center"
+                                                >
+                                                    <Text className="text-xs text-primary font-medium mr-1">Details</Text>
+                                                    <Icon as={ArrowLeftIcon} className="size-3 text-primary rotate-180" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <View className="items-center py-12 px-6">
+                                        <View className="h-16 w-16 rounded-full bg-muted items-center justify-center mb-4">
+                                            <Icon as={UsersIcon} className="size-8 text-muted-foreground/50" />
+                                        </View>
+                                        <Text className="text-muted-foreground text-center font-medium">No active testers yet</Text>
+                                        <Text className="text-muted-foreground/60 text-center text-sm mt-1">Share your app to start getting testers!</Text>
                                     </View>
-                                </View>
-                            ))
-                        ) : (
-                            <View className="items-center py-10 bg-muted/5 rounded-xl border border-dashed border-border">
-                                <Icon as={UsersIcon} className="size-8 text-muted-foreground mb-2 opacity-50" />
-                                <Text className="text-muted-foreground text-center">No active testers yet. Share your app to get started!</Text>
-                            </View>
-                        )}
+                                )}
+                            </CardContent>
+                        </Card>
                     </View>
                 )}
             </ScrollView>
