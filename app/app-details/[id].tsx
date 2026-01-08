@@ -188,7 +188,7 @@ export default function AppDetailsScreen() {
                 </Button>
             </View>
 
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
                 {/* App Header Card */}
                 <View className="px-4 py-4 mb-2">
                     <Card className="border-0 overflow-hidden bg-blue-950 shadow-lg">
@@ -312,7 +312,7 @@ export default function AppDetailsScreen() {
 
                 {/* Testers Section (Owner Only) */}
                 {app.isMine && (
-                    <View className="px-4 mb-20 gap-3">
+                    <View className="px-4 mb-6 gap-3">
                         <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">
                             Active Testers ({testers?.length || 0})
                         </Text>
