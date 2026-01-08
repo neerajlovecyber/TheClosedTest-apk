@@ -4,6 +4,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,11 +25,11 @@ export default function MatchDashboardScreen() {
     const router = useRouter();
     const matchId = id as Id<"matches">;
 
-    // Queries
-    const matchDetails = useQuery(api.matches.getMatchDetails, { matchId });
-    const todayProof = useQuery(api.matches.getTodayProof, { matchId });
-    const partnerProof = useQuery(api.matches.getPartnerTodayProof, { matchId });
-    const progressData = useQuery(api.matches.getProgressData, { matchId });
+    // Queries (with caching for instant loading)
+    const { data: matchDetails } = useCachedConvexQuery(['matchDetails', matchId], api.matches.getMatchDetails, { matchId });
+    const { data: todayProof } = useCachedConvexQuery(['todayProof', matchId], api.matches.getTodayProof, { matchId });
+    const { data: partnerProof } = useCachedConvexQuery(['partnerProof', matchId], api.matches.getPartnerTodayProof, { matchId });
+    const { data: progressData } = useCachedConvexQuery(['progressData', matchId], api.matches.getProgressData, { matchId });
 
     // Mutations
     const cancelMatchMutation = useMutation(api.matches.cancelMatch);
