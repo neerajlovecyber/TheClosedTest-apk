@@ -381,24 +381,23 @@ export default function AppDetailsScreen() {
                             <Text className="text-muted-foreground font-semibold">Your App Listing</Text>
                         </View>
                     ) : (
-                        <View className="flex-row gap-3">
+                        <View className="flex-row gap-4">
                             <Button
                                 size="lg"
-                                variant="outline"
                                 onPress={() => router.push({ pathname: "/edit-app", params: { id: app._id } })}
-                                className="flex-1 rounded-xl border-primary/20"
+                                className="flex-1 rounded-2xl shadow-sm"
                                 disabled={isSubmitting}
                             >
-                                <Icon as={EditIcon} className="size-4 text-primary mr-2" />
-                                <Text className="font-bold">Edit</Text>
+                                <Icon as={EditIcon} className="size-4 text-white mr-2" />
+                                <Text className="font-bold text-white">Edit Details</Text>
                             </Button>
                             <Button
                                 size="lg"
-                                variant="outline"
+                                variant="destructive"
                                 onPress={() => {
                                     Alert.alert(
                                         "Delete App",
-                                        "Are you sure? This cannot be undone.",
+                                        "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
                                         [
                                             { text: "Cancel", style: "cancel" },
                                             {
@@ -429,11 +428,11 @@ export default function AppDetailsScreen() {
                                         ]
                                     );
                                 }}
-                                className="flex-1 rounded-xl border-destructive/20"
+                                className="flex-1 rounded-2xl shadow-sm"
                                 disabled={isSubmitting}
                             >
-                                <Icon as={Trash2Icon} className="size-4 text-destructive mr-2" />
-                                <Text className="font-bold text-destructive">Delete</Text>
+                                <Icon as={Trash2Icon} className="size-4 text-white mr-2" />
+                                <Text className="font-bold text-white">Delete</Text>
                             </Button>
                         </View>
                     )

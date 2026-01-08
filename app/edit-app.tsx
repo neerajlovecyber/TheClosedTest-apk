@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon, Trash2Icon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
@@ -25,6 +25,7 @@ export default function EditAppScreen() {
 
     const app = useQuery(api.apps.getAppArgs, { appId });
     const updateApp = useMutation(api.apps.updateApp);
+    const deleteApp = useMutation(api.apps.deleteApp);
 
     const [title, setTitle] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
@@ -277,16 +278,60 @@ export default function EditAppScreen() {
                         size="lg"
                         onPress={handleSubmit}
                         disabled={isSubmitting}
-                        className="mb-8"
+                        className="mb-4 rounded-2xl shadow-sm"
                     >
                         {isSubmitting ? (
                             <View className="flex-row items-center gap-2">
                                 <ActivityIndicator color="white" size="small" />
-                                <Text>Updating...</Text>
+                                <Text className="text-white font-bold">Updating...</Text>
                             </View>
                         ) : (
-                            <Text>Save Changes</Text>
+                            <Text className="text-white font-bold text-lg">Save Changes</Text>
                         )}
+                    </Button>
+
+                    <Button
+                        variant="destructive"
+                        size="lg"
+                        onPress={() => {
+                            Alert.alert(
+                                "Delete App",
+                                "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    {
+                                        text: "Delete",
+                                        style: "destructive",
+                                        onPress: async () => {
+                                            try {
+                                                setIsSubmitting(true);
+                                                // Delete image from R2 first
+                                                try {
+                                                    const { deleteImageFromR2 } = require('@/utils/image-uploader');
+                                                    await deleteImageFromR2(`app-icons/${appId}.webp`);
+                                                } catch (imgError) {
+                                                    console.warn("Failed to delete image", imgError);
+                                                }
+
+                                                await deleteApp({ appId });
+                                                router.replace("/(tabs)/" as any);
+                                            } catch (err: any) {
+                                                Alert.alert("Error", err.message);
+                                            } finally {
+                                                setIsSubmitting(false);
+                                            }
+                                        }
+                                    }
+                                ]
+                            );
+                        }}
+                        disabled={isSubmitting}
+                        className="mb-12 rounded-2xl shadow-sm"
+                    >
+                        <View className="flex-row items-center gap-2">
+                            <Icon as={Trash2Icon} className="size-5 text-white" />
+                            <Text className="text-white font-bold text-lg">Delete App</Text>
+                        </View>
                     </Button>
                 </ScrollView>
             </KeyboardAvoidingView>
