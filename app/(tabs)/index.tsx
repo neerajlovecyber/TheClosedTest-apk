@@ -11,6 +11,7 @@ import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { Id } from '@/convex/_generated/dataModel';
 import {
     AlertDialog,
@@ -30,9 +31,9 @@ export default function HomeScreen() {
     const [requestToReject, setRequestToReject] = useState<Id<"matches"> | null>(null);
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-    // Convex Data
-    const incomingRequests = useQuery(api.matches.getIncomingRequests) || [];
-    const myApps = useQuery(api.apps.getMyApps) || [];
+    // Convex Data (with persistent caching)
+    const { data: incomingRequests = [] } = useCachedConvexQuery(['incomingRequests'], api.matches.getIncomingRequests);
+    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
     const currentUser = useQuery(api.users.getCurrentUser);
     const activeTasks = useQuery(api.matches.getMyActiveTests) || [];
     const unreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;

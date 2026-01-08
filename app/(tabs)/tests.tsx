@@ -10,6 +10,7 @@ import { CheckCircleIcon, ClockIcon, AlertCircleIcon } from 'lucide-react-native
 import { useRouter } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 
 // Memoized TaskCard component
 const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) => {
@@ -113,7 +114,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
 
 export default function TestsScreen() {
     const router = useRouter();
-    const testingApps = useQuery(api.matches.getMyActiveTests) || [];
+    const { data: testingApps = [] } = useCachedConvexQuery(['activeTests'], api.matches.getMyActiveTests);
 
     // Memoize the split between pending and completed tasks
     const { pendingTasks, completedTasks } = useMemo(() => ({

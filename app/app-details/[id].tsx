@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { Id } from '@/convex/_generated/dataModel';
 
 export default function AppDetailsScreen() {
@@ -32,8 +33,8 @@ export default function AppDetailsScreen() {
     const router = useRouter();
     const appId = id as Id<"apps">;
 
-    // Fetch App Details
-    const app = useQuery(api.apps.getAppArgs, { appId });
+    // Fetch App Details (with caching)
+    const { data: app } = useCachedConvexQuery(['appDetails', appId], api.apps.getAppArgs, { appId });
 
     // Fetch user's own apps to offer
     const myApps = useQuery(api.apps.getMyApps) || [];
@@ -45,8 +46,8 @@ export default function AppDetailsScreen() {
     const rejectSwap = useMutation(api.matches.rejectSwap);
     const deleteApp = useMutation(api.apps.deleteApp);
 
-    // Check Match Status
-    const matchStatus = useQuery(api.matches.getMatchStatus, { appId });
+    // Check Match Status (with caching)
+    const { data: matchStatus } = useCachedConvexQuery(['matchStatus', appId], api.matches.getMatchStatus, { appId });
 
     // Fetch testers (only for owner)
     const testers = useQuery(api.matches.getAppTesters, { appId });

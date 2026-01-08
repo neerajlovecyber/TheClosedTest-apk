@@ -4,6 +4,7 @@ import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndica
 import { LegendList } from '@legendapp/list';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 
@@ -40,8 +41,8 @@ export default function MarketplaceScreen() {
 
     const myApps = useQuery(api.apps.getMyApps) || [];
 
-    const recruitingApps = useQuery(api.apps.getMarketplaceApps, { status: 'recruiting' });
-    const filledApps = useQuery(api.apps.getMarketplaceApps, { status: 'filled' });
+    const { data: recruitingApps } = useCachedConvexQuery(['marketplaceRecruiting'], api.apps.getMarketplaceApps, { status: 'recruiting' });
+    const { data: filledApps } = useCachedConvexQuery(['marketplaceFilled'], api.apps.getMarketplaceApps, { status: 'filled' });
 
     const displayRecruiting = recruitingApps || [];
     const displayFilled = filledApps || [];

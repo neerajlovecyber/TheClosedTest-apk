@@ -20,6 +20,8 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import * as React from 'react';
 import { useOTAUpdate } from '@/hooks/useOTAUpdate';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 
 vexo('4beaa20e-2695-4263-aa86-5ddaf7ff29ee');
 
@@ -65,15 +67,17 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-          <KeyboardProvider>
-            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-            <InitialLayout />
-            <PortalHost />
-          </KeyboardProvider>
-        </ThemeProvider>
-      </ConvexProviderWithClerk>
+      <QueryClientProvider client={queryClient}>
+        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+          <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+            <KeyboardProvider>
+              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+              <InitialLayout />
+              <PortalHost />
+            </KeyboardProvider>
+          </ThemeProvider>
+        </ConvexProviderWithClerk>
+      </QueryClientProvider>
     </ClerkProvider>
   );
 }
