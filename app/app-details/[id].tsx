@@ -50,19 +50,25 @@ export default function AppDetailsScreen() {
     const { data: matchStatus } = useCachedConvexQuery(['matchStatus', appId], api.matches.getMatchStatus, { appId });
 
     // Fetch testers (only for owner)
-    const testers = useQuery(api.matches.getAppTesters, { appId });
+    const { data: testers } = useCachedConvexQuery(['appTesters', appId], api.matches.getAppTesters, { appId });
 
     const [selectedMyApp, setSelectedMyApp] = useState<Id<"apps"> | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasSentRequest, setHasSentRequest] = useState(false);
 
-    // Initial selection if user has only one recruitng app
+    // Initial selection logic
     React.useEffect(() => {
-        if (myApps.length === 1 && !selectedMyApp) {
+        if (matchStatus?.myAppId) {
+            // If match exists, enforce the matched app
+            setSelectedMyApp(matchStatus.myAppId);
+        } else if (myApps.length === 1 && !selectedMyApp) {
+            // Default to sole app if no match
             setSelectedMyApp(myApps[0]._id);
         }
-    }, [myApps]);
+    }, [myApps, matchStatus]);
+
+    const isLocked = matchStatus?.status === 'active' || matchStatus?.status === 'pending';
 
     const handleOpenPlayStore = async () => {
         if (!app) return;
@@ -159,7 +165,7 @@ export default function AppDetailsScreen() {
         );
     }
 
-    const selectedAppData = myApps.find(a => a._id === selectedMyApp);
+    const selectedAppData = myApps.find((a: any) => a._id === selectedMyApp);
 
     const handleShare = async () => {
         try {
@@ -277,8 +283,9 @@ export default function AppDetailsScreen() {
                                 {selectedAppData ? (
                                     <TouchableOpacity
                                         activeOpacity={0.7}
+                                        disabled={isLocked}
                                         onPress={() => setIsModalVisible(true)}
-                                        className="p-4 flex-row items-center gap-4"
+                                        className={`p-4 flex-row items-center gap-4 ${isLocked ? 'opacity-80' : ''}`}
                                     >
                                         <Image
                                             source={{ uri: selectedAppData.iconUrl || 'https://github.com/shadcn.png' }}
@@ -286,9 +293,17 @@ export default function AppDetailsScreen() {
                                         />
                                         <View className="flex-1">
                                             <Text className="font-bold text-base text-foreground">{selectedAppData.title}</Text>
-                                            <Text className="text-xs text-muted-foreground">Tap to change app</Text>
+                                            <Text className="text-xs text-muted-foreground">
+                                                {isLocked ? (matchStatus?.status === 'active' ? 'Active Match (Locked)' : 'Request Sent (Locked)') : 'Tap to change app'}
+                                            </Text>
                                         </View>
-                                        <Icon as={CheckCircleIcon} className="text-green-500 size-6" />
+                                        {isLocked ? (
+                                            <View className="bg-secondary/50 p-1.5 rounded-full">
+                                                <Icon as={CheckCircleIcon} className="text-muted-foreground size-5" />
+                                            </View>
+                                        ) : (
+                                            <Icon as={CheckCircleIcon} className="text-green-500 size-6" />
+                                        )}
                                     </TouchableOpacity>
                                 ) : (
                                     <TouchableOpacity

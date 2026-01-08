@@ -324,7 +324,8 @@ export const getMatchStatus = query({
             return {
                 status: sentRequest.status, // "pending" or "active"
                 isRequestor: true,
-                matchId: sentRequest._id
+                matchId: sentRequest._id,
+                myAppId: sentRequest.app1Id
             };
         }
 
@@ -351,7 +352,8 @@ export const getMatchStatus = query({
             return {
                 status: receivedRequest.status,
                 isRequestor: false,
-                matchId: receivedRequest._id
+                matchId: receivedRequest._id,
+                myAppId: receivedRequest.app2Id
             };
         }
 
