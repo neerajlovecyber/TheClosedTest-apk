@@ -41,8 +41,8 @@ export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
                 throw error;
             }
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes
-        gcTime: 1000 * 60 * 60 * 24, // 24 hours
+        staleTime: 1000 * 30, // 30 seconds - refetch frequently while app is open
+        gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep cache for instant loading on restart
         retry: 2,
     });
 }
