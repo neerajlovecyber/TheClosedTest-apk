@@ -3,9 +3,9 @@ import { View, TouchableOpacity, TextInput, Modal, Pressable, KeyboardAvoidingVi
 import { Text } from 'react-native';
 import { Icon } from '@/components/ui/icon';
 import { XIcon, AlertTriangleIcon, SendIcon } from 'lucide-react-native';
-import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useSmartMutation } from '@/hooks/useSmartMutation';
 
 interface RejectionReasonModalProps {
     visible: boolean;
@@ -26,7 +26,7 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const reviewProofMutation = useMutation(api.matches.reviewProof);
+    const reviewProof = useSmartMutation(api.matches.reviewProof, ['matches']);
 
     const handleSubmit = async () => {
         if (reason.trim().length < 10) {
@@ -39,12 +39,13 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
         setIsSubmitting(true);
         try {
             // Update status in DB
-            await reviewProofMutation({
+            await reviewProof({
                 proofId,
                 status: "rejected",
                 rejectionReason: reason.trim()
             });
             setReason('');
+            // cache invalidated automatically
             onClose();
             onRejected?.();
         } catch (error: any) {

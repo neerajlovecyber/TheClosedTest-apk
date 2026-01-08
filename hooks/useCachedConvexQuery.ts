@@ -1,51 +1,60 @@
-import { useQuery as useReactQuery } from '@tanstack/react-query';
-import { useConvex } from 'convex/react';
+import { useQuery as useReactQuery, useQueryClient } from '@tanstack/react-query';
+import { useConvex, useQuery as useConvexQuery } from 'convex/react';
 import type { FunctionReference, FunctionReturnType } from 'convex/server';
+import { useEffect } from 'react';
 
 /**
- * Wrapper hook that combines Convex queries with React Query's persistent caching.
+ * Hybrid hook that combines real-time Convex subscriptions with React Query persistence.
  * 
- * This provides:
- * - Instant loads on app restart (data cached in AsyncStorage)
- * - Automatic background refetching when data becomes stale
- * - Offline support (shows cached data when offline)
+ * Strategy:
+ * 1. Load from Cache (React Query/AsyncStorage) -> Instant mount.
+ * 2. Subscribe to Live Data (Convex) -> Updates in background.
+ * 3. Sync Live Data -> Cache -> Updates persist for next time.
  * 
- * Note: This loses Convex's reactive subscriptions. Data only updates on:
- * - Component mount
- * - Manual refetch
- * - When staleTime expires (5 minutes by default)
- * 
- * @param queryKey - Unique identifier for this query (e.g., ['myApps'])
- * @param query - Convex query function reference
- * @param args - Arguments to pass to the Convex query
- * @returns React Query result with data, isLoading, error, etc.
+ * Result: Instant load + Real-time updates + Offline support.
+ * No manual cache invalidation required!
  */
 export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
     queryKey: string[],
     query: Query,
     args?: any
 ) {
-    const convex = useConvex(); // Get the authenticated Convex client from context
+    const convex = useConvex();
+    const queryClient = useQueryClient();
 
-    return useReactQuery({
+    // 1. Live Subscription (Real-time source of truth)
+    // This will automatically update whenever backend data changes
+    const liveData = useConvexQuery(query, args ?? undefined);
+
+    // 2. Persistent Cache (Offline/Startup source)
+    // We set staleTime to Infinity because we rely on the live subscription for updates
+    // We only use this to read the initial persisted data from disk
+    const { data: cachedData, ...queryResult } = useReactQuery({
         queryKey: [...queryKey, args],
         queryFn: async () => {
-            try {
-                // Use the authenticated Convex client to run the query
-                // Convex queries expect args as rest parameters or undefined
-                const result = await convex.query(query, args ?? undefined);
-                console.log(`[useCachedConvexQuery] ${queryKey[0]} loaded:`, result);
-                return result as FunctionReturnType<Query>;
-            } catch (error) {
-                console.error(`[useCachedConvexQuery] ${queryKey[0]} error:`, error);
-                throw error;
-            }
+            // Only fetch if we really have to (e.g. no cache and no live data yet)
+            // But usually this won't run often if we rely on initialData from persistence
+            if (liveData !== undefined) return liveData as FunctionReturnType<Query>;
+            return await convex.query(query, args ?? undefined);
         },
-        staleTime: 1000 * 30, // 30 seconds - refetch frequently while app is open
-        gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep cache for instant loading on restart
-        retry: 2,
-        refetchOnMount: 'always', // Always refetch when component mounts (shows cache first, then updates)
-        refetchOnWindowFocus: true, // Refetch when app comes to foreground
-        refetchOnReconnect: true, // Refetch when internet reconnects
+        staleTime: Infinity, // Important: Don't auto-refetch, let Convex drive updates
+        gcTime: 1000 * 60 * 60 * 24, // 24 hours
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
+
+    // 3. Sync: When live data arrives, update the persistent cache
+    useEffect(() => {
+        if (liveData !== undefined) {
+            queryClient.setQueryData([...queryKey, args], liveData);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [liveData, JSON.stringify(queryKey), JSON.stringify(args), queryClient]);
+
+    // 4. Return the best available data
+    // Prefer live data, fall back to cached data (for instant load), then undefined (loading)
+    const data = liveData !== undefined ? liveData : cachedData;
+
+    return { ...queryResult, data, isLoading: data === undefined };
 }

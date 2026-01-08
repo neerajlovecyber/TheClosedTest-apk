@@ -62,12 +62,18 @@ export default function AddAppScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 1, // High quality initial pick, we optimize later
+            quality: 1,
         });
 
         if (!result.canceled) {
-            setSelectedImage(result.assets[0].uri);
-            await optimizeImage(result.assets[0].uri);
+            const uri = result.assets[0].uri;
+            setSelectedImage(uri);
+            // Instant feedback: Show raw image immediately
+            setProcessedImageUri(uri);
+
+            // Optimize in background
+            // We don't await this to prevent blocking the UI, but relying on state update
+            optimizeImage(uri);
         }
     };
 
@@ -81,9 +87,7 @@ export default function AddAppScreen() {
             setProcessedImageUri(result.uri);
         } catch (error) {
             console.error("Optimization failed:", error);
-            Alert.alert("Error", "Failed to process image.");
-            // Fallback to original if optimization fails
-            setProcessedImageUri(uri);
+            // If optimization fails, we kept the original URI anyway
         }
     };
 
