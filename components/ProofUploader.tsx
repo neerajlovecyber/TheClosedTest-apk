@@ -193,13 +193,19 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     if (todayProof && todayProof.status) {
         if (todayProof.status === "approved") {
             return (
-                <Card className="bg-green-500/10 border-green-500/30 mb-6">
+                <Card className="bg-green-500/10 border-green-500/30 mb-4">
                     <CardContent className="p-4">
-                        <View className="flex-row items-center mb-3">
-                            <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-2" />
-                            <Text className="font-bold text-green-600 text-lg">Day {currentDay} Complete!</Text>
+                        <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                                <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-3" />
+                                <View>
+                                    <Text className="font-bold text-green-600 text-lg">Day {currentDay} Complete!</Text>
+                                    <Text className="text-muted-foreground text-xs">
+                                        Your proof has been approved. Great job!
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
-                        <Text className="text-muted-foreground">Your proof has been approved. Great job!</Text>
                     </CardContent>
                 </Card>
             );

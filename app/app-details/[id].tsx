@@ -392,66 +392,60 @@ export default function AppDetailsScreen() {
             {/* Action Button */}
             <View className="p-4 border-t border-border bg-background safe-bottom">
                 {app.isMine ? (
-                    source === 'marketplace' ? (
-                        <View className="w-full py-3 items-center justify-center bg-secondary/30 rounded-xl">
-                            <Text className="text-muted-foreground font-semibold">Your App Listing</Text>
-                        </View>
-                    ) : (
-                        <View className="flex-row gap-4">
-                            <Button
-                                size="lg"
-                                onPress={() => router.push({ pathname: "/edit-app", params: { id: app._id } })}
-                                className="flex-1 rounded-2xl shadow-sm"
-                                disabled={isSubmitting}
-                            >
-                                <Icon as={EditIcon} className="size-4 text-white mr-2" />
-                                <Text className="font-bold text-white">Edit Details</Text>
-                            </Button>
-                            <Button
-                                size="lg"
-                                variant="destructive"
-                                onPress={() => {
-                                    Alert.alert(
-                                        "Delete App",
-                                        "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
-                                        [
-                                            { text: "Cancel", style: "cancel" },
-                                            {
-                                                text: "Delete",
-                                                style: "destructive",
-                                                onPress: async () => {
+                    <View className="flex-row gap-4">
+                        <Button
+                            size="lg"
+                            onPress={() => router.push({ pathname: "/edit-app", params: { id: app._id } })}
+                            className="flex-1 rounded-2xl shadow-sm"
+                            disabled={isSubmitting}
+                        >
+                            <Icon as={EditIcon} className="size-4 text-white mr-2" />
+                            <Text className="font-bold text-white">Edit Details</Text>
+                        </Button>
+                        <Button
+                            size="lg"
+                            variant="destructive"
+                            onPress={() => {
+                                Alert.alert(
+                                    "Delete App",
+                                    "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
+                                    [
+                                        { text: "Cancel", style: "cancel" },
+                                        {
+                                            text: "Delete",
+                                            style: "destructive",
+                                            onPress: async () => {
+                                                try {
+                                                    setIsSubmitting(true);
+
+                                                    // Delete image from R2 first
                                                     try {
-                                                        setIsSubmitting(true);
-
-                                                        // Delete image from R2 first
-                                                        try {
-                                                            const { deleteImageFromR2 } = require('@/utils/image-uploader');
-                                                            await deleteImageFromR2(`app-icons/${appId}.webp`);
-                                                        } catch (imgError) {
-                                                            console.warn("Failed to delete image", imgError);
-                                                            // Proceed anyway to delete app
-                                                        }
-
-                                                        await deleteApp({ appId: app._id });
-                                                        router.replace("/(tabs)/" as any);
-                                                    } catch (err: any) {
-                                                        Alert.alert("Error", err.message);
-                                                    } finally {
-                                                        setIsSubmitting(false);
+                                                        const { deleteImageFromR2 } = require('@/utils/image-uploader');
+                                                        await deleteImageFromR2(`app-icons/${appId}.webp`);
+                                                    } catch (imgError) {
+                                                        console.warn("Failed to delete image", imgError);
+                                                        // Proceed anyway to delete app
                                                     }
+
+                                                    await deleteApp({ appId: app._id });
+                                                    router.replace("/(tabs)/" as any);
+                                                } catch (err: any) {
+                                                    Alert.alert("Error", err.message);
+                                                } finally {
+                                                    setIsSubmitting(false);
                                                 }
                                             }
-                                        ]
-                                    );
-                                }}
-                                className="flex-1 rounded-2xl shadow-sm"
-                                disabled={isSubmitting}
-                            >
-                                <Icon as={Trash2Icon} className="size-4 text-white mr-2" />
-                                <Text className="font-bold text-white">Delete</Text>
-                            </Button>
-                        </View>
-                    )
+                                        }
+                                    ]
+                                );
+                            }}
+                            className="flex-1 rounded-2xl shadow-sm"
+                            disabled={isSubmitting}
+                        >
+                            <Icon as={Trash2Icon} className="size-4 text-white mr-2" />
+                            <Text className="font-bold text-white">Delete</Text>
+                        </Button>
+                    </View>
                 ) : (
                     // Logic for Visitor (Not Owner)
                     matchStatus?.status === 'active' ? (

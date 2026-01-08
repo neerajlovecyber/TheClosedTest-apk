@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { View, TouchableOpacity, Platform, Modal, Pressable, useWindowDimensions, TextInput, FlatList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -17,6 +18,7 @@ interface MatchChatProps {
 
 export function MatchChat({ visible, onClose, matchId, partnerName }: MatchChatProps) {
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const messages = useQuery(api.matches.getMessages, { matchId }) || [];
     const sendMessageMutation = useMutation(api.matches.sendMessage);
     const markAsReadMutation = useMutation(api.matches.markMessagesAsRead);
@@ -118,7 +120,10 @@ export function MatchChat({ visible, onClose, matchId, partnerName }: MatchChatP
                         />
 
                         {/* Input Area */}
-                        <View className="flex-row items-center p-4 border-t border-border bg-background">
+                        <View
+                            className="flex-row items-center px-4 pt-4 border-t border-border bg-background"
+                            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+                        >
                             <TextInput
                                 ref={inputRef}
                                 className="flex-1 bg-secondary rounded-2xl px-4 py-2.5 text-foreground max-h-32 text-sm"

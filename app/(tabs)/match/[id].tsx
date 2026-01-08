@@ -186,7 +186,7 @@ export default function MatchDashboardScreen() {
                     <SectionTitle icon={UploadIcon} title="Your Daily Proof" />
                     <ProofUploader matchId={matchId} currentDay={currentDay} todayProof={todayProof} />
 
-                    <View className="h-px bg-border my-6" />
+                    <View className="h-px bg-border my-3" />
 
                     <SectionTitle icon={EyeIcon} title="Review Partner's Proof" />
                     <ProofReviewer matchId={matchId} partnerProof={partnerProof} onReject={handleRejectPress} />

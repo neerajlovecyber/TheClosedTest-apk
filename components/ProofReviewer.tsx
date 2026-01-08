@@ -166,9 +166,9 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                             <View className="flex-row items-center flex-1">
                                 <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-3" />
                                 <View>
-                                    <Text className="font-bold text-green-600 text-lg">Approved</Text>
+                                    <Text className="font-bold text-green-600 text-lg">Day {partnerProof.day} Complete!</Text>
                                     <Text className="text-muted-foreground text-xs">
-                                        Day {partnerProof.day} proof accepted.
+                                        You approved this proof.
                                     </Text>
                                 </View>
                             </View>
