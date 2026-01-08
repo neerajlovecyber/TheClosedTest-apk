@@ -211,23 +211,41 @@ export default function HomeScreen() {
                         )}
                     </View>
 
-                    {myApps.length > 0 ? (
-                        myApps.map((app) => (
-                            <AppCard
-                                key={app._id}
-                                item={app}
-                                variant="my-app"
-                                onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'my-app' } } as any)}
-                            />
-                        ))
-                    ) : (
-                        <View className="items-center py-8 bg-muted/10 rounded-xl border border-dashed border-muted-foreground/20">
-                            <Text className="text-muted-foreground mb-4">You haven't added any apps yet.</Text>
-                            <Button variant="outline" onPress={() => router.push('/add-app')}>
-                                <Text>Add Your First App</Text>
-                            </Button>
-                        </View>
-                    )}
+                    {/* Show actual apps */}
+                    {myApps.map((app) => (
+                        <AppCard
+                            key={app._id}
+                            item={app}
+                            variant="my-app"
+                            onPress={() => router.push({ pathname: "/app-details/[id]", params: { id: app._id, source: 'my-app' } } as any)}
+                        />
+                    ))}
+
+                    {/* Show placeholder cards for empty slots */}
+                    {Array.from({ length: 3 - myApps.length }).map((_, index) => (
+                        <TouchableOpacity
+                            key={`placeholder-${index}`}
+                            onPress={() => router.push('/add-app')}
+                            activeOpacity={0.7}
+                        >
+                            <Card className="mb-3 p-1.5 flex-row gap-2 border-2 border-dashed border-muted-foreground/20 bg-muted/5">
+                                {/* Icon placeholder matching image size */}
+                                <View className="w-20 h-20 rounded-xl bg-primary/10 items-center justify-center">
+                                    <Icon as={PlusIcon} className="text-primary size-8" />
+                                </View>
+
+                                {/* Content matching AppCard layout */}
+                                <View className="flex-1 justify-center py-0.5">
+                                    <Text className="text-muted-foreground font-semibold text-sm mb-1">
+                                        {myApps.length === 0 && index === 0 ? 'Add Your First App' : 'Add Another App'}
+                                    </Text>
+                                    <Text className="text-muted-foreground/60 text-xs">
+                                        Slot {myApps.length + index + 1} of 3 available
+                                    </Text>
+                                </View>
+                            </Card>
+                        </TouchableOpacity>
+                    ))}
                 </View>
             </ScrollView >
 
