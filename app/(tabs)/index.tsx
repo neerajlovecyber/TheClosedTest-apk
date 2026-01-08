@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
+import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
 import { Id } from '@/convex/_generated/dataModel';
 import {
     AlertDialog,
@@ -43,6 +44,9 @@ export default function HomeScreen() {
     const acceptSwap = useMutation(api.matches.acceptSwap);
     const rejectSwap = useMutation(api.matches.rejectSwap);
 
+    // Cache invalidation
+    const { invalidateMatches, invalidateApps } = useInvalidateQueries();
+
     // Actual user data
     const userName = user?.firstName || "Tester";
     const reputation = currentUser?.reputation ?? 100;
@@ -66,6 +70,9 @@ export default function HomeScreen() {
     const handleAccept = async (matchId: any) => {
         try {
             await acceptSwap({ matchId });
+            // Invalidate caches to show updated data immediately
+            invalidateMatches();
+            invalidateApps();
             Alert.alert("Success", "Swap accepted! You can now start testing.");
         } catch (error: any) {
             Alert.alert("Error", "Failed to accept swap.");
@@ -83,6 +90,8 @@ export default function HomeScreen() {
         if (!requestToReject) return;
         try {
             await rejectSwap({ matchId: requestToReject });
+            // Invalidate caches to remove rejected request immediately
+            invalidateMatches();
             // Optional: Toast or success message
         } catch (error: any) {
             Alert.alert("Error", "Failed to reject swap.");

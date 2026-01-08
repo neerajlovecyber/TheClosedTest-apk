@@ -4,6 +4,7 @@ import { View, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpaci
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,9 @@ export default function AddAppScreen() {
     const createApp = useMutation(api.apps.createApp);
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
     const currentUser = useQuery(api.users.getCurrentUser);
+
+    // Cache invalidation
+    const { invalidateApps } = useInvalidateQueries();
 
     const [title, setTitle] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
@@ -153,6 +157,9 @@ export default function AddAppScreen() {
             // To properly call updateApp, I need to add `const updateApp = useMutation(api.apps.updateApp);` at component top.
             // I will return for now and fix imports in next step.
 
+
+            // Invalidate caches so new app appears immediately in home and marketplace
+            invalidateApps();
 
             Alert.alert('Success', 'App added successfully!');
             router.back();
