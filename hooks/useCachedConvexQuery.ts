@@ -44,5 +44,8 @@ export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
         staleTime: 1000 * 30, // 30 seconds - refetch frequently while app is open
         gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep cache for instant loading on restart
         retry: 2,
+        refetchOnMount: 'always', // Always refetch when component mounts (shows cache first, then updates)
+        refetchOnWindowFocus: true, // Refetch when app comes to foreground
+        refetchOnReconnect: true, // Refetch when internet reconnects
     });
 }
