@@ -6,8 +6,9 @@ import { AppCard } from '@/components/AppCard';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { CheckCircleIcon, ClockIcon, AlertCircleIcon } from 'lucide-react-native';
+import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { Button } from '@/components/ui/button';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
@@ -139,81 +140,118 @@ export default function TestsScreen() {
 
     return (
         <View className="flex-1 bg-background">
-            {/* Header */}
-            <View className="px-6 py-4 border-b border-border">
-                <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
-                <Text className="text-sm text-muted-foreground font-medium mt-0.5">
-                    {pendingTasks.length} pending • {completedTasks.length} completed today
-                </Text>
-            </View>
-
-            <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-                {/* Pending Section */}
-                <View className="mb-6">
-                    <View className="flex-row items-center gap-2 mb-3">
-                        <Icon as={ClockIcon} className="size-5 text-orange-500" />
-                        <Text className="text-lg font-bold">Pending Today</Text>
-                        {pendingTasks.length > 0 && (
-                            <View className="bg-orange-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">{pendingTasks.length}</Text>
-                            </View>
-                        )}
-                    </View>
-
-                    {pendingTasks.length > 0 ? (
-                        <LegendList
-                            data={pendingTasks}
-                            keyExtractor={keyExtractor}
-                            renderItem={renderTaskItem}
-                            recycleItems
-                            estimatedItemSize={140}
-                            scrollEnabled={false}
-                        />
-                    ) : (
-                        <Card className="bg-green-500/10 border-green-500/30">
-                            <CardContent className="p-6 items-center">
-                                <Icon as={CheckCircleIcon} className="size-10 text-green-500 mb-2" />
-                                <Text className="font-bold text-green-600 text-center">All Done!</Text>
-                                <Text className="text-muted-foreground text-center text-sm">
-                                    You've completed all your tasks for today.
-                                </Text>
-                            </CardContent>
-                        </Card>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+                {/* Header */}
+                <View className="px-6 py-4">
+                    <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
+                    {testingApps.length > 0 && (
+                        <Text className="text-sm text-muted-foreground font-medium mt-0.5">
+                            {pendingTasks.length} pending • {completedTasks.length} completed today
+                        </Text>
                     )}
                 </View>
 
-                {/* Completed Section */}
-                {completedTasks.length > 0 && (
-                    <View>
-                        <View className="flex-row items-center gap-2 mb-3">
-                            <Icon as={CheckCircleIcon} className="size-5 text-green-500" />
-                            <Text className="text-lg font-bold">Completed Today</Text>
-                            <View className="bg-green-500 px-2 py-0.5 rounded-full">
-                                <Text className="text-xs text-white font-bold">{completedTasks.length}</Text>
+                <View className="px-4 pt-4">
+                    {/* Pending Section - Only show if there are pending tasks */}
+                    {pendingTasks.length > 0 && (
+                        <View className="mb-6">
+                            <View className="flex-row items-center gap-2 mb-3">
+                                <Icon as={ClockIcon} className="size-5 text-orange-500" />
+                                <Text className="text-lg font-bold">Pending Today</Text>
+                                <View className="bg-orange-500 px-2 py-0.5 rounded-full">
+                                    <Text className="text-xs text-white font-bold">{pendingTasks.length}</Text>
+                                </View>
                             </View>
+
+                            <LegendList
+                                data={pendingTasks}
+                                keyExtractor={keyExtractor}
+                                renderItem={renderTaskItem}
+                                recycleItems
+                                estimatedItemSize={140}
+                                scrollEnabled={false}
+                            />
                         </View>
+                    )}
 
-                        <LegendList
-                            data={completedTasks}
-                            keyExtractor={keyExtractor}
-                            renderItem={renderTaskItem}
-                            recycleItems
-                            estimatedItemSize={140}
-                            scrollEnabled={false}
-                        />
-                    </View>
-                )}
+                    {/* Completed Section */}
+                    {completedTasks.length > 0 && (
+                        <View>
+                            <View className="flex-row items-center gap-2 mb-3">
+                                <Icon as={CheckCircleIcon} className="size-5 text-green-500" />
+                                <Text className="text-lg font-bold">Completed Today</Text>
+                                <View className="bg-green-500 px-2 py-0.5 rounded-full">
+                                    <Text className="text-xs text-white font-bold">{completedTasks.length}</Text>
+                                </View>
+                            </View>
 
-                {/* Empty State */}
-                {testingApps.length === 0 && (
-                    <View className="items-center justify-center py-20">
-                        <Icon as={ClockIcon} className="size-16 text-muted-foreground/30 mb-4" />
-                        <Text className="text-xl font-bold text-muted-foreground mb-2">No Active Tasks</Text>
-                        <Text className="text-muted-foreground text-center">
-                            Request a swap in the Marketplace to start testing apps!
-                        </Text>
-                    </View>
-                )}
+                            <LegendList
+                                data={completedTasks}
+                                keyExtractor={keyExtractor}
+                                renderItem={renderTaskItem}
+                                recycleItems
+                                estimatedItemSize={140}
+                                scrollEnabled={false}
+                            />
+                        </View>
+                    )}
+
+                    {/* Enhanced Empty State */}
+                    {testingApps.length === 0 && (
+                        <View className="items-center justify-center pb-12 px-6">
+                            {/* Animated Icon Container */}
+                            <View className="bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full p-8 mb-6">
+                                <Icon as={ClockIcon} className="size-20 text-primary" />
+                            </View>
+
+                            {/* Title */}
+                            <Text className="text-2xl font-extrabold text-foreground mb-3 text-center">
+                                Ready to Start Testing?
+                            </Text>
+
+                            {/* Description */}
+                            <Text className="text-muted-foreground text-center text-base mb-8 max-w-sm leading-relaxed">
+                                Browse the marketplace and request a swap to begin your 14-day testing journey!
+                            </Text>
+
+                            {/* Benefits Cards */}
+                            <View className="w-full gap-3 mb-8">
+                                <Card className="bg-blue-500/10 border-blue-500/30">
+                                    <CardContent className="p-4 flex-row items-center gap-3">
+                                        <View className="bg-blue-500 rounded-full p-2">
+                                            <Icon as={CheckCircleIcon} className="size-5 text-white" />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="font-bold text-blue-600 dark:text-blue-400">Get Real Feedback</Text>
+                                            <Text className="text-xs text-muted-foreground">Daily proof reviews from testers</Text>
+                                        </View>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="bg-green-500/10 border-green-500/30">
+                                    <CardContent className="p-4 flex-row items-center gap-3">
+                                        <View className="bg-green-500 rounded-full p-2">
+                                            <Icon as={StarIcon} className="size-5 text-white" />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="font-bold text-green-600 dark:text-green-400">Build Reputation</Text>
+                                            <Text className="text-xs text-muted-foreground">Earn points for quality testing</Text>
+                                        </View>
+                                    </CardContent>
+                                </Card>
+                            </View>
+
+                            {/* CTA Button */}
+                            <Button
+                                onPress={() => router.push('/(tabs)/marketplace')}
+                                className="w-full rounded-2xl h-14 shadow-lg shadow-primary/30"
+                            >
+                                <Icon as={SearchIcon} className="text-primary-foreground size-5 mr-2" />
+                                <Text className="text-primary-foreground font-bold text-base">Browse Marketplace</Text>
+                            </Button>
+                        </View>
+                    )}
+                </View>
             </ScrollView>
         </View>
     );
