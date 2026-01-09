@@ -191,25 +191,11 @@ export default function MarketplaceScreen() {
                         ) : (
                             <View className="items-center py-10">
                                 <Text className="text-muted-foreground">No apps found.</Text>
-                                {myApps.length < 3 && (
-                                    <Button variant="link" onPress={handleAddApp}>
-                                        <Text>Add your first app</Text>
-                                    </Button>
-                                )}
                             </View>
                         )}
                     </View>
                 </View>
             </ScrollView>
-
-            {/* Quick Add App FAB */}
-            {myApps.length < 3 && (
-                <View className="absolute bottom-6 right-6">
-                    <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" onPress={handleAddApp}>
-                        <Icon as={PlusIcon} className="text-primary-foreground size-8" />
-                    </Button>
-                </View>
-            )}
         </View>
     );
 }
