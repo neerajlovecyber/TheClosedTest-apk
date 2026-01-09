@@ -9,6 +9,9 @@
     "web": "expo start -c --web",
     "clean": "rm -rf .expo node_modules"
   },
+  "overrides": {
+    "react-native-device-info": "^14.0.4"
+  },
   "dependencies": {
     "@clerk/clerk-expo": "^2.16.1",
     "@codsod/react-native-chat": "^1.0.14",
