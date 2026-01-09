@@ -32,7 +32,10 @@
         "backgroundImage": "./assets/images/adaptive-icon/background.png"
       },
       "package": "com.theneerajsec.theclosedtest",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "QUERY_ALL_PACKAGES"
+      ]
     },
     "web": {
       "bundler": "metro",
