@@ -19,6 +19,7 @@ import { vexo, identifyDevice } from 'vexo-analytics';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import * as React from 'react';
 import { useOTAUpdate } from '@/hooks/useOTAUpdate';
+import { useInAppUpdate } from '@/hooks/useInAppUpdate';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
@@ -132,6 +133,9 @@ function InitialLayout() {
 
   // Handle OTA Updates
   const { isUpdateDownloaded, reloadApp } = useOTAUpdate();
+
+  // Handle Native In-App Updates
+  useInAppUpdate();
 
   if (!isLoaded) {
     return null;
