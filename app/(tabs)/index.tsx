@@ -162,6 +162,8 @@ export default function HomeScreen() {
                                             title: task.name,
                                             ownerName: task.owner,
                                             dueIn: `Day ${task.day} of ${task.totalDays}`,
+                                            day: task.day,
+                                            totalDays: task.totalDays,
                                             iconUrl: task.iconUrl,
                                             isReviewPending: task.isReviewPending,
                                             hasUnread: task.hasUnread
