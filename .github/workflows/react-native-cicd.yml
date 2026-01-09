@@ -1,12 +1,6 @@
 name: React Native CI/CD
 
 on:
-  push:
-    branches: [main, master]
-    paths-ignore:
-      - "**.md"
-      - "LICENSE"
-      - "docs/**"
   workflow_dispatch:
     inputs:
       buildType:
@@ -14,9 +8,7 @@ on:
         description: "Build type to run"
         options:
           - dev
-          - prod-apk
-          - prod-aab
-          - publish-expo
+          - prod
           - all
 
 env:
@@ -33,7 +25,7 @@ jobs:
 
   build-and-release:
     needs: check-skip
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Checkout repository
@@ -98,7 +90,7 @@ jobs:
 
 
       - name: 📱 Build Development APK
-        if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'dev' || github.event_name == 'push'
+        if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'dev'
         run: |
           # Build with increased memory limit
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
@@ -106,28 +98,14 @@ jobs:
         env:
           NODE_ENV: development
 
-      - name: 📱 Build Production APK
-        if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'prod-apk' || github.event_name == 'push'
-        run: |
-          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile production-apk --local --non-interactive --output=./app-prod.apk
-        env:
-          NODE_ENV: production
-
       - name: 📱 Build Production AAB
-        if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'prod-aab' || github.event_name == 'push'
+        if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'prod'
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           eas build --platform android --profile production --local --non-interactive --output=./app-prod.aab
         env:
           NODE_ENV: production
 
-      - name: 🚀 Publish to Expo
-        if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'publish-expo'
-        run: |
-          eas update --auto
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🏷️ Generate build information
         id: build-info
@@ -152,7 +130,6 @@ jobs:
           tag_name: "v${{ steps.build-info.outputs.version }}-${{ steps.build-info.outputs.build_number }}"
           files: |
             ./app-dev.apk
-            ./app-prod.apk
             ./app-prod.aab
           body_path: changelog.md
         env:
@@ -163,6 +140,5 @@ jobs:
           name: app-builds
           path: |
             ./app-dev.apk
-            ./app-prod.apk
             ./app-prod.aab
           retention-days: 7
