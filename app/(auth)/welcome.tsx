@@ -6,34 +6,41 @@ import { router } from 'expo-router';
 import * as React from 'react';
 import { Animated, Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Box, Handshake, Camera, Sparkles } from 'lucide-react-native';
+import { Box, Handshake, Camera, Sparkles, Star } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const ONBOARDING_STEPS = [
     {
         title: 'Welcome to\nThe Closed Test',
-        description: 'The easiest way for Android developers to get 12 testers for the Google Play closed testing requirement.',
+        description: 'Get 12+ testers for your Android app to pass Google Play\'s closed testing requirement.',
         Icon: Box,
         iconBgClass: 'bg-primary/10 dark:bg-primary/20',
         iconColor: '#3B82F6', // blue-500
     },
     {
         title: 'Mutual Testing\nExchange',
-        description: 'I test your app, you test mine. Simple 1-to-1 exchange to help each other pass the 14-day requirement.',
+        description: 'I test your app for 14 days, you test mine. Simple swap system to help each other succeed.',
         Icon: Handshake,
         iconBgClass: 'bg-green-500/10 dark:bg-green-500/20',
         iconColor: '#22C55E', // green-500
     },
     {
-        title: 'Daily Proof\nSystem',
-        description: 'Upload screenshots daily to verify testing. Build reputation and trust with other developers.',
+        title: 'Daily Screenshot\nProof',
+        description: 'Upload 1 screenshot daily showing you used the app. Your partner reviews and approves it.',
         Icon: Camera,
         iconBgClass: 'bg-amber-500/10 dark:bg-amber-500/20',
         iconColor: '#F59E0B', // amber-500
     },
     {
+        title: 'Build Your\nReputation',
+        description: 'Earn +1 for approved proofs. Lose points for missed days (-2) or rejections (-5). Higher score = more trust!',
+        Icon: Star,
+        iconBgClass: 'bg-purple-500/10 dark:bg-purple-500/20',
+        iconColor: '#A855F7', // purple-500
+    },
+    {
         title: 'Ready to\nGet Started?',
-        description: 'Join our community of Android developers helping each other succeed on Google Play.',
+        description: 'Join our community of Android developers helping each other publish on Google Play.',
         Icon: Sparkles,
         iconBgClass: 'bg-cyan-500/10 dark:bg-cyan-500/20',
         iconColor: '#06B6D4', // cyan-500
