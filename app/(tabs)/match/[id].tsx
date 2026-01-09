@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Alert, Modal, KeyboardAvoidingView as RNKeyboardAvoidingView } from 'react-native';
+import { View, ScrollView, Image as RNImage, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Alert, Modal, KeyboardAvoidingView as RNKeyboardAvoidingView, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
@@ -10,8 +11,9 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon } from 'lucide-react-native';
+import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { ProofUploader } from '@/components/ProofUploader';
 import { ProofReviewer } from '@/components/ProofReviewer';
 import { ProgressGrid } from '@/components/ProgressGrid';
@@ -128,6 +130,49 @@ export default function MatchDashboardScreen() {
         );
     };
 
+    const handleOpenApp = async () => {
+        if (!app?.packageName) {
+            Alert.alert("Error", "Package name not available");
+            return;
+        }
+
+        const packageName = app.packageName;
+        // Construct fallback URLs
+        const marketUrl = `market://details?id=${packageName}`;
+        const webUrl = app.playStoreUrl || `https://play.google.com/store/apps/details?id=${packageName}`;
+
+        const openPlayStore = () => {
+            Linking.canOpenURL(marketUrl).then(supported => {
+                if (supported) {
+                    Linking.openURL(marketUrl);
+                } else {
+                    Linking.openURL(webUrl);
+                }
+            }).catch(() => {
+                Linking.openURL(webUrl);
+            });
+        };
+
+        if (Platform.OS === 'android') {
+            try {
+                // Try to launch the app directly
+                // We assume main activity has ACTION_MAIN and CATEGORY_LAUNCHER
+                await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
+                    category: 'android.intent.category.LAUNCHER',
+                    packageName: packageName,
+                    flags: 268435456, // FLAG_ACTIVITY_NEW_TASK
+                });
+            } catch (error) {
+                // If launch fails (e.g. app not installed), open Play Store
+                console.log("App launch failed, opening store:", error);
+                openPlayStore();
+            }
+        } else {
+            // iOS or Web: Just open the store/web link
+            openPlayStore();
+        }
+    };
+
     // Unified Overview Content
     const renderOverviewContent = () => {
         // We use progressData for the summary card and timeline
@@ -143,13 +188,34 @@ export default function MatchDashboardScreen() {
             >
                 {/* Header Section */}
                 <View className="px-4 pt-4 pb-2">
-                    <Text className="text-2xl font-bold mb-1">{app?.title || 'Testing'}</Text>
+                    <View className="flex-row items-center mb-4">
+                        <Image
+                            source={{ uri: app?.iconUrl }}
+                            style={{ width: 64, height: 64, borderRadius: 16 }}
+                            contentFit="cover"
+                            transition={200}
+                            className="bg-muted"
+                        />
+                        <View className="ml-4 flex-1">
+                            <Text className="text-2xl font-bold">{app?.title || 'Testing'}</Text>
+                            <Text className="text-sm text-muted-foreground" numberOfLines={1}>{app?.packageName}</Text>
+                        </View>
+                    </View>
                     <View className="flex-row items-center justify-between">
                         <Text className="text-sm text-muted-foreground">Day {currentDay} of 14</Text>
                         <View className="bg-primary/10 px-2 py-1 rounded-full">
                             <Text className="text-xs font-bold text-primary">{Math.round((currentDay / 14) * 100)}% Complete</Text>
                         </View>
                     </View>
+
+                    {/* Open App Button */}
+                    <TouchableOpacity
+                        onPress={handleOpenApp}
+                        className="flex-row items-center justify-center bg-primary mt-4 p-3 rounded-xl"
+                    >
+                        <Icon as={ExternalLinkIcon} className="text-primary-foreground size-5 mr-2" />
+                        <Text className="text-primary-foreground font-bold text-base">Open {app?.title || 'App'}</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Progress Grid with Integrated Score Card */}
