@@ -1039,8 +1039,8 @@ export const getProgressData = query({
                 day,
                 isFuture: isFutureDay,
                 isToday: day === currentDay,
-                myStatus: isFutureDay ? "future" : (myProofForDay?.status || "missed"),
-                partnerStatus: isFutureDay ? "future" : (partnerProofForDay?.status || "missed"),
+                myStatus: isFutureDay ? "future" : (myProofForDay?.status || (day === currentDay ? "pending" : "missed")),
+                partnerStatus: isFutureDay ? "future" : (partnerProofForDay?.status || (day === currentDay ? "pending" : "missed")),
                 myProof: myProofForDay ? {
                     status: myProofForDay.status,
                     comment: myProofForDay.comment,

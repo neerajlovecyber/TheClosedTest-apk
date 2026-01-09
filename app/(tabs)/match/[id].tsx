@@ -175,7 +175,19 @@ export default function MatchDashboardScreen() {
     const renderOverviewContent = () => {
         // We use progressData for the summary card and timeline
         const summary = progressData?.summary;
-        const days = progressData?.days || [];
+
+        // Client-side override to ensure 'Today' always shows 'pending' (clock) instead of 'missed' if no proof is uploaded
+        const days = (progressData?.days || []).map(d => {
+            if (d.day === currentDay) {
+                return {
+                    ...d,
+                    myStatus: d.myStatus === 'missed' ? 'pending' : d.myStatus,
+                    partnerStatus: d.partnerStatus === 'missed' ? 'pending' : d.partnerStatus,
+                    isToday: true
+                };
+            }
+            return d;
+        });
 
         return (
             <ScrollView
@@ -203,9 +215,9 @@ export default function MatchDashboardScreen() {
                     {/* Open App Button */}
                     <TouchableOpacity
                         onPress={handleOpenApp}
-                        className="flex-row items-center justify-center bg-primary mt-4 p-3 rounded-xl"
+                        className="flex-row items-center justify-center bg-primary mt-2 p-2.5 rounded-xl"
                     >
-                        <Icon as={ExternalLinkIcon} className="text-primary-foreground size-5 mr-2" />
+                        <Icon as={ExternalLinkIcon} className="text-primary-foreground size-4 mr-2" />
                         <Text className="text-primary-foreground font-bold text-base">Open {app?.title || 'App'}</Text>
                     </TouchableOpacity>
                 </View>
@@ -251,12 +263,12 @@ export default function MatchDashboardScreen() {
                 </View>
 
                 {/* Leave Match Button */}
-                <View className="px-4 mt-8">
+                <View className="px-4 mt-6">
                     <TouchableOpacity
                         onPress={handleLeaveMatch}
-                        className="flex-row items-center justify-center p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-8"
+                        className="flex-row items-center justify-center p-3.5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-6"
                     >
-                        <Icon as={XCircleIcon} className="text-red-500 size-5 mr-2" />
+                        <Icon as={XCircleIcon} className="text-red-500 size-4 mr-2" />
                         <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner?.name?.split(' ')[0] || "Partner"}</Text>
                     </TouchableOpacity>
                 </View>
