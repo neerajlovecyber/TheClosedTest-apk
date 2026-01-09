@@ -13,9 +13,9 @@ export default function TabLayout() {
     const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
     const insets = useSafeAreaInsets();
 
-    // Check for unread tests
+    // Check for pending tasks that need attention
     const activeTests = useQuery(api.matches.getMyActiveTests) || [];
-    const hasUnreadTests = activeTests.some((t: any) => t.hasUnread);
+    const hasPendingTasks = activeTests.some((t: any) => t.needsAttention);
 
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -56,10 +56,12 @@ export default function TabLayout() {
                     options={{
                         title: 'Tests',
                         tabBarIcon: ({ color }) => (
-                            <View>
+                            <View style={{ position: 'relative' }}>
                                 <Icon as={FlaskConicalIcon} color={color} className="size-6" />
-                                {hasUnreadTests && (
-                                    <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-background z-10" />
+                                {hasPendingTasks && (
+                                    <View
+                                        style={{ position: 'absolute', top: -4, right: -6, width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: 5 }}
+                                    />
                                 )}
                             </View>
                         ),
