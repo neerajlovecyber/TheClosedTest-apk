@@ -40,6 +40,12 @@ const DEFAULT_TEMPLATES = [
         body: 'We\'ve added exciting new features to improve your testing experience.',
         icon: '✨',
     },
+    {
+        id: 'platform_update',
+        title: '📲 Update Required',
+        body: 'A new version of the app is available. Please update to continue using the platform.',
+        icon: '📲',
+    },
 ];
 
 export default function NotificationsAdminScreen() {
