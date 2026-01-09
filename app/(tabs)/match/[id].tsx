@@ -119,7 +119,8 @@ export default function MatchDashboardScreen() {
                         if (!matchId) return;
                         try {
                             await cancelMatchMutation({ matchId });
-                            router.replace("/(tabs)/");
+                            await cancelMatchMutation({ matchId });
+                            router.replace("/(tabs)/" as any);
                         } catch (e) {
                             console.error(e);
                             Alert.alert("Error", "Failed to cancel match");
@@ -155,16 +156,13 @@ export default function MatchDashboardScreen() {
 
         if (Platform.OS === 'android') {
             try {
-                // Try to launch the app directly
-                // We assume main activity has ACTION_MAIN and CATEGORY_LAUNCHER
-                await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
-                    category: 'android.intent.category.LAUNCHER',
-                    packageName: packageName,
-                    flags: 268435456, // FLAG_ACTIVITY_NEW_TASK
-                });
-            } catch (error) {
-                // If launch fails (e.g. app not installed), open Play Store
-                console.log("App launch failed, opening store:", error);
+                // Use openApplication for direct launch by package name
+                // This avoids the "Complete action using" chooser dialog
+                // @ts-ignore - openApplication is available in expo-intent-launcher ~13.0.0
+                await IntentLauncher.openApplication(packageName);
+            } catch (error: any) {
+                console.log("App launch failed:", error);
+                // Only open Play Store if launch fails (e.g. app not installed)
                 openPlayStore();
             }
         } else {
