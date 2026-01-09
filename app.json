@@ -2,7 +2,6 @@
   "expo": {
     "name": "theclosedtest",
     "slug": "theclosedtest",
-    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "theclosedtest",
@@ -68,6 +67,7 @@
     "experiments": {
       "typedRoutes": true
     },
+    "entryPoint": "./index.js",
     "extra": {
       "router": {},
       "eas": {
