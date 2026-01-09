@@ -68,6 +68,57 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     const isApproved = useMemo(() => partnerProof?.status === "approved", [partnerProof?.status]);
     const images = useMemo(() => partnerProof?.urls || [], [partnerProof?.urls]);
 
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [sliderWidth, setSliderWidth] = useState(SCREEN_WIDTH - 48); // Approximate initial width (Screen - padding)
+    const flatListRef = useRef<FlatList>(null);
+    const inlineListRef = useRef<FlatList>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    // Sync inline list when index changes (e.g. via thumbnail click)
+    useEffect(() => {
+        if (!isSyncing && inlineListRef.current && sliderWidth > 0 && currentImageIndex >= 0) {
+            inlineListRef.current.scrollToIndex({ index: currentImageIndex, animated: true });
+        }
+    }, [currentImageIndex, sliderWidth]);
+
+    const handleInlineScroll = (event: any) => {
+        if (sliderWidth <= 0) return;
+        const contentOffset = event.nativeEvent.contentOffset;
+        const index = Math.round(contentOffset.x / sliderWidth);
+        if (index !== currentImageIndex && index >= 0 && index < images.length) {
+            setIsSyncing(true);
+            setCurrentImageIndex(index);
+            // Reset syncing flag after animation
+            setTimeout(() => setIsSyncing(false), 500);
+        }
+    };
+
+    const handleOpenFullScreen = () => {
+        setIsFullScreen(true);
+    };
+
+    const handleCloseFullScreen = () => {
+        setIsFullScreen(false);
+    };
+
+    const handleScrollEnd = (event: any) => {
+        const contentOffset = event.nativeEvent.contentOffset;
+        const index = Math.round(contentOffset.x / SCREEN_WIDTH);
+        if (index !== currentImageIndex && index >= 0 && index < images.length) {
+            setCurrentImageIndex(index);
+        }
+    };
+
+    // Sync FlatList position when modal opens
+    useEffect(() => {
+        if (isFullScreen && flatListRef.current && images.length > 0) {
+            // Small timeout to allow layout to compute
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({ index: currentImageIndex, animated: false });
+            }, 100);
+        }
+    }, [isFullScreen]);
+
     // Partner hasn't uploaded yet
     if (!partnerProof || partnerProof.status === "not_uploaded") {
         return (
@@ -101,58 +152,7 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         );
     }
 
-    const [isFullScreen, setIsFullScreen] = useState(false);
-    const [sliderWidth, setSliderWidth] = useState(SCREEN_WIDTH - 48); // Approximate initial width (Screen - padding)
-    const flatListRef = useRef<FlatList>(null);
-    const inlineListRef = useRef<FlatList>(null);
-    const [isSyncing, setIsSyncing] = useState(false);
 
-    // Sync inline list when index changes (e.g. via thumbnail click)
-    useEffect(() => {
-        if (!isSyncing && inlineListRef.current && sliderWidth > 0 && currentImageIndex >= 0) {
-            inlineListRef.current.scrollToIndex({ index: currentImageIndex, animated: true });
-        }
-    }, [currentImageIndex, sliderWidth]);
-
-    const handleInlineScroll = (event: any) => {
-        if (sliderWidth <= 0) return;
-        const contentOffset = event.nativeEvent.contentOffset;
-        const index = Math.round(contentOffset.x / sliderWidth);
-        if (index !== currentImageIndex && index >= 0 && index < images.length) {
-            setIsSyncing(true);
-            setCurrentImageIndex(index);
-            // Reset syncing flag after animation
-            setTimeout(() => setIsSyncing(false), 500);
-        }
-    };
-
-    // ... existing mutations and handlers ...
-
-    const handleOpenFullScreen = () => {
-        setIsFullScreen(true);
-    };
-
-    const handleCloseFullScreen = () => {
-        setIsFullScreen(false);
-    };
-
-    const handleScrollEnd = (event: any) => {
-        const contentOffset = event.nativeEvent.contentOffset;
-        const index = Math.round(contentOffset.x / SCREEN_WIDTH);
-        if (index !== currentImageIndex && index >= 0 && index < images.length) {
-            setCurrentImageIndex(index);
-        }
-    };
-
-    // Sync FlatList position when modal opens
-    useEffect(() => {
-        if (isFullScreen && flatListRef.current && images.length > 0) {
-            // Small timeout to allow layout to compute
-            setTimeout(() => {
-                flatListRef.current?.scrollToIndex({ index: currentImageIndex, animated: false });
-            }, 100);
-        }
-    }, [isFullScreen]);
 
     // ... existing renders ...
 
