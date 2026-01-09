@@ -41,6 +41,9 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "experiments": {
+      "typedRoutes": true
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -51,11 +54,9 @@
           "androidAppId": "ca-app-pub-3238435978294704~7120634978",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
-      ]
+      ],
+      "./plugins/withGradleProperties"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "router": {},
       "eas": {
