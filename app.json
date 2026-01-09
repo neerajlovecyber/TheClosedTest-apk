@@ -46,17 +46,6 @@
       "expo-secure-store",
       "expo-web-browser",
       [
-        "expo-build-properties",
-        {
-          "android": {
-            "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
-            "enableBundleCompression": true,
-            "extraProguardRules": "-dontwarn coil3.**\n-keep class coil3.** { *; }\n-keep interface coil3.** { *; }"
-          }
-        }
-      ],
-      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3238435978294704~7120634978",
