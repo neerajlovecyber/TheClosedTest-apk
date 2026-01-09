@@ -4,10 +4,12 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { router } from 'expo-router';
 import * as React from 'react';
-import { Animated, Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View } from 'react-native';
+import { Animated, Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Box, Handshake, Camera, Sparkles, Star } from 'lucide-react-native';
+import { Box, Handshake, Camera, Sparkles, Star, HelpCircleIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
+import { Icon } from '@/components/ui/icon';
+import { TouchableOpacity } from 'react-native';
 
 const ONBOARDING_STEPS = [
     {
@@ -92,6 +94,15 @@ export default function WelcomeScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-background">
+            {/* Help Button */}
+            <TouchableOpacity
+                onPress={() => router.push('/(auth)/guide')}
+                style={{ position: 'absolute', top: 60, right: 16, zIndex: 10 }}
+                className="w-10 h-10 rounded-full bg-muted/50 items-center justify-center"
+                activeOpacity={0.7}
+            >
+                <Icon as={HelpCircleIcon} className="text-muted-foreground size-5" />
+            </TouchableOpacity>
             <ScrollView
                 ref={scrollViewRef}
                 horizontal
