@@ -132,17 +132,19 @@ export default function HomeScreen() {
                     </View>
 
                     <View className="flex-row gap-4 mt-2">
-                        <Card className="flex-1 border-border bg-card shadow-sm">
-                            <CardContent className="p-3 flex-row items-center gap-3">
-                                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
-                                    <Icon as={StarIcon} className="text-primary size-5" />
-                                </View>
-                                <View>
-                                    <Text className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Reputation</Text>
-                                    <Text className="text-xl font-bold text-foreground">{reputation}</Text>
-                                </View>
-                            </CardContent>
-                        </Card>
+                        <TouchableOpacity className="flex-1" onPress={() => router.push('/help')} activeOpacity={0.7}>
+                            <Card className="border-border bg-card shadow-sm">
+                                <CardContent className="p-3 flex-row items-center gap-3">
+                                    <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
+                                        <Icon as={StarIcon} className="text-primary size-5" />
+                                    </View>
+                                    <View>
+                                        <Text className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Reputation</Text>
+                                        <Text className="text-xl font-bold text-foreground">{reputation}</Text>
+                                    </View>
+                                </CardContent>
+                            </Card>
+                        </TouchableOpacity>
                         <Card className="flex-1 border-border bg-card shadow-sm">
                             <CardContent className="p-3 flex-row items-center gap-3">
                                 <View className="h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 dark:bg-orange-500/20">

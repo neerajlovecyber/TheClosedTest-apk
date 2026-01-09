@@ -38,4 +38,19 @@ crons.daily(
     internal.notifications.cleanupOldNotifications
 );
 
+// Gentle reminder to upload screenshot - 6 PM IST (12:30 PM UTC)
+crons.daily(
+    "gentle-upload-reminder",
+    { hourUTC: 12, minuteUTC: 30 },
+    internal.notificationHelper.sendGentleReminders
+);
+
+// Urgent reminder to upload screenshot - 10 PM IST (4:30 PM UTC)
+// Warning: Upload before midnight or lose reputation!
+crons.daily(
+    "urgent-upload-reminder",
+    { hourUTC: 16, minuteUTC: 30 },
+    internal.notificationHelper.sendUrgentReminders
+);
+
 export default crons;

@@ -94,3 +94,113 @@ export const getUserById = internalQuery({
         return await ctx.db.get(args.userId);
     },
 });
+
+// Helper to calculate current testing day
+const calculateDay = (startDate: number) => {
+    if (!startDate) return 1;
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const startDay = Math.floor((startDate + IST_OFFSET) / DAY_MS);
+    const today = Math.floor((Date.now() + IST_OFFSET) / DAY_MS);
+    const diff = today - startDay;
+    const day = diff + 1;
+    return day > 14 ? 14 : day;
+};
+
+// Internal query to get users who need upload reminders
+export const getUsersNeedingReminders = internalQuery({
+    args: {},
+    handler: async (ctx) => {
+        // Get all active matches
+        const activeMatches = await ctx.db
+            .query("matches")
+            .filter((q) => q.eq(q.field("status"), "active"))
+            .collect();
+
+        const usersToRemind: Array<{
+            userId: string;
+            appName: string;
+            matchId: string;
+            day: number;
+        }> = [];
+
+        for (const match of activeMatches) {
+            const currentDay = calculateDay(match.startDate);
+
+            // Check both users in the match
+            const users = [
+                { userId: match.user1Id, appId: match.app2Id }, // User 1 tests App 2
+                { userId: match.user2Id, appId: match.app1Id }, // User 2 tests App 1
+            ];
+
+            for (const { userId, appId } of users) {
+                // Check if user has uploaded for today
+                const todayProof = await ctx.db
+                    .query("proofs")
+                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                    .filter((q) => q.and(
+                        q.eq(q.field("uploaderId"), userId),
+                        q.eq(q.field("day"), currentDay)
+                    ))
+                    .first();
+
+                // No proof for today - needs reminder
+                if (!todayProof) {
+                    const app = await ctx.db.get(appId);
+                    usersToRemind.push({
+                        userId: userId as string,
+                        appName: app?.title || "your app",
+                        matchId: match._id as string,
+                        day: currentDay,
+                    });
+                }
+            }
+        }
+
+        return usersToRemind;
+    },
+});
+
+// Send gentle reminder (afternoon)
+export const sendGentleReminders = action({
+    args: {},
+    handler: async (ctx) => {
+        const usersToRemind = await ctx.runQuery(internal.notificationHelper.getUsersNeedingReminders, {});
+
+        let sentCount = 0;
+        for (const reminder of usersToRemind) {
+            await ctx.runAction(internal.notificationHelper.createNotification, {
+                userId: reminder.userId as any,
+                type: "reminder",
+                title: "📸 Daily Screenshot Reminder",
+                body: `Don't forget to upload your Day ${reminder.day} screenshot for ${reminder.appName}!`,
+                data: { matchId: reminder.matchId, type: "upload_reminder" },
+            });
+            sentCount++;
+        }
+
+        console.log(`Sent ${sentCount} gentle reminders.`);
+    },
+});
+
+// Send urgent reminder (10 PM - last chance before penalty)
+export const sendUrgentReminders = action({
+    args: {},
+    handler: async (ctx) => {
+        const usersToRemind = await ctx.runQuery(internal.notificationHelper.getUsersNeedingReminders, {});
+
+        let sentCount = 0;
+        for (const reminder of usersToRemind) {
+            await ctx.runAction(internal.notificationHelper.createNotification, {
+                userId: reminder.userId as any,
+                type: "reminder",
+                title: "⚠️ Last Chance! Upload Now",
+                body: `Upload your Day ${reminder.day} screenshot for ${reminder.appName} before midnight or lose reputation points!`,
+                data: { matchId: reminder.matchId, type: "urgent_reminder" },
+            });
+            sentCount++;
+        }
+
+        console.log(`Sent ${sentCount} urgent reminders.`);
+    },
+});

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
-import { SearchIcon, StarIcon, PlusIcon } from 'lucide-react-native';
+import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
@@ -117,9 +117,18 @@ export default function MarketplaceScreen() {
         <View className="flex-1 bg-background">
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
                 <View className="gap-3">
-                    <View className="mb-0">
-                        <Text className="text-3xl font-extrabold text-foreground tracking-tight">Marketplace</Text>
-                        <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
+                    <View className="mb-0 flex-row justify-between items-start">
+                        <View>
+                            <Text className="text-3xl font-extrabold text-foreground tracking-tight">Marketplace</Text>
+                            <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => router.push('/help')}
+                            className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
+                            activeOpacity={0.7}
+                        >
+                            <Icon as={HelpCircleIcon} className="text-primary size-5" />
+                        </TouchableOpacity>
                     </View>
 
                     <GoogleGroupWidget className="mb-0" />

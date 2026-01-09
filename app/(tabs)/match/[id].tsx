@@ -177,7 +177,7 @@ export default function MatchDashboardScreen() {
         const summary = progressData?.summary;
 
         // Client-side override to ensure 'Today' always shows 'pending' (clock) instead of 'missed' if no proof is uploaded
-        const days = (progressData?.days || []).map(d => {
+        const days = (progressData?.days || []).map((d: any) => {
             if (d.day === currentDay) {
                 return {
                     ...d,
