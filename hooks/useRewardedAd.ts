@@ -16,6 +16,8 @@ export function useRewardedAd(adUnitId: string = AD_UNIT_ID_APP_SLOTS) {
     const [loaded, setLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [rewarded, setRewarded] = useState<RewardedAd | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
+    const MAX_RETRIES = 3;
 
     const loadAd = useCallback(() => {
         if (Platform.OS === 'web') return;
@@ -26,14 +28,25 @@ export function useRewardedAd(adUnitId: string = AD_UNIT_ID_APP_SLOTS) {
         });
 
         const unsubscribeLoaded = ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+            console.log('✅ Rewarded ad loaded successfully');
             setLoaded(true);
             setLoading(false);
+            setRetryCount(0);
         });
 
         const unsubscribeError = ad.addAdEventListener(AdEventType.ERROR, (error) => {
-            console.error('Rewarded ad failed to load:', error);
+            console.warn('⚠️ Rewarded ad failed to load:', error.message || error);
             setLoaded(false);
             setLoading(false);
+
+            // Retry with exponential backoff
+            if (retryCount < MAX_RETRIES) {
+                const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                console.log(`🔄 Retrying ad load in ${delay / 1000}s... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                setTimeout(() => {
+                    setRetryCount(prev => prev + 1);
+                }, delay);
+            }
         });
 
         setRewarded(ad);
@@ -43,7 +56,7 @@ export function useRewardedAd(adUnitId: string = AD_UNIT_ID_APP_SLOTS) {
             unsubscribeLoaded();
             unsubscribeError();
         };
-    }, [adUnitId]);
+    }, [adUnitId, retryCount]);
 
     useEffect(() => {
         const cleanup = loadAd();
