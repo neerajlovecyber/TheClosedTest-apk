@@ -67,7 +67,6 @@
     "experiments": {
       "typedRoutes": true
     },
-    "entryPoint": "./index.js",
     "extra": {
       "router": {},
       "eas": {
