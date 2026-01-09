@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert, Platform } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { PendingRequestCard } from '@/components/PendingRequestCard';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { BellIcon, ActivityIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, ArrowRightIcon } from 'lucide-react-native';
+import { BellIcon, ActivityIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, ArrowRightIcon, LockIcon, PlayCircleIcon } from 'lucide-react-native';
 import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
+import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { Id } from '@/convex/_generated/dataModel';
 import {
     AlertDialog,
@@ -43,9 +44,17 @@ export default function HomeScreen() {
     const checkIn = useMutation(api.users.checkIn);
     const acceptSwap = useMutation(api.matches.acceptSwap);
     const rejectSwap = useMutation(api.matches.rejectSwap);
+    const unlockAppSlot = useMutation(api.users.unlockAppSlot);
+
+    // Rewarded Ad for unlocking slots
+    const { loaded: adLoaded, loading: adLoading, showAd } = useRewardedAd();
+    const [unlocking, setUnlocking] = useState(false);
 
     // Cache invalidation
     const { invalidateMatches, invalidateApps } = useInvalidateQueries();
+
+    // Calculate unlocked slots (default 1)
+    const unlockedSlots = currentUser?.unlockedAppSlots ?? 1;
 
     // Actual user data
     const userName = user?.firstName || "Tester";
@@ -210,8 +219,8 @@ export default function HomeScreen() {
                 {/* My Apps Overview */}
                 <View className="px-6 pb-20">
                     <View className="flex-row justify-between items-center mb-4">
-                        <Text className="text-xl font-bold">My Apps ({myApps.length}/3)</Text>
-                        {myApps.length < 3 && (
+                        <Text className="text-xl font-bold">My Apps ({myApps.length}/{unlockedSlots})</Text>
+                        {myApps.length < unlockedSlots && (
                             <TouchableOpacity
                                 className="flex-row items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-full"
                                 onPress={() => router.push('/add-app')}
@@ -233,30 +242,76 @@ export default function HomeScreen() {
                     ))}
 
                     {/* Show placeholder cards for empty slots */}
-                    {Array.from({ length: 3 - myApps.length }).map((_, index) => (
-                        <TouchableOpacity
-                            key={`placeholder-${index}`}
-                            onPress={() => router.push('/add-app')}
-                            activeOpacity={0.7}
-                        >
-                            <Card className="mb-3 p-1.5 flex-row gap-2 border-2 border-dashed border-muted-foreground/20 bg-muted/5">
-                                {/* Icon placeholder matching image size */}
-                                <View className="w-20 h-20 rounded-xl bg-primary/10 items-center justify-center">
-                                    <Icon as={PlusIcon} className="text-primary size-8" />
-                                </View>
+                    {Array.from({ length: 3 - myApps.length }).map((_, index) => {
+                        const slotNumber = myApps.length + index + 1;
+                        const isLocked = slotNumber > unlockedSlots;
 
-                                {/* Content matching AppCard layout */}
-                                <View className="flex-1 justify-center py-0.5">
-                                    <Text className="text-muted-foreground font-semibold text-sm mb-1">
-                                        {myApps.length === 0 && index === 0 ? 'Add Your First App' : 'Add Another App'}
-                                    </Text>
-                                    <Text className="text-muted-foreground/60 text-xs">
-                                        Slot {myApps.length + index + 1} of 3 available
-                                    </Text>
-                                </View>
-                            </Card>
-                        </TouchableOpacity>
-                    ))}
+                        const handleSlotPress = async () => {
+                            if (!isLocked) {
+                                router.push('/add-app');
+                                return;
+                            }
+
+                            // Need to unlock via ad
+                            if (Platform.OS === 'web') {
+                                Alert.alert('Ads Not Available', 'Rewarded ads are only available on mobile devices.');
+                                return;
+                            }
+
+                            if (!adLoaded) {
+                                Alert.alert('Ad Loading', 'Please wait while the ad loads...');
+                                return;
+                            }
+
+                            setUnlocking(true);
+                            try {
+                                const rewarded = await showAd();
+                                if (rewarded) {
+                                    await unlockAppSlot();
+                                    Alert.alert('Slot Unlocked!', `App slot ${slotNumber} is now available!`);
+                                }
+                            } catch (error) {
+                                console.error('Failed to unlock slot:', error);
+                                Alert.alert('Error', 'Failed to unlock slot. Please try again.');
+                            } finally {
+                                setUnlocking(false);
+                            }
+                        };
+
+                        return (
+                            <TouchableOpacity
+                                key={`placeholder-${index}`}
+                                onPress={handleSlotPress}
+                                activeOpacity={0.7}
+                                disabled={unlocking}
+                            >
+                                <Card className={`mb-3 p-1.5 flex-row gap-2 border-2 border-dashed ${isLocked ? 'border-orange-400/40 bg-orange-50/10 dark:bg-orange-900/10' : 'border-muted-foreground/20 bg-muted/5'}`}>
+                                    {/* Icon placeholder matching image size */}
+                                    <View className={`w-20 h-20 rounded-xl items-center justify-center ${isLocked ? 'bg-orange-500/20' : 'bg-primary/10'}`}>
+                                        <Icon as={isLocked ? LockIcon : PlusIcon} className={`size-8 ${isLocked ? 'text-orange-500' : 'text-primary'}`} />
+                                    </View>
+
+                                    {/* Content matching AppCard layout */}
+                                    <View className="flex-1 justify-center py-0.5">
+                                        <Text className={`font-semibold text-sm mb-1 ${isLocked ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
+                                            {isLocked ? 'Locked Slot' : (myApps.length === 0 && index === 0 ? 'Add Your First App' : 'Add Another App')}
+                                        </Text>
+                                        <Text className="text-muted-foreground/60 text-xs mb-2">
+                                            Slot {slotNumber} of 3
+                                        </Text>
+                                        {isLocked && (
+                                            <View className="flex-row items-center gap-1.5 bg-orange-500/10 px-2 py-1 rounded-md self-start">
+                                                <Icon as={PlayCircleIcon} className="size-3.5 text-orange-600 dark:text-orange-400" />
+                                                <Text className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                                                    {adLoading ? 'Loading...' : 'Watch Ad to Unlock'}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                </Card>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </View>
             </ScrollView >
 

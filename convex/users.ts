@@ -207,3 +207,34 @@ export const syncAppCount = mutation({
         return activeApps.length;
     }
 });
+
+// Unlock an app slot after watching rewarded ad
+export const unlockAppSlot = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const currentSlots = user.unlockedAppSlots ?? 1;
+
+        if (currentSlots >= 3) {
+            throw new Error("All app slots are already unlocked");
+        }
+
+        await ctx.db.patch(user._id, {
+            unlockedAppSlots: currentSlots + 1,
+            updatedAt: Date.now(),
+        });
+
+        return currentSlots + 1;
+    }
+});
