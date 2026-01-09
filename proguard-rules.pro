@@ -1,0 +1,3 @@
+-dontwarn coil3.**
+-keep class coil3.** { *; }
+-keep interface coil3.** { *; }

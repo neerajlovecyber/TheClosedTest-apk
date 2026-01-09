@@ -52,7 +52,8 @@
           "android": {
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "enableBundleCompression": true
+            "enableBundleCompression": true,
+            "extraProguardRules": "-dontwarn coil3.**\n-keep class coil3.** { *; }\n-keep interface coil3.** { *; }"
           }
         }
       ],
