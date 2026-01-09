@@ -195,14 +195,8 @@ export default function MatchDashboardScreen() {
                             className="bg-muted"
                         />
                         <View className="ml-4 flex-1">
-                            <Text className="text-2xl font-bold">{app?.title || 'Testing'}</Text>
+                            <Text className="text-2xl font-bold" numberOfLines={1}>{app?.title || 'Testing'}</Text>
                             <Text className="text-sm text-muted-foreground" numberOfLines={1}>{app?.packageName}</Text>
-                        </View>
-                    </View>
-                    <View className="flex-row items-center justify-between">
-                        <Text className="text-sm text-muted-foreground">Day {currentDay} of 14</Text>
-                        <View className="bg-primary/10 px-2 py-1 rounded-full">
-                            <Text className="text-xs font-bold text-primary">{Math.round((currentDay / 14) * 100)}% Complete</Text>
                         </View>
                     </View>
 
