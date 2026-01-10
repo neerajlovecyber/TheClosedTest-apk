@@ -14,6 +14,7 @@ export default ({ config }) => {
 
     return {
         ...config,
+        entryPoint: './index.js',
         extra: {
             ...config.extra,
             eas: {
