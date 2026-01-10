@@ -10,7 +10,7 @@
     "clean": "rm -rf .expo node_modules"
   },
   "dependencies": {
-    "@clerk/clerk-expo": "^2.16.1",
+    "@clerk/clerk-expo": "2.16.1",
     "@codsod/react-native-chat": "^1.0.14",
     "@legendapp/list": "^2.0.19",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -44,7 +44,7 @@
     "@tanstack/react-query-persist-client": "5.62.8",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "convex": "^1.31.2",
+    "convex": "1.31.2",
     "dotenv": "^17.2.3",
     "expo": "^54.0.30",
     "expo-application": "~7.0.8",

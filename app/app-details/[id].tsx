@@ -4,6 +4,7 @@ import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Sha
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -70,22 +71,31 @@ export default function AppDetailsScreen() {
 
     const isLocked = matchStatus?.status === 'active' || matchStatus?.status === 'pending';
 
-    const handleOpenPlayStore = async () => {
+    const handleOpenApp = async () => {
         if (!app) return;
         const playUrl = app.playStoreUrl;
         const marketUrl = `market://details?id=${app.packageName}`;
 
         try {
-            // Try market scheme first (deep link to Play Store app)
-            await Linking.openURL(marketUrl);
+            // Try to launch the app directly
+            await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
+                category: 'android.intent.category.LAUNCHER',
+                packageName: app.packageName
+            });
         } catch (error) {
-            // Fallback to web URL
-            if (playUrl) {
-                Linking.openURL(playUrl).catch(() => {
-                    Alert.alert("Error", "Could not open Play Store. Please ensure you have it installed.");
-                });
-            } else {
-                Alert.alert("Error", "Play Store link not found.");
+            // If launch fails (app not installed or other error), fallback to Play Store
+            try {
+                // Try market scheme first (deep link to Play Store app)
+                await Linking.openURL(marketUrl);
+            } catch (linkError) {
+                // Fallback to web URL
+                if (playUrl) {
+                    Linking.openURL(playUrl).catch(() => {
+                        Alert.alert("Error", "Could not open Play Store. Please ensure you have it installed.");
+                    });
+                } else {
+                    Alert.alert("Error", "Could not launch app and Play Store link not found.");
+                }
             }
         }
     };
@@ -214,12 +224,12 @@ export default function AppDetailsScreen() {
                                     </View>
 
                                     <TouchableOpacity
-                                        onPress={handleOpenPlayStore}
+                                        onPress={handleOpenApp}
                                         className="flex-row items-center bg-white px-3 py-1.5 rounded-full self-start mt-2"
                                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                     >
                                         <Icon as={PlayIcon} className="size-3.5 text-black mr-1.5" />
-                                        <Text className="text-black font-bold text-xs">Play Store</Text>
+                                        <Text className="text-black font-bold text-xs">Open App</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
