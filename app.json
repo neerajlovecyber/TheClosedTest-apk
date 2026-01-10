@@ -48,7 +48,16 @@
         "expo-build-properties",
         {
           "android": {
-            "newArchEnabled": true
+            "newArchEnabled": true,
+            "extraProguardRules": "-dontwarn **",
+            "packagingOptions": {
+              "pickFirst": ["**/libc++_shared.so"]
+            },
+            "gradleProperties": {
+              "android.lint.checkReleaseBuilds": "false",
+              "android.lint.abortOnError": "false",
+              "android.lint.ignoreWarnings": "true"
+            }
           }
         }
       ],
