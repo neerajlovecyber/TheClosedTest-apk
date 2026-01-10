@@ -44,7 +44,14 @@
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
-
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "newArchEnabled": true
+          }
+        }
+      ],
       [
         "react-native-google-mobile-ads",
         {

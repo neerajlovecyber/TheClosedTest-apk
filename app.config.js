@@ -15,6 +15,24 @@ export default ({ config }) => {
     return {
         ...config,
         entryPoint: './index.js',
+        plugins: [
+            ...(config.plugins || []),
+            [
+                'expo-build-properties',
+                {
+                    android: {
+                        // Gradle JVM memory for CI/CD (GitHub Actions has 7GB)
+                        // This prevents OutOfMemoryError: Metaspace during builds
+                        gradleProperties: {
+                            'org.gradle.jvmargs': '-Xmx5g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError',
+                            'org.gradle.daemon': 'true',
+                            'org.gradle.parallel': 'true',
+                            'org.gradle.caching': 'true',
+                        },
+                    },
+                },
+            ],
+        ],
         extra: {
             ...config.extra,
             eas: {
