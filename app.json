@@ -41,6 +41,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/withDisableLint.js",
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
@@ -49,11 +50,14 @@
         {
           "android": {
             "newArchEnabled": true,
+            "enableShrinking": false,
+            "enableProguardInReleaseBuilds": false,
             "extraProguardRules": "-dontwarn **",
             "packagingOptions": {
               "pickFirst": ["**/libc++_shared.so"]
             },
             "gradleProperties": {
+              "org.gradle.jvmargs": "-Xmx4g -XX:MaxMetaspaceSize=3g -XX:MetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8",
               "android.lint.checkReleaseBuilds": "false",
               "android.lint.abortOnError": "false",
               "android.lint.ignoreWarnings": "true"
