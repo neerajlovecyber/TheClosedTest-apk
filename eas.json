@@ -11,7 +11,10 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "GRADLE_OPTS": "-Xmx5g -Xms2g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -20,7 +23,8 @@
         "APP_ENV": "production",
         "EXPO_PUBLIC_CONVEX_URL": "https://artful-grasshopper-509.convex.cloud",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
-        "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com"
+        "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com",
+        "GRADLE_OPTS": "-Xmx5g -Xms2g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
       }
     }
   },
