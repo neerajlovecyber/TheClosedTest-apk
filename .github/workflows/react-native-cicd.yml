@@ -27,6 +27,8 @@ jobs:
     needs: check-skip
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
@@ -110,7 +112,7 @@ jobs:
       - name: 🏷️ Generate build information
         id: build-info
         run: |
-          VERSION=$(node -p "require('./app.json').expo.version")
+          VERSION=$(node -p "require('./package.json').version")
           BUILD_NUMBER=$(date +%Y%m%d%H%M)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
@@ -129,8 +131,8 @@ jobs:
           name: "Release v${{ steps.build-info.outputs.version }}-${{ steps.build-info.outputs.build_number }}"
           tag_name: "v${{ steps.build-info.outputs.version }}-${{ steps.build-info.outputs.build_number }}"
           files: |
-            ./app-dev.apk
-            ./app-prod.aab
+            *.apk
+            *.aab
           body_path: changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

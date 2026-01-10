@@ -1,28 +1,70 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
+const pkg = require('./package.json');
 
-import pkg from './package.json';
-
-export default ({ config }) => {
-    // Always load production environment - we only use production Convex
-
-    const envPath = path.resolve(__dirname, '.env.production');
-
-    if (fs.existsSync(envPath)) {
-        dotenv.config({ path: envPath });
-    }
-
-    console.log(`[Config] Convex: ${process.env.EXPO_PUBLIC_CONVEX_URL}`);
-
-    return {
-        ...config,
-        version: pkg.version,
+module.exports = {
+    expo: {
+        name: "theclosedtest",
+        slug: "theclosedtest",
+        orientation: "portrait",
+        icon: "./assets/images/icon.png",
+        scheme: "theclosedtest",
+        userInterfaceStyle: "automatic",
+        newArchEnabled: true,
+        runtimeVersion: {
+            policy: "appVersion"
+        },
+        updates: {
+            url: "https://u.expo.dev/5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
+        },
+        splash: {
+            image: "./assets/images/splash.png",
+            resizeMode: "contain",
+            backgroundColor: "#ffffff"
+        },
+        assetBundlePatterns: [
+            "**/*"
+        ],
+        ios: {
+            supportsTablet: true
+        },
+        android: {
+            edgeToEdgeEnabled: true,
+            adaptiveIcon: {
+                foregroundImage: "./assets/images/adaptive-icon/foreground.png",
+                backgroundImage: "./assets/images/adaptive-icon/background.png"
+            },
+            package: "com.theneerajsec.theclosedtest",
+            googleServicesFile: "./google-services.json",
+            permissions: [
+                "QUERY_ALL_PACKAGES"
+            ]
+        },
+        web: {
+            bundler: "metro",
+            output: "static",
+            favicon: "./assets/images/favicon.png"
+        },
+        experiments: {
+            typedRoutes: true
+        },
+        plugins: [
+            "expo-router",
+            "expo-secure-store",
+            "expo-web-browser",
+            [
+                "react-native-google-mobile-ads",
+                {
+                    "androidAppId": "ca-app-pub-3238435978294704~7120634978",
+                    "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+                }
+            ],
+            "./plugins/withGradleProperties"
+        ],
         extra: {
-            ...config.extra,
+            router: {},
             eas: {
-                projectId: "5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
+                "projectId": "5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
             }
         },
-    };
+        version: pkg.version
+    }
 };
