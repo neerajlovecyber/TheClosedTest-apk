@@ -7,7 +7,7 @@ export default ({ config }) => {
     const envPath = path.resolve(__dirname, '.env.production');
 
     if (fs.existsSync(envPath)) {
-        dotenv.config({ path: envPath });
+        dotenv.config({ path: envPath, override: true });
     }
 
     console.log(`[Config] Convex: ${process.env.EXPO_PUBLIC_CONVEX_URL}`);
