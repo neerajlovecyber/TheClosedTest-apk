@@ -7,13 +7,11 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development",
-      "gradleCommand": ":app:assembleDebug -x lintVitalAnalyzeDebug"
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "gradleCommand": ":app:bundleRelease -x lintVitalAnalyzeRelease",
       "env": {
         "GRADLE_OPTS": "-Xmx4g -Xms2g -XX:MaxMetaspaceSize=3g -XX:MetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
       }
@@ -21,7 +19,6 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "gradleCommand": ":app:bundleRelease -x lintVitalAnalyzeRelease",
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_CONVEX_URL": "https://artful-grasshopper-509.convex.cloud",
