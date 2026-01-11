@@ -19,7 +19,7 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
 
     const handleJoinGroup = () => {
         setHasClickedLink(true);
-        Linking.openURL("https://groups.google.com/g/theclosedtest");
+        Linking.openURL("https://groups.google.com/g/developers-community-official");
     };
 
     const handleConfirm = async () => {
