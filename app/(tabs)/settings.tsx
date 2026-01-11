@@ -27,6 +27,7 @@ import {
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Linking, ScrollView, View, Share, TouchableOpacity } from 'react-native';
+import Constants from 'expo-constants';
 
 interface SettingItemProps {
     icon: LucideIcon;
@@ -266,7 +267,7 @@ export default function SettingsScreen() {
                             <Text className="text-white text-lg font-semibold">Log Out</Text>
                         </Button>
                         <View className="items-center pt-6">
-                            <Text className="text-xs text-muted-foreground/60">The Closed Test • Version 1.0.0</Text>
+                            <Text className="text-xs text-muted-foreground/60">The Closed Test • Version {Constants.expoConfig?.version || '1.0.0'}</Text>
                         </View>
                     </View>
 

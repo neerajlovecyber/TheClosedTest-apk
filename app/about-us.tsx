@@ -3,12 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { Stack, useRouter } from 'expo-router';
-import { ChevronLeftIcon, BoxIcon, RocketIcon, UsersIcon, MailIcon, HeartIcon } from 'lucide-react-native';
+import { ChevronLeftIcon, BoxIcon, RocketIcon, UsersIcon, MailIcon, HeartIcon, LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
 import { Linking, ScrollView, View } from 'react-native';
+import Constants from 'expo-constants';
 
 interface SectionProps {
-    icon: React.ElementType;
+    icon: LucideIcon;
     title: string;
     iconColor: string;
     children: React.ReactNode;
@@ -61,7 +62,7 @@ export default function AboutUsScreen() {
                         </View>
                         <View className="items-center gap-1">
                             <Text className="text-3xl font-black tracking-tight text-foreground">The Closed Test</Text>
-                            <Text className="text-muted-foreground font-medium">Version 1.0.0</Text>
+                            <Text className="text-muted-foreground font-medium">Version {Constants.expoConfig?.version || '1.0.0'}</Text>
                         </View>
                     </View>
 
