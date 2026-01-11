@@ -23,6 +23,9 @@ export const internalSnapshotDailyStats = internalMutation({
         const proofs = await ctx.db.query("proofs").collect();
         const proofsCount = proofs.filter(p => p.submittedAt >= startOfDay && p.submittedAt < endOfDay).length;
 
+        const users = await ctx.db.query("users").collect();
+        const newUsersCount = users.filter(u => u.createdAt >= startOfDay && u.createdAt < endOfDay).length;
+
         const apps = await ctx.db.query("apps").collect();
         const appsCount = apps.filter(a => a.createdAt >= startOfDay && a.createdAt < endOfDay).length;
 
@@ -79,11 +82,12 @@ export const getStats = query({
 
         // Calculate some basic trends (e.g. users joined today)
         const now = Date.now();
-        const oneDayAgo = now - 24 * 60 * 60 * 1000;
-        const newUsersToday = users.filter(u => u.createdAt > oneDayAgo).length;
+        const todayStr = new Date(now).toISOString().split('T')[0];
+        const startOfToday = new Date(todayStr).getTime();
+        const endOfToday = startOfToday + 24 * 60 * 60 * 1000;
+        const newUsersToday = users.filter(u => u.createdAt >= startOfToday && u.createdAt < endOfToday).length;
 
-        // Calculate DAU (Based on check-ins)
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Calculate DAU (Based on users who checked in "Today" UTC-wise)
         const dau = users.filter(u => u.lastCheckInDate === todayStr).length;
 
         // Trend Calculation
@@ -111,7 +115,15 @@ export const getStats = query({
                 newUsers: newUsersTrend,
                 newUsersCountLastWeek: newUsersLastWeek
             },
-            history,
+            history: history.map(h => {
+                const start = new Date(h.date).getTime();
+                const end = start + 24 * 60 * 60 * 1000;
+                const newUsersOnDate = users.filter(u => u.createdAt >= start && u.createdAt < end).length;
+                return {
+                    ...h,
+                    newUsers: newUsersOnDate
+                };
+            }),
             recentUsers: users.sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
         };
     },
@@ -130,6 +142,7 @@ export const getUsersByFilter = query({
             const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
 
             if (args.filter === "new" || args.filter === "all") {
+                // When filtering by a specific historical date, we show users created on THAT date
                 return users.filter(u => u.createdAt >= startOfDay && u.createdAt < endOfDay)
                     .sort((a, b) => b.createdAt - a.createdAt);
             }
@@ -142,12 +155,13 @@ export const getUsersByFilter = query({
             }
         }
 
-        const matches = await ctx.db.query("matches").collect();
         const now = Date.now();
         const oneDayAgo = now - 24 * 60 * 60 * 1000;
+        const todayStr = new Date(now).toISOString().split('T')[0];
 
         if (args.filter === "active") {
             const activeUserIds = new Set<string>();
+            const matches = await ctx.db.query("matches").collect();
             matches.forEach(m => {
                 if (m.status === 'active' || m.lastActivity > oneDayAgo) {
                     activeUserIds.add(m.user1Id);
@@ -157,13 +171,13 @@ export const getUsersByFilter = query({
             users.forEach(u => {
                 if (u.createdAt > oneDayAgo) activeUserIds.add(u._id);
                 // Also check lastCheckInDate for "today"
-                const todayStr = new Date().toISOString().split('T')[0];
                 if (u.lastCheckInDate === todayStr) activeUserIds.add(u._id);
             });
             return users.filter(u => activeUserIds.has(u._id));
         }
 
         if (args.filter === "new") {
+            // For general 'new' filter (no date), show users from the last 24h
             return users.filter(u => u.createdAt > oneDayAgo).sort((a, b) => b.createdAt - a.createdAt);
         }
 
@@ -193,13 +207,13 @@ export const sendTestNotification = action({
         title: v.string(),
         body: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Unauthorized");
 
         console.log("🔍 Test notification - Identity:", identity.tokenIdentifier);
 
-        const user = await ctx.runQuery(internal.admin.getUserByIdentity, {
+        const user: any = await ctx.runQuery(internal.admin.getUserByIdentity, {
             tokenIdentifier: identity.tokenIdentifier,
         });
 

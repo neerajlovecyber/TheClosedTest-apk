@@ -138,8 +138,8 @@ export default defineSchema({
 
     analytics: defineTable({
         date: v.string(), // YYYY-MM-DD
-        activeUsers: v.number(),
         activeMatches: v.number(),
+        activeUsers: v.number(),
         proofsUploaded: v.number(),
         appsSubmitted: v.number(),
         reportsCreated: v.number(),
