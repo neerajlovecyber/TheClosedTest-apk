@@ -113,7 +113,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                         <Text className="text-sm font-medium mb-2 text-muted-foreground">
                             Selected Images ({selectedImages.length}/5)
                         </Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pt-2">
                             {selectedImages.map((image, index) => (
                                 <View key={index} className="relative mr-3">
                                     <Image
