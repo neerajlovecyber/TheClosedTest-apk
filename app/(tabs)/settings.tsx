@@ -129,7 +129,8 @@ export default function SettingsScreen() {
     const { colorScheme, toggleColorScheme } = useColorScheme();
     const router = useRouter();
 
-    const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
+    const ADMIN_EMAILS = ['neerajlovecyber@gmail.com', 'futureaistudio41@gmail.com'];
+    const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
 
     const handleShare = async () => {
         try {

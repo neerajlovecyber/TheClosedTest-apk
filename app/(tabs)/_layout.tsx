@@ -10,7 +10,8 @@ import { api } from '@/convex/_generated/api';
 
 export default function TabLayout() {
     const { user } = useUser();
-    const isAdmin = user?.emailAddresses.some(e => e.emailAddress === 'neerajlovecyber@gmail.com');
+    const ADMIN_EMAILS = ['neerajlovecyber@gmail.com', 'futureaistudio41@gmail.com'];
+    const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
     const insets = useSafeAreaInsets();
 
     // Check for pending tasks that need attention
