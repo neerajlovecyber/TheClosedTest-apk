@@ -42,7 +42,9 @@ export default function AnalyticsScreen() {
         }
 
         return days.map(dateStr => {
-            const isToday = dateStr === new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const isToday = dateStr === todayStr;
 
             const historyItem = stats.history?.find((h: any) => h.date === dateStr);
 
@@ -50,7 +52,12 @@ export default function AnalyticsScreen() {
             if (isToday) {
                 value = filter === 'active' ? (stats.dau || 0) : (stats.newUsersToday || 0);
             } else if (historyItem) {
-                value = filter === 'active' ? historyItem.activeUsers : historyItem.activeUsers;
+                // If filter is 'active', use activeUsers. If 'new', use appsSubmitted (serving as a proxy for activity/newness if specific User metrics aren't in history)
+                // Actually history only has: activeUsers, activeMatches, proofsUploaded, appsSubmitted, reportsCreated
+                // Let's check history fields again. It lacks 'newUsers'.
+                // If it's the 'new' filter, we should probably show 0 or a dash if history doesn't track it, 
+                // but let's use activeUsers as a fallback for the bar heights for now if nothing else exists.
+                value = filter === 'active' ? historyItem.activeUsers : (historyItem.newUsers || 0);
             }
 
             return {

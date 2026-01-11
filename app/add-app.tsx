@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon, SendIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
@@ -200,14 +200,34 @@ export default function AddAppScreen() {
                             {/* 1. Google Group */}
                             <View>
                                 <Text className="font-semibold mb-2 text-foreground">1. Join Community</Text>
-                                <GoogleGroupWidget className="mb-0" />
+                                <View className="gap-3">
+                                    <GoogleGroupWidget className="mb-0" />
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            const { Linking } = require('react-native');
+                                            Linking.openURL("https://t.me/developers_community_official/1");
+                                        }}
+                                        className="flex-row items-center justify-between bg-sky-500/10 border border-sky-500/20 p-3 rounded-xl"
+                                    >
+                                        <View className="flex-row items-center gap-3">
+                                            <View className="bg-sky-500 p-2 rounded-full">
+                                                <Icon as={SendIcon} className="text-white size-4" />
+                                            </View>
+                                            <View>
+                                                <Text className="text-sky-800 dark:text-sky-200 font-bold text-sm">Join Telegram</Text>
+                                                <Text className="text-sky-700/70 dark:text-sky-400/70 text-xs">Official Developers Community</Text>
+                                            </View>
+                                        </View>
+                                        <Icon as={SendIcon} className="text-sky-500 size-4" />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
 
                             {/* 2. Add Email */}
                             <View>
                                 <Text className="font-semibold mb-2 text-foreground">2. Play Console Setup</Text>
                                 <Text className="text-sm text-muted-foreground mb-3">
-                                    Add <Text className="font-bold text-foreground">theclosedtest@googlegroups.com</Text> to your app's Closed Testing track testers in Google Play Console.
+                                    Add <Text className="font-bold text-foreground">developers-community-official@googlegroups.com</Text> to your app's Closed Testing track testers in Google Play Console.
                                 </Text>
                                 <View className="flex-row items-center gap-3 p-3 bg-secondary/50 rounded-lg">
                                     <Switch

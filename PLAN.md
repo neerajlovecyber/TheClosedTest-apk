@@ -16,7 +16,7 @@
   - Testing Instructions (Specific actions to perform)
     - *Quick Suggestions*: "Open app daily", "Keep installed for 14 days", "Test for 5 mins".
 - **Critical Requirement**:
-  - User MUST confirm they have added `theclosedtest@googlegroups.com` to their Closed Testing track.
+  - User MUST confirm they have added `developers-community-official@googlegroups.com` to their Closed Testing track.
   - User MUST confirmed they have joined the Google Group (persisted in profile).
 
 ### B. Marketplace & Matching

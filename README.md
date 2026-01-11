@@ -18,12 +18,12 @@ To publish an Android app on the Google Play Store, developers with personal acc
 ### 1. Setup & Configuration (CRITICAL) ⚠️
 Before you can start, you **must** configure your Google Play Console to allow our community of testers:
 
-1.  **Join the Google Group**: [theclosedtest@googlegroups.com](https://groups.google.com/g/theclosedtest)
+1.  **Join the Google Group**: [developers-community-official@googlegroups.com](https://groups.google.com/g/developers-community-official)
     *   *You need to be a member of this group to download other people's apps.*
 2.  **Add the Group to Your App**:
     *   Go to **Google Play Console** > **Closed Testing** > **Manage Track**.
     *   Select **Testers** > **Google Groups**.
-    *   Add email: `theclosedtest@googlegroups.com`.
+    *   Add email: `developers-community-official@googlegroups.com`.
     *   *This gives permission to everyone in the group (us) to access your closed test.*
 
 ### 2. Add Your App

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Share } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Share, Platform, Linking as RNLinking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -73,30 +73,32 @@ export default function AppDetailsScreen() {
 
     const handleOpenApp = async () => {
         if (!app) return;
-        const playUrl = app.playStoreUrl;
-        const marketUrl = `market://details?id=${app.packageName}`;
+        const packageName = app.packageName;
+        const marketUrl = `market://details?id=${packageName}`;
+        const webUrl = app.playStoreUrl || `https://play.google.com/store/apps/details?id=${packageName}`;
 
-        try {
-            // Try to launch the app directly
-            await IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
-                category: 'android.intent.category.LAUNCHER',
-                packageName: app.packageName
-            });
-        } catch (error) {
-            // If launch fails (app not installed or other error), fallback to Play Store
-            try {
-                // Try market scheme first (deep link to Play Store app)
-                await Linking.openURL(marketUrl);
-            } catch (linkError) {
-                // Fallback to web URL
-                if (playUrl) {
-                    Linking.openURL(playUrl).catch(() => {
-                        Alert.alert("Error", "Could not open Play Store. Please ensure you have it installed.");
-                    });
+        const openPlayStore = () => {
+            RNLinking.canOpenURL(marketUrl).then(supported => {
+                if (supported) {
+                    RNLinking.openURL(marketUrl);
                 } else {
-                    Alert.alert("Error", "Could not launch app and Play Store link not found.");
+                    RNLinking.openURL(webUrl);
                 }
+            }).catch(() => {
+                RNLinking.openURL(webUrl);
+            });
+        };
+
+        if (Platform.OS === 'android') {
+            try {
+                // @ts-ignore - openApplication is available in expo-intent-launcher ~13.0.0
+                await IntentLauncher.openApplication(packageName);
+            } catch (error: any) {
+                console.log("App launch failed:", error);
+                openPlayStore();
             }
+        } else {
+            openPlayStore();
         }
     };
 

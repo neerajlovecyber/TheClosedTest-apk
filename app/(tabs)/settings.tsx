@@ -23,10 +23,12 @@ import {
     SunIcon,
     SparklesIcon,
     HelpCircleIcon,
+    SendIcon,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Linking, ScrollView, View, Share, TouchableOpacity } from 'react-native';
+import Constants from 'expo-constants';
 
 interface SettingItemProps {
     icon: LucideIcon;
@@ -159,11 +161,26 @@ export default function SettingsScreen() {
 
                 <UserProfile />
 
-                <View className="px-4 mb-4">
-                    <GoogleGroupWidget />
-                </View>
-
                 <View className="px-4 gap-6">
+                    {/* Community Section */}
+                    <View className="gap-3">
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Community</Text>
+                        <View className="gap-3">
+                            <GoogleGroupWidget />
+                            <Card className="overflow-hidden p-0 gap-0 border-0">
+                                <CardContent className="p-0 gap-0">
+                                    <SettingItem
+                                        icon={SendIcon}
+                                        label="Telegram Community"
+                                        subtitle="Join our developer community"
+                                        onPress={() => handleLink('https://t.me/developers_community_official/1')}
+                                        iconColor="bg-sky-500"
+                                    />
+                                </CardContent>
+                            </Card>
+                        </View>
+                    </View>
+
                     {/* Appearance Section */}
                     <View className="gap-3">
                         <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Appearance</Text>
@@ -266,7 +283,7 @@ export default function SettingsScreen() {
                             <Text className="text-white text-lg font-semibold">Log Out</Text>
                         </Button>
                         <View className="items-center pt-6">
-                            <Text className="text-xs text-muted-foreground/60">The Closed Test • Version 1.0.0</Text>
+                            <Text className="text-xs text-muted-foreground/60">The Closed Test • Version {Constants.expoConfig?.version || '1.0.0'}</Text>
                         </View>
                     </View>
 

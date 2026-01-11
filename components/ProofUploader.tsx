@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { CameraIcon, XIcon, PlusIcon, SendIcon, ImageIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 
@@ -28,6 +28,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const user = useQuery(api.users.getCurrentUser);
 
     const uploadProofMutation = useMutation(api.matches.uploadProof);
 
@@ -68,6 +69,11 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             return;
         }
 
+        if (!user) {
+            Alert.alert("Error", "User data not loaded yet. Please wait a moment.");
+            return;
+        }
+
         setIsUploading(true);
 
         try {
@@ -77,8 +83,11 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
 
             for (let i = 0; i < selectedImages.length; i++) {
                 const image = selectedImages[i];
-                const filename = `${i}.webp`;
-                const url = await uploadImageToR2(image.uri, `proofs/${matchId}/${currentDay}`, filename);
+                // Include uploaderId and timestamp in path to prevent collisions and caching
+                const timestamp = Date.now();
+                const filename = `${timestamp}_${i}.webp`;
+                const uploaderId = user?._id || 'unknown';
+                const url = await uploadImageToR2(image.uri, `proofs/${matchId}/${uploaderId}/${currentDay}`, filename);
                 r2Urls.push(url);
             }
 
@@ -113,7 +122,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                         <Text className="text-sm font-medium mb-2 text-muted-foreground">
                             Selected Images ({selectedImages.length}/5)
                         </Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pt-2">
                             {selectedImages.map((image, index) => (
                                 <View key={index} className="relative mr-3">
                                     <Image
