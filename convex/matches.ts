@@ -186,6 +186,46 @@ export const acceptSwap = mutation({
             throw new Error("Match is not pending");
         }
 
+        // Get both apps to check tester counts BEFORE accepting
+        const app1 = await ctx.db.get(match.app1Id);
+        const app2 = await ctx.db.get(match.app2Id);
+
+        // Count current active testers for app1
+        if (app1) {
+            const app1ActiveMatches = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.or(
+                        q.eq(q.field("app1Id"), app1._id),
+                        q.eq(q.field("app2Id"), app1._id)
+                    ),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            if (app1ActiveMatches.length >= app1.requiredTesters) {
+                throw new Error(`${app1.title} already has enough testers`);
+            }
+        }
+
+        // Count current active testers for app2
+        if (app2) {
+            const app2ActiveMatches = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.or(
+                        q.eq(q.field("app1Id"), app2._id),
+                        q.eq(q.field("app2Id"), app2._id)
+                    ),
+                    q.eq(q.field("status"), "active")
+                ))
+                .collect();
+
+            if (app2ActiveMatches.length >= app2.requiredTesters) {
+                throw new Error(`${app2.title} already has enough testers`);
+            }
+        }
+
         await ctx.db.patch(args.matchId, {
             status: "active",
             startDate: Date.now(),
@@ -193,8 +233,7 @@ export const acceptSwap = mutation({
         });
 
         // Check if either app is now filled and update status
-        const app1 = await ctx.db.get(match.app1Id);
-        const app2 = await ctx.db.get(match.app2Id);
+        // (app1 and app2 already fetched above)
 
         // Count active testers for app1
         if (app1 && app1.status === "recruiting") {
