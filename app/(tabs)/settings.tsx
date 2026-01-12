@@ -207,13 +207,20 @@ export default function SettingsScreen() {
                     <View className="gap-3">
                         <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Help</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
-                            <CardContent className="p-0 gap-0">
+                            <CardContent className="p-0 gap-0 divide-y divide-border/30">
                                 <SettingItem
                                     icon={HelpCircleIcon}
                                     label="How It Works"
                                     subtitle="Learn how to use the app"
                                     onPress={() => router.push('/help')}
                                     iconColor="bg-indigo-500"
+                                />
+                                <SettingItem
+                                    icon={CheckCircleIcon}
+                                    label="Play Store Setup Guide"
+                                    subtitle="How to add Google Group to testers"
+                                    onPress={() => router.push('/playstore-guide')}
+                                    iconColor="bg-emerald-500"
                                 />
                             </CardContent>
                         </Card>

@@ -229,6 +229,21 @@ export default function AddAppScreen() {
                                 <Text className="text-sm text-muted-foreground mb-3">
                                     Add <Text className="font-bold text-foreground">developers-community-official@googlegroups.com</Text> to your app's Closed Testing track testers in Google Play Console.
                                 </Text>
+
+                                {/* Detailed Guide Link */}
+                                <TouchableOpacity
+                                    onPress={() => router.push('/playstore-guide')}
+                                    className="flex-row items-center gap-2 bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl mb-3"
+                                >
+                                    <View className="bg-blue-500 p-2 rounded-full">
+                                        <Icon as={CheckCircleIcon} className="text-white size-4" />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-blue-800 dark:text-blue-200 font-bold text-sm">📖 View Step-by-Step Guide</Text>
+                                        <Text className="text-blue-700/70 dark:text-blue-400/70 text-xs">See screenshots on how to add Google Group</Text>
+                                    </View>
+                                </TouchableOpacity>
+
                                 <View className="flex-row items-center gap-3 p-3 bg-secondary/50 rounded-lg">
                                     <Switch
                                         checked={hasAddedEmail}
