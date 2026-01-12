@@ -1,5 +1,6 @@
 import { SocialConnections } from '@/components/social-connections';
 import { Button } from '@/components/ui/button';
+import { OnboardingMockup } from '@/components/onboarding-mockup';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { router } from 'expo-router';
@@ -13,39 +14,34 @@ import { TouchableOpacity } from 'react-native';
 
 const ONBOARDING_STEPS = [
     {
-        title: 'Welcome to\nThe Closed Test',
-        description: 'Get 12+ testers for your Android app to pass Google Play\'s closed testing requirement.',
-        Icon: Box,
+        title: 'Need 12 Testers?',
+        description: 'Get 12 testers for your Android app to pass Google Play\'s closed testing requirement.',
+        mockupType: 'welcome' as const,
         iconBgClass: 'bg-primary/10 dark:bg-primary/20',
-        iconColor: '#3B82F6', // blue-500
     },
     {
-        title: 'Mutual Testing\nExchange',
-        description: 'I test your app for 14 days, you test mine. Simple swap system to help each other succeed.',
-        Icon: Handshake,
-        iconBgClass: 'bg-green-500/10 dark:bg-green-500/20',
-        iconColor: '#22C55E', // green-500
+        title: 'Step 1: Add Your App',
+        description: 'Submit your app details and Play Store link so others can find and test it.',
+        mockupType: 'add-app' as const,
+        iconBgClass: 'bg-blue-500/10 dark:bg-blue-500/20',
     },
     {
-        title: 'Daily Screenshot\nProof',
-        description: 'Upload 1 screenshot daily showing you used the app. Your partner reviews and approves it.',
-        Icon: Camera,
-        iconBgClass: 'bg-amber-500/10 dark:bg-amber-500/20',
-        iconColor: '#F59E0B', // amber-500
+        title: 'Step 2: Find Testers',
+        description: 'Browse the marketplace and request swaps with other developers.',
+        mockupType: 'marketplace' as const,
+        iconBgClass: 'bg-indigo-500/10 dark:bg-indigo-500/20',
     },
     {
-        title: 'Build Your\nReputation',
-        description: 'Earn +1 for approved proofs. Lose points for missed days (-2) or rejections (-5). Higher score = more trust!',
-        Icon: Star,
-        iconBgClass: 'bg-purple-500/10 dark:bg-purple-500/20',
-        iconColor: '#A855F7', // purple-500
+        title: 'Step 3: Test Daily',
+        description: 'Test your partner\'s app for 14 days. Upload screenshot proof daily.',
+        mockupType: 'testing' as const,
+        iconBgClass: 'bg-orange-500/10 dark:bg-orange-500/20',
     },
     {
-        title: 'Ready to\nGet Started?',
-        description: 'Join our community of Android developers helping each other publish on Google Play.',
-        Icon: Sparkles,
-        iconBgClass: 'bg-cyan-500/10 dark:bg-cyan-500/20',
-        iconColor: '#06B6D4', // cyan-500
+        title: 'Get Published!',
+        description: 'Pass the 14-day closed test requirement and launch your app to millions on Google Play.',
+        mockupType: 'success' as const,
+        iconBgClass: 'bg-muted/10 dark:bg-muted/20',
     },
 ];
 
@@ -119,34 +115,23 @@ export default function WelcomeScreen() {
                         style={{ width: SCREEN_WIDTH }}
                         className="flex-1 items-center justify-center p-8"
                     >
-                        <View className="items-center justify-center gap-8">
-                            {/* Icon Container with premium styling */}
-                            {index === 0 ? (
+                        <View className="items-center justify-center gap-8 w-full">
+                            {/* Mockup Container with premium styling */}
+                            <Animated.View
+                                style={{ transform: [{ scale: index === activeIndex ? scaleAnim : 1 }] }}
+                                className={cn(
+                                    "w-full aspect-square max-w-[320px] rounded-[48px] items-center justify-center overflow-hidden",
+                                    step.iconBgClass
+                                )}
+                            >
                                 <Pressable
-                                    onLongPress={() => router.push('/(auth)/tester-login')}
+                                    className="w-full h-full items-center justify-center"
+                                    onLongPress={index === 0 ? () => router.push('/(auth)/tester-login') : undefined}
                                     delayLongPress={2000}
                                 >
-                                    <Animated.View
-                                        style={{ transform: [{ scale: index === activeIndex ? scaleAnim : 1 }] }}
-                                        className={cn(
-                                            "size-44 rounded-[44px] items-center justify-center",
-                                            step.iconBgClass
-                                        )}
-                                    >
-                                        <step.Icon size={72} color={step.iconColor} />
-                                    </Animated.View>
+                                    <OnboardingMockup type={step.mockupType} />
                                 </Pressable>
-                            ) : (
-                                <Animated.View
-                                    style={{ transform: [{ scale: index === activeIndex ? scaleAnim : 1 }] }}
-                                    className={cn(
-                                        "size-44 rounded-[44px] items-center justify-center",
-                                        step.iconBgClass
-                                    )}
-                                >
-                                    <step.Icon size={72} color={step.iconColor} />
-                                </Animated.View>
-                            )}
+                            </Animated.View>
 
                             {/* Text Content */}
                             <View className="gap-4 items-center mt-4">
