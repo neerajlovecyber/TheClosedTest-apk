@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ScrollView, useWindowDimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, useWindowDimensions, Pressable, Share } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -15,9 +15,45 @@ import {
     ClockIcon,
     XCircleIcon,
     LockIcon,
-    SparklesIcon
+    SparklesIcon,
+    CopyIcon,
+    CheckIcon,
+    ShareIcon
 } from 'lucide-react-native';
 import { Stack } from 'expo-router';
+
+const GOOGLE_GROUP_EMAIL = 'developers-community-official@googlegroups.com';
+
+function CopyableItem({ value, label }: { value: string; label: string }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+        try {
+            await Share.share({ message: value });
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            console.log('Share error:', error);
+        }
+    };
+
+    return (
+        <Pressable
+            onPress={handleCopy}
+            className="flex-row items-center justify-between p-4 rounded-xl bg-primary/10 active:bg-primary/20"
+        >
+            <View className="flex-1 mr-3">
+                <Text className="text-xs text-muted-foreground mb-1">{label}</Text>
+                <Text className="text-sm font-mono font-semibold text-foreground" numberOfLines={1}>
+                    {value}
+                </Text>
+            </View>
+            <View className={`w-10 h-10 rounded-full items-center justify-center ${copied ? 'bg-green-500' : 'bg-primary'}`}>
+                <Icon as={copied ? CheckIcon : ShareIcon} className="text-white size-5" />
+            </View>
+        </Pressable>
+    );
+}
 
 interface StepCardProps {
     step: number;
@@ -75,6 +111,22 @@ export default function HelpScreen() {
                     <Text className="text-2xl font-black text-center">Welcome to The Closed Test</Text>
                     <Text className="text-muted-foreground text-center mt-1">Get 12+ testers for your app in exchange for testing others</Text>
                 </View>
+
+                {/* Quick Copy - Google Group */}
+                <Card className="mb-4 border-primary/30">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">📋 Quick Copy</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-1">
+                        <Text className="text-xs text-muted-foreground mb-3">
+                            Tap to copy the Google Group email address. Add this to your Play Store closed testing testers list.
+                        </Text>
+                        <CopyableItem
+                            label="Google Group Email"
+                            value={GOOGLE_GROUP_EMAIL}
+                        />
+                    </CardContent>
+                </Card>
 
                 {/* How It Works Steps */}
                 <Card className="mb-4">

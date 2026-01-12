@@ -368,3 +368,164 @@ export const updateApp = mutation({
         });
     }
 });
+
+// Mark an app as completed (got production access)
+export const markAppAsCompleted = mutation({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const app = await ctx.db.get(args.appId);
+        if (!app) throw new Error("App not found");
+
+        if (app.userId !== user._id) throw new Error("Not authorized");
+
+        if (app.status === "completed") throw new Error("App is already completed");
+
+        // Check 7-day minimum
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        if (Date.now() - app.createdAt < sevenDaysMs) {
+            throw new Error("App must be at least 7 days old to mark as completed");
+        }
+
+        const now = Date.now();
+
+        // 1. Find all active matches involving this app
+        const activeMatchesAsApp1 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), args.appId),
+                q.eq(q.field("status"), "active")
+            ))
+            .collect();
+
+        const activeMatchesAsApp2 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), args.appId),
+                q.eq(q.field("status"), "active")
+            ))
+            .collect();
+
+        const allActiveMatches = [...activeMatchesAsApp1, ...activeMatchesAsApp2];
+
+        // 2. Archive all active matches and give testers +5 rep
+        for (const match of allActiveMatches) {
+            // Determine who the tester is (the other user in the match)
+            const testerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
+
+            // Archive the match
+            await ctx.db.patch(match._id, {
+                status: "archived",
+                lastActivity: now,
+            });
+
+            // Give tester +5 reputation
+            const tester = await ctx.db.get(testerId);
+            if (tester) {
+                await ctx.db.patch(testerId, {
+                    reputation: tester.reputation + 5,
+                    updatedAt: now,
+                });
+
+                // Send notification to tester
+                await ctx.db.insert("notifications", {
+                    userId: testerId,
+                    type: "proof_update",
+                    title: "🎉 App Launched!",
+                    body: `${app.title} got production access! Your testing helped make this happen. +5 reputation!`,
+                    data: { appId: args.appId },
+                    read: false,
+                    createdAt: now,
+                });
+            }
+        }
+
+        // 3. Find and silently delete all pending matches involving this app
+        const pendingMatchesAsApp1 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), args.appId),
+                q.eq(q.field("status"), "pending")
+            ))
+            .collect();
+
+        const pendingMatchesAsApp2 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), args.appId),
+                q.eq(q.field("status"), "pending")
+            ))
+            .collect();
+
+        const allPendingMatches = [...pendingMatchesAsApp1, ...pendingMatchesAsApp2];
+
+        // Delete pending matches silently (no notification)
+        for (const match of allPendingMatches) {
+            await ctx.db.delete(match._id);
+        }
+
+        // 4. Give owner +20 reputation bonus
+        await ctx.db.patch(user._id, {
+            reputation: user.reputation + 20,
+            updatedAt: now,
+        });
+
+        // 5. Update app status to completed
+        await ctx.db.patch(args.appId, {
+            status: "completed",
+            completedAt: now,
+            updatedAt: now,
+        });
+
+        return {
+            success: true,
+            archivedMatches: allActiveMatches.length,
+            deletedPendingRequests: allPendingMatches.length
+        };
+    }
+});
+
+// Get completed apps for Hall of Fame
+export const getCompletedApps = query({
+    args: {},
+    handler: async (ctx) => {
+        const apps = await ctx.db
+            .query("apps")
+            .withIndex("by_status", (q) => q.eq("status", "completed"))
+            .order("desc")
+            .take(50);
+
+        // Map over apps to resolve full image URLs
+        const appsWithUrls = await Promise.all(apps.map(async (app) => {
+            let resolvedUrl = app.iconUrl;
+            if (app.storageIconId) {
+                resolvedUrl = await getImageUrl(ctx, app.storageIconId);
+            } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+                resolvedUrl = await getImageUrl(ctx, app.iconUrl);
+            }
+
+            // Fetch owner details
+            const owner = await ctx.db.get(app.userId);
+
+            return {
+                ...app,
+                iconUrl: resolvedUrl,
+                ownerName: owner?.name || "Unknown",
+                ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
+                reputation: owner?.reputation || 0
+            };
+        }));
+
+        // Sort by completedAt (most recent first)
+        return appsWithUrls.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    },
+});

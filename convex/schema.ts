@@ -35,8 +35,10 @@ export default defineSchema({
             v.literal("recruiting"),
             v.literal("filled"),
             v.literal("paused"),
-            v.literal("archived")
+            v.literal("archived"),
+            v.literal("completed") // NEW: Got production access
         ),
+        completedAt: v.optional(v.number()), // NEW: When marked as completed
         createdAt: v.number(),
         updatedAt: v.number(),
     })

@@ -22,7 +22,8 @@ import {
     EditIcon,
     UsersIcon,
     InfoIcon,
-    PlayIcon
+    PlayIcon,
+    RocketIcon
 } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -41,11 +42,11 @@ export default function AppDetailsScreen() {
     const myApps = useQuery(api.apps.getMyApps) || [];
 
     // Mutation
-    // Mutation
     const requestSwap = useMutation(api.matches.requestSwap);
     const acceptSwap = useMutation(api.matches.acceptSwap);
     const rejectSwap = useMutation(api.matches.rejectSwap);
     const deleteApp = useMutation(api.apps.deleteApp);
+    const markAppAsCompleted = useMutation(api.apps.markAppAsCompleted);
 
     // Check Match Status (with caching)
     const { data: matchStatus } = useCachedConvexQuery(['matchStatus', appId], api.matches.getMatchStatus, { appId });
@@ -404,60 +405,134 @@ export default function AppDetailsScreen() {
             {/* Action Button */}
             <View className="p-4 border-t border-border bg-background safe-bottom">
                 {app.isMine ? (
-                    <View className="flex-row gap-4">
-                        <Button
-                            size="lg"
-                            onPress={() => router.push({ pathname: "/edit-app", params: { id: app._id } })}
-                            className="flex-1 rounded-2xl shadow-sm"
-                            disabled={isSubmitting}
-                        >
-                            <Icon as={EditIcon} className="size-4 text-white mr-2" />
-                            <Text className="font-bold text-white">Edit Details</Text>
-                        </Button>
-                        <Button
-                            size="lg"
-                            variant="destructive"
-                            onPress={() => {
-                                Alert.alert(
-                                    "Delete App",
-                                    "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
-                                    [
-                                        { text: "Cancel", style: "cancel" },
-                                        {
-                                            text: "Delete",
-                                            style: "destructive",
-                                            onPress: async () => {
-                                                try {
-                                                    setIsSubmitting(true);
+                    <>
+                        {/* Check if app is at least 7 days old for completion */}
+                        {(() => {
+                            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+                            const appAgeMs = app.createdAt ? Date.now() - app.createdAt : 0;
+                            const isOldEnough = appAgeMs >= sevenDaysMs;
+                            const isCompleted = app.status === 'completed';
+                            const daysRemaining = Math.ceil((sevenDaysMs - appAgeMs) / (24 * 60 * 60 * 1000));
 
-                                                    // Delete image from R2 first
-                                                    try {
-                                                        const { deleteImageFromR2 } = require('@/utils/image-uploader');
-                                                        await deleteImageFromR2(`app-icons/${appId}.webp`);
-                                                    } catch (imgError) {
-                                                        console.warn("Failed to delete image", imgError);
-                                                        // Proceed anyway to delete app
+                            if (isCompleted) {
+                                return (
+                                    <View className="w-full py-3 items-center justify-center bg-green-100 dark:bg-green-900/30 rounded-xl mb-3">
+                                        <View className="flex-row items-center gap-2">
+                                            <Icon as={RocketIcon} className="size-5 text-green-600 dark:text-green-400" />
+                                            <Text className="text-green-600 dark:text-green-400 font-bold">Launched to Production! 🎉</Text>
+                                        </View>
+                                    </View>
+                                );
+                            }
+
+                            if (isOldEnough) {
+                                return (
+                                    <Button
+                                        size="lg"
+                                        variant="outline"
+                                        onPress={() => {
+                                            Alert.alert(
+                                                "🚀 Mark as Completed?",
+                                                "Congratulations on getting production access!\n\nThis will:\n• Give you +20 reputation\n• Complete all active matches (testers get +5 rep each)\n• Remove pending swap requests\n• Add your app to Hall of Fame\n\nThis action cannot be undone.",
+                                                [
+                                                    { text: "Cancel", style: "cancel" },
+                                                    {
+                                                        text: "Confirm",
+                                                        onPress: async () => {
+                                                            try {
+                                                                setIsSubmitting(true);
+                                                                const result = await markAppAsCompleted({ appId: app._id });
+                                                                Alert.alert(
+                                                                    "🎉 Congratulations!",
+                                                                    `${app.title} is now in the Hall of Fame!\n\n+20 reputation earned!\n${result.archivedMatches > 0 ? `${result.archivedMatches} active match(es) completed.` : ''}`
+                                                                );
+                                                            } catch (err: any) {
+                                                                Alert.alert("Error", err.message || "Failed to mark as completed");
+                                                            } finally {
+                                                                setIsSubmitting(false);
+                                                            }
+                                                        }
                                                     }
+                                                ]
+                                            );
+                                        }}
+                                        className="w-full rounded-xl border-green-500 bg-green-500/10 mb-3"
+                                        disabled={isSubmitting}
+                                    >
+                                        <Icon as={RocketIcon} className="size-4 text-green-600 dark:text-green-400 mr-2" />
+                                        <Text className="font-bold text-green-600 dark:text-green-400">Got Production Access! 🚀</Text>
+                                    </Button>
+                                );
+                            }
 
-                                                    await deleteApp({ appId: app._id });
-                                                    router.replace("/(tabs)/" as any);
-                                                } catch (err: any) {
-                                                    Alert.alert("Error", err.message);
-                                                } finally {
-                                                    setIsSubmitting(false);
+                            // Show disabled/greyed out button for apps less than 7 days old
+                            return (
+                                <View className="w-full rounded-xl border border-muted-foreground/30 bg-muted/20 mb-3 py-3 px-4">
+                                    <View className="flex-row items-center justify-center gap-2 mb-1">
+                                        <Icon as={RocketIcon} className="size-4 text-muted-foreground/50" />
+                                        <Text className="font-bold text-muted-foreground/50">Got Production Access?</Text>
+                                    </View>
+                                    <Text className="text-xs text-muted-foreground/60 text-center">
+                                        Available in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
+                        <View className="flex-row gap-4">
+                            <Button
+                                size="lg"
+                                onPress={() => router.push({ pathname: "/edit-app", params: { id: app._id } })}
+                                className="flex-1 rounded-2xl shadow-sm"
+                                disabled={isSubmitting}
+                            >
+                                <Icon as={EditIcon} className="size-4 text-white mr-2" />
+                                <Text className="font-bold text-white">Edit Details</Text>
+                            </Button>
+                            <Button
+                                size="lg"
+                                variant="destructive"
+                                onPress={() => {
+                                    Alert.alert(
+                                        "Delete App",
+                                        "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
+                                        [
+                                            { text: "Cancel", style: "cancel" },
+                                            {
+                                                text: "Delete",
+                                                style: "destructive",
+                                                onPress: async () => {
+                                                    try {
+                                                        setIsSubmitting(true);
+
+                                                        // Delete image from R2 first
+                                                        try {
+                                                            const { deleteImageFromR2 } = require('@/utils/image-uploader');
+                                                            await deleteImageFromR2(`app-icons/${appId}.webp`);
+                                                        } catch (imgError) {
+                                                            console.warn("Failed to delete image", imgError);
+                                                            // Proceed anyway to delete app
+                                                        }
+
+                                                        await deleteApp({ appId: app._id });
+                                                        router.replace("/(tabs)/" as any);
+                                                    } catch (err: any) {
+                                                        Alert.alert("Error", err.message);
+                                                    } finally {
+                                                        setIsSubmitting(false);
+                                                    }
                                                 }
                                             }
-                                        }
-                                    ]
-                                );
-                            }}
-                            className="flex-1 rounded-2xl shadow-sm"
-                            disabled={isSubmitting}
-                        >
-                            <Icon as={Trash2Icon} className="size-4 text-white mr-2" />
-                            <Text className="font-bold text-white">Delete</Text>
-                        </Button>
-                    </View>
+                                        ]
+                                    );
+                                }}
+                                className="flex-1 rounded-2xl shadow-sm"
+                                disabled={isSubmitting}
+                            >
+                                <Icon as={Trash2Icon} className="size-4 text-white mr-2" />
+                                <Text className="font-bold text-white">Delete</Text>
+                            </Button>
+                        </View>
+                    </>
                 ) : (
                     // Logic for Visitor (Not Owner)
                     matchStatus?.status === 'active' ? (
