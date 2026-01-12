@@ -1,8 +1,43 @@
-import React from 'react';
-import { View, ScrollView, useWindowDimensions, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, useWindowDimensions, Image, Pressable, Share } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Stack } from 'expo-router';
+import { Icon } from '@/components/ui/icon';
+import { ShareIcon, CheckIcon } from 'lucide-react-native';
+
+const GOOGLE_GROUP_EMAIL = 'developers-community-official@googlegroups.com';
+
+function CopyableEmail() {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+        try {
+            await Share.share({ message: GOOGLE_GROUP_EMAIL });
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            console.log('Share error:', error);
+        }
+    };
+
+    return (
+        <Pressable
+            onPress={handleCopy}
+            className="flex-row items-center justify-between p-3 rounded-xl bg-primary/10 active:bg-primary/20 mb-3"
+        >
+            <View className="flex-1 mr-3">
+                <Text className="text-xs text-muted-foreground mb-1">Tap to share/copy email</Text>
+                <Text className="text-xs font-mono font-semibold text-foreground" numberOfLines={1}>
+                    {GOOGLE_GROUP_EMAIL}
+                </Text>
+            </View>
+            <View className={`w-9 h-9 rounded-full items-center justify-center ${copied ? 'bg-green-500' : 'bg-primary'}`}>
+                <Icon as={copied ? CheckIcon : ShareIcon} className="text-white size-4" />
+            </View>
+        </Pressable>
+    );
+}
 
 export default function PlayStoreGuideScreen() {
     const { width } = useWindowDimensions();
@@ -100,8 +135,9 @@ export default function PlayStoreGuideScreen() {
                                 <Text className="font-bold text-foreground">Add the Google Group</Text>
                             </View>
                             <Text className="text-sm text-muted-foreground mb-3">
-                                Add the Google Group email: <Text className="font-bold">developers-community-official@googlegroups.com</Text>
+                                Add the Google Group email below to your testers list:
                             </Text>
+                            <CopyableEmail />
                             <Image
                                 source={require('@/assets/images/guide/addthegooglegrp.png')}
                                 style={{ width: width - 64, height: (width - 64) * 0.6, borderRadius: 12 }}

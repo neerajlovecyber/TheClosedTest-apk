@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image, Pressable, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -11,12 +11,45 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon, SendIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon, SendIcon, CopyIcon, CheckIcon, ShareIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+
+const GOOGLE_GROUP_EMAIL = 'developers-community-official@googlegroups.com';
+
+function CopyableEmail() {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+        try {
+            await Share.share({ message: GOOGLE_GROUP_EMAIL });
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            console.log('Share error:', error);
+        }
+    };
+
+    return (
+        <Pressable
+            onPress={handleCopy}
+            className="flex-row items-center justify-between p-3 rounded-xl bg-primary/10 active:bg-primary/20 mb-3"
+        >
+            <View className="flex-1 mr-3">
+                <Text className="text-xs text-muted-foreground mb-1">Tap to share/copy email</Text>
+                <Text className="text-xs font-mono font-semibold text-foreground" numberOfLines={1}>
+                    {GOOGLE_GROUP_EMAIL}
+                </Text>
+            </View>
+            <View className={`w-9 h-9 rounded-full items-center justify-center ${copied ? 'bg-green-500' : 'bg-primary'}`}>
+                <Icon as={copied ? CheckIcon : ShareIcon} className="text-white size-4" />
+            </View>
+        </Pressable>
+    );
+}
 
 export default function AddAppScreen() {
     const router = useRouter();
@@ -226,9 +259,10 @@ export default function AddAppScreen() {
                             {/* 2. Add Email */}
                             <View>
                                 <Text className="font-semibold mb-2 text-foreground">2. Play Console Setup</Text>
-                                <Text className="text-sm text-muted-foreground mb-3">
-                                    Add <Text className="font-bold text-foreground">developers-community-official@googlegroups.com</Text> to your app's Closed Testing track testers in Google Play Console.
+                                <Text className="text-sm text-muted-foreground mb-2">
+                                    Add the group email below to your app's Closed Testing track testers in Google Play Console.
                                 </Text>
+                                <CopyableEmail />
 
                                 {/* Detailed Guide Link */}
                                 <TouchableOpacity
