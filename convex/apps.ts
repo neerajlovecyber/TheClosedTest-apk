@@ -138,12 +138,8 @@ export const getMarketplaceApps = query({
             };
         }));
 
-        // Sort by reputation (desc), then by creation time (desc)
-        return appsWithUrls.sort((a, b) => {
-            const repDiff = b.reputation - a.reputation;
-            if (repDiff !== 0) return repDiff;
-            return b.createdAt - a.createdAt;
-        });
+        // Return apps sorted by creation time (desc) - native behavior of the query
+        return appsWithUrls;
     },
 });
 
