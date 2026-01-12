@@ -1,5 +1,14 @@
 
-import '@/global.css';
+import '@/global.css'; // This must be first
+import { Text, TextInput } from 'react-native';
+
+// Disable system font scaling
+if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
+(Text as any).defaultProps.allowFontScaling = false;
+
+if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
+(TextInput as any).defaultProps.allowFontScaling = false;
+
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
