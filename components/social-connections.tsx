@@ -1,4 +1,5 @@
 
+import { toast } from '@/lib/sonner';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
@@ -86,11 +87,9 @@ export function SocialConnections() {
           console.error("⚠️ 5. Set Username to 'Optional' (not 'Required')");
 
           if (Platform.OS !== 'web') {
-            const { Alert } = require('react-native');
-            Alert.alert(
-              "Configuration Issue",
-              "Google sign-in requires additional setup in Clerk Dashboard.\n\nPlease check the console for detailed instructions."
-            );
+            toast.error("Configuration Issue", {
+              description: "Google sign-in requires additional setup in Clerk Dashboard. Please check the console for details."
+            });
           }
           return;
         }
@@ -109,11 +108,9 @@ export function SocialConnections() {
         // 2. The account needs verification
         // 3. There's a configuration mismatch
         if (Platform.OS !== 'web') {
-          const { Alert } = require('react-native');
-          Alert.alert(
-            "Sign In Issue",
-            "Google sign-in couldn't complete automatically. Please check your Clerk dashboard settings or try again."
-          );
+          toast.error("Sign In Issue", {
+            description: "Google sign-in couldn't complete automatically. Please check your Clerk dashboard settings or try again."
+          });
         }
       } catch (err: any) {
         // See https://go.clerk.com/mRUDrIe for more info on error handling
@@ -123,8 +120,7 @@ export function SocialConnections() {
         // Show error to user in development/production build
         if (Platform.OS !== 'web') {
           const errorMessage = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || "An unknown error occurred";
-          const { Alert } = require('react-native');
-          Alert.alert("Login Failed", errorMessage + "\n\nCheck console for details.");
+          toast.error("Login Failed", { description: errorMessage });
         }
       }
     };

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import { toast } from '@/lib/sonner';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -85,25 +86,25 @@ export default function EditAppScreen() {
             setProcessedImageUri(result.uri);
         } catch (error) {
             console.error("Optimization failed:", error);
-            Alert.alert("Error", "Failed to process image.");
+            toast.error("Error", { description: "Failed to process image." });
             setProcessedImageUri(uri);
         }
     };
 
     const handleSubmit = async () => {
         if (!title || !playStoreUrl || !instructions) {
-            Alert.alert('Error', 'Please fill in all required fields');
+            toast.error('Error', { description: 'Please fill in all required fields' });
             return;
         }
 
         if (!packageName) {
-            Alert.alert('Error', 'Invalid Play Store link. Could not extract package name.');
+            toast.error('Error', { description: 'Invalid Play Store link. Could not extract package name.' });
             return;
         }
 
         const testers = parseInt(requiredTesters);
         if (isNaN(testers) || testers < 0 || testers > 12) {
-            Alert.alert('Error', 'Please enter a number between 0 and 12 for required testers');
+            toast.error('Error', { description: 'Please enter a number between 0 and 12 for required testers' });
             return;
         }
 
@@ -118,7 +119,7 @@ export default function EditAppScreen() {
                     // Use deterministic filename: app-icons/<appId>.webp
                     iconUrl = await uploadImageToR2(processedImageUri, "app-icons", `${appId}.webp`);
                 } catch (uploadError: any) {
-                    Alert.alert("Error", "Icon upload failed: " + uploadError.message);
+                    toast.error("Error", { description: "Icon upload failed: " + uploadError.message });
                     setIsSubmitting(false);
                     return;
                 }
@@ -135,11 +136,11 @@ export default function EditAppScreen() {
                 requiredTesters: testers,
             });
 
-            Alert.alert('Success', 'App updated successfully!');
+            toast.success('Success', { description: 'App updated successfully!' });
             router.back();
         } catch (error: any) {
             console.error("Submit error:", error);
-            Alert.alert('Error', error.message || 'Failed to update app');
+            toast.error('Error', { description: error.message || 'Failed to update app' });
         } finally {
             setIsSubmitting(false);
         }
@@ -316,7 +317,7 @@ export default function EditAppScreen() {
                                                 await deleteApp({ appId });
                                                 router.replace("/(tabs)/" as any);
                                             } catch (err: any) {
-                                                Alert.alert("Error", err.message);
+                                                toast.error("Error", { description: err.message });
                                             } finally {
                                                 setIsSubmitting(false);
                                             }

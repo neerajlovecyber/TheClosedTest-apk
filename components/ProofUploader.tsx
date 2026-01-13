@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
-import { View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
@@ -49,14 +49,14 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 }));
 
                 if (selectedImages.length + newImages.length > 5) {
-                    Alert.alert("Limit", "Maximum 5 images allowed");
+                    toast.info("Limit", { description: "Maximum 5 images allowed" });
                     return;
                 }
 
                 setSelectedImages(prev => [...prev, ...newImages]);
             }
         } catch (error: any) {
-            Alert.alert("Error", error.message);
+            toast.error("Error", { description: error.message });
         }
     }, [selectedImages.length]);
 

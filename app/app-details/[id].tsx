@@ -191,7 +191,7 @@ export default function AppDetailsScreen() {
                 url: deepLink, // iOS support
             });
         } catch (error: any) {
-            Alert.alert(error.message);
+            toast.error(error.message);
         }
     };
 
@@ -518,7 +518,7 @@ export default function AppDetailsScreen() {
                                                         await deleteApp({ appId: app._id });
                                                         router.replace("/(tabs)/" as any);
                                                     } catch (err: any) {
-                                                        Alert.alert("Error", err.message);
+                                                        toast.error("Error", { description: err.message });
                                                     } finally {
                                                         setIsSubmitting(false);
                                                     }
