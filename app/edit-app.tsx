@@ -1,6 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from '@/lib/sonner';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
@@ -39,6 +49,8 @@ export default function EditAppScreen() {
     const [processedImageUri, setProcessedImageUri] = useState<string | null>(null);
     // Remote URL of existing image
     const [currentIconUrl, setCurrentIconUrl] = useState<string | null>(null);
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Pre-fill form when app data is loaded
     useEffect(() => {
@@ -294,38 +306,7 @@ export default function EditAppScreen() {
                     <Button
                         variant="destructive"
                         size="lg"
-                        onPress={() => {
-                            Alert.alert(
-                                "Delete App",
-                                "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
-                                [
-                                    { text: "Cancel", style: "cancel" },
-                                    {
-                                        text: "Delete",
-                                        style: "destructive",
-                                        onPress: async () => {
-                                            try {
-                                                setIsSubmitting(true);
-                                                // Delete image from R2 first
-                                                try {
-                                                    const { deleteImageFromR2 } = require('@/utils/image-uploader');
-                                                    await deleteImageFromR2(`app-icons/${appId}.webp`);
-                                                } catch (imgError) {
-                                                    console.warn("Failed to delete image", imgError);
-                                                }
-
-                                                await deleteApp({ appId });
-                                                router.replace("/(tabs)/" as any);
-                                            } catch (err: any) {
-                                                toast.error("Error", { description: err.message });
-                                            } finally {
-                                                setIsSubmitting(false);
-                                            }
-                                        }
-                                    }
-                                ]
-                            );
-                        }}
+                        onPress={() => setShowDeleteConfirm(true)}
                         disabled={isSubmitting}
                         className="mb-12 rounded-2xl shadow-sm"
                     >
@@ -336,6 +317,43 @@ export default function EditAppScreen() {
                     </Button>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete App</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setShowDeleteConfirm(false)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction onPress={async () => {
+                            setShowDeleteConfirm(false);
+                            try {
+                                setIsSubmitting(true);
+                                // Delete image from R2 first
+                                try {
+                                    const { deleteImageFromR2 } = require('@/utils/image-uploader');
+                                    await deleteImageFromR2(`app-icons/${appId}.webp`);
+                                } catch (imgError) {
+                                    console.warn("Failed to delete image", imgError);
+                                }
+
+                                await deleteApp({ appId });
+                                router.replace("/(tabs)/" as any);
+                            } catch (err: any) {
+                                toast.error("Error", { description: err.message });
+                                setIsSubmitting(false);
+                            }
+                        }}>
+                            <Text>Delete</Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </View>
     );
 }

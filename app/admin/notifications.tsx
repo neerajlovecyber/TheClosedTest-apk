@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { toast } from '@/lib/sonner';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Text } from '@/components/ui/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -47,6 +58,7 @@ export default function NotificationsAdminScreen() {
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [sending, setSending] = useState(false);
+    const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
 
     const stats = useQuery(api.admin.getNotificationStats);
     const sendTestNotification = useAction(api.admin.sendTestNotification);
@@ -54,7 +66,7 @@ export default function NotificationsAdminScreen() {
 
     const handleSendTest = async () => {
         if (!title.trim() || !body.trim()) {
-            Alert.alert('Error', 'Please enter both title and message');
+            toast.error('Error', { description: 'Please enter both title and message' });
             return;
         }
 
@@ -65,15 +77,15 @@ export default function NotificationsAdminScreen() {
 
             // Show detailed result
             const resultText = result?.result?.data?.status === 'ok'
-                ? '✅ Notification sent successfully!\n\nNote: If you\'re on Expo Go (Android), you won\'t receive it. Build a development build to test.'
+                ? 'Notification sent successfully!\n\nNote: If you\'re on Expo Go (Android), you won\'t receive it. Build a development build to test.'
                 : `Sent! Status: ${result?.result?.data?.status || 'unknown'}`;
 
-            Alert.alert('Success', resultText);
+            toast.success('Success', { description: resultText });
             setTitle('');
             setBody('');
         } catch (error: any) {
             console.error("Test notification error:", error);
-            Alert.alert('Error', error.message || 'Failed to send notification');
+            toast.error('Error', { description: error.message || 'Failed to send notification' });
         } finally {
             setSending(false);
         }
@@ -81,37 +93,27 @@ export default function NotificationsAdminScreen() {
 
     const handleSendBroadcast = async () => {
         if (!title.trim() || !body.trim()) {
-            Alert.alert('Error', 'Please enter both title and message');
+            toast.error('Error', { description: 'Please enter both title and message' });
             return;
         }
+        setShowBroadcastConfirm(true);
+    };
 
-        Alert.alert(
-            'Confirm Broadcast',
-            `Send notification to ${stats?.totalUsersWithTokens || 0} users?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Send',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setSending(true);
-                        try {
-                            const result = await sendBroadcastNotification({ title, body });
-                            Alert.alert(
-                                'Success',
-                                `Notification sent to ${result.successCount} users!\nFailed: ${result.failureCount}`
-                            );
-                            setTitle('');
-                            setBody('');
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to send broadcast');
-                        } finally {
-                            setSending(false);
-                        }
-                    },
-                },
-            ]
-        );
+    const confirmBroadcast = async () => {
+        setSending(true);
+        setShowBroadcastConfirm(false);
+        try {
+            const result = await sendBroadcastNotification({ title, body });
+            toast.success('Success', {
+                description: `Notification sent to ${result.successCount} users!\nFailed: ${result.failureCount}`
+            });
+            setTitle('');
+            setBody('');
+        } catch (error: any) {
+            toast.error('Error', { description: error.message || 'Failed to send broadcast' });
+        } finally {
+            setSending(false);
+        }
     };
 
     return (
@@ -232,7 +234,27 @@ export default function NotificationsAdminScreen() {
                     )}
                 </View>
 
+
             </ScrollView>
-        </SafeAreaView>
+
+            <AlertDialog open={showBroadcastConfirm} onOpenChange={setShowBroadcastConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Broadcast</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Send notification to {stats?.totalUsersWithTokens || 0} users?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setShowBroadcastConfirm(false)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction onPress={confirmBroadcast}>
+                            <Text>Send</Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </SafeAreaView >
     );
 }

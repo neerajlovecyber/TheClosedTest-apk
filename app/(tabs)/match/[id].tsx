@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image as RNImage, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Alert, Modal, KeyboardAvoidingView as RNKeyboardAvoidingView, Linking } from 'react-native';
+import { View, ScrollView, Image as RNImage, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Modal, KeyboardAvoidingView as RNKeyboardAvoidingView, Linking } from 'react-native';
+import { toast } from '@/lib/sonner';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Image } from 'expo-image';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -44,6 +55,7 @@ export default function MatchDashboardScreen() {
     const [proofToReject, setProofToReject] = useState<Id<"proofs"> | null>(null);
     const [proofToRejectUrls, setProofToRejectUrls] = useState<string[]>([]);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
 
 
@@ -107,33 +119,26 @@ export default function MatchDashboardScreen() {
     };
 
     const handleLeaveMatch = () => {
-        Alert.alert(
-            "Stop Testing?",
-            "Are you sure you want to cancel this match? This action cannot be undone and you will lose your progress.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Stop Testing",
-                    style: "destructive",
-                    onPress: async () => {
-                        if (!matchId) return;
-                        try {
-                            await cancelMatchMutation({ matchId });
-                            await cancelMatchMutation({ matchId });
-                            router.replace("/(tabs)/" as any);
-                        } catch (e) {
-                            console.error(e);
-                            Alert.alert("Error", "Failed to cancel match");
-                        }
-                    }
-                }
-            ]
-        );
+        setShowLeaveConfirm(true);
+    };
+
+    const confirmLeaveMatch = async () => {
+        if (!matchId) return;
+        try {
+            await cancelMatchMutation({ matchId });
+            await cancelMatchMutation({ matchId }); // Why twice? maintaining original logic but seems redundant
+            router.replace("/(tabs)/" as any);
+        } catch (e: any) {
+            console.error(e);
+            toast.error("Error", { description: "Failed to cancel match" });
+        } finally {
+            setShowLeaveConfirm(false);
+        }
     };
 
     const handleOpenApp = async () => {
         if (!app?.packageName) {
-            Alert.alert("Error", "Package name not available");
+            toast.error("Error", { description: "Package name not available" });
             return;
         }
 
@@ -312,6 +317,25 @@ export default function MatchDashboardScreen() {
                 proofId={proofToReject}
                 onClose={() => { setRejectionModalVisible(false); setProofToReject(null); }}
             />
+
+            <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Stop Testing?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to cancel this match? This action cannot be undone and you will lose your progress.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setShowLeaveConfirm(false)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction onPress={confirmLeaveMatch}>
+                            <Text>Stop Testing</Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </SafeAreaView>
     );
 }

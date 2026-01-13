@@ -1,6 +1,16 @@
 
 import React, { useState } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Share, Platform, Linking as RNLinking } from 'react-native';
+import { View, ScrollView, Image, TouchableOpacity, Modal, Pressable, Share, Platform, Linking as RNLinking } from 'react-native';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from '@/lib/sonner';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -59,6 +69,7 @@ export default function AppDetailsScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasSentRequest, setHasSentRequest] = useState(false);
+    const [activeAlert, setActiveAlert] = useState<null | 'no_apps' | 'reject' | 'complete' | 'delete'>(null);
 
     // Initial selection logic
     React.useEffect(() => {
@@ -107,10 +118,7 @@ export default function AppDetailsScreen() {
     const handleRequestSwap = async () => {
         if (!selectedMyApp) {
             if (myApps.length === 0) {
-                Alert.alert("No Apps Found", "You need to add an app first to request a swap.", [
-                    { text: "Add App", onPress: () => router.push('/add-app') },
-                    { text: "Cancel", style: "cancel" }
-                ]);
+                setActiveAlert('no_apps');
                 return;
             }
             setIsModalVisible(true);
@@ -148,28 +156,69 @@ export default function AppDetailsScreen() {
 
     const handleRejectRequest = async () => {
         if (!matchStatus?.matchId) return;
-        Alert.alert(
-            "Reject Request",
-            "Are you sure you want to reject this request?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Reject",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setIsSubmitting(true);
-                            await rejectSwap({ matchId: matchStatus.matchId });
-                            toast.success('Rejected');
-                        } catch (error: any) {
-                            toast.error('Error', { description: 'Failed to reject swap.' });
-                        } finally {
-                            setIsSubmitting(false);
-                        }
-                    }
+        setActiveAlert('reject');
+    };
+
+    const handleConfirmAction = async () => {
+        const type = activeAlert;
+        setActiveAlert(null); // Close dialog
+
+        if (type === 'no_apps') {
+            router.push('/add-app');
+            return;
+        }
+
+        if (type === 'reject') {
+            if (!matchStatus?.matchId) return;
+            try {
+                setIsSubmitting(true);
+                await rejectSwap({ matchId: matchStatus.matchId });
+                toast.success('Rejected');
+            } catch (error: any) {
+                toast.error('Error', { description: 'Failed to reject swap.' });
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
+        if (!app) return;
+
+        if (type === 'complete') {
+            try {
+                setIsSubmitting(true);
+                const result = await markAppAsCompleted({ appId: app._id });
+                toast.success("Congratulations!", {
+                    description: `${app.title} is now in the Hall of Fame!\n\n+20 reputation earned!\n${result.archivedMatches > 0 ? `${result.archivedMatches} active match(es) completed.` : ''}`
+                });
+            } catch (err: any) {
+                toast.error("Error", { description: err.message || "Failed to mark as completed" });
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
+        if (type === 'delete') {
+            try {
+                setIsSubmitting(true);
+                // Delete image from R2 first
+                try {
+                    const { deleteImageFromR2 } = require('@/utils/image-uploader');
+                    await deleteImageFromR2(`app-icons/${appId}.webp`);
+                } catch (imgError) {
+                    console.warn("Failed to delete image", imgError);
                 }
-            ]
-        );
+
+                await deleteApp({ appId: app._id });
+                router.replace("/(tabs)/" as any);
+            } catch (err: any) {
+                toast.error("Error", { description: err.message });
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
     };
 
     if (!app) {
@@ -432,32 +481,7 @@ export default function AppDetailsScreen() {
                                     <Button
                                         size="lg"
                                         variant="outline"
-                                        onPress={() => {
-                                            Alert.alert(
-                                                "🚀 Mark as Completed?",
-                                                "Congratulations on getting production access!\n\nThis will:\n• Give you +20 reputation\n• Complete all active matches (testers get +5 rep each)\n• Remove pending swap requests\n• Add your app to Hall of Fame\n\nThis action cannot be undone.",
-                                                [
-                                                    { text: "Cancel", style: "cancel" },
-                                                    {
-                                                        text: "Confirm",
-                                                        onPress: async () => {
-                                                            try {
-                                                                setIsSubmitting(true);
-                                                                const result = await markAppAsCompleted({ appId: app._id });
-                                                                Alert.alert(
-                                                                    "🎉 Congratulations!",
-                                                                    `${app.title} is now in the Hall of Fame!\n\n+20 reputation earned!\n${result.archivedMatches > 0 ? `${result.archivedMatches} active match(es) completed.` : ''}`
-                                                                );
-                                                            } catch (err: any) {
-                                                                Alert.alert("Error", err.message || "Failed to mark as completed");
-                                                            } finally {
-                                                                setIsSubmitting(false);
-                                                            }
-                                                        }
-                                                    }
-                                                ]
-                                            );
-                                        }}
+                                        onPress={() => setActiveAlert('complete')}
                                         className="w-full rounded-xl border-green-500 bg-green-500/10 mb-3"
                                         disabled={isSubmitting}
                                     >
@@ -493,40 +517,7 @@ export default function AppDetailsScreen() {
                             <Button
                                 size="lg"
                                 variant="destructive"
-                                onPress={() => {
-                                    Alert.alert(
-                                        "Delete App",
-                                        "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.",
-                                        [
-                                            { text: "Cancel", style: "cancel" },
-                                            {
-                                                text: "Delete",
-                                                style: "destructive",
-                                                onPress: async () => {
-                                                    try {
-                                                        setIsSubmitting(true);
-
-                                                        // Delete image from R2 first
-                                                        try {
-                                                            const { deleteImageFromR2 } = require('@/utils/image-uploader');
-                                                            await deleteImageFromR2(`app-icons/${appId}.webp`);
-                                                        } catch (imgError) {
-                                                            console.warn("Failed to delete image", imgError);
-                                                            // Proceed anyway to delete app
-                                                        }
-
-                                                        await deleteApp({ appId: app._id });
-                                                        router.replace("/(tabs)/" as any);
-                                                    } catch (err: any) {
-                                                        toast.error("Error", { description: err.message });
-                                                    } finally {
-                                                        setIsSubmitting(false);
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    );
-                                }}
+                                onPress={() => setActiveAlert('delete')}
                                 className="flex-1 rounded-2xl shadow-sm"
                                 disabled={isSubmitting}
                             >
@@ -648,6 +639,35 @@ export default function AppDetailsScreen() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView >
+            {/* Shared Alert Dialog */}
+            <AlertDialog open={!!activeAlert} onOpenChange={(open) => !open && setActiveAlert(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {activeAlert === 'no_apps' && "No Apps Found"}
+                            {activeAlert === 'reject' && "Reject Request"}
+                            {activeAlert === 'complete' && "🚀 Mark as Completed?"}
+                            {activeAlert === 'delete' && "Delete App"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {activeAlert === 'no_apps' && "You need to add an app first to request a swap."}
+                            {activeAlert === 'reject' && "Are you sure you want to reject this request?"}
+                            {activeAlert === 'complete' && "Congratulations on getting production access!\n\nThis will:\n• Give you +20 reputation\n• Complete all active matches\n• Remove pending swap requests\n• Add your app to Hall of Fame\n\nThis action cannot be undone."}
+                            {activeAlert === 'delete' && "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setActiveAlert(null)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction onPress={handleConfirmAction}>
+                            <Text>
+                                {activeAlert === 'no_apps' ? "Add App" : "Confirm"}
+                            </Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </SafeAreaView>
     );
 }
