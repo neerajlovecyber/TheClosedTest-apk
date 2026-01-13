@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
-import { ActivityIcon, UserPlusIcon, BarChart3Icon, ChevronRightIcon, BellIcon } from 'lucide-react-native';
+import { ActivityIcon, UserPlusIcon, BarChart3Icon, ChevronRightIcon, BellIcon, SparklesIcon } from 'lucide-react-native';
+import { toast } from '@/lib/sonner';
 import { useRouter } from 'expo-router';
 
 export default function AdminDashboardScreen() {
@@ -106,6 +107,24 @@ export default function AdminDashboardScreen() {
                             <View>
                                 <Text className="font-semibold text-foreground">Push Notifications</Text>
                                 <Text className="text-xs text-muted-foreground">Send & test notifications</Text>
+                            </View>
+                        </View>
+                        <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
+                    </TouchableOpacity>
+                </Card>
+
+                <Card className="border-border shadow-sm mb-4">
+                    <TouchableOpacity
+                        className="flex-row items-center justify-between p-4"
+                        onPress={() => toast.success('Test Toast', { description: 'It works!' })}
+                    >
+                        <View className="flex-row items-center">
+                            <View className="bg-pink-500/10 p-2.5 rounded-xl mr-3">
+                                <Icon as={SparklesIcon} className="text-pink-600 size-5" />
+                            </View>
+                            <View>
+                                <Text className="font-semibold text-foreground">Test Toaster</Text>
+                                <Text className="text-xs text-muted-foreground">Verify toast functionality</Text>
                             </View>
                         </View>
                         <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
