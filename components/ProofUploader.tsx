@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo } from 'react';
 import { View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import Toast from 'react-native-toast-message';
+import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -68,12 +68,12 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
 
     const handleUpload = useCallback(async () => {
         if (selectedImages.length === 0) {
-            Toast.show({ type: 'error', text1: 'Required', text2: 'Please select at least 1 image' });
+            toast.error('Required', { description: 'Please select at least 1 image' });
             return;
         }
 
         if (!user) {
-            Toast.show({ type: 'error', text1: 'Error', text2: 'User data not loaded yet' });
+            toast.error('Error', { description: 'User data not loaded yet' });
             return;
         }
 
@@ -103,13 +103,13 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 comment: comment.trim() || undefined
             });
 
-            Toast.show({ type: 'success', text1: 'Success', text2: 'Proof uploaded successfully!' });
+            toast.success('Success', { description: 'Proof uploaded successfully!' });
             setSelectedImages([]);
             setComment('');
             onUploadComplete?.();
         } catch (error: any) {
             console.error(error);
-            Toast.show({ type: 'error', text1: 'Upload failed', text2: error.message });
+            toast.error('Upload failed', { description: error.message });
         } finally {
             setIsUploading(false);
         }

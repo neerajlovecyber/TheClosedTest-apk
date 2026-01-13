@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions, Modal, FlatList } from 'react-native';
-import Toast from 'react-native-toast-message';
+import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,11 +46,11 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                 proofId: partnerProof._id,
                 status: "approved"
             });
-            Toast.show({ type: 'success', text1: 'Approved', text2: 'You approved the proof!' });
+            toast.success('Approved', { description: 'You approved the proof!' });
             // Cache automatically invalidated
             onReviewComplete?.();
         } catch (error: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: error.message });
+            toast.error('Error', { description: error.message });
         } finally {
             setIsReviewing(false);
         }
