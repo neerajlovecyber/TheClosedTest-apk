@@ -122,7 +122,7 @@ export function MatchChat({ visible, onClose, matchId, partnerName }: MatchChatP
                         {/* Input Area */}
                         <View
                             className="flex-row items-center px-4 pt-4 border-t border-border bg-background"
-                            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+                            style={{ paddingBottom: insets.bottom + 16 }}
                         >
                             <TextInput
                                 ref={inputRef}
