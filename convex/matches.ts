@@ -51,13 +51,15 @@ export const requestSwap = mutation({
             throw new Error("Cannot swap with your own app");
         }
 
-        // Check if match already exists (pending or active)
+
+        // Check if match already exists for THIS APP (pending or active)
         const existingMatch = await ctx.db
             .query("matches")
             .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
             .filter((q) =>
                 q.and(
                     q.eq(q.field("user2Id"), targetApp.userId),
+                    q.eq(q.field("app2Id"), targetApp._id), // Only block if checking SAME app
                     q.or(
                         q.eq(q.field("status"), "pending"),
                         q.eq(q.field("status"), "active")
@@ -66,13 +68,14 @@ export const requestSwap = mutation({
             )
             .first();
 
-        // Check reverse direction too
+        // Check reverse direction too (if they requested me for this app)
         const existingMatchReverse = await ctx.db
             .query("matches")
             .withIndex("by_user1", (q) => q.eq("user1Id", targetApp.userId))
             .filter((q) =>
                 q.and(
                     q.eq(q.field("user2Id"), user._id),
+                    q.eq(q.field("app1Id"), targetApp._id), // Only block if checking SAME app
                     q.or(
                         q.eq(q.field("status"), "pending"),
                         q.eq(q.field("status"), "active")
@@ -82,7 +85,7 @@ export const requestSwap = mutation({
             .first();
 
         if (existingMatch || existingMatchReverse) {
-            throw new Error("Active or pending match already exists with this user");
+            throw new Error("You already have an active or pending swap for this app");
         }
 
         const now = Date.now();
@@ -351,6 +354,7 @@ export const getMatchStatus = query({
             .filter((q) =>
                 q.and(
                     q.eq(q.field("user2Id"), targetApp.userId),
+                    q.eq(q.field("app2Id"), targetApp._id), // Specific App
                     q.or(
                         q.eq(q.field("status"), "pending"),
                         q.eq(q.field("status"), "active")
@@ -379,6 +383,7 @@ export const getMatchStatus = query({
             .filter((q) =>
                 q.and(
                     q.eq(q.field("user1Id"), targetApp.userId),
+                    q.eq(q.field("app1Id"), targetApp._id), // Specific App check
                     q.or(
                         q.eq(q.field("status"), "pending"),
                         q.eq(q.field("status"), "active")
