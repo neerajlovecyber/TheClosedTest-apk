@@ -9,6 +9,9 @@ if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
 if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
 (TextInput as any).defaultProps.allowFontScaling = false;
 
+
+
+import { Toaster } from '@/lib/sonner';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -84,6 +87,7 @@ export default function RootLayout() {
               <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
               <InitialLayout />
               <PortalHost />
+              <Toaster />
             </KeyboardProvider>
           </ThemeProvider>
         </ConvexProviderWithClerk>

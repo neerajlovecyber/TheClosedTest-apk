@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Share, Platform, Linking as RNLinking } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -123,10 +124,10 @@ export default function AppDetailsScreen() {
                 myAppId: selectedMyApp,
                 message: "I'd like to test your app!"
             });
-            Alert.alert("Success", "Swap request sent! Wait for the owner to accept.");
+            Toast.show({ type: 'success', text1: 'Sent!', text2: 'Swap request sent.' });
             setHasSentRequest(true); // Optimistic update
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to send request");
+            Toast.show({ type: 'error', text1: 'Error', text2: error.message || "Failed to send request" });
         } finally {
             setIsSubmitting(false);
         }
@@ -137,9 +138,9 @@ export default function AppDetailsScreen() {
         try {
             setIsSubmitting(true);
             await acceptSwap({ matchId: matchStatus.matchId });
-            Alert.alert("Success", "Swap accepted! You can now start testing.");
+            Toast.show({ type: 'success', text1: 'Accepted!', text2: 'Swap accepted! You can now start testing.' });
         } catch (error: any) {
-            Alert.alert("Error", "Failed to accept swap.");
+            Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to accept swap.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -159,8 +160,9 @@ export default function AppDetailsScreen() {
                         try {
                             setIsSubmitting(true);
                             await rejectSwap({ matchId: matchStatus.matchId });
+                            Toast.show({ type: 'success', text1: 'Rejected' });
                         } catch (error: any) {
-                            Alert.alert("Error", "Failed to reject swap.");
+                            Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to reject swap.' });
                         } finally {
                             setIsSubmitting(false);
                         }
