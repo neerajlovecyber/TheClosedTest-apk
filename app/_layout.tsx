@@ -1,5 +1,18 @@
 
-import '@/global.css';
+import '@/global.css'; // This must be first
+import { Text, TextInput } from 'react-native';
+
+// Disable system font scaling
+if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
+(Text as any).defaultProps.allowFontScaling = false;
+
+if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
+(TextInput as any).defaultProps.allowFontScaling = false;
+
+
+
+import Toast from 'react-native-toast-message';
+import { toastConfig } from '@/components/ToastConfig';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -75,6 +88,7 @@ export default function RootLayout() {
               <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
               <InitialLayout />
               <PortalHost />
+              <Toast config={toastConfig} topOffset={60} />
             </KeyboardProvider>
           </ThemeProvider>
         </ConvexProviderWithClerk>

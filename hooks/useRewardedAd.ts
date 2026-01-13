@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
+import { toast } from '@/lib/sonner';
 import {
     RewardedAd,
     RewardedAdEventType,
@@ -66,7 +67,7 @@ export function useRewardedAd(adUnitId: string = AD_UNIT_ID_APP_SLOTS) {
     const showAd = useCallback((): Promise<boolean> => {
         return new Promise((resolve) => {
             if (!rewarded || !loaded) {
-                Alert.alert('Ad Not Ready', 'Please wait for the ad to load and try again.');
+                toast.info('Ad Not Ready', { description: 'Please wait for the ad to load and try again.' });
                 resolve(false);
                 return;
             }

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, memo } from 'react';
-import { View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,14 +49,14 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 }));
 
                 if (selectedImages.length + newImages.length > 5) {
-                    Alert.alert("Limit", "Maximum 5 images allowed");
+                    toast.info("Limit", { description: "Maximum 5 images allowed" });
                     return;
                 }
 
                 setSelectedImages(prev => [...prev, ...newImages]);
             }
         } catch (error: any) {
-            Alert.alert("Error", error.message);
+            toast.error("Error", { description: error.message });
         }
     }, [selectedImages.length]);
 
@@ -63,14 +64,16 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         setSelectedImages(images => images.filter((_, i) => i !== index));
     }, []);
 
+
+
     const handleUpload = useCallback(async () => {
         if (selectedImages.length === 0) {
-            Alert.alert("Required", "Please select at least 1 image");
+            toast.error('Required', { description: 'Please select at least 1 image' });
             return;
         }
 
         if (!user) {
-            Alert.alert("Error", "User data not loaded yet. Please wait a moment.");
+            toast.error('Error', { description: 'User data not loaded yet' });
             return;
         }
 
@@ -100,13 +103,13 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 comment: comment.trim() || undefined
             });
 
-            Alert.alert("Success", "Proof uploaded successfully!");
+            toast.success('Success', { description: 'Proof uploaded successfully!' });
             setSelectedImages([]);
             setComment('');
             onUploadComplete?.();
         } catch (error: any) {
             console.error(error);
-            Alert.alert("Error", error.message || "Upload failed");
+            toast.error('Upload failed', { description: error.message });
         } finally {
             setIsUploading(false);
         }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Platform } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { PendingRequestCard } from '@/components/PendingRequestCard';
 import { Text } from '@/components/ui/text';
@@ -15,6 +15,7 @@ import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { Id } from '@/convex/_generated/dataModel';
+import { toast } from '@/lib/sonner';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -82,9 +83,9 @@ export default function HomeScreen() {
             // Invalidate caches to show updated data immediately
             invalidateMatches();
             invalidateApps();
-            Alert.alert("Success", "Swap accepted! You can now start testing.");
+            toast.success("Success", { description: "Swap accepted! You can now start testing." });
         } catch (error: any) {
-            Alert.alert("Error", "Failed to accept swap.");
+            toast.error("Error", { description: "Failed to accept swap." });
         }
     };
 
@@ -103,7 +104,7 @@ export default function HomeScreen() {
             invalidateMatches();
             // Optional: Toast or success message
         } catch (error: any) {
-            Alert.alert("Error", "Failed to reject swap.");
+            toast.error("Error", { description: "Failed to reject swap." });
         } finally {
             setIsRejectDialogOpen(false);
             setRequestToReject(null);
@@ -256,12 +257,12 @@ export default function HomeScreen() {
 
                             // Need to unlock via ad
                             if (Platform.OS === 'web') {
-                                Alert.alert('Ads Not Available', 'Rewarded ads are only available on mobile devices.');
+                                toast.info('Ads Not Available', { description: 'Rewarded ads are only available on mobile devices.' });
                                 return;
                             }
 
                             if (!adLoaded) {
-                                Alert.alert('Ad Loading', 'Please wait while the ad loads...');
+                                toast.info('Ad Loading', { description: 'Please wait while the ad loads...' });
                                 return;
                             }
 
@@ -270,11 +271,11 @@ export default function HomeScreen() {
                                 const rewarded = await showAd();
                                 if (rewarded) {
                                     await unlockAppSlot();
-                                    Alert.alert('Slot Unlocked!', `App slot ${slotNumber} is now available!`);
+                                    toast.success('Slot Unlocked!', { description: `App slot ${slotNumber} is now available!` });
                                 }
                             } catch (error) {
                                 console.error('Failed to unlock slot:', error);
-                                Alert.alert('Error', 'Failed to unlock slot. Please try again.');
+                                toast.error('Error', { description: 'Failed to unlock slot. Please try again.' });
                             } finally {
                                 setUnlocking(false);
                             }

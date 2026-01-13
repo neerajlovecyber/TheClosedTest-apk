@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { View, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image, Pressable, Share } from 'react-native';
+import { View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image, Pressable, Share } from 'react-native';
+import { toast } from '@/lib/sonner';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -126,33 +127,33 @@ export default function AddAppScreen() {
 
     const handleSubmit = async () => {
         if (!processedImageUri) {
-            Alert.alert('Error', 'Please upload an app icon');
+            toast.error('Error', { description: 'Please upload an app icon' });
             return;
         }
 
         if (!title || !playStoreUrl || !instructions) {
-            Alert.alert('Error', 'Please fill in all required fields');
+            toast.error('Error', { description: 'Please fill in all required fields' });
             return;
         }
 
         if (!currentUser?.isGroupMember) {
-            Alert.alert('Requirement', 'You must join the Google Group first.');
+            toast.info('Requirement', { description: 'You must join the Google Group first.' });
             return;
         }
 
         if (!hasAddedEmail) {
-            Alert.alert('Requirement', 'You must confirm you have added the group email to your testers list.');
+            toast.info('Requirement', { description: 'You must confirm you have added the group email to your testers list.' });
             return;
         }
 
         if (!packageName) {
-            Alert.alert('Error', 'Invalid Play Store link. Could not extract package name.');
+            toast.error('Error', { description: 'Invalid Play Store link. Could not extract package name.' });
             return;
         }
 
         const testers = parseInt(requiredTesters);
         if (isNaN(testers) || testers < 0 || testers > 12) {
-            Alert.alert('Error', 'Please enter a number between 0 and 12 for required testers');
+            toast.error('Error', { description: 'Please enter a number between 0 and 12 for required testers' });
             return;
         }
 
@@ -186,7 +187,7 @@ export default function AddAppScreen() {
                     });
                 } catch (uploadError: any) {
                     console.error("Upload failed but app created:", uploadError);
-                    Alert.alert("Warning", "App created but icon upload failed: " + uploadError.message);
+                    toast.info("Warning", { description: "App created but icon upload failed: " + uploadError.message });
                     // Optionally delete app if critical
                 }
             }
@@ -198,11 +199,11 @@ export default function AddAppScreen() {
             // Invalidate caches so new app appears immediately in home and marketplace
             invalidateApps();
 
-            Alert.alert('Success', 'App added successfully!');
+            toast.success('Success', { description: 'App added successfully!' });
             router.back();
         } catch (error: any) {
             console.error("Submit error:", error);
-            Alert.alert('Error', error.message || 'Failed to add app');
+            toast.error('Error', { description: error.message || 'Failed to add app' });
         } finally {
             setIsSubmitting(false);
         }

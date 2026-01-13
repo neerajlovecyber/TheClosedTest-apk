@@ -52,16 +52,25 @@ export default function MarketplaceScreen() {
 
     // Memoize expensive computations
     const latestOpportunities = useMemo(() =>
-        displayRecruiting.filter((app: any) => !app.isFilled),
+        displayRecruiting
+            .filter((app: any) => !app.isFilled)
+            .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0)),
         [displayRecruiting]
     );
 
     const sortedAllApps = useMemo(() => {
         const allApps = [...displayRecruiting, ...displayFilled];
         return allApps.sort((a: any, b: any) => {
+            // Priority 1: Status (Active first)
             if (a.isFilled && !b.isFilled) return 1;
             if (!a.isFilled && b.isFilled) return -1;
-            return 0;
+
+            // Priority 2: Reputation (High to Low)
+            const repDiff = (b.reputation || 0) - (a.reputation || 0);
+            if (repDiff !== 0) return repDiff;
+
+            // Priority 3: Creation Date (Newest first)
+            return (b.createdAt || 0) - (a.createdAt || 0);
         });
     }, [displayRecruiting, displayFilled]);
 

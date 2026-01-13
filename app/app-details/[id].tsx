@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { View, ScrollView, Image, TouchableOpacity, Alert, Modal, Pressable, Share, Platform, Linking as RNLinking } from 'react-native';
+import { toast } from '@/lib/sonner';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -123,10 +124,10 @@ export default function AppDetailsScreen() {
                 myAppId: selectedMyApp,
                 message: "I'd like to test your app!"
             });
-            Alert.alert("Success", "Swap request sent! Wait for the owner to accept.");
+            toast.success('Sent!', { description: 'Swap request sent.' });
             setHasSentRequest(true); // Optimistic update
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to send request");
+            toast.error('Error', { description: error.message || "Failed to send request" });
         } finally {
             setIsSubmitting(false);
         }
@@ -137,9 +138,9 @@ export default function AppDetailsScreen() {
         try {
             setIsSubmitting(true);
             await acceptSwap({ matchId: matchStatus.matchId });
-            Alert.alert("Success", "Swap accepted! You can now start testing.");
+            toast.success('Accepted!', { description: 'Swap accepted! You can now start testing.' });
         } catch (error: any) {
-            Alert.alert("Error", "Failed to accept swap.");
+            toast.error('Error', { description: 'Failed to accept swap.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -159,8 +160,9 @@ export default function AppDetailsScreen() {
                         try {
                             setIsSubmitting(true);
                             await rejectSwap({ matchId: matchStatus.matchId });
+                            toast.success('Rejected');
                         } catch (error: any) {
-                            Alert.alert("Error", "Failed to reject swap.");
+                            toast.error('Error', { description: 'Failed to reject swap.' });
                         } finally {
                             setIsSubmitting(false);
                         }
@@ -189,7 +191,7 @@ export default function AppDetailsScreen() {
                 url: deepLink, // iOS support
             });
         } catch (error: any) {
-            Alert.alert(error.message);
+            toast.error(error.message);
         }
     };
 
@@ -516,7 +518,7 @@ export default function AppDetailsScreen() {
                                                         await deleteApp({ appId: app._id });
                                                         router.replace("/(tabs)/" as any);
                                                     } catch (err: any) {
-                                                        Alert.alert("Error", err.message);
+                                                        toast.error("Error", { description: err.message });
                                                     } finally {
                                                         setIsSubmitting(false);
                                                     }
