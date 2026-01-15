@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useCallback, useMemo, memo, Suspense, lazy } from 'react';
+import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, Image } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { useQuery } from 'convex/react';
@@ -10,10 +10,12 @@ import { Button } from '@/components/ui/button';
 
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
-import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, TrophyIcon } from 'lucide-react-native';
+import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, TrophyIcon, FlameIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
+import { BoostedAppsSection } from '@/components/BoostedAppsSection';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
 
 // Loading placeholder component
 const ListLoadingPlaceholder = memo(() => (
@@ -158,6 +160,9 @@ export default function MarketplaceScreen() {
                         />
                     </View>
 
+                    {/* Boosted Apps Section */}
+                    {!searchQuery && <BoostedAppsSection />}
+
                     {/* Recruiting Now / Latest */}
                     {!searchQuery && (
                         <View>
@@ -258,6 +263,80 @@ export default function MarketplaceScreen() {
                     )}
                 </View>
             </ScrollView>
+
+            {/* Floating Action Button - Boost Hub with Premium Animation */}
+            <AnimatedFAB onPress={() => router.push('/boost-hub')} />
+        </View>
+    );
+}
+
+// Animated FAB Component with pulsing glow effect
+function AnimatedFAB({ onPress }: { onPress: () => void }) {
+    const scale = useSharedValue(1);
+    const glowOpacity = useSharedValue(0.3);
+
+    useEffect(() => {
+        // Pulsing scale animation
+        scale.value = withRepeat(
+            withSequence(
+                withTiming(1.05, { duration: 1000 }),
+                withTiming(1, { duration: 1000 })
+            ),
+            -1,
+            true
+        );
+
+        // Glow pulse animation
+        glowOpacity.value = withRepeat(
+            withSequence(
+                withTiming(0.6, { duration: 1000 }),
+                withTiming(0.2, { duration: 1000 })
+            ),
+            -1,
+            true
+        );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const glowStyle = useAnimatedStyle(() => ({
+        opacity: glowOpacity.value,
+    }));
+
+    return (
+        <View className="absolute bottom-6 right-6">
+            {/* Outer glow ring */}
+            <Animated.View
+                style={[glowStyle, {
+                    position: 'absolute',
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: '#f97316',
+                    top: -8,
+                    left: -8,
+                }]}
+            />
+            {/* Main button */}
+            <Animated.View style={animatedStyle}>
+                <TouchableOpacity
+                    onPress={onPress}
+                    activeOpacity={0.8}
+                    className="w-16 h-16 rounded-full items-center justify-center"
+                    style={{
+                        backgroundColor: '#f97316',
+                        elevation: 12,
+                        shadowColor: '#f97316',
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 12,
+                    }}
+                >
+                    <Icon as={RocketIcon} className="text-white size-7" />
+                </TouchableOpacity>
+            </Animated.View>
         </View>
     );
 }

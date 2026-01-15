@@ -16,6 +16,8 @@ export default defineSchema({
         bestStreak: v.optional(v.number()), // Highest streak
         lastCheckInDate: v.optional(v.string()), // YYYY-MM-DD of last activity
         unlockedAppSlots: v.optional(v.number()), // Number of unlocked app slots (default 1, max 3)
+        boostPoints: v.optional(v.number()), // Boost points in current 48h cycle
+        boostedAppId: v.optional(v.id("apps")), // Currently selected app to boost
         createdAt: v.number(),
         updatedAt: v.number(),
     })
@@ -39,11 +41,15 @@ export default defineSchema({
             v.literal("completed") // NEW: Got production access
         ),
         completedAt: v.optional(v.number()), // NEW: When marked as completed
+        // Boost system fields
+        boostScore: v.optional(v.number()), // Points in current 48h cycle (default 0)
+        lastBoostedAt: v.optional(v.number()), // Timestamp of last boost action
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_userId", ["userId"])
-        .index("by_status", ["status"]),
+        .index("by_status", ["status"])
+        .index("by_boostScore", ["boostScore"]),
 
     matches: defineTable({
         user1Id: v.id("users"),
@@ -154,4 +160,10 @@ export default defineSchema({
     })
         .index("by_date", ["date"])
         .index("by_user_date", ["userId", "date"]),
+
+    // Boost cycle tracking for 48-hour reset
+    boost_cycles: defineTable({
+        cycleStart: v.number(),   // Timestamp when current 48h cycle started
+        cycleEnd: v.number(),     // Timestamp when cycle ends
+    }),
 });

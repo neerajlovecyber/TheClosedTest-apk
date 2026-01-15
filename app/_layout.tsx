@@ -163,6 +163,7 @@ function InitialLayout() {
         <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
         <Stack.Screen name="add-app" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="app-details/[id]" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="boost-hub" options={{ headerShown: false }} />
         <Stack.Screen name="admin/users-list" options={{ headerShown: false }} />
         <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
         <Stack.Screen name="admin/notifications" options={{ headerShown: false }} />

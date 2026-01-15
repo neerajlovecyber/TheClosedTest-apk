@@ -10,6 +10,7 @@
 
 import type * as admin from "../admin.js";
 import type * as apps from "../apps.js";
+import type * as boost from "../boost.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   apps: typeof apps;
+  boost: typeof boost;
   crons: typeof crons;
   files: typeof files;
   http: typeof http;
