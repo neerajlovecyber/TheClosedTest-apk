@@ -16,6 +16,8 @@ export default defineSchema({
         bestStreak: v.optional(v.number()), // Highest streak
         lastCheckInDate: v.optional(v.string()), // YYYY-MM-DD of last activity
         unlockedAppSlots: v.optional(v.number()), // Number of unlocked app slots (default 1, max 3)
+        boostPoints: v.optional(v.number()), // Boost points in current 48h cycle
+        boostedAppId: v.optional(v.id("apps")), // Currently selected app to boost
         createdAt: v.number(),
         updatedAt: v.number(),
     })

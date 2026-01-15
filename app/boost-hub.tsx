@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Platform, Modal, Image as RNImage } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,9 @@ import {
     ZapIcon,
     CrownIcon,
     CheckCircleIcon,
+    XIcon,
+    SmartphoneIcon,
+    ChevronRightIcon,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useMutation } from 'convex/react';
@@ -24,27 +27,27 @@ import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Id } from '@/convex/_generated/dataModel';
-
 import { TestIds } from 'react-native-google-mobile-ads';
 
 // Ad Unit ID for Boost feature
 const BOOST_AD_UNIT_ID = __DEV__
-    ? TestIds.REWARDED // Use library's test ID
-    : 'ca-app-pub-3238435978294704/6838839038'; // Production ID for boost rewards
+    ? TestIds.REWARDED
+    : 'ca-app-pub-3238435978294704/6838839038';
 
 export default function BoostHubScreen() {
     const router = useRouter();
     const { data: boostStatus } = useCachedConvexQuery(['boostStatus'], api.boost.getBoostStatus);
-    const boostApp = useMutation(api.boost.boostApp);
+    const earnBoostPoints = useMutation(api.boost.earnBoostPoints);
+    const selectBoostedApp = useMutation(api.boost.selectBoostedApp);
     const initBoostCycle = useMutation(api.boost.initBoostCycle);
     const { loaded: adLoaded, loading: adLoading, showAd } = useRewardedAd(BOOST_AD_UNIT_ID);
 
     const [boosting, setBoosting] = useState(false);
-    const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
     const [timeRemaining, setTimeRemaining] = useState<number>(0);
     const [cycleInitialized, setCycleInitialized] = useState(false);
+    const [isModalVisible, setIsModalVisible] = useState(false);
 
-    // Initialize boost cycle on mount (creates cycle if doesn't exist)
+    // Initialize boost cycle on mount
     useEffect(() => {
         if (!cycleInitialized) {
             initBoostCycle().then(() => {
@@ -52,13 +55,6 @@ export default function BoostHubScreen() {
             }).catch(console.error);
         }
     }, []);
-
-    // Auto-select first app when data loads
-    useEffect(() => {
-        if (boostStatus?.myApps && boostStatus.myApps.length > 0 && !selectedAppId) {
-            setSelectedAppId(boostStatus.myApps[0]._id);
-        }
-    }, [boostStatus?.myApps]);
 
     // Update countdown timer every second
     useEffect(() => {
@@ -85,14 +81,15 @@ export default function BoostHubScreen() {
 
     const time = formatTime(timeRemaining);
 
-    const handleBoost = async () => {
-        if (!selectedAppId) {
-            toast.info('Select an App', { description: 'Please select an app to boost first.' });
+    const handleEarnPoints = async () => {
+        if (Platform.OS === 'web') {
+            toast.info('Ads Not Available', { description: 'Rewarded ads are only available on mobile devices.' });
             return;
         }
 
-        if (Platform.OS === 'web') {
-            toast.info('Ads Not Available', { description: 'Rewarded ads are only available on mobile devices.' });
+        if (!boostStatus?.selectedApp) {
+            toast.info('Select an App', { description: 'Please select an app to boost first.' });
+            setIsModalVisible(true);
             return;
         }
 
@@ -105,39 +102,28 @@ export default function BoostHubScreen() {
         try {
             const rewarded = await showAd();
             if (rewarded) {
-                const result = await boostApp({ appId: selectedAppId as Id<"apps"> });
-                const appName = boostStatus?.myApps?.find((a: any) => a._id === selectedAppId)?.title || 'App';
-                toast.success('Boosted! 🚀', {
-                    description: `${appName} +${result.pointsEarned} point! Total: ${result.newScore}`,
+                const result = await earnBoostPoints();
+                toast.success('Points Earned! 🚀', {
+                    description: `+${result.pointsEarned} point! Total: ${result.newPoints}`,
                 });
             }
         } catch (error: any) {
             console.error('Boost failed:', error);
-            toast.error('Boost Failed', { description: error.message || 'Please try again.' });
+            toast.error('Failed', { description: error.message || 'Please try again.' });
         } finally {
             setBoosting(false);
         }
     };
 
-    const getMedalEmoji = (rank: number) => {
-        switch (rank) {
-            case 1: return '🥇';
-            case 2: return '🥈';
-            case 3: return '🥉';
-            default: return `#${rank}`;
+    const handleSelectApp = async (appId: string) => {
+        try {
+            await selectBoostedApp({ appId: appId as Id<"apps"> });
+            toast.success('App Selected', { description: 'Your points will now boost this app!' });
+            setIsModalVisible(false);
+        } catch (error: any) {
+            toast.error('Error', { description: error.message || 'Failed to select app.' });
         }
     };
-
-    const getRankColor = (rank: number) => {
-        switch (rank) {
-            case 1: return 'bg-yellow-500/20 border-yellow-500/50';
-            case 2: return 'bg-gray-300/20 border-gray-400/50';
-            case 3: return 'bg-orange-600/20 border-orange-600/50';
-            default: return 'bg-muted/30 border-border';
-        }
-    };
-
-    const selectedApp = boostStatus?.myApps?.find((a: any) => a._id === selectedAppId);
 
     return (
         <View className="flex-1 bg-background">
@@ -161,7 +147,7 @@ export default function BoostHubScreen() {
                     </View>
                 </View>
 
-                {/* Countdown Timer - Hero Style */}
+                {/* Countdown Timer */}
                 <View className="mx-6 mt-2 p-4 rounded-2xl bg-background border border-orange-400/30 shadow-lg">
                     <View className="flex-row items-center justify-between">
                         <View className="flex-row items-center gap-2">
@@ -214,171 +200,242 @@ export default function BoostHubScreen() {
                     </View>
                 </View>
 
-                {/* My Apps Section - SELECT WHICH APP TO BOOST */}
-                {boostStatus?.myApps && boostStatus.myApps.length > 0 && (
-                    <View className="mb-4">
-                        <View className="flex-row items-center gap-2 mb-3">
-                            <Icon as={RocketIcon} className="text-primary size-5" />
-                            <Text className="text-lg font-bold text-foreground">Select App to Boost</Text>
+                {/* Your Points Display */}
+                <Card className="mb-4 border-orange-400/30 bg-orange-500/5">
+                    <CardContent className="p-4">
+                        <View className="flex-row items-center justify-between">
+                            <View>
+                                <Text className="text-sm text-muted-foreground">Your Boost Points</Text>
+                                <Text className="text-3xl font-bold text-orange-500">{boostStatus?.userPoints || 0}</Text>
+                            </View>
+                            <View className="h-14 w-14 rounded-full bg-orange-500/20 items-center justify-center">
+                                <Icon as={TrendingUpIcon} className="text-orange-500 size-7" />
+                            </View>
                         </View>
+                    </CardContent>
+                </Card>
 
-                        <View className="gap-2">
-                            {boostStatus.myApps.map((app: any) => {
-                                const isSelected = selectedAppId === app._id;
-                                return (
-                                    <TouchableOpacity
-                                        key={app._id}
-                                        onPress={() => setSelectedAppId(app._id)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View className={`flex-row items-center gap-3 p-3 rounded-xl border-2 transition-all ${isSelected
-                                            ? 'border-orange-500 bg-orange-500/10'
-                                            : 'border-border bg-card'
-                                            }`}>
-                                            {/* Selection indicator */}
-                                            <View className={`w-6 h-6 rounded-full border-2 items-center justify-center ${isSelected ? 'border-orange-500 bg-orange-500' : 'border-muted-foreground/30'
-                                                }`}>
-                                                {isSelected && (
-                                                    <Icon as={CheckCircleIcon} className="size-4 text-white" />
-                                                )}
-                                            </View>
-
-                                            <Image
-                                                source={{ uri: app.iconUrl }}
-                                                style={{ width: 48, height: 48, borderRadius: 10 }}
-                                                contentFit="cover"
-                                            />
-                                            <View className="flex-1">
-                                                <Text className="font-semibold text-foreground" numberOfLines={1}>
-                                                    {app.title}
-                                                </Text>
-                                                <View className="flex-row items-center gap-2 mt-1">
-                                                    <View className="flex-row items-center gap-1 bg-orange-500/10 px-2 py-0.5 rounded">
-                                                        <Icon as={TrendingUpIcon} className="size-3 text-orange-500" />
-                                                        <Text className="text-xs font-bold text-orange-500">
-                                                            {app.boostScore} pts
-                                                        </Text>
-                                                    </View>
-                                                    {app.rank && app.rank <= 5 && (
-                                                        <View className="bg-green-500/10 px-2 py-0.5 rounded">
-                                                            <Text className="text-[10px] font-bold text-green-600">
-                                                                🏆 #{app.rank}
-                                                            </Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            </View>
+                {/* Selected App to Boost - Like swap picker */}
+                <View className="mb-4">
+                    <Text className="text-xs font-bold text-muted-foreground px-1 mb-2 uppercase tracking-widest">
+                        App to Boost
+                    </Text>
+                    <Card className="border-0 overflow-hidden">
+                        <CardContent className="p-0">
+                            {boostStatus?.selectedApp ? (
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => setIsModalVisible(true)}
+                                    className="p-4 flex-row items-center gap-4"
+                                >
+                                    <Image
+                                        source={{ uri: boostStatus.selectedApp.iconUrl }}
+                                        style={{ width: 48, height: 48, borderRadius: 12 }}
+                                        contentFit="cover"
+                                    />
+                                    <View className="flex-1">
+                                        <Text className="font-bold text-base text-foreground">{boostStatus.selectedApp.title}</Text>
+                                        <Text className="text-xs text-muted-foreground">Tap to change app</Text>
+                                    </View>
+                                    <View className="flex-row items-center gap-2">
+                                        <View className="bg-orange-500/10 px-2 py-1 rounded-md">
+                                            <Text className="text-xs font-bold text-orange-500">{boostStatus?.userPoints || 0} pts</Text>
                                         </View>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* Main CTA Button */}
-                        <TouchableOpacity
-                            onPress={handleBoost}
-                            disabled={boosting || adLoading || !selectedAppId}
-                            activeOpacity={0.8}
-                            className="w-full py-4 rounded-2xl bg-orange-500 items-center justify-center mt-4"
-                            style={{
-                                opacity: boosting || adLoading || !selectedAppId ? 0.6 : 1,
-                                shadowColor: '#f97316',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3,
-                                shadowRadius: 8,
-                                elevation: 8,
-                            }}
-                        >
-                            <View className="flex-row items-center gap-2">
-                                <Icon as={PlayCircleIcon} className="text-white size-6" />
-                                <Text className="text-white font-bold text-lg">
-                                    {adLoading ? 'Loading...' : boosting ? 'Boosting...' : 'WATCH AD & BOOST +1'}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-                        {selectedApp && (
-                            <Text className="text-xs text-muted-foreground text-center mt-2">
-                                Boosting: {selectedApp.title}
-                            </Text>
-                        )}
-                    </View>
-                )}
-
-                {/* No Apps State */}
-                {(!boostStatus?.myApps || boostStatus.myApps.length === 0) && (
-                    <Card className="mb-4 border-dashed border-2 border-muted-foreground/20">
-                        <CardContent className="py-8 items-center">
-                            <View className="w-16 h-16 rounded-full bg-muted/50 items-center justify-center mb-3">
-                                <Icon as={RocketIcon} className="text-muted-foreground size-8" />
-                            </View>
-                            <Text className="font-semibold text-foreground mb-1">No apps to boost</Text>
-                            <Text className="text-sm text-muted-foreground text-center mb-4">
-                                Add a recruiting app to start boosting
-                            </Text>
-                            <Button
-                                variant="default"
-                                onPress={() => router.push('/add-app')}
-                            >
-                                <Text className="text-white">Add an App</Text>
-                            </Button>
+                                        <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
+                                    </View>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => setIsModalVisible(true)}
+                                    className="p-6 items-center justify-center bg-secondary/20"
+                                >
+                                    <View className="h-12 w-12 rounded-full bg-orange-500/10 items-center justify-center mb-2">
+                                        <Icon as={SmartphoneIcon} className="text-orange-500 size-6" />
+                                    </View>
+                                    <Text className="font-semibold text-foreground">Select an App to Boost</Text>
+                                    <Text className="text-xs text-muted-foreground text-center mt-1">
+                                        Your points will apply to the selected app
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </CardContent>
                     </Card>
-                )}
+                </View>
+
+                {/* Main CTA Button */}
+                <TouchableOpacity
+                    onPress={handleEarnPoints}
+                    disabled={boosting || adLoading}
+                    activeOpacity={0.8}
+                    className="w-full py-4 rounded-2xl bg-orange-500 items-center justify-center mb-4"
+                    style={{
+                        opacity: boosting || adLoading ? 0.6 : 1,
+                        shadowColor: '#f97316',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        elevation: 8,
+                    }}
+                >
+                    <View className="flex-row items-center gap-2">
+                        <Icon as={PlayCircleIcon} className="text-white size-6" />
+                        <Text className="text-white font-bold text-lg">
+                            {adLoading ? 'Loading...' : boosting ? 'Boosting...' : 'WATCH AD & EARN +1'}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
 
                 {/* Leaderboard */}
                 <View className="mb-8">
-                    <View className="flex-row items-center gap-2 mb-3">
-                        <Icon as={TrophyIcon} className="text-yellow-500 size-5" />
-                        <Text className="text-lg font-bold text-foreground">Leaderboard</Text>
+                    <View className="flex-row items-center justify-between mb-3">
+                        <View className="flex-row items-center gap-2">
+                            <Icon as={TrophyIcon} className="text-yellow-500 size-5" />
+                            <Text className="text-lg font-bold text-foreground">Leaderboard</Text>
+                        </View>
+                        <View className="bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                            <Text className="text-[10px] font-bold text-yellow-600">TOP 5</Text>
+                        </View>
                     </View>
 
                     {boostStatus?.topApps && boostStatus.topApps.length > 0 ? (
-                        <View className="gap-2">
-                            {boostStatus.topApps.map((app: any) => (
-                                <TouchableOpacity
-                                    key={app._id}
-                                    onPress={() => router.push(`/app-details/${app._id}`)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View className={`flex-row items-center gap-3 p-3 rounded-xl border ${getRankColor(app.rank)}`}>
-                                        <View className="w-10 items-center">
-                                            <Text className="text-xl">{getMedalEmoji(app.rank)}</Text>
-                                        </View>
-                                        <Image
-                                            source={{ uri: app.iconUrl }}
-                                            style={{ width: 40, height: 40, borderRadius: 8 }}
-                                            contentFit="cover"
-                                        />
-                                        <View className="flex-1">
-                                            <Text className="font-semibold text-foreground text-sm" numberOfLines={1}>
-                                                {app.title}
-                                            </Text>
-                                            <Text className="text-xs text-muted-foreground">
-                                                by {app.ownerName}
-                                            </Text>
-                                        </View>
-                                        <View className="items-end">
-                                            <Text className="text-lg font-bold text-orange-500">
-                                                {app.boostScore}
-                                            </Text>
-                                            <Text className="text-[10px] text-muted-foreground">pts</Text>
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                        <Card className="overflow-hidden border-border">
+                            <CardContent className="p-0">
+                                {boostStatus.topApps.map((app: any, index: number) => {
+                                    const isFirst = index === 0;
+                                    const maxScore = boostStatus.topApps[0]?.boostScore || 1;
+                                    const progress = (app.boostScore / maxScore) * 100;
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={app._id}
+                                            onPress={() => router.push(`/app-details/${app._id}`)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View className={`flex-row items-center gap-3 p-3 ${index < boostStatus.topApps.length - 1 ? 'border-b border-border/50' : ''} ${isFirst ? 'bg-yellow-500/5' : ''}`}>
+                                                <View className={`w-8 h-8 rounded-lg items-center justify-center ${app.rank === 1 ? 'bg-yellow-500' :
+                                                        app.rank === 2 ? 'bg-gray-400' :
+                                                            app.rank === 3 ? 'bg-orange-600' :
+                                                                'bg-muted'
+                                                    }`}>
+                                                    <Text className={`font-bold text-sm ${app.rank <= 3 ? 'text-white' : 'text-muted-foreground'}`}>
+                                                        {app.rank}
+                                                    </Text>
+                                                </View>
+
+                                                <Image
+                                                    source={{ uri: app.iconUrl }}
+                                                    style={{
+                                                        width: isFirst ? 48 : 40,
+                                                        height: isFirst ? 48 : 40,
+                                                        borderRadius: isFirst ? 12 : 8,
+                                                        borderWidth: isFirst ? 2 : 0,
+                                                        borderColor: '#facc15',
+                                                    }}
+                                                    contentFit="cover"
+                                                />
+
+                                                <View className="flex-1">
+                                                    <Text className={`font-semibold text-foreground ${isFirst ? 'text-base' : 'text-sm'}`} numberOfLines={1}>
+                                                        {app.title}
+                                                    </Text>
+                                                    <Text className="text-xs text-muted-foreground">
+                                                        {app.ownerName}
+                                                    </Text>
+                                                    <View className="h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
+                                                        <View
+                                                            className="h-full bg-orange-500 rounded-full"
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                    </View>
+                                                </View>
+
+                                                <View className="items-end">
+                                                    <Text className={`font-bold text-orange-500 ${isFirst ? 'text-xl' : 'text-lg'}`}>
+                                                        {app.boostScore}
+                                                    </Text>
+                                                    <Text className="text-[10px] text-muted-foreground">points</Text>
+                                                </View>
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </CardContent>
+                        </Card>
                     ) : (
                         <Card className="border-dashed border-2 border-muted-foreground/20">
-                            <CardContent className="py-6 items-center">
-                                <Icon as={SparklesIcon} className="text-muted-foreground/50 size-8 mb-2" />
-                                <Text className="text-muted-foreground text-center">
-                                    No boosted apps yet. Be the first!
+                            <CardContent className="py-8 items-center">
+                                <View className="w-16 h-16 rounded-full bg-yellow-500/10 items-center justify-center mb-3">
+                                    <Icon as={TrophyIcon} className="text-yellow-500/50 size-8" />
+                                </View>
+                                <Text className="font-semibold text-foreground mb-1">No one's here yet!</Text>
+                                <Text className="text-sm text-muted-foreground text-center">
+                                    Be the first to claim the #1 spot
                                 </Text>
                             </CardContent>
                         </Card>
                     )}
                 </View>
             </ScrollView>
+
+            {/* App Selection Modal - Same style as swap picker */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={isModalVisible}
+                onRequestClose={() => setIsModalVisible(false)}
+            >
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-background rounded-t-3xl p-6 min-h-[50%]">
+                        <View className="flex-row justify-between items-center mb-6">
+                            <Text className="text-2xl font-bold">Select App to Boost</Text>
+                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                                <Icon as={XIcon} className="size-6 text-muted-foreground" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {boostStatus?.myApps && boostStatus.myApps.length > 0 ? (
+                            <ScrollView>
+                                {boostStatus.myApps.map((app: any) => (
+                                    <TouchableOpacity
+                                        key={app._id}
+                                        className={`flex-row items-center gap-4 p-4 mb-3 rounded-xl border ${boostStatus?.selectedApp?._id === app._id
+                                                ? 'border-orange-500 bg-orange-500/5'
+                                                : 'border-border'
+                                            }`}
+                                        onPress={() => handleSelectApp(app._id)}
+                                    >
+                                        <Image
+                                            source={{ uri: app.iconUrl }}
+                                            style={{ width: 48, height: 48, borderRadius: 12 }}
+                                            contentFit="cover"
+                                        />
+                                        <View className="flex-1">
+                                            <Text className="font-bold text-lg text-foreground">{app.title}</Text>
+                                            <Text className="text-muted-foreground text-sm">
+                                                {app.requiredTesters} testers needed
+                                            </Text>
+                                        </View>
+                                        {boostStatus?.selectedApp?._id === app._id && (
+                                            <Icon as={CheckCircleIcon} className="text-orange-500 size-5" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        ) : (
+                            <View className="items-center py-10 gap-4">
+                                <View className="w-16 h-16 rounded-full bg-muted items-center justify-center">
+                                    <Icon as={SmartphoneIcon} className="text-muted-foreground size-8" />
+                                </View>
+                                <Text className="text-muted-foreground text-center">You don't have any recruiting apps.</Text>
+                                <Button onPress={() => { setIsModalVisible(false); router.push('/add-app'); }}>
+                                    <Text className="text-white">Add New App</Text>
+                                </Button>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
