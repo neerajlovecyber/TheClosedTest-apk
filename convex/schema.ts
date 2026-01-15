@@ -39,11 +39,15 @@ export default defineSchema({
             v.literal("completed") // NEW: Got production access
         ),
         completedAt: v.optional(v.number()), // NEW: When marked as completed
+        // Boost system fields
+        boostScore: v.optional(v.number()), // Points in current 48h cycle (default 0)
+        lastBoostedAt: v.optional(v.number()), // Timestamp of last boost action
         createdAt: v.number(),
         updatedAt: v.number(),
     })
         .index("by_userId", ["userId"])
-        .index("by_status", ["status"]),
+        .index("by_status", ["status"])
+        .index("by_boostScore", ["boostScore"]),
 
     matches: defineTable({
         user1Id: v.id("users"),
@@ -154,4 +158,10 @@ export default defineSchema({
     })
         .index("by_date", ["date"])
         .index("by_user_date", ["userId", "date"]),
+
+    // Boost cycle tracking for 48-hour reset
+    boost_cycles: defineTable({
+        cycleStart: v.number(),   // Timestamp when current 48h cycle started
+        cycleEnd: v.number(),     // Timestamp when cycle ends
+    }),
 });

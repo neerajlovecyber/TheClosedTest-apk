@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
-import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, TrophyIcon } from 'lucide-react-native';
+import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, TrophyIcon, FlameIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
+import { BoostedAppsSection } from '@/components/BoostedAppsSection';
 
 // Loading placeholder component
 const ListLoadingPlaceholder = memo(() => (
@@ -145,6 +146,9 @@ export default function MarketplaceScreen() {
 
                     <GoogleGroupWidget className="mb-0" />
 
+                    {/* Boosted Apps Section */}
+                    {!searchQuery && <BoostedAppsSection />}
+
                     {/* Search Bar */}
                     <View className="relative">
                         <View className="absolute left-3 top-3 z-10">
@@ -258,6 +262,22 @@ export default function MarketplaceScreen() {
                     )}
                 </View>
             </ScrollView>
+
+            {/* Floating Action Button - Boost Hub */}
+            <TouchableOpacity
+                onPress={() => router.push('/boost-hub')}
+                className="absolute bottom-6 right-6 w-14 h-14 bg-orange-500 rounded-full items-center justify-center shadow-lg"
+                style={{
+                    elevation: 8,
+                    shadowColor: '#f97316',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                }}
+                activeOpacity={0.8}
+            >
+                <Icon as={RocketIcon} className="text-white size-6" />
+            </TouchableOpacity>
         </View>
     );
 }
