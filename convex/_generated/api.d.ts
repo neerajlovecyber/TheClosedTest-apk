@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as apps from "../apps.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
+import type * as http from "../http.js";
 import type * as matches from "../matches.js";
 import type * as notificationHelper from "../notificationHelper.js";
 import type * as notifications from "../notifications.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   apps: typeof apps;
   crons: typeof crons;
   files: typeof files;
+  http: typeof http;
   matches: typeof matches;
   notificationHelper: typeof notificationHelper;
   notifications: typeof notifications;

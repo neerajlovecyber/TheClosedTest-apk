@@ -233,11 +233,14 @@ export default function AppDetailsScreen() {
 
     const handleShare = async () => {
         try {
-            const deepLink = Linking.createURL(`/app-details/${appId}`);
+            // Hardcoded as requested
+            const convexSiteUrl = "https://artful-grasshopper-509.convex.site";
+            const shareUrl = `${convexSiteUrl}/share?appId=${appId}`;
+
             await Share.share({
-                message: `Help me test "${app.title}" on TheClosedTest! Open this link to view details and request a swap: ${deepLink}`,
+                message: `Help me test "${app.title}" on TheClosedTest! Open this link to view details and request a swap: ${shareUrl}`,
                 title: `Test ${app.title}`,
-                url: deepLink, // iOS support
+                url: shareUrl,
             });
         } catch (error: any) {
             toast.error(error.message);
