@@ -22,7 +22,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon, ClockIcon } from 'lucide-react-native';
+import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon, ClockIcon, XIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { ProofUploader } from '@/components/ProofUploader';
@@ -68,6 +68,9 @@ export default function MatchDashboardScreen() {
     const { data: partnerProof } = useCachedConvexQuery(['partnerProof', matchId], api.matches.getPartnerTodayProof, { matchId });
     const { data: progressData } = useCachedConvexQuery(['progressData', matchId], api.matches.getProgressData, { matchId });
 
+    // Get all proofs for day-specific modal
+    const { data: allProofs } = useCachedConvexQuery(['allProofs', matchId], api.matches.getProofs, { matchId });
+
     // Mutations
     const cancelMatchMutation = useMutation(api.matches.cancelMatch);
 
@@ -79,6 +82,7 @@ export default function MatchDashboardScreen() {
     const [proofToRejectUrls, setProofToRejectUrls] = useState<string[]>([]);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+    const [selectedDayModal, setSelectedDayModal] = useState<number | null>(null);
 
     // Countdown timer state
     const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
@@ -91,6 +95,11 @@ export default function MatchDashboardScreen() {
 
         return () => clearInterval(interval);
     }, []);
+
+    // Handle day card press
+    const handleDayPress = (day: number) => {
+        setSelectedDayModal(day);
+    };
 
 
 
@@ -123,6 +132,13 @@ export default function MatchDashboardScreen() {
         }
         setRejectionModalVisible(true);
     };
+
+    // Get proofs for selected day from modal
+    const selectedDayMyProof = selectedDayModal && allProofs ?
+        allProofs.find((p: any) => p.day === selectedDayModal && p.isMe) : null;
+
+    const selectedDayPartnerProof = selectedDayModal && allProofs ?
+        allProofs.find((p: any) => p.day === selectedDayModal && !p.isMe) : null;
 
     // Header Component
     const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -252,10 +268,29 @@ export default function MatchDashboardScreen() {
                         </View>
                     </View>
 
+                    {/* Testing Instructions - Collapsible */}
+                    <Pressable
+                        onPress={() => setInstructionsExpanded(!instructionsExpanded)}
+                        className="bg-secondary/30 rounded-xl p-3  flex-row items-center justify-between"
+                    >
+                        <View className="flex-row items-center flex-1">
+                            <Icon as={InfoIcon} className="text-primary size-4 mr-2" />
+                            <Text className="font-medium text-sm">Testing Instructions</Text>
+                        </View>
+                        <Icon as={instructionsExpanded ? ChevronUpIcon : ChevronDownIcon} className="text-muted-foreground size-5" />
+                    </Pressable>
+                    {instructionsExpanded && (
+                        <Card className="bg-secondary/10 mt-2">
+                            <CardContent className="p-3">
+                                <Text className="text-muted-foreground text-sm">{app?.instructions || 'Follow the testing instructions'}</Text>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Open App Button */}
                     <TouchableOpacity
                         onPress={handleOpenApp}
-                        className="flex-row items-center justify-center bg-primary mt-2 p-2.5 rounded-xl"
+                        className="flex-row items-center justify-center bg-primary mt-3 p-2.5 rounded-xl"
                     >
                         <Icon as={ExternalLinkIcon} className="text-primary-foreground size-4 mr-2" />
                         <Text className="text-primary-foreground font-bold text-base">Open {app?.title || 'App'}</Text>
@@ -263,9 +298,9 @@ export default function MatchDashboardScreen() {
                 </View>
 
                 {/* Countdown Timer Card */}
-                <View className="px-4 mt-4">
-                    <Card className="mb-4 border-orange-400/30 bg-orange-500/5">
-                        <CardContent className="p-4">
+                <View className="px-4 mt-1">
+                    <Card className="mb-3 border-orange-400/30 bg-orange-500/5">
+                        <CardContent className="p-4 py-2">
                             <View className="flex-row items-center justify-between">
                                 <View className="flex-row items-center gap-2">
                                     <Icon as={ClockIcon} className="text-orange-500 size-5" />
@@ -294,32 +329,13 @@ export default function MatchDashboardScreen() {
                 {summary && (
                     <View className="mb-6">
                         <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
-                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} />
+                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} />
                     </View>
                 )}
 
                 {/* Today's Tasks */}
                 <View className="px-4">
-                    <Text className="text-sm font-bold mb-3 uppercase tracking-wider text-muted-foreground">Today's Tasks</Text>
-
-                    {/* Collapsible Instructions */}
-                    <Pressable
-                        onPress={() => setInstructionsExpanded(!instructionsExpanded)}
-                        className="bg-secondary/30 rounded-xl p-3 mb-4 flex-row items-center justify-between"
-                    >
-                        <View className="flex-row items-center flex-1">
-                            <Icon as={InfoIcon} className="text-primary size-4 mr-2" />
-                            <Text className="font-medium text-sm">Testing Instructions</Text>
-                        </View>
-                        <Icon as={instructionsExpanded ? ChevronUpIcon : ChevronDownIcon} className="text-muted-foreground size-5" />
-                    </Pressable>
-                    {instructionsExpanded && (
-                        <Card className="bg-secondary/10 mb-4 -mt-2">
-                            <CardContent className="p-3">
-                                <Text className="text-muted-foreground text-sm">{app?.instructions || 'Follow the testing instructions'}</Text>
-                            </CardContent>
-                        </Card>
-                    )}
+                    <Text className="text-sm font-bold  uppercase tracking-wider text-muted-foreground">Today's Tasks</Text>
 
                     <SectionTitle icon={UploadIcon} title="Your Daily Proof" />
                     <ProofUploader matchId={matchId} currentDay={currentDay} todayProof={todayProof} />
@@ -399,6 +415,62 @@ export default function MatchDashboardScreen() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Day-Specific Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={selectedDayModal !== null}
+                onRequestClose={() => setSelectedDayModal(null)}
+            >
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-background rounded-t-3xl max-h-[85%]">
+                        <View className="p-6">
+                            <View className="flex-row justify-between items-center mb-4">
+                                <View>
+                                    <Text className="text-2xl font-bold">Day {selectedDayModal}</Text>
+                                    <Text className="text-sm text-muted-foreground">View & manage this day's proofs</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setSelectedDayModal(null)}>
+                                    <Icon as={XIcon} className="size-6 text-muted-foreground" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView showsVerticalScrollIndicator={false} className="max-h-[600px]">
+                                {/* Your Proof for Selected Day */}
+                                <View className="mb-4">
+                                    <SectionTitle icon={UploadIcon} title="Your Proof" />
+                                    {selectedDayModal && selectedDayModal <= currentDay ? (
+                                        <ProofUploader matchId={matchId} currentDay={selectedDayModal} todayProof={selectedDayMyProof} />
+                                    ) : (
+                                        <Card className="border-dashed">
+                                            <CardContent className="p-4">
+                                                <Text className="text-center text-muted-foreground">This day hasn't arrived yet</Text>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </View>
+
+                                <View className="h-px bg-border my-3" />
+
+                                {/* Partner's Proof for Selected Day */}
+                                <View>
+                                    <SectionTitle icon={EyeIcon} title="Partner's Proof" />
+                                    {selectedDayModal && selectedDayModal <= currentDay ? (
+                                        <ProofReviewer matchId={matchId} partnerProof={selectedDayPartnerProof} onReject={handleRejectPress} />
+                                    ) : (
+                                        <Card className="border-dashed">
+                                            <CardContent className="p-4">
+                                                <Text className="text-center text-muted-foreground">This day hasn't arrived yet</Text>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </View>
+                            </ScrollView>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }

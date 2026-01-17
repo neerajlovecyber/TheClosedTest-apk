@@ -23,6 +23,7 @@ interface ProgressGridProps {
         partnerApproved: number;
         totalDays: number;
     };
+    onDayPress?: (day: number) => void;
 }
 
 // Memoized Status Indicator Component
@@ -81,13 +82,13 @@ const StatusDot = memo(({ status, isMe }: { status: string, isMe?: boolean }) =>
     );
 });
 
-function ProgressGridComponent({ days, currentDay, summary }: ProgressGridProps) {
+function ProgressGridComponent({ days, currentDay, summary, onDayPress }: ProgressGridProps) {
     const { width } = useWindowDimensions();
 
     return (
         <View>
             {/* Unified Score Card Header */}
-            <View className="mx-4 mb-4 p-4 rounded-xl bg-card border border-border shadow-sm flex-row justify-between items-center">
+            <View className="mx-4 mb-2 p-2 rounded-xl bg-card border border-border shadow-sm flex-row justify-between items-center">
                 <View className="items-center flex-1 border-r border-border/50">
                     <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
                         {summary.myApproved}/{summary.totalDays}
@@ -110,12 +111,16 @@ function ProgressGridComponent({ days, currentDay, summary }: ProgressGridProps)
             >
                 {days.map((dayItem) => {
                     const isToday = dayItem.day === currentDay;
+                    const isFuture = dayItem.isFuture;
 
                     return (
-                        <View
+                        <Pressable
                             key={dayItem.day}
+                            onPress={() => !isFuture && onDayPress?.(dayItem.day)}
+                            disabled={isFuture}
                             style={{ width: 85 }} // Fixed width for scrollable list
-                            className={`p-2 mr-2 rounded-xl border aspect-[0.85] justify-between items-center ${isToday ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}
+                            className={`p-2 mr-2 rounded-xl border aspect-[0.85] justify-between items-center ${isToday ? 'border-primary bg-primary/5' : 'border-border bg-card'
+                                } ${isFuture ? 'opacity-50' : 'active:opacity-70'}`}
                         >
                             <View className={`px-2 py-0.5 rounded-md mb-2 ${isToday ? 'bg-primary' : 'bg-secondary'}`}>
                                 <Text className={`text-xs font-bold ${isToday ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
@@ -135,7 +140,7 @@ function ProgressGridComponent({ days, currentDay, summary }: ProgressGridProps)
                                     <StatusDot status={dayItem.partnerStatus} />
                                 </View>
                             </View>
-                        </View>
+                        </Pressable>
                     );
                 })}
             </ScrollView>
