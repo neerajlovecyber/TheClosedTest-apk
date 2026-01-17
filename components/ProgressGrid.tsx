@@ -1,5 +1,5 @@
 
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef, useEffect } from 'react';
 import { View, Pressable, useWindowDimensions, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -24,6 +24,7 @@ interface ProgressGridProps {
         totalDays: number;
     };
     onDayPress?: (day: number) => void;
+    selectedDay?: number;
 }
 
 // Memoized Status Indicator Component
@@ -82,8 +83,26 @@ const StatusDot = memo(({ status, isMe }: { status: string, isMe?: boolean }) =>
     );
 });
 
-function ProgressGridComponent({ days, currentDay, summary, onDayPress }: ProgressGridProps) {
+function ProgressGridComponent({ days, currentDay, summary, onDayPress, selectedDay }: ProgressGridProps) {
     const { width } = useWindowDimensions();
+    const scrollViewRef = useRef<ScrollView>(null);
+
+    const CARD_WIDTH = 85;
+    const CARD_MARGIN = 8; // mr-2 = 8px
+    const PADDING = 16;
+
+    // Auto-scroll to selected day when component mounts or selectedDay changes
+    useEffect(() => {
+        if (scrollViewRef.current && selectedDay) {
+            // Calculate scroll position to center the selected day
+            const cardTotalWidth = CARD_WIDTH + CARD_MARGIN;
+            const scrollX = Math.max(0, (selectedDay - 1) * cardTotalWidth - (width / 2) + CARD_WIDTH / 2 + PADDING);
+
+            setTimeout(() => {
+                scrollViewRef.current?.scrollTo({ x: scrollX, animated: true });
+            }, 100);
+        }
+    }, [selectedDay, width]);
 
     return (
         <View>
@@ -104,6 +123,7 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress }: Progre
             </View>
 
             <ScrollView
+                ref={scrollViewRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16 }}
@@ -111,6 +131,7 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress }: Progre
             >
                 {days.map((dayItem) => {
                     const isToday = dayItem.day === currentDay;
+                    const isSelected = dayItem.day === selectedDay;
                     const isFuture = dayItem.isFuture;
 
                     return (
@@ -119,11 +140,13 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress }: Progre
                             onPress={() => !isFuture && onDayPress?.(dayItem.day)}
                             disabled={isFuture}
                             style={{ width: 85 }} // Fixed width for scrollable list
-                            className={`p-2 mr-2 rounded-xl border aspect-[0.85] justify-between items-center ${isToday ? 'border-primary bg-primary/5' : 'border-border bg-card'
+                            className={`p-2 mr-2 rounded-xl border-2 aspect-[0.85] justify-between items-center ${isSelected ? 'border-primary bg-primary/10' :
+                                isToday ? 'border-primary/50 bg-primary/5' :
+                                    'border-border bg-card'
                                 } ${isFuture ? 'opacity-50' : 'active:opacity-70'}`}
                         >
-                            <View className={`px-2 py-0.5 rounded-md mb-2 ${isToday ? 'bg-primary' : 'bg-secondary'}`}>
-                                <Text className={`text-xs font-bold ${isToday ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
+                            <View className={`px-2 py-0.5 rounded-md mb-2 ${isSelected ? 'bg-primary' : isToday ? 'bg-primary/70' : 'bg-secondary'}`}>
+                                <Text className={`text-xs font-bold ${isSelected || isToday ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
                                     Day {dayItem.day}
                                 </Text>
                             </View>
