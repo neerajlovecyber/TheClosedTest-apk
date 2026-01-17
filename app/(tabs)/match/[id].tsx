@@ -340,14 +340,14 @@ export default function MatchDashboardScreen() {
                     <SectionTitle icon={UploadIcon} title="Your Daily Proof" />
                     <ProofUploader matchId={matchId} currentDay={currentDay} todayProof={todayProof} />
 
-                    <View className="h-px bg-border my-3" />
+
 
                     <SectionTitle icon={EyeIcon} title="Review Partner's Proof" />
                     <ProofReviewer matchId={matchId} partnerProof={partnerProof} onReject={handleRejectPress} />
                 </View>
-
+                <View className="h-px bg-border mb-6 mt-2 mx-3 " />
                 {/* Leave Match Button */}
-                <View className="px-4 mt-6">
+                <View className="px-4 mt-">
                     <TouchableOpacity
                         onPress={handleLeaveMatch}
                         className="flex-row items-center justify-center p-3.5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-6"
