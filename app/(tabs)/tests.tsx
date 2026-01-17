@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, memo } from 'react';
+import React, { useMemo, useCallback, memo, useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { LegendList } from '@legendapp/list';
@@ -113,9 +113,40 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
     );
 });
 
+const getTimeUntilMidnightIST = () => {
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(utcTime + istOffset);
+
+    const nextMidnight = new Date(istTime);
+    nextMidnight.setHours(24, 0, 0, 0);
+
+    const diff = nextMidnight.getTime() - istTime.getTime();
+
+    // Create new Date object for display derivation
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return { hours, minutes, seconds };
+};
+
 export default function TestsScreen() {
     const router = useRouter();
     const { data: testingApps = [] } = useCachedConvexQuery(['activeTests'], api.matches.getMyActiveTests);
+
+    // Countdown timer state
+    const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
+
+    // Update countdown every second
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTimeUntilReset(getTimeUntilMidnightIST());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Memoize the split between pending and completed tasks
     const { pendingTasks, completedTasks } = useMemo(() => ({
@@ -151,7 +182,37 @@ export default function TestsScreen() {
                     )}
                 </View>
 
-                <View className="px-4 pt-4">
+                {/* Daily Reset Countdown Card */}
+                <View className="px-4 mb-4">
+                    <Card className="border-orange-400/30 bg-orange-500/5">
+                        <CardContent className="p-3 py-2">
+                            <View className="flex-row items-center justify-between gap-2">
+                                <View className="flex-row items-center gap-2 flex-1">
+                                    <Icon as={ClockIcon} className="text-orange-500 size-5" />
+                                    <View>
+                                        <Text className="text-sm font-bold text-foreground">Time Until Reset</Text>
+                                        <Text className="text-xs text-muted-foreground" numberOfLines={1} adjustsFontSizeToFit>Resets at 12:00 AM IST</Text>
+                                    </View>
+                                </View>
+                                <View className="flex-row items-center gap-2">
+                                    <View className="items-center border border-orange-200 dark:border-orange-800 bg-background px-3 py-2 rounded-lg min-w-[50px]">
+                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.hours.toString().padStart(2, '0')}</Text>
+                                        <Text className="text-[10px] text-muted-foreground font-medium tracking-wide">HRS</Text>
+                                    </View>
+                                    <View className="pb-2">
+                                        <Text className="text-xl font-bold text-orange-400">:</Text>
+                                    </View>
+                                    <View className="items-center border border-orange-200 dark:border-orange-800 bg-background px-3 py-2 rounded-lg min-w-[50px]">
+                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.minutes.toString().padStart(2, '0')}</Text>
+                                        <Text className="text-[10px] text-muted-foreground font-medium tracking-wide">MIN</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </CardContent>
+                    </Card>
+                </View>
+
+                <View className="px-4 pt-1">
                     {/* Pending Section - Only show if there are pending tasks */}
                     {pendingTasks.length > 0 && (
                         <View className="mb-6">
