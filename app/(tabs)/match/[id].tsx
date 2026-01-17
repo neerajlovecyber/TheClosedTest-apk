@@ -22,7 +22,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon } from 'lucide-react-native';
+import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon, ClockIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { ProofUploader } from '@/components/ProofUploader';
@@ -31,6 +31,29 @@ import { ProgressGrid } from '@/components/ProgressGrid';
 import { RejectionReasonModal } from '@/components/RejectionReasonModal';
 import { MatchChat } from '@/components/MatchChat';
 const isWeb = Platform.OS === 'web';
+
+// Calculate time until next midnight IST
+const getTimeUntilMidnightIST = () => {
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Current IST time
+    const nowIST = now + IST_OFFSET;
+
+    // Next midnight IST
+    const currentDayIST = Math.floor(nowIST / DAY_MS);
+    const nextMidnightIST = (currentDayIST + 1) * DAY_MS;
+
+    // Time remaining until next midnight IST
+    const timeRemaining = nextMidnightIST - nowIST;
+
+    const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+    const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+    const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
+
+    return { hours, minutes, seconds, totalMs: timeRemaining };
+};
 
 export default function MatchDashboardScreen() {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -45,6 +68,9 @@ export default function MatchDashboardScreen() {
     const { data: partnerProof } = useCachedConvexQuery(['partnerProof', matchId], api.matches.getPartnerTodayProof, { matchId });
     const { data: progressData } = useCachedConvexQuery(['progressData', matchId], api.matches.getProgressData, { matchId });
 
+    // Get all proofs for day-specific modal
+    const { data: allProofs } = useCachedConvexQuery(['allProofs', matchId], api.matches.getProofs, { matchId });
+
     // Mutations
     const cancelMatchMutation = useMutation(api.matches.cancelMatch);
 
@@ -56,6 +82,31 @@ export default function MatchDashboardScreen() {
     const [proofToRejectUrls, setProofToRejectUrls] = useState<string[]>([]);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+    // Selected day for inline view (defaults to current day after data loads)
+    const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+    // Reset selectedDay when switching to a different match
+    useEffect(() => {
+        setSelectedDay(null);
+    }, [matchId]);
+
+    // Countdown timer state
+    const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
+
+    // Update countdown every second
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTimeUntilReset(getTimeUntilMidnightIST());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    // Handle day card press - inline selection
+    const handleDayPress = (day: number) => {
+        setSelectedDay(day);
+    };
 
 
 
@@ -88,6 +139,16 @@ export default function MatchDashboardScreen() {
         }
         setRejectionModalVisible(true);
     };
+
+    // Effective selected day (defaults to current day if none selected)
+    const effectiveDay = selectedDay ?? currentDay;
+
+    // Get proofs for the selected day
+    const selectedDayMyProof = effectiveDay && allProofs ?
+        allProofs.find((p: any) => p.day === effectiveDay && p.isMe) : null;
+
+    const selectedDayPartnerProof = effectiveDay && allProofs ?
+        allProofs.find((p: any) => p.day === effectiveDay && !p.isMe) : null;
 
     // Header Component
     const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -217,32 +278,10 @@ export default function MatchDashboardScreen() {
                         </View>
                     </View>
 
-                    {/* Open App Button */}
-                    <TouchableOpacity
-                        onPress={handleOpenApp}
-                        className="flex-row items-center justify-center bg-primary mt-2 p-2.5 rounded-xl"
-                    >
-                        <Icon as={ExternalLinkIcon} className="text-primary-foreground size-4 mr-2" />
-                        <Text className="text-primary-foreground font-bold text-base">Open {app?.title || 'App'}</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Progress Grid with Integrated Score Card */}
-                {summary && (
-                    <View className="mb-6 mt-4">
-                        <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
-                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} />
-                    </View>
-                )}
-
-                {/* Today's Tasks */}
-                <View className="px-4">
-                    <Text className="text-sm font-bold mb-3 uppercase tracking-wider text-muted-foreground">Today's Tasks</Text>
-
-                    {/* Collapsible Instructions */}
+                    {/* Testing Instructions - Collapsible */}
                     <Pressable
                         onPress={() => setInstructionsExpanded(!instructionsExpanded)}
-                        className="bg-secondary/30 rounded-xl p-3 mb-4 flex-row items-center justify-between"
+                        className="bg-secondary/30 rounded-xl p-3  flex-row items-center justify-between"
                     >
                         <View className="flex-row items-center flex-1">
                             <Icon as={InfoIcon} className="text-primary size-4 mr-2" />
@@ -251,24 +290,100 @@ export default function MatchDashboardScreen() {
                         <Icon as={instructionsExpanded ? ChevronUpIcon : ChevronDownIcon} className="text-muted-foreground size-5" />
                     </Pressable>
                     {instructionsExpanded && (
-                        <Card className="bg-secondary/10 mb-4 -mt-2">
+                        <Card className="bg-secondary/10 mt-2">
                             <CardContent className="p-3">
                                 <Text className="text-muted-foreground text-sm">{app?.instructions || 'Follow the testing instructions'}</Text>
                             </CardContent>
                         </Card>
                     )}
 
-                    <SectionTitle icon={UploadIcon} title="Your Daily Proof" />
-                    <ProofUploader matchId={matchId} currentDay={currentDay} todayProof={todayProof} />
+                    {/* Open App Button */}
+                    <TouchableOpacity
+                        onPress={handleOpenApp}
+                        className="flex-row items-center justify-center bg-primary mt-3 p-2.5 rounded-xl"
+                    >
+                        <Icon as={ExternalLinkIcon} className="text-primary-foreground size-4 mr-2" />
+                        <Text className="text-primary-foreground font-bold text-base">Open {app?.title || 'App'}</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Countdown Timer Card */}
+                <View className="px-4 mt-1">
+                    <Card className="mb-3 border-orange-400/30 bg-orange-500/5">
+                        <CardContent className="p-4 py-2">
+                            <View className="flex-row items-center justify-between">
+                                <View className="flex-row items-center gap-2">
+                                    <Icon as={ClockIcon} className="text-orange-500 size-5" />
+                                    <View>
+                                        <Text className="text-sm font-bold text-foreground">Time Until Day {currentDay + 1}</Text>
+                                        <Text className="text-xs text-muted-foreground">Resets at 12:00 AM IST</Text>
+                                    </View>
+                                </View>
+                                <View className="flex-row items-center gap-2">
+                                    <View className="items-center bg-orange-500/10 px-3 py-2 rounded-lg">
+                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.hours.toString().padStart(2, '0')}</Text>
+                                        <Text className="text-[10px] text-orange-600 font-medium">HOURS</Text>
+                                    </View>
+                                    <Text className="text-xl font-bold text-orange-500">:</Text>
+                                    <View className="items-center bg-orange-500/10 px-3 py-2 rounded-lg">
+                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.minutes.toString().padStart(2, '0')}</Text>
+                                        <Text className="text-[10px] text-orange-600 font-medium">MINS</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </CardContent>
+                    </Card>
+                </View>
+
+                {/* Progress Grid with Integrated Score Card */}
+                {summary && (
+                    <View className="mb-4">
+                        <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
+                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} selectedDay={effectiveDay} />
+                    </View>
+                )}
+
+                {/* Unified Day View - Shows selected day's proofs */}
+                <View className="px-4">
+                    {/* Day Header with Navigation */}
+                    <View className="flex-row items-center justify-between mb-3">
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-lg font-bold">Day {effectiveDay}</Text>
+                            {effectiveDay === currentDay && (
+                                <View className="bg-primary px-2 py-0.5 rounded-full">
+                                    <Text className="text-[10px] font-bold text-primary-foreground">TODAY</Text>
+                                </View>
+                            )}
+                        </View>
+                        <View className="flex-row items-center gap-2">
+                            <TouchableOpacity
+                                onPress={() => effectiveDay > 1 && setSelectedDay(effectiveDay - 1)}
+                                className={`w-9 h-9 rounded-full items-center justify-center ${effectiveDay <= 1 ? 'bg-muted/30' : 'bg-primary'}`}
+                                disabled={effectiveDay <= 1}
+                            >
+                                <Text className={`font-bold text-lg ${effectiveDay <= 1 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>←</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => effectiveDay < currentDay && setSelectedDay(effectiveDay + 1)}
+                                className={`w-9 h-9 rounded-full items-center justify-center ${effectiveDay >= currentDay ? 'bg-muted/30' : 'bg-primary'}`}
+                                disabled={effectiveDay >= currentDay}
+                            >
+                                <Text className={`font-bold text-lg ${effectiveDay >= currentDay ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    <SectionTitle icon={UploadIcon} title="Your Proof" />
+                    <ProofUploader matchId={matchId} currentDay={effectiveDay} todayProof={selectedDayMyProof} />
 
                     <View className="h-px bg-border my-3" />
 
-                    <SectionTitle icon={EyeIcon} title="Review Partner's Proof" />
-                    <ProofReviewer matchId={matchId} partnerProof={partnerProof} onReject={handleRejectPress} />
+                    <SectionTitle icon={EyeIcon} title="Partner's Proof" />
+                    <ProofReviewer matchId={matchId} partnerProof={selectedDayPartnerProof} onReject={handleRejectPress} />
                 </View>
-
+                <View className="h-px bg-border mb-6 mt-2 mx-3 " />
                 {/* Leave Match Button */}
-                <View className="px-4 mt-6">
+                <View className="px-4 mt-2">
                     <TouchableOpacity
                         onPress={handleLeaveMatch}
                         className="flex-row items-center justify-center p-3.5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-6"
