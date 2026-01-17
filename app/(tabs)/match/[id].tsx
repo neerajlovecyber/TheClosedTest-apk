@@ -307,54 +307,45 @@ export default function MatchDashboardScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Countdown Timer Card */}
-                <View className="px-4 mt-1">
-                    <Card className="mb-3 border-orange-400/30 bg-orange-500/5">
-                        <CardContent className="p-4 py-2">
-                            <View className="flex-row items-center justify-between">
-                                <View className="flex-row items-center gap-2">
-                                    <Icon as={ClockIcon} className="text-orange-500 size-5" />
-                                    <View>
-                                        <Text className="text-sm font-bold text-foreground">Time Until Day {currentDay + 1}</Text>
-                                        <Text className="text-xs text-muted-foreground">Resets at 12:00 AM IST</Text>
-                                    </View>
-                                </View>
-                                <View className="flex-row items-center gap-2">
-                                    <View className="items-center bg-orange-500/10 px-3 py-2 rounded-lg">
-                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.hours.toString().padStart(2, '0')}</Text>
-                                        <Text className="text-[10px] text-orange-600 font-medium">HOURS</Text>
-                                    </View>
-                                    <Text className="text-xl font-bold text-orange-500">:</Text>
-                                    <View className="items-center bg-orange-500/10 px-3 py-2 rounded-lg">
-                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.minutes.toString().padStart(2, '0')}</Text>
-                                        <Text className="text-[10px] text-orange-600 font-medium">MINS</Text>
-                                    </View>
-                                </View>
-                            </View>
-                        </CardContent>
-                    </Card>
-                </View>
+
 
                 {/* Progress Grid with Integrated Score Card */}
-                {summary && (
-                    <View className="mb-4">
-                        <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
-                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} selectedDay={effectiveDay} />
-                    </View>
-                )}
+                {
+                    summary && (
+                        <View className="mb-4">
+                            <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
+                            <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} selectedDay={effectiveDay} />
+                        </View>
+                    )
+                }
 
                 {/* Unified Day View - Shows selected day's proofs */}
                 <View className="px-4">
                     {/* Day Header with Navigation */}
                     <View className="flex-row items-center justify-between mb-3">
-                        <View className="flex-row items-center gap-2">
-                            <Text className="text-lg font-bold">Day {effectiveDay}</Text>
-                            {effectiveDay === currentDay && (
-                                <View className="bg-primary px-2 py-0.5 rounded-full">
-                                    <Text className="text-[10px] font-bold text-primary-foreground">TODAY</Text>
+                        <View>
+                            <View className="flex-row items-center gap-2">
+                                <Text className="text-lg font-bold">Day {effectiveDay}</Text>
+                                {effectiveDay === currentDay && (
+                                    <View className="bg-primary px-2 py-0.5 rounded-full">
+                                        <Text className="text-[10px] font-bold text-primary-foreground">TODAY</Text>
+                                    </View>
+                                )}
+                            </View>
+                            {effectiveDay === currentDay ? (
+                                <View className="flex-row items-center mt-1">
+                                    <Icon as={ClockIcon} className="text-orange-500 size-3.5 mr-1" />
+                                    <Text className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                                        {timeUntilReset.hours}h {timeUntilReset.minutes}m remaining
+                                    </Text>
                                 </View>
+                            ) : (
+                                <Text className="text-xs text-muted-foreground mt-1">
+                                    {effectiveDay < currentDay ? "Day Completed" : "Future Day"}
+                                </Text>
                             )}
                         </View>
+
                         <View className="flex-row items-center gap-2">
                             <TouchableOpacity
                                 onPress={() => effectiveDay > 1 && setSelectedDay(effectiveDay - 1)}
@@ -392,7 +383,7 @@ export default function MatchDashboardScreen() {
                         <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner?.name?.split(' ')[0] || "Partner"}</Text>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+            </ScrollView >
         );
     };
 
