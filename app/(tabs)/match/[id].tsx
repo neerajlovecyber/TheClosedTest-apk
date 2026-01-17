@@ -22,7 +22,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon } from 'lucide-react-native';
+import { SendIcon, MessageSquareIcon, CalendarCheckIcon, BarChart3Icon, InfoIcon, UploadIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ExternalLinkIcon, ClockIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { ProofUploader } from '@/components/ProofUploader';
@@ -31,6 +31,29 @@ import { ProgressGrid } from '@/components/ProgressGrid';
 import { RejectionReasonModal } from '@/components/RejectionReasonModal';
 import { MatchChat } from '@/components/MatchChat';
 const isWeb = Platform.OS === 'web';
+
+// Calculate time until next midnight IST
+const getTimeUntilMidnightIST = () => {
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Current IST time
+    const nowIST = now + IST_OFFSET;
+
+    // Next midnight IST
+    const currentDayIST = Math.floor(nowIST / DAY_MS);
+    const nextMidnightIST = (currentDayIST + 1) * DAY_MS;
+
+    // Time remaining until next midnight IST
+    const timeRemaining = nextMidnightIST - nowIST;
+
+    const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+    const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+    const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
+
+    return { hours, minutes, seconds, totalMs: timeRemaining };
+};
 
 export default function MatchDashboardScreen() {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -56,6 +79,18 @@ export default function MatchDashboardScreen() {
     const [proofToRejectUrls, setProofToRejectUrls] = useState<string[]>([]);
     const [instructionsExpanded, setInstructionsExpanded] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+    // Countdown timer state
+    const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
+
+    // Update countdown every second
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTimeUntilReset(getTimeUntilMidnightIST());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
 
 
@@ -227,9 +262,37 @@ export default function MatchDashboardScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Countdown Timer Card */}
+                <View className="px-4 mt-4">
+                    <Card className="mb-4 border-orange-400/30 bg-orange-500/5">
+                        <CardContent className="p-4">
+                            <View className="flex-row items-center justify-between">
+                                <View className="flex-row items-center gap-2">
+                                    <Icon as={ClockIcon} className="text-orange-500 size-5" />
+                                    <View>
+                                        <Text className="text-sm font-bold text-foreground">Time Until Day {currentDay + 1}</Text>
+                                        <Text className="text-xs text-muted-foreground">Resets at 12:00 AM IST</Text>
+                                    </View>
+                                </View>
+                                <View className="flex-row items-center gap-2">
+                                    <View className="items-center bg-orange-500/10 px-3 py-2 rounded-lg">
+                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.hours.toString().padStart(2, '0')}</Text>
+                                        <Text className="text-[10px] text-orange-600 font-medium">HOURS</Text>
+                                    </View>
+                                    <Text className="text-xl font-bold text-orange-500">:</Text>
+                                    <View className="items-center bg-orange-500/10 px-3 py-2 rounded-lg">
+                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.minutes.toString().padStart(2, '0')}</Text>
+                                        <Text className="text-[10px] text-orange-600 font-medium">MINS</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </CardContent>
+                    </Card>
+                </View>
+
                 {/* Progress Grid with Integrated Score Card */}
                 {summary && (
-                    <View className="mb-6 mt-4">
+                    <View className="mb-6">
                         <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
                         <ProgressGrid days={days} currentDay={currentDay} summary={summary} />
                     </View>
