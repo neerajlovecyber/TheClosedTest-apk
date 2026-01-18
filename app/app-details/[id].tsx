@@ -543,9 +543,9 @@ export default function AppDetailsScreen() {
                         <Button
                             size="lg"
                             className="w-full rounded-xl bg-green-600"
-                            onPress={() => router.push('/(tabs)/tests')} // Or dashboard
+                            onPress={() => router.push({ pathname: "/(tabs)/match/[id]", params: { id: matchStatus.matchId } } as any)}
                         >
-                            <Text className="font-bold text-lg text-white">Active Swap - Go to Tests</Text>
+                            <Text className="font-bold text-lg text-white">Active Swap - Go to Details</Text>
                         </Button>
                     ) : matchStatus?.status === 'pending' || hasSentRequest ? (
                         matchStatus?.isRequestor || hasSentRequest ? (

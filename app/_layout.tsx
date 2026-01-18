@@ -111,7 +111,8 @@ function InitialLayout() {
   // Sync user with Convex
   useStoreUserEffect();
 
-  const { expoPushToken } = usePushNotifications();
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const { expoPushToken, notificationResponse } = usePushNotifications();
   const savePushToken = useMutation(api.users.savePushToken);
 
   React.useEffect(() => {
@@ -139,6 +140,44 @@ function InitialLayout() {
       router.replace('/(auth)/welcome');
     }
   }, [isSignedIn, isLoaded, segments]);
+
+  // Handle Notification Navigation Safely
+  React.useEffect(() => {
+    // Only navigate if:
+    // 1. App is loaded (isLoaded)
+    // 2. User is signed in (isSignedIn) - most notifications require auth
+    // 3. We have a response to handle
+    if (!isLoaded || !isSignedIn || !notificationResponse) return;
+
+    try {
+      const data = notificationResponse.notification.request.content.data;
+      console.log("Handling notification navigation:", data);
+
+      if (data?.matchId) {
+        // Navigate to the match page
+        const path = `/(tabs)/match/${data.matchId}`;
+        const params = data.type === 'message' ? { tab: 'chat' } : undefined;
+        // Use setParams if we were already there? No, push is safer for deep links generally
+        // But for reliable updates:
+        if (data.type === 'message') {
+          router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId, tab: 'chat' } });
+        } else {
+          router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId } });
+        }
+      } else if (data?.type === 'new_app' && data.appId) {
+        // Navigate to new app details
+        router.push(`/app-details/${data.appId}`);
+      } else if (data?.type === 'admin_chat') {
+        // Navigate to admin chat (support)
+        router.push('/admin-chat');
+      } else if (data?.type === 'test') {
+        console.log("Test notification tapped");
+      }
+    } catch (e) {
+      console.error("Failed to navigate from notification:", e);
+    }
+
+  }, [notificationResponse, isLoaded, isSignedIn]);
 
   React.useEffect(() => {
     if (isLoaded) {
