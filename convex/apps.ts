@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
 
 // Helper to get image URL
 const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
@@ -93,6 +94,13 @@ export const createApp = mutation({
         await ctx.db.patch(user._id, {
             appsCount: user.appsCount + 1,
             updatedAt: Date.now(),
+        });
+
+        // Notify admins and broadcast to users
+        await ctx.scheduler.runAfter(0, api.notifications.notifyNewAppAdded, {
+            appId,
+            appName: args.title,
+            ownerName: user.name || "Unknown User",
         });
 
         return appId;
