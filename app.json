@@ -15,9 +15,9 @@
       "url": "https://u.expo.dev/5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
     },
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/adaptive-icon/adaptive-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#3B82F6"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -28,8 +28,8 @@
     "android": {
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon/foreground.png",
-        "backgroundImage": "./assets/images/adaptive-icon/background.png"
+        "foregroundImage": "./assets/images/adaptive-icon/adaptive-icon.png",
+        "backgroundColor": "#3B82F6"
       },
       "package": "com.theneerajsec.theclosedtest",
       "googleServicesFile": "./google-services.json"
