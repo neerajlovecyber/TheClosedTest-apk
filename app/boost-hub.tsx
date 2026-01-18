@@ -266,11 +266,11 @@ export default function BoostHubScreen() {
                 {/* Main CTA Button */}
                 <TouchableOpacity
                     onPress={handleEarnPoints}
-                    disabled={boosting || adLoading}
+                    disabled={boosting || adLoading || !adLoaded}
                     activeOpacity={0.8}
                     className="w-full py-4 rounded-2xl bg-orange-500 items-center justify-center mb-4"
                     style={{
-                        opacity: boosting || adLoading ? 0.6 : 1,
+                        opacity: boosting || adLoading || !adLoaded ? 0.6 : 1,
                         shadowColor: '#f97316',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.3,
@@ -281,7 +281,7 @@ export default function BoostHubScreen() {
                     <View className="flex-row items-center gap-2">
                         <Icon as={PlayCircleIcon} className="text-white size-6" />
                         <Text className="text-white font-bold text-lg">
-                            {adLoading ? 'Loading...' : boosting ? 'Boosting...' : 'WATCH AD & EARN +1'}
+                            {adLoading ? 'Loading Ad...' : boosting ? 'Boosting...' : !adLoaded ? 'Ad Not Ready' : 'WATCH AD & EARN +1'}
                         </Text>
                     </View>
                 </TouchableOpacity>
@@ -314,9 +314,9 @@ export default function BoostHubScreen() {
                                         >
                                             <View className={`flex-row items-center gap-3 p-3 ${index < boostStatus.topApps.length - 1 ? 'border-b border-border/50' : ''} ${isFirst ? 'bg-yellow-500/5' : ''}`}>
                                                 <View className={`w-8 h-8 rounded-lg items-center justify-center ${app.rank === 1 ? 'bg-yellow-500' :
-                                                        app.rank === 2 ? 'bg-gray-400' :
-                                                            app.rank === 3 ? 'bg-orange-600' :
-                                                                'bg-muted'
+                                                    app.rank === 2 ? 'bg-gray-400' :
+                                                        app.rank === 3 ? 'bg-orange-600' :
+                                                            'bg-muted'
                                                     }`}>
                                                     <Text className={`font-bold text-sm ${app.rank <= 3 ? 'text-white' : 'text-muted-foreground'}`}>
                                                         {app.rank}
@@ -400,8 +400,8 @@ export default function BoostHubScreen() {
                                     <TouchableOpacity
                                         key={app._id}
                                         className={`flex-row items-center gap-4 p-4 mb-3 rounded-xl border ${boostStatus?.selectedApp?._id === app._id
-                                                ? 'border-orange-500 bg-orange-500/5'
-                                                : 'border-border'
+                                            ? 'border-orange-500 bg-orange-500/5'
+                                            : 'border-border'
                                             }`}
                                         onPress={() => handleSelectApp(app._id)}
                                     >

@@ -29,9 +29,10 @@ interface AppCardProps {
     item: AppItem;
     onPress?: () => void;
     variant?: 'marketplace' | 'my-app' | 'testing';
+    actionBadge?: string; // Badge text for action needed (e.g., "Upload SS", "Approve")
 }
 
-export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps) {
+export function AppCard({ item, onPress, variant = 'marketplace', actionBadge }: AppCardProps) {
     const isMyApp = variant === 'my-app';
     const isTesting = variant === 'testing';
 
@@ -54,30 +55,42 @@ export function AppCard({ item, onPress, variant = 'marketplace' }: AppCardProps
                         )}
                     </View>
 
-                    {/* Variant Specific Badges */}
-                    {variant === 'marketplace' && (
-                        isFilled ? (
-                            <View className="bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
-                                <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Filled</Text>
-                            </View>
-                        ) : item.isNew ? (
-                            <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                                <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
-                            </View>
-                        ) : null
-                    )}
-                    {isMyApp && (
-                        <View className={`px-2 py-0.5 rounded-full ${isFilled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary/10'}`}>
-                            <Text className={`text-[10px] font-bold uppercase ${isFilled ? 'text-green-600 dark:text-green-400' : 'text-primary'}`}>
-                                {isFilled ? 'Filled' : item.status || 'Active'}
-                            </Text>
+                    {/* Action Badge (highest priority) */}
+                    {actionBadge ? (
+                        <View className={`px-2.5 py-1 rounded-full ${actionBadge === 'Approve'
+                                ? 'bg-orange-500'
+                                : 'bg-blue-500'
+                            }`}>
+                            <Text className="text-[11px] text-white font-bold uppercase tracking-wide">{actionBadge}</Text>
                         </View>
-                    )}
+                    ) : (
+                        <>
+                            {/* Variant Specific Badges */}
+                            {variant === 'marketplace' && (
+                                isFilled ? (
+                                    <View className="bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
+                                        <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Filled</Text>
+                                    </View>
+                                ) : item.isNew ? (
+                                    <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                                        <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
+                                    </View>
+                                ) : null
+                            )}
+                            {isMyApp && (
+                                <View className={`px-2 py-0.5 rounded-full ${isFilled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary/10'}`}>
+                                    <Text className={`text-[10px] font-bold uppercase ${isFilled ? 'text-green-600 dark:text-green-400' : 'text-primary'}`}>
+                                        {isFilled ? 'Filled' : item.status || 'Active'}
+                                    </Text>
+                                </View>
+                            )}
 
-                    {isTesting && item.isReviewPending && (
-                        <View className="bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full ml-1">
-                            <Text className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Review Needed</Text>
-                        </View>
+                            {isTesting && item.isReviewPending && (
+                                <View className="bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full ml-1">
+                                    <Text className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Review Needed</Text>
+                                </View>
+                            )}
+                        </>
                     )}
                 </View>
 

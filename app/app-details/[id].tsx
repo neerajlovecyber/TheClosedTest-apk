@@ -34,12 +34,14 @@ import {
     UsersIcon,
     InfoIcon,
     PlayIcon,
-    RocketIcon
+    RocketIcon,
+    FlagIcon
 } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { Id } from '@/convex/_generated/dataModel';
+import { ReportDialog } from '@/components/ReportDialog';
 
 export default function AppDetailsScreen() {
     const { id, source } = useLocalSearchParams();
@@ -70,6 +72,7 @@ export default function AppDetailsScreen() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasSentRequest, setHasSentRequest] = useState(false);
     const [activeAlert, setActiveAlert] = useState<null | 'no_apps' | 'reject' | 'complete' | 'delete'>(null);
+    const [reportDialogVisible, setReportDialogVisible] = useState(false);
 
     // Initial selection logic
     React.useEffect(() => {
@@ -256,9 +259,14 @@ export default function AppDetailsScreen() {
                     </Button>
                     <Text className="text-lg font-bold ml-2">App Details</Text>
                 </View>
-                <Button variant="ghost" size="icon" onPress={handleShare}>
-                    <Icon as={ShareIcon} className="text-foreground size-5" />
-                </Button>
+                <View className="flex-row items-center gap-2">
+                    <Button variant="ghost" size="icon" onPress={() => setReportDialogVisible(true)}>
+                        <Icon as={FlagIcon} className="text-red-600 size-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onPress={handleShare}>
+                        <Icon as={ShareIcon} className="text-foreground size-5" />
+                    </Button>
+                </View>
             </View>
 
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
@@ -642,6 +650,16 @@ export default function AppDetailsScreen() {
                     </View>
                 </View>
             </Modal>
+
+            <ReportDialog
+                visible={reportDialogVisible}
+                onClose={() => setReportDialogVisible(false)}
+                reportType="app"
+                targetId={appId}
+                reportedAppId={appId}
+                targetName={app.title}
+            />
+
             {/* Shared Alert Dialog */}
             <AlertDialog open={!!activeAlert} onOpenChange={(open) => !open && setActiveAlert(null)}>
                 <AlertDialogContent>

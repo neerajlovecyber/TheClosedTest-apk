@@ -12,6 +12,7 @@ export default defineSchema({
         appsCount: v.number(),
         pushToken: v.optional(v.string()), // Expo Push Token
         isGroupMember: v.boolean(), // Has confirmed joining Google Group
+        isAdmin: v.optional(v.boolean()), // Admin access (default: false)
         streak: v.optional(v.number()), // Current daily streak
         bestStreak: v.optional(v.number()), // Highest streak
         lastCheckInDate: v.optional(v.string()), // YYYY-MM-DD of last activity
@@ -130,19 +131,82 @@ export default defineSchema({
             v.literal("dispute"),
             v.literal("app_spam"),
             v.literal("toxic_user"),
-            v.literal("other")
+            v.literal("other"),
+            v.literal("app_broken"),
+            v.literal("user_unresponsive")
         ),
         targetId: v.string(), // ID of the Match, App, or User
+        matchId: v.optional(v.id("matches")), // Link to conversation if chat-related
+        reportedUserId: v.optional(v.id("users")), // Direct user reporting
+        reportedAppId: v.optional(v.id("apps")), // App reporting
         description: v.string(),
+        screenshots: v.optional(v.array(v.string())), // Storage IDs for proof
         status: v.union(
             v.literal("pending"),
             v.literal("resolved"),
             v.literal("dismissed")
         ),
         adminNotes: v.optional(v.string()),
+        actionTaken: v.optional(v.string()), // What admin did
+        resolvedAt: v.optional(v.number()),
         createdAt: v.number(),
     })
-        .index("by_status", ["status"]),
+        .index("by_status", ["status"])
+        .index("by_reporter", ["reporterId"]),
+
+    user_bans: defineTable({
+        userId: v.id("users"),
+        bannedBy: v.id("users"), // Admin who issued ban
+        bannedByType: v.union(v.literal("manual"), v.literal("auto")),
+        reason: v.string(),
+        permanent: v.boolean(),
+        expiresAt: v.optional(v.number()), // For temporary bans
+        createdAt: v.number(),
+    })
+        .index("by_userId", ["userId"]),
+
+    app_bans: defineTable({
+        packageName: v.string(), // PRIMARY BAN KEY
+        playStoreUrl: v.string(),
+        appId: v.optional(v.id("apps")),
+        title: v.string(),
+        bannedBy: v.id("users"),
+        reason: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_packageName", ["packageName"]),
+
+    user_warnings: defineTable({
+        userId: v.id("users"),
+        issuedBy: v.id("users"), // Admin who warned
+        reason: v.string(),
+        read: v.boolean(),
+        createdAt: v.number(),
+    })
+        .index("by_userId", ["userId"])
+        .index("by_userId_read", ["userId", "read"]),
+
+    admin_chats: defineTable({
+        userId: v.id("users"),
+        adminId: v.optional(v.id("users")), // Admin who claimed/replied last
+        lastMessage: v.string(),
+        updatedAt: v.number(),
+        hasUnreadUser: v.boolean(), // User has unread messages
+        hasUnreadAdmin: v.boolean(), // Admin has unread messages
+    })
+        .index("by_userId", ["userId"])
+        .index("by_updatedAt", ["updatedAt"]),
+
+    admin_messages: defineTable({
+        chatId: v.id("admin_chats"),
+        senderId: v.id("users"),
+        content: v.string(),
+        type: v.union(v.literal("text"), v.literal("image")),
+        isAdmin: v.boolean(), // Was the sender acting as admin?
+        sentAt: v.number(),
+    })
+        .index("by_chatId", ["chatId"]),
+
 
     analytics: defineTable({
         date: v.string(), // YYYY-MM-DD

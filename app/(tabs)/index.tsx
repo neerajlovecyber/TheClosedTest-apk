@@ -33,6 +33,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [requestToReject, setRequestToReject] = useState<Id<"matches"> | null>(null);
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+    const attentionScrollRef = React.useRef<ScrollView>(null);
 
     // Convex Data (with persistent caching)
     const { data: incomingRequests = [] } = useCachedConvexQuery(['incomingRequests'], api.matches.getIncomingRequests);
@@ -69,7 +70,35 @@ export default function HomeScreen() {
     }, [currentUser]);
 
     // Get tasks due today (only those needing attention)
-    const dueTasks = activeTasks.filter((t: any) => t.needsAttention).slice(0, 3);
+    // Filter: Show tasks where we need to review OR upload, but hide tasks where we're just waiting for approval
+    const dueTasks = activeTasks
+        .filter((t: any) => {
+            // Always show if partner needs our review
+            if (t.isReviewPending) return true;
+
+            // Show if we need to upload (not uploaded yet)
+            if (t.myProofStatus === "not_uploaded") return true;
+
+            // Show if our proof was rejected
+            if (t.myProofStatus === "rejected") return true;
+
+            // Hide if we're waiting for approval (uploaded but pending)
+            return false;
+        })
+        // Sort: Review pending first, then upload needed
+        .sort((a: any, b: any) => {
+            if (a.isReviewPending && !b.isReviewPending) return -1;
+            if (!a.isReviewPending && b.isReviewPending) return 1;
+            return 0;
+        });
+
+    // Reset scroll position when tasks change (after completing a task)
+    React.useEffect(() => {
+        if (attentionScrollRef.current && dueTasks.length > 0) {
+            // Scroll to beginning when tasks list changes
+            attentionScrollRef.current.scrollTo({ x: 0, animated: false });
+        }
+    }, [dueTasks.length]); // Only trigger when the number of tasks changes
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -165,26 +194,42 @@ export default function HomeScreen() {
                     <Text className="text-xl font-bold mb-4">⚡ Attention Needed</Text>
 
                     {dueTasks.length > 0 ? (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-4">
-                            {dueTasks.map((task: any) => (
-                                <View key={task.id} className="w-80 mr-4">
-                                    <AppCard
-                                        item={{
-                                            _id: String(task.id),
-                                            title: task.name,
-                                            ownerName: task.owner,
-                                            dueIn: `Day ${task.day} of ${task.totalDays}`,
-                                            day: task.day,
-                                            totalDays: task.totalDays,
-                                            iconUrl: task.iconUrl,
-                                            isReviewPending: task.isReviewPending,
-                                            hasUnread: task.hasUnread
-                                        }}
-                                        variant="testing"
-                                        onPress={() => router.push({ pathname: '/(tabs)/match/[id]', params: { id: task.id } })}
-                                    />
-                                </View>
-                            ))}
+                        <ScrollView
+                            ref={attentionScrollRef}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            className="gap-4"
+                        >
+                            {dueTasks.map((task: any) => {
+                                // Determine action badge text
+                                let actionBadge = '';
+                                if (task.isReviewPending) {
+                                    actionBadge = 'Approve';
+                                } else if (task.myProofStatus === 'not_uploaded' || task.myProofStatus === 'rejected') {
+                                    actionBadge = 'Upload SS';
+                                }
+
+                                return (
+                                    <View key={task.id} className="w-80 mr-4">
+                                        <AppCard
+                                            item={{
+                                                _id: String(task.id),
+                                                title: task.name,
+                                                ownerName: task.owner,
+                                                dueIn: `Day ${task.day} of ${task.totalDays}`,
+                                                day: task.day,
+                                                totalDays: task.totalDays,
+                                                iconUrl: task.iconUrl,
+                                                isReviewPending: task.isReviewPending,
+                                                hasUnread: task.hasUnread
+                                            }}
+                                            variant="testing"
+                                            actionBadge={actionBadge}
+                                            onPress={() => router.push({ pathname: '/(tabs)/match/[id]', params: { id: task.id } })}
+                                        />
+                                    </View>
+                                );
+                            })}
                         </ScrollView>
                     ) : (
                         <View className="p-6 bg-secondary rounded-xl items-center">

@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
 
 // Helper to get image URL
 const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
@@ -38,6 +39,31 @@ export const createApp = mutation({
             throw new Error("User not found");
         }
 
+        // Check if user is banned
+        const userBan = await ctx.db
+            .query("user_bans")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .first();
+
+        if (userBan) {
+            // Check if temporary ban has expired
+            if (!userBan.permanent && userBan.expiresAt && userBan.expiresAt < Date.now()) {
+                // Ban expired, allow
+            } else {
+                throw new Error(`Your account has been banned: ${userBan.reason}`);
+            }
+        }
+
+        // Check if this package is banned
+        const packageBan = await ctx.db
+            .query("app_bans")
+            .withIndex("by_packageName", (q) => q.eq("packageName", args.packageName))
+            .first();
+
+        if (packageBan) {
+            throw new Error(`This app has been banned: ${packageBan.reason}`);
+        }
+
         if (user.appsCount >= 100) {
             throw new Error("You can only have 100 active apps at a time.");
         }
@@ -68,6 +94,13 @@ export const createApp = mutation({
         await ctx.db.patch(user._id, {
             appsCount: user.appsCount + 1,
             updatedAt: Date.now(),
+        });
+
+        // Notify admins and broadcast to users
+        await ctx.scheduler.runAfter(0, api.notifications.notifyNewAppAdded, {
+            appId,
+            appName: args.title,
+            ownerName: user.name || "Unknown User",
         });
 
         return appId;

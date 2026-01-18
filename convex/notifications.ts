@@ -174,6 +174,107 @@ export const notifyMatchCompleted = action({
     },
 });
 
+// Send notification for admin chat message
+export const notifyAdminChatMessage = action({
+    args: {
+        recipientUserId: v.id("users"),
+        senderName: v.string(),
+        isAdminSending: v.boolean(),
+    },
+    handler: async (ctx, args) => {
+        const recipient = await ctx.runQuery(internal.notifications.getUserById, {
+            userId: args.recipientUserId,
+        });
+
+        if (!recipient?.pushToken) {
+            console.log("Recipient has no push token");
+            return false;
+        }
+
+        const title = args.isAdminSending ? '💬 Support Reply' : '💬 New Support Message';
+        const body = args.isAdminSending
+            ? 'Admin has replied to your support chat'
+            : `${args.senderName} sent you a message`;
+
+        return await sendPushNotification(
+            recipient.pushToken,
+            title,
+            body,
+            { type: 'admin_chat' }
+        );
+    },
+});
+
+// Send notification when a new app is added
+export const notifyNewAppAdded = action({
+    args: {
+        appName: v.string(),
+        ownerName: v.string(),
+        appId: v.id("apps"),
+    },
+    handler: async (ctx, args) => {
+        const users = await ctx.runQuery(internal.admin.getAllUsersWithTokens);
+
+        if (users.length === 0) return { success: false, count: 0 };
+
+        console.log(`Sending new app notification to ${users.length} users`);
+
+        const uniqueTokens = new Map<string, any>();
+        users.forEach((user: any) => {
+            if (user.pushToken && !uniqueTokens.has(user.pushToken)) {
+                uniqueTokens.set(user.pushToken, user);
+            }
+        });
+
+        const messages: any[] = [];
+
+        for (const user of uniqueTokens.values()) {
+            const isAdmin = user.isAdmin === true;
+
+            // Customize message for Admin vs User
+            const title = isAdmin ? '🚀 New App Submitted' : '🆕 New App Available!';
+            const body = isAdmin
+                ? `${args.ownerName} added "${args.appName}". Check it out!`
+                : `${args.appName} needs testers! Earn rewards by testing it now.`;
+
+            messages.push({
+                to: user.pushToken,
+                sound: 'default',
+                title: title,
+                body: body,
+                data: { type: 'new_app', appId: args.appId },
+            });
+        }
+
+        // Send in batches of 100
+        const batchSize = 100;
+        let successCount = 0;
+        let failureCount = 0;
+
+        for (let i = 0; i < messages.length; i += batchSize) {
+            const batch = messages.slice(i, i + batchSize);
+            try {
+                const response = await fetch('https://exp.host/--/api/v2/push/send', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(batch),
+                });
+
+                if (response.ok) successCount += batch.length;
+                else failureCount += batch.length;
+            } catch (error) {
+                failureCount += batch.length;
+                console.error("Batch send error:", error);
+            }
+        }
+
+        return { successCount, failureCount };
+    },
+});
+
 // Internal query to get user by ID
 export const getUserById = internalQuery({
     args: { userId: v.id("users") },

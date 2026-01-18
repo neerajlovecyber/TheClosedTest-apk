@@ -34,6 +34,7 @@ import * as React from 'react';
 import { useOTAUpdate } from '@/hooks/useOTAUpdate';
 import { useInAppUpdate } from '@/hooks/useInAppUpdate';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { WarningDisplay } from '@/components/WarningDisplay';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 
@@ -158,6 +159,7 @@ function InitialLayout() {
   return (
     <>
       <UpdateBanner isVisible={isUpdateDownloaded} onReload={reloadApp} />
+      <WarningDisplay />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />

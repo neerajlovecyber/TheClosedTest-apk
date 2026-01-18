@@ -38,9 +38,10 @@ interface SettingItemProps {
     action?: React.ReactNode;
     destructive?: boolean;
     iconColor?: string;
+    showBadge?: boolean;
 }
 
-function SettingItem({ icon, label, subtitle, onPress, action, destructive, iconColor }: SettingItemProps) {
+function SettingItem({ icon, label, subtitle, onPress, action, destructive, iconColor, showBadge }: SettingItemProps) {
     return (
         <TouchableOpacity
             className="flex-row items-center justify-between w-full py-4 px-4"
@@ -65,9 +66,14 @@ function SettingItem({ icon, label, subtitle, onPress, action, destructive, icon
                     )}
                 </View>
             </View>
-            {action || (
-                <Icon as={ChevronRightIcon} className="size-5 text-muted-foreground/50" />
-            )}
+            <View className="flex-row items-center gap-2">
+                {showBadge && (
+                    <View className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                )}
+                {action || (
+                    <Icon as={ChevronRightIcon} className="size-5 text-muted-foreground/50" />
+                )}
+            </View>
         </TouchableOpacity>
     );
 }
@@ -129,6 +135,9 @@ export default function SettingsScreen() {
     const { colorScheme, toggleColorScheme } = useColorScheme();
     const router = useRouter();
 
+    // Check for unread admin messages
+    const hasUnreadFromAdmin = useQuery(api.adminChats.hasUnreadFromAdmin) ?? false;
+
     const ADMIN_EMAILS = ['neerajlovecyber@gmail.com', 'futureaistudio41@gmail.com'];
     const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
 
@@ -163,24 +172,6 @@ export default function SettingsScreen() {
                 <UserProfile />
 
                 <View className="px-4 gap-6">
-                    {/* Community Section */}
-                    <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Community</Text>
-                        <View className="gap-3">
-                            <GoogleGroupWidget />
-                            <Card className="overflow-hidden p-0 gap-0 border-0">
-                                <CardContent className="p-0 gap-0">
-                                    <SettingItem
-                                        icon={SendIcon}
-                                        label="Telegram Community"
-                                        subtitle="Join our developer community"
-                                        onPress={() => handleLink('https://t.me/developers_community_official/1')}
-                                        iconColor="bg-sky-500"
-                                    />
-                                </CardContent>
-                            </Card>
-                        </View>
-                    </View>
 
                     {/* Appearance Section */}
                     <View className="gap-3">
@@ -221,6 +212,21 @@ export default function SettingsScreen() {
                                     subtitle="How to add Google Group to testers"
                                     onPress={() => router.push('/playstore-guide')}
                                     iconColor="bg-emerald-500"
+                                />
+                                <SettingItem
+                                    icon={SendIcon}
+                                    label="Telegram Community"
+                                    subtitle="Join our developer community"
+                                    onPress={() => handleLink('https://t.me/developers_community_official/1')}
+                                    iconColor="bg-sky-500"
+                                />
+                                <SettingItem
+                                    icon={MessageSquareIcon}
+                                    label="Contact Support"
+                                    subtitle="Get help with issues"
+                                    onPress={() => router.push('/admin-chat')}
+                                    iconColor="bg-rose-500"
+                                    showBadge={hasUnreadFromAdmin}
                                 />
                             </CardContent>
                         </Card>

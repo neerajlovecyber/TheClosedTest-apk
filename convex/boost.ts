@@ -125,6 +125,7 @@ export const getBoostStatus = query({
                     })
                 );
 
+
                 // Get selected app details, or default to first app
                 let boostedAppId = currentUser.boostedAppId;
 

@@ -129,6 +129,32 @@ export const getStats = query({
     },
 });
 
+// Get moderation stats for admin dashboard
+export const getModerationStats = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const admin = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!admin || !admin.isAdmin) return null;
+
+        const reports = await ctx.db.query("reports").collect();
+        const tickets = await ctx.db.query("support_tickets").collect();
+
+        return {
+            pendingReports: reports.filter((r) => r.status === "pending").length,
+            openTickets: tickets.filter((t) => t.status === "open").length,
+        };
+    },
+});
+
 export const getUsersByFilter = query({
     args: {
         filter: v.union(v.literal("active"), v.literal("new"), v.literal("all")),
