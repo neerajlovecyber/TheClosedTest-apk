@@ -174,6 +174,37 @@ export const notifyMatchCompleted = action({
     },
 });
 
+// Send notification for admin chat message
+export const notifyAdminChatMessage = action({
+    args: {
+        recipientUserId: v.id("users"),
+        senderName: v.string(),
+        isAdminSending: v.boolean(),
+    },
+    handler: async (ctx, args) => {
+        const recipient = await ctx.runQuery(internal.notifications.getUserById, {
+            userId: args.recipientUserId,
+        });
+
+        if (!recipient?.pushToken) {
+            console.log("Recipient has no push token");
+            return false;
+        }
+
+        const title = args.isAdminSending ? '💬 Support Reply' : '💬 New Support Message';
+        const body = args.isAdminSending
+            ? 'Admin has replied to your support chat'
+            : `${args.senderName} sent you a message`;
+
+        return await sendPushNotification(
+            recipient.pushToken,
+            title,
+            body,
+            { type: 'admin_chat' }
+        );
+    },
+});
+
 // Internal query to get user by ID
 export const getUserById = internalQuery({
     args: { userId: v.id("users") },

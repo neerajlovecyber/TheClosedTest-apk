@@ -265,3 +265,28 @@ export const getRecentReports = query({
         return reports;
     },
 });
+
+// Get count of pending reports (for Admin tab badge)
+export const getPendingCount = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return 0;
+
+        const admin = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!admin || !admin.isAdmin) return 0;
+
+        const pending = await ctx.db
+            .query("reports")
+            .withIndex("by_status", (q) => q.eq("status", "pending"))
+            .collect();
+
+        return pending.length;
+    },
+});

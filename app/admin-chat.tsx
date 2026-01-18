@@ -149,22 +149,10 @@ export default function AdminChatScreen() {
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                     onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
                     renderItem={({ item }) => {
-                        // Logic to determine if "me" sent it depends on context
-                        // But wait, senderId is the user ID.
-                        // If I am viewing this, I have an identity.
-                        // Ideally the backend returns isMe flag or we check against known ID.
-                        // For simplicity, let's infer:
-                        // If "userId" param is present (Admin View), then "Me" is the Admin. Admin is NOT the senderId if senderId == chatDetails.userId.
-                        // Actually, simplified: Messages have senderId.
-                        // If senderId == chatDetails.userId, it was sent by the User.
-                        // If senderId != chatDetails.userId, it was sent by Admin.
-
-                        const isUserMessage = item.senderId === chatDetails?.userId;
-
-                        // If I am Admin (userId param exists), "Me" is (sender != userId)
-                        // If I am User (userId param missing), "Me" is (sender == userId)
-
-                        const isMe = userId ? !isUserMessage : isUserMessage;
+                        // "isMe" depends on the viewer's perspective:
+                        // - If viewing as Admin (userId param exists): Admin messages are "mine"
+                        // - If viewing as User (no userId param): User messages (not admin) are "mine"
+                        const isMe = userId ? item.isAdmin : !item.isAdmin;
 
                         return (
                             <View className={`mb-4 max-w-[85%] rounded-2xl p-3 ${isMe

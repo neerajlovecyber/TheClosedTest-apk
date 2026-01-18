@@ -202,6 +202,7 @@ export default defineSchema({
         senderId: v.id("users"),
         content: v.string(),
         type: v.union(v.literal("text"), v.literal("image")),
+        isAdmin: v.boolean(), // Was the sender acting as admin?
         sentAt: v.number(),
     })
         .index("by_chatId", ["chatId"]),

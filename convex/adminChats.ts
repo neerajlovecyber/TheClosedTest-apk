@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // Get or create a chat for the current user (User side)
 export const getMyChat = mutation({
@@ -93,6 +94,7 @@ export const sendMessage = mutation({
             senderId: user._id,
             content: args.content,
             type: args.type,
+            isAdmin: isAdmin,
             sentAt: Date.now(),
         });
 
@@ -104,6 +106,16 @@ export const sendMessage = mutation({
             hasUnreadAdmin: !isAdmin, // If user sent, admin has unread
             adminId: isAdmin ? user._id : chat.adminId, // Track last responding admin
         });
+
+        // Schedule push notification to recipient
+        const recipientId = isAdmin ? chat.userId : chat.adminId;
+        if (recipientId) {
+            await ctx.scheduler.runAfter(0, api.notifications.notifyAdminChatMessage, {
+                recipientUserId: recipientId,
+                senderName: user.name || "User",
+                isAdminSending: isAdmin,
+            });
+        }
     },
 });
 
@@ -234,4 +246,45 @@ export const createChatWithUser = mutation({
 
         return chatId;
     }
+});
+
+// Check if current user has unread admin messages (for Settings badge)
+export const hasUnreadFromAdmin = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return false;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .first();
+        if (!user) return false;
+
+        const chat = await ctx.db
+            .query("admin_chats")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .first();
+
+        return chat?.hasUnreadUser ?? false;
+    },
+});
+
+// Check if admin has any unread messages (for Admin badge)
+export const hasUnreadForAdmin = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return false;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .first();
+        if (!user?.isAdmin) return false;
+
+        // Check for any unread chats
+        const chats = await ctx.db.query("admin_chats").collect();
+        return chats.some(c => c.hasUnreadAdmin);
+    },
 });

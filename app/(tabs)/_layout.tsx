@@ -18,6 +18,16 @@ export default function TabLayout() {
     const activeTests = useQuery(api.matches.getMyActiveTests) || [];
     const hasPendingTasks = activeTests.some((t: any) => t.needsAttention);
 
+    // Check for unread admin messages (User sees red dot on Settings)
+    const hasUnreadFromAdmin = useQuery(api.adminChats.hasUnreadFromAdmin) ?? false;
+
+    // Check for unread messages for Admin (Admin sees red dot on Admin tab)
+    const hasUnreadForAdmin = useQuery(api.adminChats.hasUnreadForAdmin) ?? false;
+
+    // Check for pending reports (Admin sees red dot on Admin tab)
+    const pendingReportsCount = useQuery(api.reports.getPendingCount) ?? 0;
+    const hasAdminNotifications = hasUnreadForAdmin || pendingReportsCount > 0;
+
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
             <Tabs
@@ -72,7 +82,16 @@ export default function TabLayout() {
                     name="settings"
                     options={{
                         title: 'Settings',
-                        tabBarIcon: ({ color }) => <Icon as={SettingsIcon} color={color} className="size-6" />,
+                        tabBarIcon: ({ color }) => (
+                            <View style={{ position: 'relative' }}>
+                                <Icon as={SettingsIcon} color={color} className="size-6" />
+                                {hasUnreadFromAdmin && (
+                                    <View
+                                        style={{ position: 'absolute', top: -4, right: -6, width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: 5 }}
+                                    />
+                                )}
+                            </View>
+                        ),
                     }}
                 />
                 <Tabs.Screen
@@ -80,7 +99,7 @@ export default function TabLayout() {
                     options={{
                         href: null,
                         headerShown: false,
-                        tabBarStyle: { display: 'flex' } // Explicitly keep tab bar visible? Default is visible.
+                        tabBarStyle: { display: 'flex' }
                     }}
                 />
                 <Tabs.Screen
@@ -88,7 +107,16 @@ export default function TabLayout() {
                     options={{
                         title: 'Admin',
                         href: isAdmin ? '/admin' : null,
-                        tabBarIcon: ({ color }) => <Icon as={ShieldIcon} color={color} className="size-6" />,
+                        tabBarIcon: ({ color }) => (
+                            <View style={{ position: 'relative' }}>
+                                <Icon as={ShieldIcon} color={color} className="size-6" />
+                                {hasAdminNotifications && (
+                                    <View
+                                        style={{ position: 'absolute', top: -4, right: -6, width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: 5 }}
+                                    />
+                                )}
+                            </View>
+                        ),
                         headerShown: false,
                     }}
                 />
