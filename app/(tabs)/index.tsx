@@ -33,6 +33,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [requestToReject, setRequestToReject] = useState<Id<"matches"> | null>(null);
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+    const attentionScrollRef = React.useRef<ScrollView>(null);
 
     // Convex Data (with persistent caching)
     const { data: incomingRequests = [] } = useCachedConvexQuery(['incomingRequests'], api.matches.getIncomingRequests);
@@ -90,6 +91,14 @@ export default function HomeScreen() {
             if (!a.isReviewPending && b.isReviewPending) return 1;
             return 0;
         });
+
+    // Reset scroll position when tasks change (after completing a task)
+    React.useEffect(() => {
+        if (attentionScrollRef.current && dueTasks.length > 0) {
+            // Scroll to beginning when tasks list changes
+            attentionScrollRef.current.scrollTo({ x: 0, animated: false });
+        }
+    }, [dueTasks.length]); // Only trigger when the number of tasks changes
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
@@ -185,7 +194,12 @@ export default function HomeScreen() {
                     <Text className="text-xl font-bold mb-4">⚡ Attention Needed</Text>
 
                     {dueTasks.length > 0 ? (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-4">
+                        <ScrollView
+                            ref={attentionScrollRef}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            className="gap-4"
+                        >
                             {dueTasks.map((task: any) => {
                                 // Determine action badge text
                                 let actionBadge = '';
