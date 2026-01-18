@@ -222,6 +222,13 @@ export default function SettingsScreen() {
                                     onPress={() => router.push('/playstore-guide')}
                                     iconColor="bg-emerald-500"
                                 />
+                                <SettingItem
+                                    icon={MessageSquareIcon}
+                                    label="Contact Support"
+                                    subtitle="Get help with issues"
+                                    onPress={() => router.push('/admin-chat')}
+                                    iconColor="bg-rose-500"
+                                />
                             </CardContent>
                         </Card>
                     </View>

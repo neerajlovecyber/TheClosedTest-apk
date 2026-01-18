@@ -7,16 +7,17 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, ChevronDownIcon } from 'lucide-react-native';
+import { SendIcon, ChevronDownIcon, FlagIcon } from 'lucide-react-native';
 
 interface MatchChatProps {
     visible: boolean;
     onClose: () => void;
     matchId: Id<"matches">;
     partnerName: string;
+    onReport?: () => void;
 }
 
-export function MatchChat({ visible, onClose, matchId, partnerName }: MatchChatProps) {
+export function MatchChat({ visible, onClose, matchId, partnerName, onReport }: MatchChatProps) {
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const messages = useQuery(api.matches.getMessages, { matchId }) || [];
@@ -101,12 +102,22 @@ export function MatchChat({ visible, onClose, matchId, partnerName }: MatchChatP
                                 </View>
                                 <Text className="font-bold text-lg">{partnerName}</Text>
                             </View>
-                            <TouchableOpacity
-                                onPress={onClose}
-                                className="p-2 bg-secondary/50 rounded-full"
-                            >
-                                <Icon as={ChevronDownIcon} className="text-muted-foreground size-5" />
-                            </TouchableOpacity>
+                            <View className="flex-row items-center gap-2">
+                                {onReport && (
+                                    <TouchableOpacity
+                                        onPress={onReport}
+                                        className="p-2 bg-red-50 dark:bg-red-900/20 rounded-full"
+                                    >
+                                        <Icon as={FlagIcon} className="text-red-600 dark:text-red-400 size-5" />
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity
+                                    onPress={onClose}
+                                    className="p-2 bg-secondary/50 rounded-full"
+                                >
+                                    <Icon as={ChevronDownIcon} className="text-muted-foreground size-5" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         {/* Chat Messages */}

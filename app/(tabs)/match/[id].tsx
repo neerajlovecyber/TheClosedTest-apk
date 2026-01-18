@@ -30,6 +30,7 @@ import { ProofReviewer } from '@/components/ProofReviewer';
 import { ProgressGrid } from '@/components/ProgressGrid';
 import { RejectionReasonModal } from '@/components/RejectionReasonModal';
 import { MatchChat } from '@/components/MatchChat';
+import { ReportDialog } from '@/components/ReportDialog';
 const isWeb = Platform.OS === 'web';
 
 // Calculate time until next midnight IST
@@ -76,6 +77,7 @@ export default function MatchDashboardScreen() {
 
     // Navigation State
     const [chatVisible, setChatVisible] = useState(false);
+    const [reportDialogVisible, setReportDialogVisible] = useState(false);
 
     const [rejectionModalVisible, setRejectionModalVisible] = useState(false);
     const [proofToReject, setProofToReject] = useState<Id<"proofs"> | null>(null);
@@ -416,6 +418,20 @@ export default function MatchDashboardScreen() {
                 onClose={() => setChatVisible(false)}
                 matchId={matchId}
                 partnerName={partner?.name || "Partner"}
+                onReport={() => {
+                    setChatVisible(false);
+                    setReportDialogVisible(true);
+                }}
+            />
+
+            <ReportDialog
+                visible={reportDialogVisible}
+                onClose={() => setReportDialogVisible(false)}
+                reportType="user"
+                targetId={matchId}
+                matchId={matchId}
+                reportedUserId={partner?._id}
+                targetName={partner?.name || "Partner"}
             />
 
             <RejectionReasonModal

@@ -38,6 +38,31 @@ export const createApp = mutation({
             throw new Error("User not found");
         }
 
+        // Check if user is banned
+        const userBan = await ctx.db
+            .query("user_bans")
+            .withIndex("by_userId", (q) => q.eq("userId", user._id))
+            .first();
+
+        if (userBan) {
+            // Check if temporary ban has expired
+            if (!userBan.permanent && userBan.expiresAt && userBan.expiresAt < Date.now()) {
+                // Ban expired, allow
+            } else {
+                throw new Error(`Your account has been banned: ${userBan.reason}`);
+            }
+        }
+
+        // Check if this package is banned
+        const packageBan = await ctx.db
+            .query("app_bans")
+            .withIndex("by_packageName", (q) => q.eq("packageName", args.packageName))
+            .first();
+
+        if (packageBan) {
+            throw new Error(`This app has been banned: ${packageBan.reason}`);
+        }
+
         if (user.appsCount >= 100) {
             throw new Error("You can only have 100 active apps at a time.");
         }
