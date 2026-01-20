@@ -139,18 +139,42 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
     return (
         <View>
             {/* Unified Score Card Header */}
-            <View className="mx-4 mb-2 p-2 rounded-xl bg-card border border-border shadow-sm flex-row justify-between items-center">
-                <View className="items-center flex-1 border-r border-border/50">
-                    <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {summary.partnerApproved}/{summary.totalDays}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Reviewed</Text>
+            <View className="mx-4 mb-2 p-2 rounded-xl bg-card border border-border shadow-sm">
+                <View className="flex-row justify-between items-center">
+                    <View className="items-center flex-1 border-r border-border/50">
+                        <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
+                            {summary.partnerApproved}/{summary.totalDays}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Reviewed</Text>
+                    </View>
+                    <View className="items-center flex-1">
+                        <Text className="text-3xl font-bold text-primary">
+                            {summary.myApproved}/{summary.totalDays}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">They Reviewed</Text>
+                    </View>
                 </View>
-                <View className="items-center flex-1">
-                    <Text className="text-3xl font-bold text-primary">
-                        {summary.myApproved}/{summary.totalDays}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">They Reviewed</Text>
+
+                {/* Legend inside card */}
+                <View className="mt-3 pt-2 border-t border-border/30">
+                    <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 justify-center">
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={CheckCircle2Icon} className="size-3 text-green-600" />
+                            <Text className="text-[9px] text-muted-foreground">Approved</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={ClockIcon} className="size-3 text-orange-600" />
+                            <Text className="text-[9px] text-muted-foreground">Pending</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={XCircleIcon} className="size-3 text-red-600" />
+                            <Text className="text-[9px] text-muted-foreground">Rejected</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={AlertCircleIcon} className="size-3 text-destructive" />
+                            <Text className="text-[9px] text-muted-foreground">Missed</Text>
+                        </View>
+                    </View>
                 </View>
             </View>
 
@@ -233,28 +257,6 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
                     );
                 })}
             </ScrollView>
-
-            {/* Compact Legend */}
-            <View className="mx-4 mt-3 bg-secondary/20 p-2 rounded-lg py-3">
-                <View className="flex-row flex-wrap gap-x-4 gap-y-2 justify-center">
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={CheckCircle2Icon} className="size-3 text-green-600" />
-                        <Text className="text-[10px] text-muted-foreground">Approved</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={ClockIcon} className="size-3 text-orange-600" />
-                        <Text className="text-[10px] text-muted-foreground">Pending</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={XCircleIcon} className="size-3 text-red-600" />
-                        <Text className="text-[10px] text-muted-foreground">Rejected</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={AlertCircleIcon} className="size-3 text-destructive" />
-                        <Text className="text-[10px] text-muted-foreground">Missed</Text>
-                    </View>
-                </View>
-            </View>
         </View>
     );
 }
