@@ -142,15 +142,15 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
             <View className="mx-4 mb-2 p-2 rounded-xl bg-card border border-border shadow-sm flex-row justify-between items-center">
                 <View className="items-center flex-1 border-r border-border/50">
                     <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {summary.myApproved}/{summary.totalDays}
+                        {summary.partnerApproved}/{summary.totalDays}
                     </Text>
-                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Approved</Text>
+                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Reviewed</Text>
                 </View>
                 <View className="items-center flex-1">
                     <Text className="text-3xl font-bold text-primary">
-                        {summary.partnerApproved}/{summary.totalDays}
+                        {summary.myApproved}/{summary.totalDays}
                     </Text>
-                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">Partner Approved</Text>
+                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">They Reviewed</Text>
                 </View>
             </View>
 
