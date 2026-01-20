@@ -104,23 +104,113 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
         }
     }, [selectedDay, width]);
 
+    // Calculate if YOU have pending screenshots from previous days (waiting for partner approval)
+    const myPendingPreviousDays = useMemo(() => {
+        const pending = days.filter(d =>
+            d.day < currentDay &&
+            d.myStatus === 'pending'  // YOUR uploads waiting for partner
+        );
+
+        return pending;
+    }, [days, currentDay]);
+
+    // Calculate if PARTNER has pending screenshots from previous days (waiting for YOUR approval)
+    const partnerPendingPreviousDays = useMemo(() => {
+        const pending = days.filter(d =>
+            d.day < currentDay &&
+            d.partnerStatus === 'pending'  // PARTNER's uploads waiting for you
+        );
+
+        // Debug logging
+        console.log('ProgressGrid Debug:', {
+            currentDay,
+            totalDays: days.length,
+            myPendingPreviousDays: myPendingPreviousDays.map(d => ({ day: d.day, myStatus: d.myStatus })),
+            partnerPendingPreviousDays: pending.map(d => ({ day: d.day, partnerStatus: d.partnerStatus })),
+            allDays: days.map(d => ({ day: d.day, myStatus: d.myStatus, partnerStatus: d.partnerStatus }))
+        });
+
+        return pending;
+    }, [days, currentDay, myPendingPreviousDays]);
+
+    const hasMyPendingPreviousDays = myPendingPreviousDays.length > 0;
+    const hasPartnerPendingPreviousDays = partnerPendingPreviousDays.length > 0;
+
     return (
         <View>
             {/* Unified Score Card Header */}
-            <View className="mx-4 mb-2 p-2 rounded-xl bg-card border border-border shadow-sm flex-row justify-between items-center">
-                <View className="items-center flex-1 border-r border-border/50">
-                    <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
-                        {summary.myApproved}/{summary.totalDays}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Approved</Text>
+            <View className="mx-4 mb-2 p-2 rounded-xl bg-card border border-border shadow-sm">
+                <View className="flex-row justify-between items-center">
+                    <View className="items-center flex-1 border-r border-border/50">
+                        <Text className="text-3xl font-bold text-green-600 dark:text-green-400">
+                            {summary.partnerApproved}/{summary.totalDays}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">You Reviewed</Text>
+                    </View>
+                    <View className="items-center flex-1">
+                        <Text className="text-3xl font-bold text-primary">
+                            {summary.myApproved}/{summary.totalDays}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">They Reviewed</Text>
+                    </View>
                 </View>
-                <View className="items-center flex-1">
-                    <Text className="text-3xl font-bold text-primary">
-                        {summary.partnerApproved}/{summary.totalDays}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-1">Partner Approved</Text>
+
+                {/* Legend inside card */}
+                <View className="mt-3 pt-2 border-t border-border/30">
+                    <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 justify-center">
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={CheckCircle2Icon} className="size-3 text-green-600" />
+                            <Text className="text-[9px] text-muted-foreground">Approved</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={ClockIcon} className="size-3 text-orange-600" />
+                            <Text className="text-[9px] text-muted-foreground">Pending</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={XCircleIcon} className="size-3 text-red-600" />
+                            <Text className="text-[9px] text-muted-foreground">Rejected</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Icon as={AlertCircleIcon} className="size-3 text-destructive" />
+                            <Text className="text-[9px] text-muted-foreground">Missed</Text>
+                        </View>
+                    </View>
                 </View>
             </View>
+
+            {/* Warning Banner for Your Pending Previous Days */}
+            {hasMyPendingPreviousDays && (
+                <View className="mx-4 mb-3 p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-900/50">
+                    <View className="flex-row items-center">
+                        <Icon as={AlertCircleIcon} className="size-4 text-orange-600 dark:text-orange-400 mr-2" />
+                        <View className="flex-1">
+                            <Text className="text-xs font-bold text-orange-900 dark:text-orange-200">
+                                Partner hasn't approved {myPendingPreviousDays.length} old {myPendingPreviousDays.length === 1 ? 'screenshot' : 'screenshots'}
+                            </Text>
+                            <Text className="text-[10px] text-orange-700 dark:text-orange-300 mt-0.5">
+                                Follow up with them or wait for review
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Warning Banner for Partner's Pending Previous Days */}
+            {hasPartnerPendingPreviousDays && (
+                <View className="mx-4 mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50">
+                    <View className="flex-row items-center">
+                        <Icon as={AlertCircleIcon} className="size-4 text-blue-600 dark:text-blue-400 mr-2" />
+                        <View className="flex-1">
+                            <Text className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                                You need to approve {partnerPendingPreviousDays.length} old {partnerPendingPreviousDays.length === 1 ? 'screenshot' : 'screenshots'}
+                            </Text>
+                            <Text className="text-[10px] text-blue-700 dark:text-blue-300 mt-0.5">
+                                Tap day cards below to review and approve
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            )}
 
             <ScrollView
                 ref={scrollViewRef}
@@ -167,28 +257,6 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
                     );
                 })}
             </ScrollView>
-
-            {/* Compact Legend */}
-            <View className="mx-4 mt-3 bg-secondary/20 p-2 rounded-lg py-3">
-                <View className="flex-row flex-wrap gap-x-4 gap-y-2 justify-center">
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={CheckCircle2Icon} className="size-3 text-green-600" />
-                        <Text className="text-[10px] text-muted-foreground">Approved</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={ClockIcon} className="size-3 text-orange-600" />
-                        <Text className="text-[10px] text-muted-foreground">Pending</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={XCircleIcon} className="size-3 text-red-600" />
-                        <Text className="text-[10px] text-muted-foreground">Rejected</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                        <Icon as={AlertCircleIcon} className="size-3 text-destructive" />
-                        <Text className="text-[10px] text-muted-foreground">Missed</Text>
-                    </View>
-                </View>
-            </View>
         </View>
     );
 }
