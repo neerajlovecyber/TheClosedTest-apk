@@ -264,32 +264,38 @@ export default function MatchDashboardScreen() {
                 contentContainerStyle={{ paddingBottom: isWeb ? 40 : 60 }}
                 style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
             >
-                {/* Header Section */}
+                {/* Header Section - Compact */}
                 <View className="px-4 pt-4 pb-2">
-                    <View className="flex-row items-center mb-4">
+                    <View className="flex-row items-center gap-3 mb-3">
                         <Image
                             source={{ uri: app?.iconUrl }}
-                            style={{ width: 64, height: 64, borderRadius: 16 }}
+                            style={{ width: 60, height: 60, borderRadius: 14 }}
                             contentFit="cover"
                             transition={200}
                             className="bg-muted"
                         />
-                        <View className="ml-4 flex-1">
-                            <Text className="text-2xl font-bold" numberOfLines={1}>{app?.title || 'Testing'}</Text>
-                            <Text className="text-sm text-muted-foreground" numberOfLines={1}>{app?.packageName}</Text>
+                        <View className="flex-1">
+                            <Text className="text-xl font-bold" numberOfLines={1}>{app?.title || 'Testing'}</Text>
+                            <Text className="text-xs text-muted-foreground" numberOfLines={1}>{app?.packageName}</Text>
                         </View>
+                        <TouchableOpacity
+                            onPress={handleOpenApp}
+                            className="bg-primary px-3 py-2 rounded-lg"
+                        >
+                            <Text className="text-primary-foreground font-bold text-sm">Open</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Testing Instructions - Collapsible */}
                     <Pressable
                         onPress={() => setInstructionsExpanded(!instructionsExpanded)}
-                        className="bg-secondary/30 rounded-xl p-3  flex-row items-center justify-between"
+                        className="bg-secondary/30 rounded-lg p-2.5 flex-row items-center justify-between"
                     >
                         <View className="flex-row items-center flex-1">
                             <Icon as={InfoIcon} className="text-primary size-4 mr-2" />
                             <Text className="font-medium text-sm">Testing Instructions</Text>
                         </View>
-                        <Icon as={instructionsExpanded ? ChevronUpIcon : ChevronDownIcon} className="text-muted-foreground size-5" />
+                        <Icon as={instructionsExpanded ? ChevronUpIcon : ChevronDownIcon} className="text-muted-foreground size-4" />
                     </Pressable>
                     {instructionsExpanded && (
                         <Card className="bg-secondary/10 mt-2">
@@ -298,83 +304,65 @@ export default function MatchDashboardScreen() {
                             </CardContent>
                         </Card>
                     )}
-
-                    {/* Open App Button */}
-                    <TouchableOpacity
-                        onPress={handleOpenApp}
-                        className="flex-row items-center justify-center bg-primary mt-3 p-2.5 rounded-xl"
-                    >
-                        <Icon as={ExternalLinkIcon} className="text-primary-foreground size-4 mr-2" />
-                        <Text className="text-primary-foreground font-bold text-base">Open {app?.title || 'App'}</Text>
-                    </TouchableOpacity>
                 </View>
 
 
 
-                {/* Progress Grid with Integrated Score Card */}
-                {
-                    summary && (
-                        <View className="mb-4">
-                            <Text className="text-sm font-bold px-4 mb-3 uppercase tracking-wider text-muted-foreground">14-Day Progress & Status</Text>
-                            <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} selectedDay={effectiveDay} />
-                        </View>
-                    )
-                }
+                {/* Progress Grid - Compact */}
+                {summary && (
+                    <View className="mb-3">
+                        <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} selectedDay={effectiveDay} />
+                    </View>
+                )}
 
-                {/* Unified Day View - Shows selected day's proofs */}
+                {/* Day View - Compact */}
                 <View className="px-4">
-                    {/* Day Header with Navigation */}
-                    <View className="flex-row items-center justify-between mb-3">
-                        <View>
-                            <View className="flex-row items-center gap-2">
-                                <Text className="text-lg font-bold">Day {effectiveDay}</Text>
-                                {effectiveDay === currentDay && (
-                                    <View className="bg-primary px-2 py-0.5 rounded-full">
-                                        <Text className="text-[10px] font-bold text-primary-foreground">TODAY</Text>
-                                    </View>
-                                )}
-                            </View>
-                            {effectiveDay === currentDay ? (
-                                <View className="flex-row items-center mt-1">
-                                    <Icon as={ClockIcon} className="text-orange-500 size-3.5 mr-1" />
-                                    <Text className="text-xs font-medium text-orange-600 dark:text-orange-400">
-                                        {timeUntilReset.hours}h {timeUntilReset.minutes}m remaining
+                    {/* Day Header - Compact */}
+                    <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-base font-bold">Day {effectiveDay}</Text>
+                            {effectiveDay === currentDay && (
+                                <View className="bg-primary px-1.5 py-0.5 rounded-md">
+                                    <Text className="text-[9px] font-bold text-primary-foreground">TODAY</Text>
+                                </View>
+                            )}
+                            {effectiveDay === currentDay && (
+                                <View className="flex-row items-center">
+                                    <Icon as={ClockIcon} className="text-orange-500 size-3 mr-1" />
+                                    <Text className="text-[10px] font-medium text-orange-600 dark:text-orange-400">
+                                        {timeUntilReset.hours}h {timeUntilReset.minutes}m
                                     </Text>
                                 </View>
-                            ) : (
-                                <Text className="text-xs text-muted-foreground mt-1">
-                                    {effectiveDay < currentDay ? "Day Completed" : "Future Day"}
-                                </Text>
                             )}
                         </View>
 
                         <View className="flex-row items-center gap-2">
                             <TouchableOpacity
                                 onPress={() => effectiveDay > 1 && setSelectedDay(effectiveDay - 1)}
-                                className={`w-9 h-9 rounded-full items-center justify-center ${effectiveDay <= 1 ? 'bg-muted/30' : 'bg-primary'}`}
+                                className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay <= 1 ? 'bg-muted/30' : 'bg-primary'}`}
                                 disabled={effectiveDay <= 1}
                             >
-                                <Text className={`font-bold text-lg ${effectiveDay <= 1 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>←</Text>
+                                <Text className={`font-bold ${effectiveDay <= 1 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>←</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => effectiveDay < currentDay && setSelectedDay(effectiveDay + 1)}
-                                className={`w-9 h-9 rounded-full items-center justify-center ${effectiveDay >= currentDay ? 'bg-muted/30' : 'bg-primary'}`}
+                                className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay >= currentDay ? 'bg-muted/30' : 'bg-primary'}`}
                                 disabled={effectiveDay >= currentDay}
                             >
-                                <Text className={`font-bold text-lg ${effectiveDay >= currentDay ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
+                                <Text className={`font-bold ${effectiveDay >= currentDay ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    <SectionTitle icon={UploadIcon} title="Your Proof" />
+                    <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Your Proof</Text>
                     <ProofUploader matchId={matchId} currentDay={effectiveDay} todayProof={selectedDayMyProof} />
 
-                    <View className="h-px bg-border my-3" />
+                    <View className="h-px bg-border my-2" />
 
-                    <SectionTitle icon={EyeIcon} title="Partner's Proof" />
+                    <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Partner's Proof</Text>
                     <ProofReviewer matchId={matchId} partnerProof={selectedDayPartnerProof} onReject={handleRejectPress} />
                 </View>
-                <View className="h-px bg-border mb-6 mt-2 mx-3 " />
+                <View className="h-px bg-border my-3 mx-3" />
                 {/* Leave Match Button */}
                 <View className="px-4 mt-2">
                     <TouchableOpacity

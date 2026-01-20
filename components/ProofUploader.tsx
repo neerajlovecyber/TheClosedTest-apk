@@ -158,20 +158,19 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 {selectedImages.length === 0 && (
                     <TouchableOpacity
                         onPress={handlePickImages}
-                        className="w-full aspect-video rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 items-center justify-center mb-4"
+                        className="w-full rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 items-center justify-center mb-4 p-6"
                     >
-                        <Icon as={CameraIcon} className="text-primary size-12 mb-2" />
-                        <Text className="text-lg font-bold text-primary">Upload Screenshots</Text>
-                        <Text className="text-sm text-muted-foreground mt-1">Up to 5 images</Text>
+                        <Icon as={CameraIcon} className="text-primary size-10 mb-1.5" />
+                        <Text className="text-base font-bold text-primary">Upload Screenshots</Text>
+                        <Text className="text-xs text-muted-foreground mt-0.5">Up to 5 images</Text>
                     </TouchableOpacity>
                 )}
 
                 {/* Comment Input */}
                 <View className="mb-4">
-                    <Text className="text-sm font-medium mb-2 text-muted-foreground">Add a note (optional)</Text>
                     <TextInput
                         className="bg-secondary p-4 rounded-xl text-foreground"
-                        placeholder="e.g., Tested feature X today..."
+                        placeholder="Add a note (e.g., Tested feature X today...)"
                         placeholderTextColor="#9ca3af"
                         value={comment}
                         onChangeText={setComment}
@@ -206,16 +205,12 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         if (todayProof.status === "approved") {
             return (
                 <Card className="bg-green-500/10 border-green-500/30 mb-4">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center justify-between">
-                            <View className="flex-row items-center flex-1">
-                                <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-3" />
-                                <View>
-                                    <Text className="font-bold text-green-600 text-lg">Day {currentDay} Complete!</Text>
-                                    <Text className="text-muted-foreground text-xs">
-                                        Your proof has been approved. Great job!
-                                    </Text>
-                                </View>
+                    <CardContent className="p-3">
+                        <View className="flex-row items-center">
+                            <Icon as={CheckCircleIcon} className="text-green-500 size-5 mr-2" />
+                            <View className="flex-1">
+                                <Text className="font-bold text-green-600 text-base">Day {currentDay} Complete!</Text>
+                                <Text className="text-muted-foreground text-xs">Your proof has been approved</Text>
                             </View>
                         </View>
                     </CardContent>
@@ -225,22 +220,22 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
 
         if (todayProof.status === "pending") {
             return (
-                <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center mb-3">
-                            <Icon as={ClockIcon} className="text-orange-500 size-6 mr-2" />
-                            <Text className="font-bold text-orange-600 text-lg">Waiting for Review</Text>
+                <Card className="bg-orange-500/10 border-orange-500/30 mb-4">
+                    <CardContent className="p-3">
+                        <View className="flex-row items-center mb-2">
+                            <Icon as={ClockIcon} className="text-orange-500 size-5 mr-2" />
+                            <Text className="font-bold text-orange-600 text-base">Waiting for Review</Text>
                         </View>
-                        <Text className="text-muted-foreground mb-3">
-                            Your Day {currentDay} proof is pending approval from your partner.
+                        <Text className="text-muted-foreground text-xs mb-2">
+                            Your Day {currentDay} proof is pending approval.
                         </Text>
                         {todayProof.urls && todayProof.urls.length > 0 && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
                                 {todayProof.urls.map((url, i) => (
                                     <Image
                                         key={i}
                                         source={{ uri: url }}
-                                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8 }}
+                                        style={{ width: 64, height: 64, borderRadius: 6, marginRight: 6 }}
                                         contentFit="cover"
                                         cachePolicy="memory-disk"
                                         transition={150}
@@ -249,7 +244,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                             </ScrollView>
                         )}
                         {todayProof.comment && (
-                            <Text className="text-sm text-muted-foreground italic">"{todayProof.comment}"</Text>
+                            <Text className="text-xs text-muted-foreground italic">"{todayProof.comment}"</Text>
                         )}
                     </CardContent>
                 </Card>
@@ -260,18 +255,18 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             return (
                 <View>
                     <Card className="bg-red-500/10 border-red-500/30 mb-4">
-                        <CardContent className="p-4">
-                            <View className="flex-row items-center mb-2">
-                                <Icon as={AlertCircleIcon} className="text-red-500 size-6 mr-2" />
-                                <Text className="font-bold text-red-600 text-lg">Proof Rejected</Text>
+                        <CardContent className="p-3">
+                            <View className="flex-row items-center mb-1.5">
+                                <Icon as={AlertCircleIcon} className="text-red-500 size-5 mr-2" />
+                                <Text className="font-bold text-red-600 text-base">Proof Rejected</Text>
                             </View>
-                            <Text className="text-muted-foreground mb-2">
+                            <Text className="text-muted-foreground text-xs mb-2">
                                 Your Day {currentDay} proof was rejected. Please upload again.
                             </Text>
                             {todayProof.rejectionReason && (
-                                <View className="bg-red-500/5 p-3 rounded-lg">
-                                    <Text className="text-sm font-medium text-red-600">Reason:</Text>
-                                    <Text className="text-sm text-muted-foreground">{todayProof.rejectionReason}</Text>
+                                <View className="bg-red-500/5 p-2 rounded-lg">
+                                    <Text className="text-xs font-medium text-red-600">Reason:</Text>
+                                    <Text className="text-xs text-muted-foreground">{todayProof.rejectionReason}</Text>
                                 </View>
                             )}
                         </CardContent>
