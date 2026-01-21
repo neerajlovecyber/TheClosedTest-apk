@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, Image } from 'react-native';
+import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, Image, Linking } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -111,6 +111,24 @@ export default function MarketplaceScreen() {
     ), [handleAppPress]);
 
     const keyExtractor = useCallback((item: any) => item._id, []);
+
+    // Open Play Store for Hall of Fame apps
+    const handleOpenPlayStore = useCallback((app: any) => {
+        if (!app.packageName) return;
+
+        const marketUrl = `market://details?id=${app.packageName}`;
+        const webUrl = app.playStoreUrl || `https://play.google.com/store/apps/details?id=${app.packageName}`;
+
+        Linking.canOpenURL(marketUrl).then(supported => {
+            if (supported) {
+                Linking.openURL(marketUrl);
+            } else {
+                Linking.openURL(webUrl);
+            }
+        }).catch(() => {
+            Linking.openURL(webUrl);
+        });
+    }, []);
 
     // Horizontal carousel render item
     const renderGroupItem = useCallback(({ item: group }: { item: any[] }) => (
@@ -234,7 +252,7 @@ export default function MarketplaceScreen() {
                                 {completedApps.slice(0, 10).map((app: any) => (
                                     <TouchableOpacity
                                         key={app._id}
-                                        onPress={() => handleAppPress(app._id)}
+                                        onPress={() => handleOpenPlayStore(app)}
                                         activeOpacity={0.7}
                                         className="flex-row items-center gap-3 p-3 bg-gradient-to-r from-green-500/10 to-yellow-500/10 border border-green-500/20 rounded-xl"
                                     >
