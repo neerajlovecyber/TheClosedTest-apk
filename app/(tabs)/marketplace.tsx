@@ -52,11 +52,22 @@ export default function MarketplaceScreen() {
     // Hall of Fame - Completed apps
     const { data: completedApps } = useCachedConvexQuery(['marketplaceCompleted'], api.apps.getCompletedApps);
 
+    // Get my match statuses
+    const myMatchStatuses = useQuery(api.matches.getMyMatchStatuses) || [];
+    const matchStatusMap = useMemo(() => {
+        const map = new Map();
+        for (const status of myMatchStatuses) {
+            map.set(status.appId, status.status);
+        }
+        return map;
+    }, [myMatchStatuses]);
+
     // Memoize expensive computations
     const latestOpportunities = useMemo(() =>
         displayRecruiting
             .filter((app: any) => !app.isFilled)
-            .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0)),
+            .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+            .slice(0, 16),
         [displayRecruiting]
     );
 
@@ -86,8 +97,8 @@ export default function MarketplaceScreen() {
     const groupedRecruiting = useMemo(() => {
         const chunked = [];
         const arr = latestOpportunities || [];
-        for (let i = 0; i < arr.length; i += 3) {
-            chunked.push(arr.slice(i, i + 3));
+        for (let i = 0; i < arr.length; i += 4) {
+            chunked.push(arr.slice(i, i + 4));
         }
         return chunked;
     }, [latestOpportunities]);
@@ -107,8 +118,9 @@ export default function MarketplaceScreen() {
             key={item._id}
             item={item}
             onPress={() => handleAppPress(item._id)}
+            matchStatus={matchStatusMap.get(item._id)}
         />
-    ), [handleAppPress]);
+    ), [handleAppPress, matchStatusMap]);
 
     const keyExtractor = useCallback((item: any) => item._id, []);
 
@@ -138,10 +150,11 @@ export default function MarketplaceScreen() {
                     key={app._id}
                     item={app}
                     onPress={() => handleAppPress(app._id)}
+                    matchStatus={matchStatusMap.get(app._id)}
                 />
             ))}
         </View>
-    ), [windowWidth, handleAppPress]);
+    ), [windowWidth, handleAppPress, matchStatusMap]);
 
     const groupKeyExtractor = useCallback((item: any[], index: number) => `group-${index}`, []);
 

@@ -29,10 +29,11 @@ interface AppCardProps {
     item: AppItem;
     onPress?: () => void;
     variant?: 'marketplace' | 'my-app' | 'testing';
-    actionBadge?: string; // Badge text for action needed (e.g., "Upload SS", "Approve")
+    actionBadge?: string;
+    matchStatus?: 'active' | 'pending_sent' | 'pending_received' | string;
 }
 
-export function AppCard({ item, onPress, variant = 'marketplace', actionBadge }: AppCardProps) {
+export function AppCard({ item, onPress, variant = 'marketplace', actionBadge, matchStatus }: AppCardProps) {
     const isMyApp = variant === 'my-app';
     const isTesting = variant === 'testing';
 
@@ -58,8 +59,8 @@ export function AppCard({ item, onPress, variant = 'marketplace', actionBadge }:
                     {/* Action Badge (highest priority) */}
                     {actionBadge ? (
                         <View className={`px-2.5 py-1 rounded-full ${actionBadge === 'Approve'
-                                ? 'bg-orange-500'
-                                : 'bg-blue-500'
+                            ? 'bg-orange-500'
+                            : 'bg-blue-500'
                             }`}>
                             <Text className="text-[11px] text-white font-bold uppercase tracking-wide">{actionBadge}</Text>
                         </View>
@@ -67,15 +68,36 @@ export function AppCard({ item, onPress, variant = 'marketplace', actionBadge }:
                         <>
                             {/* Variant Specific Badges */}
                             {variant === 'marketplace' && (
-                                isFilled ? (
-                                    <View className="bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
-                                        <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Filled</Text>
-                                    </View>
-                                ) : item.isNew ? (
-                                    <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                                        <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
-                                    </View>
-                                ) : null
+                                <>
+                                    {isFilled ? (
+                                        <View className="bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
+                                            <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Filled</Text>
+                                        </View>
+                                    ) : (
+                                        <>
+                                            {matchStatus === 'active' && (
+                                                <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                                                    <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">Active</Text>
+                                                </View>
+                                            )}
+                                            {matchStatus === 'pending_sent' && (
+                                                <View className="bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                                                    <Text className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Req Sent</Text>
+                                                </View>
+                                            )}
+                                            {matchStatus === 'pending_received' && (
+                                                <View className="bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
+                                                    <Text className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Request</Text>
+                                                </View>
+                                            )}
+                                            {!matchStatus && item.isNew && (
+                                                <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                                                    <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
+                                                </View>
+                                            )}
+                                        </>
+                                    )}
+                                </>
                             )}
                             {isMyApp && (
                                 <View className={`px-2 py-0.5 rounded-full ${isFilled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary/10'}`}>

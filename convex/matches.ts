@@ -1640,3 +1640,57 @@ export const getCompletedMatches = query({
         return enrichedMatches.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
     }
 });
+
+// Get simple status map of all matches for the current user (for Marketplace badges)
+export const getMyMatchStatuses = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return [];
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return [];
+
+        // Get all matches involving this user
+        const matches1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .collect();
+
+        const matches2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .collect();
+
+        const allMatches = [...matches1, ...matches2];
+
+        // Map to { appId: status }
+        // We want the ID of the OTHER app (the one I'm viewing in marketplace)
+        return allMatches
+            .filter(m => m.status === 'active' || m.status === 'pending')
+            .map(m => {
+                const isUser1 = m.user1Id === user._id;
+                // If I am User1, "Other App" is App2.
+                // If I am User2, "Other App" is App1.
+                const partnerAppId = isUser1 ? m.app2Id : m.app1Id;
+
+                let status: string = m.status; // 'active' or 'pending'
+                if (status === 'pending') {
+                    // Differentiate sent vs received
+                    // If I am User1 (Requestor), it's "sent"
+                    status = isUser1 ? 'pending_sent' : 'pending_received';
+                }
+
+                return {
+                    appId: partnerAppId,
+                    status
+                };
+            });
+    }
+});
