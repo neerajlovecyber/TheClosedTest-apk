@@ -1330,9 +1330,9 @@ export const checkMissedPenalties = internalMutation({
                     // PENALIZE
                     const user = await ctx.db.get(userId);
                     if (user) {
-                        // Deduct 2 points, min 0
+                        // Deduct 3 points, min 0
                         await ctx.db.patch(user._id, {
-                            reputation: Math.max(0, (user.reputation || 100) - 2)
+                            reputation: Math.max(0, (user.reputation || 100) - 3)
                         });
 
                         // Notify
@@ -1340,7 +1340,7 @@ export const checkMissedPenalties = internalMutation({
                             userId: userId,
                             type: "alert",
                             title: "Missed Day Penalty",
-                            body: `You missed Day ${dayToCheck}. -2 Reputation.`,
+                            body: `You missed Day ${dayToCheck}. -3 Reputation.`,
                             data: { matchId: match._id }
                         });
 
