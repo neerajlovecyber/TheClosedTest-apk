@@ -1459,6 +1459,47 @@ export const cleanupOldProofRows = internalMutation({
     }
 });
 
+// Delete cancelled MATCH ROWS older than 7 days (and their proofs/messages)
+export const cleanupCancelledMatches = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        const cutoffDate = Date.now() - SEVEN_DAYS_MS;
+
+        // Get cancelled matches older than 7 days
+        const cancelledMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_status", (q) => q.eq("status", "cancelled"))
+            .collect();
+
+        let deletedMatches = 0;
+        let deletedProofs = 0;
+        let deletedMessages = 0;
+
+        for (const match of cancelledMatches) {
+            // Check if match is old enough
+            if (match.createdAt > cutoffDate) continue;
+
+            // Delete all messages for this match
+            const messages = await ctx.db
+                .query("messages")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .collect();
+            for (const message of messages) {
+                await ctx.db.delete(message._id);
+                deletedMessages++;
+            }
+
+            // Delete the match itself
+            await ctx.db.delete(match._id);
+            deletedMatches++;
+        }
+
+        console.log(`Cleaned up cancelled matches: ${deletedMatches} matches, ${deletedProofs} proofs, ${deletedMessages} messages`);
+        return { deletedMatches, deletedProofs, deletedMessages };
+    }
+});
+
 // Helper to calculate raw day (without capping at 14) for completion check
 const calculateRawDay = (startDate: number) => {
     if (!startDate) return 1;

@@ -69,4 +69,12 @@ crons.daily(
     internal.matches.cleanupOldProofRows
 );
 
+// Delete cancelled matches older than 7 days (and their proofs/messages)
+// Runs at 3:30 AM UTC (9:00 AM IST)
+crons.daily(
+    "cleanup-cancelled-matches",
+    { hourUTC: 3, minuteUTC: 30 },
+    internal.matches.cleanupCancelledMatches
+);
+
 export default crons;
