@@ -135,7 +135,10 @@ export const getMarketplaceApps = query({
                 .query("matches")
                 .filter((q) => q.and(
                     q.eq(q.field("app1Id"), app._id),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
@@ -143,7 +146,10 @@ export const getMarketplaceApps = query({
                 .query("matches")
                 .filter((q) => q.and(
                     q.eq(q.field("app2Id"), app._id),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
@@ -152,9 +158,9 @@ export const getMarketplaceApps = query({
             // Check if filled
             const isFilled = actualTesters >= app.requiredTesters || app.status === "filled";
 
-            // Check if new (created in last 7 days)
-            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-            const isNew = app.createdAt > sevenDaysAgo && !isFilled;
+            // Check if new (created in last 3 days)
+            const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
+            const isNew = app.createdAt > threeDaysAgo && !isFilled;
 
             // Also fetch owner details for the UI
             const owner = await ctx.db.get(app.userId);
@@ -211,7 +217,10 @@ export const getMyApps = query({
                 .query("matches")
                 .filter((q) => q.and(
                     q.eq(q.field("app1Id"), app._id),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
@@ -219,7 +228,10 @@ export const getMyApps = query({
                 .query("matches")
                 .filter((q) => q.and(
                     q.eq(q.field("app2Id"), app._id),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
@@ -282,7 +294,10 @@ export const getAppArgs = query({
             .query("matches")
             .filter((q) => q.and(
                 q.eq(q.field("app1Id"), app._id),
-                q.eq(q.field("status"), "active")
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
             ))
             .collect();
 
@@ -290,7 +305,10 @@ export const getAppArgs = query({
             .query("matches")
             .filter((q) => q.and(
                 q.eq(q.field("app2Id"), app._id),
-                q.eq(q.field("status"), "active")
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
             ))
             .collect();
 

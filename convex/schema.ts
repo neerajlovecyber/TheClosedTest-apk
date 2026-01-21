@@ -68,6 +68,9 @@ export default defineSchema({
         lastActivity: v.number(),
         lastRead1: v.optional(v.number()), // When User 1 last read the chat
         lastRead2: v.optional(v.number()), // When User 2 last read the chat
+        completedAt: v.optional(v.number()), // When match was auto-completed
+        user1ApprovedCount: v.optional(v.number()), // How many proofs user1 got approved
+        user2ApprovedCount: v.optional(v.number()), // How many proofs user2 got approved
         createdAt: v.number(),
     })
         .index("by_user1", ["user1Id"])

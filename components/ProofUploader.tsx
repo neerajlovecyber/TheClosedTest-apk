@@ -23,9 +23,10 @@ interface ProofUploaderProps {
         canEdit?: boolean;
     } | null;
     onUploadComplete?: () => void;
+    isCompleted?: boolean; // Match is completed (14-day testing finished)
 }
 
-function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete }: ProofUploaderProps) {
+function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete, isCompleted }: ProofUploaderProps) {
     const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
@@ -199,6 +200,41 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             </View>
         );
     }, [selectedImages, comment, isUploading, currentDay, handlePickImages, removeImage, handleUpload]);
+
+    // For completed matches, show read-only view
+    if (isCompleted) {
+        if (todayProof && todayProof.status === "approved") {
+            return (
+                <Card className="bg-green-500/10 border-green-500/30 mb-4">
+                    <CardContent className="p-3">
+                        <View className="flex-row items-center">
+                            <Icon as={CheckCircleIcon} className="text-green-500 size-5 mr-2" />
+                            <View className="flex-1">
+                                <Text className="font-bold text-green-600 text-base">Day {currentDay} ✓</Text>
+                                <Text className="text-muted-foreground text-xs">Proof approved</Text>
+                            </View>
+                        </View>
+                    </CardContent>
+                </Card>
+            );
+        }
+        return (
+            <Card className="bg-muted/30 border-muted mb-4">
+                <CardContent className="p-3">
+                    <View className="flex-row items-center">
+                        <Icon as={ImageIcon} className="text-muted-foreground size-5 mr-2" />
+                        <View className="flex-1">
+                            <Text className="font-medium text-muted-foreground text-sm">Day {currentDay}</Text>
+                            <Text className="text-muted-foreground text-xs">
+                                {todayProof?.status === "pending" ? "Pending review" :
+                                    todayProof?.status === "rejected" ? "Was rejected" : "Not uploaded"}
+                            </Text>
+                        </View>
+                    </View>
+                </CardContent>
+            </Card>
+        );
+    }
 
     // Show status for already submitted proof
     if (todayProof && todayProof.status) {
