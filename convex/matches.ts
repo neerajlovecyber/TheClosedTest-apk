@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
@@ -28,7 +28,7 @@ export const requestSwap = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Not authenticated");
+            throw new ConvexError("Not authenticated");
         }
 
         const user = await ctx.db
@@ -39,16 +39,16 @@ export const requestSwap = mutation({
             .unique();
 
         if (!user) {
-            throw new Error("User not found");
+            throw new ConvexError("User not found");
         }
 
         const targetApp = await ctx.db.get(args.targetAppId);
         if (!targetApp) {
-            throw new Error("Target app not found");
+            throw new ConvexError("Target app not found");
         }
 
         if (targetApp.userId === user._id) {
-            throw new Error("Cannot swap with your own app");
+            throw new ConvexError("Cannot swap with your own app");
         }
 
 
@@ -85,7 +85,91 @@ export const requestSwap = mutation({
             .first();
 
         if (existingMatch || existingMatchReverse) {
-            throw new Error("You already have an active or pending swap for this app");
+            throw new ConvexError("You already have an active or pending swap for this app");
+        }
+
+        // Check if my app is already filled
+        const myApp = await ctx.db.get(args.myAppId);
+        if (!myApp) throw new ConvexError("My app not found");
+
+        if (myApp.status === "filled") {
+            throw new ConvexError("Your app already has enough testers");
+        }
+
+        // Count testers for myApp efficiently using indices
+        // 1. Matches where I am User1 (Requestor) and my app (App1) is being tested
+        const myAppMatchesAsApp1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), myApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        // 2. Matches where I am User2 (Target) and my app (App2) is being tested
+        const myAppMatchesAsApp2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), myApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        const myAppTotalTesters = myAppMatchesAsApp1.length + myAppMatchesAsApp2.length;
+
+        if (myAppTotalTesters >= myApp.requiredTesters) {
+            await ctx.db.patch(myApp._id, { status: "filled", updatedAt: Date.now() });
+            throw new ConvexError(`Your app "${myApp.title}" already has enough testers (${myAppTotalTesters}/${myApp.requiredTesters})`);
+        }
+
+        // Check if target app is already filled
+        if (targetApp.status === "filled") {
+            throw new ConvexError("This app already has enough testers");
+        }
+
+        // Count testers for targetApp efficiently
+        // We need to know who owns targetApp. We know targetApp.userId.
+        const targetOwnerId = targetApp.userId;
+
+        // 1. Matches where Target is User1 and targetApp is App1
+        const targetAppMatchesAsApp1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", targetOwnerId))
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), targetApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        // 2. Matches where Target is User2 and targetApp is App2
+        const targetAppMatchesAsApp2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", targetOwnerId))
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), targetApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        const targetAppTotalTesters = targetAppMatchesAsApp1.length + targetAppMatchesAsApp2.length;
+
+        if (targetAppTotalTesters >= targetApp.requiredTesters) {
+            await ctx.db.patch(targetApp._id, { status: "filled", updatedAt: Date.now() });
+            throw new ConvexError(`The app "${targetApp.title}" already has enough testers`);
         }
 
         const now = Date.now();
@@ -202,12 +286,18 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app1._id),
                         q.eq(q.field("app2Id"), app1._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app1ActiveMatches.length >= app1.requiredTesters) {
-                throw new Error(`${app1.title} already has enough testers`);
+                if (app1.status !== "filled") {
+                    await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
+                }
+                throw new ConvexError(`${app1.title} already has enough testers`);
             }
         }
 
@@ -220,12 +310,18 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app2._id),
                         q.eq(q.field("app2Id"), app2._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app2ActiveMatches.length >= app2.requiredTesters) {
-                throw new Error(`${app2.title} already has enough testers`);
+                if (app2.status !== "filled") {
+                    await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
+                }
+                throw new ConvexError(`${app2.title} already has enough testers`);
             }
         }
 
@@ -239,7 +335,7 @@ export const acceptSwap = mutation({
         // (app1 and app2 already fetched above)
 
         // Count active testers for app1
-        if (app1 && app1.status === "recruiting") {
+        if (app1 && (app1.status === "recruiting" || app1.status === "filled")) {
             const app1Matches = await ctx.db
                 .query("matches")
                 .filter((q) => q.and(
@@ -247,17 +343,22 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app1._id),
                         q.eq(q.field("app2Id"), app1._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app1Matches.length >= app1.requiredTesters) {
                 await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
+            } else if (app1.status === "filled" && app1Matches.length < app1.requiredTesters) {
+                await ctx.db.patch(app1._id, { status: "recruiting", updatedAt: Date.now() });
             }
         }
 
         // Count active testers for app2
-        if (app2 && app2.status === "recruiting") {
+        if (app2 && (app2.status === "recruiting" || app2.status === "filled")) {
             const app2Matches = await ctx.db
                 .query("matches")
                 .filter((q) => q.and(
@@ -265,12 +366,17 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app2._id),
                         q.eq(q.field("app2Id"), app2._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app2Matches.length >= app2.requiredTesters) {
                 await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
+            } else if (app2.status === "filled" && app2Matches.length < app2.requiredTesters) {
+                await ctx.db.patch(app2._id, { status: "recruiting", updatedAt: Date.now() });
             }
         }
 
@@ -1245,7 +1351,10 @@ export const cancelMatch = mutation({
                     .query("matches")
                     .filter((q) => q.and(
                         q.or(q.eq(q.field("app1Id"), appId), q.eq(q.field("app2Id"), appId)),
-                        q.eq(q.field("status"), "active")
+                        q.or(
+                            q.eq(q.field("status"), "active"),
+                            q.eq(q.field("status"), "completed")
+                        )
                     ))
                     .collect();
 

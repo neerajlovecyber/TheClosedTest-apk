@@ -128,6 +128,12 @@ export default function AppDetailsScreen() {
             return;
         }
 
+        const selectedApp = myApps.find((a: any) => a._id === selectedMyApp);
+        if (selectedApp && (selectedApp.currentTesters >= selectedApp.requiredTesters || selectedApp.status === 'filled')) {
+            toast.error('App Full', { description: 'Your selected app already has enough testers.' });
+            return;
+        }
+
         try {
             setIsSubmitting(true);
             await requestSwap({
@@ -368,8 +374,8 @@ export default function AppDetailsScreen() {
                                         />
                                         <View className="flex-1">
                                             <Text className="font-bold text-base text-foreground">{selectedAppData.title}</Text>
-                                            <Text className="text-xs text-muted-foreground">
-                                                {isLocked ? (matchStatus?.status === 'active' ? 'Active Match (Locked)' : 'Request Sent (Locked)') : 'Tap to change app'}
+                                            <Text className={`text-xs ${selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled' ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                                                {isLocked ? (matchStatus?.status === 'active' ? 'Active Match (Locked)' : 'Request Sent (Locked)') : (selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled' ? '⚠️ App is full - Select another' : 'Tap to change app')}
                                             </Text>
                                         </View>
                                         {isLocked ? (
@@ -604,9 +610,11 @@ export default function AppDetailsScreen() {
                                 size="lg"
                                 onPress={handleRequestSwap}
                                 className="w-full rounded-xl"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || (!!selectedAppData && (selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled'))}
                             >
-                                <Text className="font-bold text-lg">{isSubmitting ? 'Sending Request...' : 'Request Swap'}</Text>
+                                <Text className="font-bold text-lg">
+                                    {isSubmitting ? 'Sending Request...' : (selectedAppData && (selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled') ? 'App Full' : 'Request Swap')}
+                                </Text>
                             </Button>
                         )
                     )
@@ -638,28 +646,38 @@ export default function AppDetailsScreen() {
                             </View>
                         ) : (
                             <ScrollView>
-                                {myApps.map(myapp => (
-                                    <TouchableOpacity
-                                        key={myapp._id}
-                                        className={`flex-row items-center gap-4 p-4 mb-3 rounded-xl border ${selectedMyApp === myapp._id ? 'border-primary bg-primary/5' : 'border-border'}`}
-                                        onPress={() => {
-                                            setSelectedMyApp(myapp._id);
-                                            setIsModalVisible(false);
-                                        }}
-                                    >
-                                        <Image
-                                            source={{ uri: myapp.iconUrl || 'https://github.com/shadcn.png' }}
-                                            className="w-12 h-12 rounded-lg bg-muted"
-                                        />
-                                        <View className="flex-1">
-                                            <Text className="font-bold text-lg">{myapp.title}</Text>
-                                            <Text className="text-muted-foreground text-sm">{myapp.currentTesters} / {myapp.requiredTesters} testers</Text>
-                                        </View>
-                                        {selectedMyApp === myapp._id && (
-                                            <Icon as={CheckCircleIcon} className="text-primary size-5" />
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
+                                {myApps.map((myapp: any) => {
+                                    const isFull = myapp.currentTesters >= myapp.requiredTesters || myapp.status === 'filled';
+                                    return (
+                                        <TouchableOpacity
+                                            key={myapp._id}
+                                            className={`flex-row items-center gap-4 p-4 mb-3 rounded-xl border ${selectedMyApp === myapp._id ? 'border-primary bg-primary/5' : 'border-border'} ${isFull ? 'opacity-60' : ''}`}
+                                            onPress={() => {
+                                                setSelectedMyApp(myapp._id);
+                                                setIsModalVisible(false);
+                                            }}
+                                        >
+                                            <Image
+                                                source={{ uri: myapp.iconUrl || 'https://github.com/shadcn.png' }}
+                                                className="w-12 h-12 rounded-lg bg-muted"
+                                            />
+                                            <View className="flex-1">
+                                                <View className="flex-row items-center gap-2">
+                                                    <Text className="font-bold text-lg">{myapp.title}</Text>
+                                                    {isFull && (
+                                                        <View className="bg-red-500/10 px-2 py-0.5 rounded-full">
+                                                            <Text className="text-[10px] font-bold text-red-600 uppercase">FULL</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <Text className="text-muted-foreground text-sm">{myapp.currentTesters} / {myapp.requiredTesters} testers</Text>
+                                            </View>
+                                            {selectedMyApp === myapp._id && (
+                                                <Icon as={CheckCircleIcon} className="text-primary size-5" />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </ScrollView>
                         )}
                     </View>
