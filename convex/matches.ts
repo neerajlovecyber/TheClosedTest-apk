@@ -347,57 +347,65 @@ export const getMatchStatus = query({
         const targetApp = await ctx.db.get(args.appId);
         if (!targetApp) return null;
 
-        // 1. Check if I sent a request to them (I am user1, they are user2)
-        const sentRequest = await ctx.db
+        // Case 1: I am User1 (Requestor), They are User2 (Owner)
+        // I requested to test THEIR app (args.appId)
+        // So app2Id = args.appId
+
+        console.log(`Checking match status for user ${user._id} and app ${args.appId}`);
+
+        const matchAsRequestor = await ctx.db
             .query("matches")
             .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
-            .filter((q) =>
-                q.and(
-                    q.eq(q.field("user2Id"), targetApp.userId),
-                    q.eq(q.field("app2Id"), targetApp._id), // Specific App
-                    q.or(
-                        q.eq(q.field("status"), "pending"),
-                        q.eq(q.field("status"), "active")
-                    )
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), args.appId),
+                q.or(
+                    q.eq(q.field("status"), "pending"),
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
                 )
-            )
+            ))
             .first();
 
-        if (sentRequest) {
+        console.log("Match as requestor:", matchAsRequestor);
+
+        if (matchAsRequestor) {
             return {
-                status: sentRequest.status, // "pending" or "active"
+                matchId: matchAsRequestor._id,
+                status: matchAsRequestor.status,
                 isRequestor: true,
-                matchId: sentRequest._id,
-                myAppId: sentRequest.app1Id
+                myAppId: matchAsRequestor.app1Id
             };
         }
 
-        // 2. Check if they sent a request to me (I am user2, they are user1)
-        // AND one of the apps involved is the one I'm looking at? 
-        // Actually, if they sent a request, they are offering THEIR app (app1) for MY app (app2).
-        // If I am viewing THEIR app (args.appId), then args.appId should be app1 in the match.
+        // Case 2: I am User2 (Target), They are User1 (Requestor)
+        // They requested to test MY app? No, wait.
+        // If I am viewing THEIR app... I want to swap.
+        // If *they* requested *me*... then I am viewing *their* app to accept?
+        // If they requested me, then THEY are user1, I am user2.
+        // Their app is app1Id. My app is app2Id.
+        // So if I am viewing app1Id...
 
-        const receivedRequest = await ctx.db
+        const matchAsTarget = await ctx.db
             .query("matches")
             .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
-            .filter((q) =>
-                q.and(
-                    q.eq(q.field("user1Id"), targetApp.userId),
-                    q.eq(q.field("app1Id"), targetApp._id), // Specific App check
-                    q.or(
-                        q.eq(q.field("status"), "pending"),
-                        q.eq(q.field("status"), "active")
-                    )
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), args.appId),
+                q.or(
+                    q.eq(q.field("status"), "pending"),
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
                 )
-            )
+            ))
             .first();
 
-        if (receivedRequest) {
+        console.log("Match as target:", matchAsTarget);
+
+        if (matchAsTarget) {
             return {
-                status: receivedRequest.status,
+                matchId: matchAsTarget._id,
+                status: matchAsTarget.status,
                 isRequestor: false,
-                matchId: receivedRequest._id,
-                myAppId: receivedRequest.app2Id
+                myAppId: matchAsTarget.app2Id
             };
         }
 
@@ -1694,3 +1702,5 @@ export const getMyMatchStatuses = query({
             });
     }
 });
+
+

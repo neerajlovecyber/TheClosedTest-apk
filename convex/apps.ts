@@ -294,7 +294,10 @@ export const getAppArgs = query({
             .query("matches")
             .filter((q) => q.and(
                 q.eq(q.field("app1Id"), app._id),
-                q.eq(q.field("status"), "active")
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
             ))
             .collect();
 
@@ -302,7 +305,10 @@ export const getAppArgs = query({
             .query("matches")
             .filter((q) => q.and(
                 q.eq(q.field("app2Id"), app._id),
-                q.eq(q.field("status"), "active")
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
             ))
             .collect();
 

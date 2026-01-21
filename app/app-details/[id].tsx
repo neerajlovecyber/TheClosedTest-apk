@@ -409,7 +409,7 @@ export default function AppDetailsScreen() {
                         <Card className="border-0 overflow-hidden">
                             <CardContent className="p-0 divide-y divide-border/50">
                                 {testers && testers.length > 0 ? (
-                                    testers.map((tester) => (
+                                    testers.map((tester: any) => (
                                         <View
                                             key={tester.matchId}
                                             className="flex-row items-center gap-4 p-4"
@@ -578,9 +578,24 @@ export default function AppDetailsScreen() {
                                 </Button>
                             </View>
                         )
+                    ) : matchStatus?.status === 'completed' ? (
+                        <View className="w-full py-4 items-center justify-center bg-green-100 dark:bg-green-900/30 rounded-xl">
+                            <View className="flex-row items-center gap-2">
+                                <Icon as={RocketIcon} className="size-5 text-green-600 dark:text-green-400" />
+                                <Text className="text-green-600 dark:text-green-400 font-bold text-lg">Launched in Production!</Text>
+                            </View>
+                            <Text className="text-xs text-center text-muted-foreground mt-1">You completed testing for this app.</Text>
+                        </View>
                     ) : (
                         // No Match -> Show Request Button or Filled status
-                        app.isFilled ? (
+                        app.status === 'completed' ? (
+                            <View className="w-full py-4 items-center justify-center bg-green-100 dark:bg-green-900/30 rounded-xl">
+                                <View className="flex-row items-center gap-2">
+                                    <Icon as={RocketIcon} className="size-5 text-green-600 dark:text-green-400" />
+                                    <Text className="text-green-600 dark:text-green-400 font-bold text-lg">Launched in Production!</Text>
+                                </View>
+                            </View>
+                        ) : app.isFilled ? (
                             <View className="w-full py-4 items-center justify-center bg-red-100 dark:bg-red-900/30 rounded-xl">
                                 <Text className="text-red-600 dark:text-red-400 font-bold text-lg">Filled - Not Accepting Requests</Text>
                             </View>
