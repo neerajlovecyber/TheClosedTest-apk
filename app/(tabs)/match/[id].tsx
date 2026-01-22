@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, Image as RNImage, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Modal, KeyboardAvoidingView as RNKeyboardAvoidingView, Linking } from 'react-native';
+import { View, ScrollView, Image as RNImage, TouchableOpacity, TextInput, Platform, FlatList, Keyboard, useWindowDimensions, Pressable, Modal, KeyboardAvoidingView as RNKeyboardAvoidingView, Linking, Share } from 'react-native';
 import { toast } from '@/lib/sonner';
 import {
     AlertDialog,
@@ -278,7 +278,9 @@ export default function MatchDashboardScreen() {
                             <Text className="text-xl font-bold" numberOfLines={1}>{app?.title || 'Testing'}</Text>
                             <Text className="text-xs text-muted-foreground" numberOfLines={1}>{app?.packageName}</Text>
                             {partner?.email && (
-                                <Text className="text-xs text-blue-500 mt-0.5" selectable>{partner?.email}</Text>
+                                <TouchableOpacity onPress={() => Share.share({ message: partner.email || "" })}>
+                                    <Text className="text-xs text-blue-500 mt-0.5">{partner.email}</Text>
+                                </TouchableOpacity>
                             )}
                         </View>
                         <TouchableOpacity
