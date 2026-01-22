@@ -426,6 +426,9 @@ export default function AppDetailsScreen() {
                                                     )}
                                                 </View>
                                                 <Text className="text-xs text-muted-foreground">Day {tester.day} of 14</Text>
+                                                {tester.testerEmail && (
+                                                    <Text className="text-xs text-blue-500 mt-0.5" selectable>{tester.testerEmail}</Text>
+                                                )}
                                             </View>
 
                                             <View className="items-end gap-2">

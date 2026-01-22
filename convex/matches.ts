@@ -1182,7 +1182,8 @@ export const getAppTesters = query({
                 day,
                 status: proof ? proof.status : "pending",
                 uploadedToday: !!proof,
-                hasUnread
+                hasUnread,
+                testerEmail: tester?.email
             };
         }));
     }

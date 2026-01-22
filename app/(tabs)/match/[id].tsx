@@ -277,6 +277,9 @@ export default function MatchDashboardScreen() {
                         <View className="flex-1">
                             <Text className="text-xl font-bold" numberOfLines={1}>{app?.title || 'Testing'}</Text>
                             <Text className="text-xs text-muted-foreground" numberOfLines={1}>{app?.packageName}</Text>
+                            {partner?.email && (
+                                <Text className="text-xs text-blue-500 mt-0.5" selectable>{partner?.email}</Text>
+                            )}
                         </View>
                         <TouchableOpacity
                             onPress={handleOpenApp}
