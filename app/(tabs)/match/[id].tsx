@@ -124,6 +124,9 @@ export default function MatchDashboardScreen() {
     const { match, app, partner, day } = matchDetails;
     const currentDay = day > 14 ? 14 : day;
 
+    // Check if match is completed (14-day testing finished)
+    const isCompleted = match.status === "completed";
+
     // Calculate unread status
     const isUser1 = partner ? match.user1Id !== partner._id : true;
     const lastRead = isUser1 ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
@@ -311,73 +314,155 @@ export default function MatchDashboardScreen() {
                     )}
                 </View>
 
+                {/* Match Completed Celebration Banner - Beautiful Full Design */}
+                {isCompleted && (
+                    <View className="px-4 flex-1">
+                        {/* Main Celebration Card */}
+                        <Card className="bg-gradient-to-br from-amber-500/15 via-green-500/10 to-emerald-500/15 border-amber-500/40 mb-4">
+                            <CardContent className="p-6">
+                                {/* Trophy and Title */}
+                                <View className="items-center mb-6">
+                                    <View className="bg-gradient-to-br from-amber-400 to-amber-600 p-4 rounded-full mb-4 shadow-lg">
+                                        <Icon as={TrophyIcon} className="size-12 text-white" />
+                                    </View>
+                                    <Text className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 text-center">
+                                        🎉 14-Day Testing Complete!
+                                    </Text>
+                                    <Text className="text-sm text-muted-foreground mt-1">
+                                        You've successfully completed this testing journey
+                                    </Text>
+                                </View>
 
+                                {/* Stats Cards */}
+                                <View className="flex-row gap-4 mb-6">
+                                    <View className="flex-1 bg-green-500/15 rounded-xl p-4 items-center border border-green-500/30">
+                                        <View className="bg-green-500/20 p-2 rounded-full mb-2">
+                                            <Icon as={CheckCircle2Icon} className="size-6 text-green-600" />
+                                        </View>
+                                        <Text className="text-3xl font-extrabold text-green-600">
+                                            {isUser1 ? (match.user1ApprovedCount || 0) : (match.user2ApprovedCount || 0)}
+                                        </Text>
+                                        <Text className="text-xs text-green-600/80 font-medium">out of 14</Text>
+                                        <Text className="text-sm text-muted-foreground mt-1 font-semibold">Your Proofs</Text>
+                                    </View>
+                                    <View className="flex-1 bg-blue-500/15 rounded-xl p-4 items-center border border-blue-500/30">
+                                        <View className="bg-blue-500/20 p-2 rounded-full mb-2">
+                                            <Icon as={CheckCircle2Icon} className="size-6 text-blue-600" />
+                                        </View>
+                                        <Text className="text-3xl font-extrabold text-blue-600">
+                                            {isUser1 ? (match.user2ApprovedCount || 0) : (match.user1ApprovedCount || 0)}
+                                        </Text>
+                                        <Text className="text-xs text-blue-600/80 font-medium">out of 14</Text>
+                                        <Text className="text-sm text-muted-foreground mt-1 font-semibold">Partner's Proofs</Text>
+                                    </View>
+                                </View>
 
-                {/* Progress Grid - Compact */}
-                {summary && (
+                                {/* Completion Date */}
+                                <View className="bg-muted/50 rounded-lg p-3 flex-row items-center justify-center gap-2">
+                                    <Icon as={CalendarCheckIcon} className="size-4 text-muted-foreground" />
+                                    <Text className="text-sm text-muted-foreground">
+                                        Completed on {match.completedAt ? new Date(match.completedAt).toLocaleDateString('en-US', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        }) : 'Unknown'}
+                                    </Text>
+                                </View>
+                            </CardContent>
+                        </Card>
+
+                        {/* Partner Card */}
+                        <Card className="bg-card/50 border-border/50">
+                            <CardContent className="p-4">
+                                <View className="flex-row items-center gap-3">
+                                    <Image
+                                        source={{ uri: partner?.avatarUrl || 'https://github.com/shadcn.png' }}
+                                        style={{ width: 48, height: 48, borderRadius: 24 }}
+                                        contentFit="cover"
+                                        className="bg-muted"
+                                    />
+                                    <View className="flex-1">
+                                        <Text className="font-bold text-base">Tested with {partner?.name || 'Partner'}</Text>
+                                        <Text className="text-xs text-muted-foreground">
+                                            Thank you for being a great testing partner! 🙌
+                                        </Text>
+                                    </View>
+                                </View>
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
+
+                {/* Progress Grid - Hide for completed matches (proofs may be cleaned up) */}
+                {!isCompleted && summary && (
                     <View className="mb-3">
                         <ProgressGrid days={days} currentDay={currentDay} summary={summary} onDayPress={handleDayPress} selectedDay={effectiveDay} />
                     </View>
                 )}
 
-                {/* Day View - Compact */}
-                <View className="px-4">
-                    {/* Day Header - Compact */}
-                    <View className="flex-row items-center justify-between mb-2">
-                        <View className="flex-row items-center gap-2">
-                            <Text className="text-base font-bold">Day {effectiveDay}</Text>
-                            {effectiveDay === currentDay && (
-                                <View className="bg-primary px-1.5 py-0.5 rounded-md">
-                                    <Text className="text-[9px] font-bold text-primary-foreground">TODAY</Text>
-                                </View>
-                            )}
-                            {effectiveDay === currentDay && (
-                                <View className="flex-row items-center">
-                                    <Icon as={ClockIcon} className="text-orange-500 size-3 mr-1" />
-                                    <Text className="text-[10px] font-medium text-orange-600 dark:text-orange-400">
-                                        {timeUntilReset.hours}h {timeUntilReset.minutes}m
-                                    </Text>
-                                </View>
-                            )}
+                {/* Day View - Hide for completed matches */}
+                {!isCompleted && (
+                    <View className="px-4">
+                        {/* Day Header - Compact */}
+                        <View className="flex-row items-center justify-between mb-2">
+                            <View className="flex-row items-center gap-2">
+                                <Text className="text-base font-bold">Day {effectiveDay}</Text>
+                                {effectiveDay === currentDay && (
+                                    <View className="bg-primary px-1.5 py-0.5 rounded-md">
+                                        <Text className="text-[9px] font-bold text-primary-foreground">TODAY</Text>
+                                    </View>
+                                )}
+                                {effectiveDay === currentDay && (
+                                    <View className="flex-row items-center">
+                                        <Icon as={ClockIcon} className="text-orange-500 size-3 mr-1" />
+                                        <Text className="text-[10px] font-medium text-orange-600 dark:text-orange-400">
+                                            {timeUntilReset.hours}h {timeUntilReset.minutes}m
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            <View className="flex-row items-center gap-2">
+                                <TouchableOpacity
+                                    onPress={() => effectiveDay > 1 && setSelectedDay(effectiveDay - 1)}
+                                    className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay <= 1 ? 'bg-muted/30' : 'bg-primary'}`}
+                                    disabled={effectiveDay <= 1}
+                                >
+                                    <Text className={`font-bold ${effectiveDay <= 1 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>←</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => effectiveDay < currentDay && setSelectedDay(effectiveDay + 1)}
+                                    className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay >= currentDay ? 'bg-muted/30' : 'bg-primary'}`}
+                                    disabled={effectiveDay >= currentDay}
+                                >
+                                    <Text className={`font-bold ${effectiveDay >= currentDay ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
-                        <View className="flex-row items-center gap-2">
-                            <TouchableOpacity
-                                onPress={() => effectiveDay > 1 && setSelectedDay(effectiveDay - 1)}
-                                className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay <= 1 ? 'bg-muted/30' : 'bg-primary'}`}
-                                disabled={effectiveDay <= 1}
-                            >
-                                <Text className={`font-bold ${effectiveDay <= 1 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>←</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => effectiveDay < currentDay && setSelectedDay(effectiveDay + 1)}
-                                className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay >= currentDay ? 'bg-muted/30' : 'bg-primary'}`}
-                                disabled={effectiveDay >= currentDay}
-                            >
-                                <Text className={`font-bold ${effectiveDay >= currentDay ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Your Proof</Text>
+                        <ProofUploader matchId={matchId} currentDay={effectiveDay} todayProof={selectedDayMyProof} isCompleted={isCompleted} />
+
+                        <View className="h-px bg-border my-2" />
+
+                        <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Partner's Proof</Text>
+                        <ProofReviewer matchId={matchId} partnerProof={selectedDayPartnerProof} onReject={handleRejectPress} />
                     </View>
-
-                    <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Your Proof</Text>
-                    <ProofUploader matchId={matchId} currentDay={effectiveDay} todayProof={selectedDayMyProof} />
-
-                    <View className="h-px bg-border my-2" />
-
-                    <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Partner's Proof</Text>
-                    <ProofReviewer matchId={matchId} partnerProof={selectedDayPartnerProof} onReject={handleRejectPress} />
-                </View>
-                <View className="h-px bg-border my-3 mx-3" />
-                {/* Leave Match Button */}
-                <View className="px-4 mt-2">
-                    <TouchableOpacity
-                        onPress={handleLeaveMatch}
-                        className="flex-row items-center justify-center p-3.5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-6"
-                    >
-                        <Icon as={XCircleIcon} className="text-red-500 size-4 mr-2" />
-                        <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner?.name?.split(' ')[0] || "Partner"}</Text>
-                    </TouchableOpacity>
-                </View>
+                )}
+                {!isCompleted && <View className="h-px bg-border my-3 mx-3" />}
+                {/* Leave Match Button - Hide for completed matches */}
+                {!isCompleted && (
+                    <View className="px-4 mt-2">
+                        <TouchableOpacity
+                            onPress={handleLeaveMatch}
+                            className="flex-row items-center justify-center p-3.5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-6"
+                        >
+                            <Icon as={XCircleIcon} className="text-red-500 size-4 mr-2" />
+                            <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner?.name?.split(' ')[0] || "Partner"}</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </ScrollView >
         );
     };

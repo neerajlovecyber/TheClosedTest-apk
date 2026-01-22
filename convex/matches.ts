@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
@@ -28,7 +28,7 @@ export const requestSwap = mutation({
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
-            throw new Error("Not authenticated");
+            throw new ConvexError("Not authenticated");
         }
 
         const user = await ctx.db
@@ -39,16 +39,16 @@ export const requestSwap = mutation({
             .unique();
 
         if (!user) {
-            throw new Error("User not found");
+            throw new ConvexError("User not found");
         }
 
         const targetApp = await ctx.db.get(args.targetAppId);
         if (!targetApp) {
-            throw new Error("Target app not found");
+            throw new ConvexError("Target app not found");
         }
 
         if (targetApp.userId === user._id) {
-            throw new Error("Cannot swap with your own app");
+            throw new ConvexError("Cannot swap with your own app");
         }
 
 
@@ -85,7 +85,91 @@ export const requestSwap = mutation({
             .first();
 
         if (existingMatch || existingMatchReverse) {
-            throw new Error("You already have an active or pending swap for this app");
+            throw new ConvexError("You already have an active or pending swap for this app");
+        }
+
+        // Check if my app is already filled
+        const myApp = await ctx.db.get(args.myAppId);
+        if (!myApp) throw new ConvexError("My app not found");
+
+        if (myApp.status === "filled") {
+            throw new ConvexError("Your app already has enough testers");
+        }
+
+        // Count testers for myApp efficiently using indices
+        // 1. Matches where I am User1 (Requestor) and my app (App1) is being tested
+        const myAppMatchesAsApp1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), myApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        // 2. Matches where I am User2 (Target) and my app (App2) is being tested
+        const myAppMatchesAsApp2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), myApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        const myAppTotalTesters = myAppMatchesAsApp1.length + myAppMatchesAsApp2.length;
+
+        if (myAppTotalTesters >= myApp.requiredTesters) {
+            await ctx.db.patch(myApp._id, { status: "filled", updatedAt: Date.now() });
+            throw new ConvexError(`Your app "${myApp.title}" already has enough testers (${myAppTotalTesters}/${myApp.requiredTesters})`);
+        }
+
+        // Check if target app is already filled
+        if (targetApp.status === "filled") {
+            throw new ConvexError("This app already has enough testers");
+        }
+
+        // Count testers for targetApp efficiently
+        // We need to know who owns targetApp. We know targetApp.userId.
+        const targetOwnerId = targetApp.userId;
+
+        // 1. Matches where Target is User1 and targetApp is App1
+        const targetAppMatchesAsApp1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", targetOwnerId))
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), targetApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        // 2. Matches where Target is User2 and targetApp is App2
+        const targetAppMatchesAsApp2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", targetOwnerId))
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), targetApp._id),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        const targetAppTotalTesters = targetAppMatchesAsApp1.length + targetAppMatchesAsApp2.length;
+
+        if (targetAppTotalTesters >= targetApp.requiredTesters) {
+            await ctx.db.patch(targetApp._id, { status: "filled", updatedAt: Date.now() });
+            throw new ConvexError(`The app "${targetApp.title}" already has enough testers`);
         }
 
         const now = Date.now();
@@ -202,12 +286,18 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app1._id),
                         q.eq(q.field("app2Id"), app1._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app1ActiveMatches.length >= app1.requiredTesters) {
-                throw new Error(`${app1.title} already has enough testers`);
+                if (app1.status !== "filled") {
+                    await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
+                }
+                throw new ConvexError(`${app1.title} already has enough testers`);
             }
         }
 
@@ -220,12 +310,18 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app2._id),
                         q.eq(q.field("app2Id"), app2._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app2ActiveMatches.length >= app2.requiredTesters) {
-                throw new Error(`${app2.title} already has enough testers`);
+                if (app2.status !== "filled") {
+                    await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
+                }
+                throw new ConvexError(`${app2.title} already has enough testers`);
             }
         }
 
@@ -239,7 +335,7 @@ export const acceptSwap = mutation({
         // (app1 and app2 already fetched above)
 
         // Count active testers for app1
-        if (app1 && app1.status === "recruiting") {
+        if (app1 && (app1.status === "recruiting" || app1.status === "filled")) {
             const app1Matches = await ctx.db
                 .query("matches")
                 .filter((q) => q.and(
@@ -247,17 +343,22 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app1._id),
                         q.eq(q.field("app2Id"), app1._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app1Matches.length >= app1.requiredTesters) {
                 await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
+            } else if (app1.status === "filled" && app1Matches.length < app1.requiredTesters) {
+                await ctx.db.patch(app1._id, { status: "recruiting", updatedAt: Date.now() });
             }
         }
 
         // Count active testers for app2
-        if (app2 && app2.status === "recruiting") {
+        if (app2 && (app2.status === "recruiting" || app2.status === "filled")) {
             const app2Matches = await ctx.db
                 .query("matches")
                 .filter((q) => q.and(
@@ -265,12 +366,17 @@ export const acceptSwap = mutation({
                         q.eq(q.field("app1Id"), app2._id),
                         q.eq(q.field("app2Id"), app2._id)
                     ),
-                    q.eq(q.field("status"), "active")
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
                 ))
                 .collect();
 
             if (app2Matches.length >= app2.requiredTesters) {
                 await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
+            } else if (app2.status === "filled" && app2Matches.length < app2.requiredTesters) {
+                await ctx.db.patch(app2._id, { status: "recruiting", updatedAt: Date.now() });
             }
         }
 
@@ -347,57 +453,65 @@ export const getMatchStatus = query({
         const targetApp = await ctx.db.get(args.appId);
         if (!targetApp) return null;
 
-        // 1. Check if I sent a request to them (I am user1, they are user2)
-        const sentRequest = await ctx.db
+        // Case 1: I am User1 (Requestor), They are User2 (Owner)
+        // I requested to test THEIR app (args.appId)
+        // So app2Id = args.appId
+
+        console.log(`Checking match status for user ${user._id} and app ${args.appId}`);
+
+        const matchAsRequestor = await ctx.db
             .query("matches")
             .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
-            .filter((q) =>
-                q.and(
-                    q.eq(q.field("user2Id"), targetApp.userId),
-                    q.eq(q.field("app2Id"), targetApp._id), // Specific App
-                    q.or(
-                        q.eq(q.field("status"), "pending"),
-                        q.eq(q.field("status"), "active")
-                    )
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), args.appId),
+                q.or(
+                    q.eq(q.field("status"), "pending"),
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
                 )
-            )
+            ))
             .first();
 
-        if (sentRequest) {
+        console.log("Match as requestor:", matchAsRequestor);
+
+        if (matchAsRequestor) {
             return {
-                status: sentRequest.status, // "pending" or "active"
+                matchId: matchAsRequestor._id,
+                status: matchAsRequestor.status,
                 isRequestor: true,
-                matchId: sentRequest._id,
-                myAppId: sentRequest.app1Id
+                myAppId: matchAsRequestor.app1Id
             };
         }
 
-        // 2. Check if they sent a request to me (I am user2, they are user1)
-        // AND one of the apps involved is the one I'm looking at? 
-        // Actually, if they sent a request, they are offering THEIR app (app1) for MY app (app2).
-        // If I am viewing THEIR app (args.appId), then args.appId should be app1 in the match.
+        // Case 2: I am User2 (Target), They are User1 (Requestor)
+        // They requested to test MY app? No, wait.
+        // If I am viewing THEIR app... I want to swap.
+        // If *they* requested *me*... then I am viewing *their* app to accept?
+        // If they requested me, then THEY are user1, I am user2.
+        // Their app is app1Id. My app is app2Id.
+        // So if I am viewing app1Id...
 
-        const receivedRequest = await ctx.db
+        const matchAsTarget = await ctx.db
             .query("matches")
             .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
-            .filter((q) =>
-                q.and(
-                    q.eq(q.field("user1Id"), targetApp.userId),
-                    q.eq(q.field("app1Id"), targetApp._id), // Specific App check
-                    q.or(
-                        q.eq(q.field("status"), "pending"),
-                        q.eq(q.field("status"), "active")
-                    )
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), args.appId),
+                q.or(
+                    q.eq(q.field("status"), "pending"),
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
                 )
-            )
+            ))
             .first();
 
-        if (receivedRequest) {
+        console.log("Match as target:", matchAsTarget);
+
+        if (matchAsTarget) {
             return {
-                status: receivedRequest.status,
+                matchId: matchAsTarget._id,
+                status: matchAsTarget.status,
                 isRequestor: false,
-                matchId: receivedRequest._id,
-                myAppId: receivedRequest.app2Id
+                myAppId: matchAsTarget.app2Id
             };
         }
 
@@ -1238,7 +1352,10 @@ export const cancelMatch = mutation({
                     .query("matches")
                     .filter((q) => q.and(
                         q.or(q.eq(q.field("app1Id"), appId), q.eq(q.field("app2Id"), appId)),
-                        q.eq(q.field("status"), "active")
+                        q.or(
+                            q.eq(q.field("status"), "active"),
+                            q.eq(q.field("status"), "completed")
+                        )
                     ))
                     .collect();
 
@@ -1331,9 +1448,9 @@ export const checkMissedPenalties = internalMutation({
                     // PENALIZE
                     const user = await ctx.db.get(userId);
                     if (user) {
-                        // Deduct 2 points, min 0
+                        // Deduct 3 points, min 0
                         await ctx.db.patch(user._id, {
-                            reputation: Math.max(0, (user.reputation || 100) - 2)
+                            reputation: Math.max(0, (user.reputation || 100) - 3)
                         });
 
                         // Notify
@@ -1341,7 +1458,7 @@ export const checkMissedPenalties = internalMutation({
                             userId: userId,
                             type: "alert",
                             title: "Missed Day Penalty",
-                            body: `You missed Day ${dayToCheck}. -2 Reputation.`,
+                            body: `You missed Day ${dayToCheck}. -3 Reputation.`,
                             data: { matchId: match._id }
                         });
 
@@ -1413,7 +1530,7 @@ export const cleanupOldProofsAction = internalAction({
         // 2. Delete each file from R2
         console.log(`Starting cleanup: Deleting ${urlsToDelete.length} old proof images...`);
 
-        const results = await Promise.allSettled(urlsToDelete.map(async (url) => {
+        const results = await Promise.allSettled(urlsToDelete.map(async (url: string) => {
             try {
                 const response = await fetch(url, { method: 'DELETE' });
                 if (!response.ok) {
@@ -1426,8 +1543,274 @@ export const cleanupOldProofsAction = internalAction({
             }
         }));
 
-        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const successCount = results.filter((r: PromiseSettledResult<string>) => r.status === 'fulfilled').length;
         console.log(`Cleanup complete: Deleted ${successCount}/${urlsToDelete.length} images.`);
     }
 });
+
+// Delete proof DATABASE ROWS older than 20 days (stats already saved in matches table)
+export const cleanupOldProofRows = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const TWENTY_DAYS_MS = 20 * 24 * 60 * 60 * 1000;
+        const cutoffDate = Date.now() - TWENTY_DAYS_MS;
+
+        // Get all proofs older than 20 days
+        const oldProofs = await ctx.db
+            .query("proofs")
+            .filter((q) => q.lt(q.field("submittedAt"), cutoffDate))
+            .collect();
+
+        let deletedCount = 0;
+
+        for (const proof of oldProofs) {
+            // Double check the match is completed before deleting
+            const match = await ctx.db.get(proof.matchId);
+            if (match && match.status === "completed") {
+                await ctx.db.delete(proof._id);
+                deletedCount++;
+            }
+        }
+
+        console.log(`Cleaned up ${deletedCount} old proof rows (> 20 days old from completed matches).`);
+        return { deletedCount };
+    }
+});
+
+// Delete cancelled MATCH ROWS older than 7 days (and their proofs/messages)
+export const cleanupCancelledMatches = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        const cutoffDate = Date.now() - SEVEN_DAYS_MS;
+
+        // Get cancelled matches older than 7 days
+        const cancelledMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_status", (q) => q.eq("status", "cancelled"))
+            .collect();
+
+        let deletedMatches = 0;
+        let deletedProofs = 0;
+        let deletedMessages = 0;
+
+        for (const match of cancelledMatches) {
+            // Check if match is old enough
+            if (match.createdAt > cutoffDate) continue;
+
+            // Delete all messages for this match
+            const messages = await ctx.db
+                .query("messages")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .collect();
+            for (const message of messages) {
+                await ctx.db.delete(message._id);
+                deletedMessages++;
+            }
+
+            // Delete the match itself
+            await ctx.db.delete(match._id);
+            deletedMatches++;
+        }
+
+        console.log(`Cleaned up cancelled matches: ${deletedMatches} matches, ${deletedProofs} proofs, ${deletedMessages} messages`);
+        return { deletedMatches, deletedProofs, deletedMessages };
+    }
+});
+
+// Helper to calculate raw day (without capping at 14) for completion check
+const calculateRawDay = (startDate: number) => {
+    if (!startDate) return 1;
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const startDay = Math.floor((startDate + IST_OFFSET) / DAY_MS);
+    const today = Math.floor((Date.now() + IST_OFFSET) / DAY_MS);
+    return today - startDay + 1;
+};
+
+// Auto-complete matches that have finished 14 days (runs on Day 15+)
+export const autoCompleteMatches = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        // Find all active matches
+        const activeMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_status", (q) => q.eq("status", "active"))
+            .collect();
+
+        let completedCount = 0;
+
+        for (const match of activeMatches) {
+            const rawDay = calculateRawDay(match.startDate);
+
+            // Only complete matches on Day 15+ (after Day 14 testing is done)
+            if (rawDay < 15) continue;
+
+            // Get all proofs for this match
+            const proofs = await ctx.db
+                .query("proofs")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .collect();
+
+            // Count approved proofs for each user
+            const user1ApprovedCount = proofs.filter(
+                p => p.uploaderId === match.user1Id && p.status === "approved"
+            ).length;
+            const user2ApprovedCount = proofs.filter(
+                p => p.uploaderId === match.user2Id && p.status === "approved"
+            ).length;
+
+            // Update match status to completed
+            await ctx.db.patch(match._id, {
+                status: "completed",
+                completedAt: Date.now(),
+                user1ApprovedCount,
+                user2ApprovedCount
+            });
+
+            // Get app names for notification
+            const app1 = await ctx.db.get(match.app1Id);
+            const app2 = await ctx.db.get(match.app2Id);
+
+            // Send completion notification to User 1
+            await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                userId: match.user1Id,
+                type: "proof_update",
+                title: "🎉 14-Day Testing Complete!",
+                body: `You completed testing ${app2?.title || "the app"} with ${user1ApprovedCount}/14 proofs approved!`,
+                data: { matchId: match._id, type: "match_completed" }
+            });
+
+            // Send completion notification to User 2
+            await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                userId: match.user2Id,
+                type: "proof_update",
+                title: "🎉 14-Day Testing Complete!",
+                body: `You completed testing ${app1?.title || "the app"} with ${user2ApprovedCount}/14 proofs approved!`,
+                data: { matchId: match._id, type: "match_completed" }
+            });
+
+            completedCount++;
+        }
+
+        console.log(`Auto-completed ${completedCount} matches that finished 14 days.`);
+    }
+});
+
+// Get completed matches for current user
+export const getCompletedMatches = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return [];
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return [];
+
+        // Get completed matches where user is either user1 or user2
+        const completedMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_status", (q) => q.eq("status", "completed"))
+            .collect();
+
+        // Filter for matches involving this user
+        const myCompletedMatches = completedMatches.filter(
+            m => m.user1Id === user._id || m.user2Id === user._id
+        );
+
+        // Enrich with partner and app details
+        const enrichedMatches = await Promise.all(
+            myCompletedMatches.map(async (match) => {
+                const isUser1 = match.user1Id === user._id;
+                const partnerId = isUser1 ? match.user2Id : match.user1Id;
+                const myAppId = isUser1 ? match.app1Id : match.app2Id;
+                const partnerAppId = isUser1 ? match.app2Id : match.app1Id;
+
+                const partner = await ctx.db.get(partnerId);
+                const partnerApp = await ctx.db.get(partnerAppId);
+                const myApp = await ctx.db.get(myAppId);
+
+                const myApprovedCount = isUser1 ? match.user1ApprovedCount : match.user2ApprovedCount;
+                const partnerApprovedCount = isUser1 ? match.user2ApprovedCount : match.user1ApprovedCount;
+
+                return {
+                    id: match._id,
+                    partnerName: partner?.name || "Partner",
+                    partnerAvatar: partner?.avatarUrl,
+                    appName: partnerApp?.title || "App",
+                    appIconUrl: partnerApp?.iconUrl,
+                    myAppName: myApp?.title || "My App",
+                    completedAt: match.completedAt,
+                    myApprovedCount: myApprovedCount || 0,
+                    partnerApprovedCount: partnerApprovedCount || 0,
+                    totalDays: 14
+                };
+            })
+        );
+
+        // Sort by completedAt (newest first)
+        return enrichedMatches.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    }
+});
+
+// Get simple status map of all matches for the current user (for Marketplace badges)
+export const getMyMatchStatuses = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return [];
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return [];
+
+        // Get all matches involving this user
+        const matches1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .collect();
+
+        const matches2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .collect();
+
+        const allMatches = [...matches1, ...matches2];
+
+        // Map to { appId: status }
+        // We want the ID of the OTHER app (the one I'm viewing in marketplace)
+        return allMatches
+            .filter(m => m.status === 'active' || m.status === 'pending')
+            .map(m => {
+                const isUser1 = m.user1Id === user._id;
+                // If I am User1, "Other App" is App2.
+                // If I am User2, "Other App" is App1.
+                const partnerAppId = isUser1 ? m.app2Id : m.app1Id;
+
+                let status: string = m.status; // 'active' or 'pending'
+                if (status === 'pending') {
+                    // Differentiate sent vs received
+                    // If I am User1 (Requestor), it's "sent"
+                    status = isUser1 ? 'pending_sent' : 'pending_received';
+                }
+
+                return {
+                    appId: partnerAppId,
+                    status
+                };
+            });
+    }
+});
+
 

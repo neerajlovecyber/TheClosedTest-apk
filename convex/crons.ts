@@ -53,4 +53,28 @@ crons.daily(
     internal.notificationHelper.sendUrgentReminders
 );
 
+// Auto-complete matches on Day 15 (after Day 14 testing is done)
+// Runs at 12:35 AM IST (19:05 UTC previous day)
+crons.daily(
+    "auto-complete-matches",
+    { hourUTC: 19, minuteUTC: 5 },
+    internal.matches.autoCompleteMatches
+);
+
+// Delete old proof ROWS from database (> 20 days old from completed matches)
+// Runs at 3:00 AM UTC (8:30 AM IST)
+crons.daily(
+    "cleanup-proof-rows",
+    { hourUTC: 3, minuteUTC: 0 },
+    internal.matches.cleanupOldProofRows
+);
+
+// Delete cancelled matches older than 7 days (and their proofs/messages)
+// Runs at 3:30 AM UTC (9:00 AM IST)
+crons.daily(
+    "cleanup-cancelled-matches",
+    { hourUTC: 3, minuteUTC: 30 },
+    internal.matches.cleanupCancelledMatches
+);
+
 export default crons;
