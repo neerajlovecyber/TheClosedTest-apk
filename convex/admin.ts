@@ -67,6 +67,23 @@ export const refreshDailyStats = mutation({
     }
 });
 
+export const fixAllApps = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", q => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user || !user.isAdmin) throw new Error("Admin only");
+
+        return await ctx.runMutation(internal.apps.fixAllAppStatuses, {});
+    }
+});
+
 export const getStats = query({
     args: {},
     handler: async (ctx) => {

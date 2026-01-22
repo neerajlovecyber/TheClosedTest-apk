@@ -1,6 +1,6 @@
 
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 
@@ -359,12 +359,17 @@ export const deleteApp = mutation({
 
         const allMatches = [...matchesAsApp1, ...matchesAsApp2];
 
-        // 2. Process matches
+        // 2. Process matches and collect partner apps to check
+        const partnerAppIds: Id<"apps">[] = [];
         for (const match of allMatches) {
             if (match.status === "pending") {
                 // Delete pending swap requests
                 await ctx.db.delete(match._id);
             } else if (match.status === "active") {
+                // Identify the partner app (the one NOT being deleted)
+                const partnerAppId = match.app1Id === args.appId ? match.app2Id : match.app1Id;
+                partnerAppIds.push(partnerAppId);
+
                 // Cancel active tests - both parties lose progress
                 await ctx.db.patch(match._id, {
                     status: "cancelled",
@@ -373,7 +378,29 @@ export const deleteApp = mutation({
             }
         }
 
-        // 3. Delete the app record
+        // 3. Check and revert 'filled' status for partner apps if needed
+        for (const partnerAppId of partnerAppIds) {
+            const partnerApp = await ctx.db.get(partnerAppId);
+            if (partnerApp && partnerApp.status === "filled") {
+                // Recalculate active tester count
+                const activeMatches = await ctx.db
+                    .query("matches")
+                    .filter((q) => q.and(
+                        q.or(q.eq(q.field("app1Id"), partnerAppId), q.eq(q.field("app2Id"), partnerAppId)),
+                        q.or(
+                            q.eq(q.field("status"), "active"),
+                            q.eq(q.field("status"), "completed")
+                        )
+                    ))
+                    .collect();
+
+                if (activeMatches.length < partnerApp.requiredTesters) {
+                    await ctx.db.patch(partnerAppId, { status: "recruiting", updatedAt: Date.now() });
+                }
+            }
+        }
+
+        // 4. Delete the app record
         await ctx.db.delete(args.appId);
     }
 });
@@ -575,4 +602,155 @@ export const getCompletedApps = query({
         // Sort by completedAt (most recent first)
         return appsWithUrls.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
     },
+});
+
+// Fix a specific app's status if it's stuck as 'filled' when it shouldn't be
+export const fixAppStatus = mutation({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const app = await ctx.db.get(args.appId);
+        if (!app) throw new Error("App not found");
+
+        // Only owner or admin can fix
+        if (app.userId !== user._id && !user.isAdmin) {
+            throw new Error("Not authorized");
+        }
+
+        // Skip if not in a fixable state
+        if (app.status !== "filled" && app.status !== "recruiting") {
+            return { changed: false, message: `App is '${app.status}', no fix needed.` };
+        }
+
+        // Recalculate active tester count
+        const matchesAsApp1 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app1Id"), args.appId),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        const matchesAsApp2 = await ctx.db
+            .query("matches")
+            .filter((q) => q.and(
+                q.eq(q.field("app2Id"), args.appId),
+                q.or(
+                    q.eq(q.field("status"), "active"),
+                    q.eq(q.field("status"), "completed")
+                )
+            ))
+            .collect();
+
+        const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+        const shouldBeFilled = actualTesters >= app.requiredTesters;
+
+        let changed = false;
+        let newStatus = app.status;
+
+        if (shouldBeFilled && app.status !== "filled") {
+            await ctx.db.patch(args.appId, { status: "filled", updatedAt: Date.now() });
+            newStatus = "filled";
+            changed = true;
+        } else if (!shouldBeFilled && app.status === "filled") {
+            await ctx.db.patch(args.appId, { status: "recruiting", updatedAt: Date.now() });
+            newStatus = "recruiting";
+            changed = true;
+        }
+
+        return {
+            changed,
+            actualTesters,
+            requiredTesters: app.requiredTesters,
+            oldStatus: app.status,
+            newStatus,
+            message: changed
+                ? `Status corrected: ${app.status} → ${newStatus} (${actualTesters}/${app.requiredTesters} testers)`
+                : `Status is correct: ${app.status} (${actualTesters}/${app.requiredTesters} testers)`
+        };
+    }
+});
+
+// Batch fix for all apps (Admin/Maintenance)
+export const fixAllAppStatuses = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        // 1. Get ALL apps
+        const apps = await ctx.db.query("apps").collect();
+
+        let fixedCount = 0;
+        let appsChecked = 0;
+        let details = [];
+
+        for (const app of apps) {
+            appsChecked++;
+            // Skip archived or completed if we only care about active process
+            // But let's check 'filled' specifically as that's the bug
+            if (app.status !== 'filled' && app.status !== 'recruiting') continue;
+
+            // Recalculate active tester count
+            const matchesAsApp1 = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.eq(q.field("app1Id"), app._id),
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
+                ))
+                .collect();
+
+            const matchesAsApp2 = await ctx.db
+                .query("matches")
+                .filter((q) => q.and(
+                    q.eq(q.field("app2Id"), app._id),
+                    q.or(
+                        q.eq(q.field("status"), "active"),
+                        q.eq(q.field("status"), "completed")
+                    )
+                ))
+                .collect();
+
+            const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+            const shouldBeFilled = actualTesters >= app.requiredTesters;
+
+            let changed = false;
+            let newStatus = app.status;
+
+            if (shouldBeFilled && app.status !== "filled") {
+                await ctx.db.patch(app._id, { status: "filled", updatedAt: Date.now() });
+                newStatus = "filled";
+                changed = true;
+            } else if (!shouldBeFilled && app.status === "filled") {
+                await ctx.db.patch(app._id, { status: "recruiting", updatedAt: Date.now() });
+                newStatus = "recruiting";
+                changed = true;
+            }
+
+            if (changed) {
+                fixedCount++;
+                details.push(`${app.title}: ${app.status} -> ${newStatus} (${actualTesters}/${app.requiredTesters})`);
+            }
+        }
+
+        return {
+            success: true,
+            totalApps: apps.length,
+            appsChecked,
+            fixedCount,
+            details
+        };
+    }
 });
