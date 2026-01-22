@@ -110,7 +110,7 @@ export default function AppDetailsScreen() {
                 // @ts-ignore - openApplication is available in expo-intent-launcher ~13.0.0
                 await IntentLauncher.openApplication(packageName);
             } catch (error: any) {
-                console.log("App launch failed:", error);
+
                 openPlayStore();
             }
         } else {

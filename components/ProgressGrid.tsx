@@ -121,14 +121,6 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
             d.partnerStatus === 'pending'  // PARTNER's uploads waiting for you
         );
 
-        // Debug logging
-        console.log('ProgressGrid Debug:', {
-            currentDay,
-            totalDays: days.length,
-            myPendingPreviousDays: myPendingPreviousDays.map(d => ({ day: d.day, myStatus: d.myStatus })),
-            partnerPendingPreviousDays: pending.map(d => ({ day: d.day, partnerStatus: d.partnerStatus })),
-            allDays: days.map(d => ({ day: d.day, myStatus: d.myStatus, partnerStatus: d.partnerStatus }))
-        });
 
         return pending;
     }, [days, currentDay, myPendingPreviousDays]);
