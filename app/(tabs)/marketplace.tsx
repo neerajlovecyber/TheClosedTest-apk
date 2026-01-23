@@ -41,19 +41,16 @@ export default function MarketplaceScreen() {
         itemVisiblePercentThreshold: 50
     });
 
-    const myApps = useQuery(api.apps.getMyApps) || [];
-
+    // Cached Queries
+    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
     const { data: recruitingApps } = useCachedConvexQuery(['marketplaceRecruiting'], api.apps.getMarketplaceApps, { status: 'recruiting' });
     const { data: filledApps } = useCachedConvexQuery(['marketplaceFilled'], api.apps.getMarketplaceApps, { status: 'filled' });
+    const { data: completedApps } = useCachedConvexQuery(['marketplaceCompleted'], api.apps.getCompletedApps);
+    const { data: myMatchStatuses = [] } = useCachedConvexQuery(['matchStatus'], api.matches.getMyMatchStatuses);
 
     const displayRecruiting = recruitingApps || [];
     const displayFilled = filledApps || [];
 
-    // Hall of Fame - Completed apps
-    const { data: completedApps } = useCachedConvexQuery(['marketplaceCompleted'], api.apps.getCompletedApps);
-
-    // Get my match statuses
-    const myMatchStatuses = useQuery(api.matches.getMyMatchStatuses) || [];
     const matchStatusMap = useMemo(() => {
         const map = new Map();
         for (const status of myMatchStatuses) {

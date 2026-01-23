@@ -13,6 +13,7 @@ export function useInvalidateQueries() {
             queryClient.invalidateQueries({ queryKey: ['myApps'] });
             queryClient.invalidateQueries({ queryKey: ['marketplaceRecruiting'] });
             queryClient.invalidateQueries({ queryKey: ['marketplaceFilled'] });
+            queryClient.invalidateQueries({ queryKey: ['marketplaceCompleted'] });
         },
 
         // Invalidate all match/request-related queries
