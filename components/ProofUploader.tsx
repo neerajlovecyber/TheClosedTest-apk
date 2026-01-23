@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 interface ProofUploaderProps {
     matchId: Id<"matches">;
@@ -37,16 +38,17 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     const handlePickImages = useCallback(async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ['images'],
                 allowsMultipleSelection: true,
                 selectionLimit: 5 - selectedImages.length,
-                quality: 0.6,
             });
 
             if (!result.canceled && result.assets) {
                 const newImages = result.assets.map(asset => ({
                     uri: asset.uri,
-                    mimeType: asset.mimeType
+                    mimeType: asset.mimeType,
+                    width: asset.width,
+                    height: asset.height
                 }));
 
                 if (selectedImages.length + newImages.length > 5) {
@@ -86,8 +88,27 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             const uploaderId = user?._id || 'unknown';
             const timestamp = Date.now();
 
-            // Create all upload promises and execute them in parallel
-            const uploadPromises = selectedImages.map((image, i) => {
+            // 1. Process images in PARALLEL (Resize & Compress)
+            const processedImages = await Promise.all(
+                selectedImages.map(async (image: { uri: string; width?: number }) => {
+                    const actions: ImageManipulator.Action[] = [];
+
+                    // Only resize if width is greater than 1200 to prevent upscaling
+                    if (image.width && image.width > 1200) {
+                        actions.push({ resize: { width: 1200 } });
+                    }
+
+                    const manipResult = await ImageManipulator.manipulateAsync(
+                        image.uri,
+                        actions,
+                        { compress: 0.6, format: ImageManipulator.SaveFormat.WEBP } // WebP + 0.6 Quality
+                    );
+                    return manipResult;
+                })
+            );
+
+            // 2. Upload processed images in PARALLEL
+            const uploadPromises = processedImages.map((image, i: number) => {
                 const filename = `${timestamp}_${i}.webp`;
                 return uploadImageToR2(image.uri, `proofs/${matchId}/${uploaderId}/${currentDay}`, filename);
             });
