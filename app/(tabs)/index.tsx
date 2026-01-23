@@ -38,7 +38,7 @@ export default function HomeScreen() {
     // Convex Data (with persistent caching)
     const { data: incomingRequests = [] } = useCachedConvexQuery(['incomingRequests'], api.matches.getIncomingRequests);
     const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
-    const currentUser = useQuery(api.users.getCurrentUser);
+    const { data: currentUser } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser);
     const { data: activeTasks = [] } = useCachedConvexQuery(['activeTasks'], api.matches.getMyActiveTests);
     const unreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;
 
@@ -53,7 +53,7 @@ export default function HomeScreen() {
     const [unlocking, setUnlocking] = useState(false);
 
     // Cache invalidation
-    const { invalidateMatches, invalidateApps } = useInvalidateQueries();
+    const { invalidateMatches, invalidateApps, invalidateUser } = useInvalidateQueries();
 
     // Calculate unlocked slots (default 1)
     const unlockedSlots = currentUser?.unlockedAppSlots ?? 1;
@@ -316,6 +316,7 @@ export default function HomeScreen() {
                                 const rewarded = await showAd();
                                 if (rewarded) {
                                     await unlockAppSlot();
+                                    invalidateUser(); // Refresh unlocked slots
                                     toast.success('Slot Unlocked!', { description: `App slot ${slotNumber} is now available!` });
                                 }
                             } catch (error) {

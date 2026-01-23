@@ -28,6 +28,11 @@ export function useInvalidateQueries() {
             queryClient.invalidateQueries({ queryKey: ['appDetails', appId] });
         },
 
+        // Invalidate current user
+        invalidateUser: () => {
+            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+        },
+
         // Invalidate everything (use sparingly)
         invalidateAll: () => {
             queryClient.invalidateQueries();
