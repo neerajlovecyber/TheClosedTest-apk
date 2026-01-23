@@ -388,9 +388,9 @@ export const markAsRead = mutation({
 export const cleanupOldNotifications = internalMutation({
     args: {},
     handler: async (ctx) => {
-        const fourteenDaysAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
 
-        // Find notifications older than 14 days
+        // Find notifications older than 7 days
         // Note: Ideally needs an index on createdAt, but for small scale this is fine.
         // Or use by_userId_read index but scan all.
         // Better: just query all if no suitable index, or iterate.
@@ -398,7 +398,7 @@ export const cleanupOldNotifications = internalMutation({
 
         const oldNotifications = await ctx.db
             .query("notifications")
-            .filter(q => q.lt(q.field("createdAt"), fourteenDaysAgo))
+            .filter(q => q.lt(q.field("createdAt"), sevenDaysAgo))
             .take(100);
 
         await Promise.all(oldNotifications.map(n => ctx.db.delete(n._id)));
