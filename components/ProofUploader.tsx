@@ -40,7 +40,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsMultipleSelection: true,
                 selectionLimit: 5 - selectedImages.length,
-                quality: 0.8,
+                quality: 0.6,
             });
 
             if (!result.canceled && result.assets) {
@@ -81,19 +81,18 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         setIsUploading(true);
 
         try {
-            // Upload all images to R2
-            const r2Urls: string[] = [];
+            // Upload all images to R2 in PARALLEL for faster uploads
             const { uploadImageToR2 } = require('@/utils/image-uploader');
+            const uploaderId = user?._id || 'unknown';
+            const timestamp = Date.now();
 
-            for (let i = 0; i < selectedImages.length; i++) {
-                const image = selectedImages[i];
-                // Include uploaderId and timestamp in path to prevent collisions and caching
-                const timestamp = Date.now();
+            // Create all upload promises and execute them in parallel
+            const uploadPromises = selectedImages.map((image, i) => {
                 const filename = `${timestamp}_${i}.webp`;
-                const uploaderId = user?._id || 'unknown';
-                const url = await uploadImageToR2(image.uri, `proofs/${matchId}/${uploaderId}/${currentDay}`, filename);
-                r2Urls.push(url);
-            }
+                return uploadImageToR2(image.uri, `proofs/${matchId}/${uploaderId}/${currentDay}`, filename);
+            });
+
+            const r2Urls = await Promise.all(uploadPromises);
 
             // Submit proof with R2 URLs as storageIds
             await uploadProofMutation({
