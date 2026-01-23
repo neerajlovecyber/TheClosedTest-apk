@@ -40,7 +40,7 @@ export default function HomeScreen() {
     const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
     const { data: currentUser } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser);
     const { data: activeTasks = [] } = useCachedConvexQuery(['activeTasks'], api.matches.getMyActiveTests);
-    const unreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;
+    const { data: unreadCount = 0 } = useCachedConvexQuery(['unreadCount'], api.notifications.getUnreadCount);
 
     // Mutations
     const checkIn = useMutation(api.users.checkIn);

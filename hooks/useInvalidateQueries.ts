@@ -33,6 +33,12 @@ export function useInvalidateQueries() {
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
         },
 
+        // Invalidate notifications
+        invalidateNotifications: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: ['unreadCount'] });
+        },
+
         // Invalidate everything (use sparingly)
         invalidateAll: () => {
             queryClient.invalidateQueries();

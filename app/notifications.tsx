@@ -8,22 +8,29 @@ import { Icon } from '@/components/ui/icon';
 import { BellIcon, CheckCircleIcon, ArrowLeftIcon, MessageSquareIcon, InfoIcon, AlertCircleIcon } from 'lucide-react-native';
 import { Button } from '@/components/ui/button';
 
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
+import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
+
 export default function NotificationsScreen() {
     const router = useRouter();
-    const notifications = useQuery(api.notifications.getMyNotifications) || [];
+    const { data: notifications = [] } = useCachedConvexQuery(['notifications'], api.notifications.getMyNotifications);
     const markAllAsRead = useMutation(api.notifications.markAllAsRead);
     const markAsRead = useMutation(api.notifications.markAsRead);
+    const { invalidateNotifications } = useInvalidateQueries();
 
     const [refreshing, setRefreshing] = React.useState(false);
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
+        // Convex queries are reactive, but we can force cache invalidation to be sure
+        invalidateNotifications();
         setTimeout(() => setRefreshing(false), 1000);
-    }, []);
+    }, [invalidateNotifications]);
 
     const handleMarkAllRead = async () => {
         try {
             await markAllAsRead();
+            invalidateNotifications();
         } catch (error) {
             console.error(error);
         }
@@ -33,6 +40,7 @@ export default function NotificationsScreen() {
         try {
             if (!notification.read) {
                 await markAsRead({ notificationId: notification._id });
+                invalidateNotifications();
             }
 
             // Handle navigation based on type
