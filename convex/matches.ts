@@ -1386,6 +1386,7 @@ export const checkMissedPenalties = internalMutation({
             const dayToCheck = currentDayOfMatch - 1;
 
             if (dayToCheck < 1) continue; // Match just started today, nothing to check
+            if (dayToCheck === 1) continue; // Grace period: No penalty for Day 1 (user may have joined late)
 
             // Users to check
             const userIds = [match.user1Id, match.user2Id];
