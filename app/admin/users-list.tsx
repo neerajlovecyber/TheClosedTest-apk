@@ -68,6 +68,20 @@ export default function AnalyticsScreen() {
         });
     }, [stats, filter]);
 
+    const formatTimeAgo = (timestamp: number) => {
+        const now = Date.now();
+        const diff = now - timestamp;
+
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) return `${days}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return 'Just now';
+    };
+
     const UserRow = ({ item, index }: any) => (
         <View className={`flex-row items-center py-3 border-b border-border/50 ${index % 2 === 0 ? 'bg-secondary/10' : ''}`}>
             <View className="w-10 h-10 rounded-full bg-muted items-center justify-center mr-3">
@@ -78,7 +92,7 @@ export default function AnalyticsScreen() {
                 <Text className="text-xs text-muted-foreground">{item.email || 'No email'}</Text>
             </View>
             <View className="items-end">
-                <Text className="text-xs text-foreground font-mono">{new Date(item.createdAt).toLocaleDateString()}</Text>
+                <Text className="text-xs text-foreground font-medium">{formatTimeAgo(item.createdAt)}</Text>
                 <View className={`px-2 py-0.5 rounded-full mt-1 ${item.isGroupMember ? 'bg-green-100 dark:bg-green-900/30' : 'bg-orange-100 dark:bg-orange-900/30'}`}>
                     <Text className={`text-[10px] font-bold ${item.isGroupMember ? 'text-green-600' : 'text-orange-600'}`}>
                         {item.isGroupMember ? 'Verified' : 'Unverified'}
