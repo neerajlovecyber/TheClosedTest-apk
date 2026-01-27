@@ -114,7 +114,12 @@ export default function HomeScreen() {
             invalidateApps();
             toast.success("Success", { description: "Swap accepted! You can now start testing." });
         } catch (error: any) {
-            toast.error("Error", { description: "Failed to accept swap." });
+            const errorMessage = error.message || "Failed to accept swap.";
+            // Clean up Convex error prefix if present
+            const cleanMessage = errorMessage.includes("ConvexError: ")
+                ? errorMessage.split("ConvexError: ")[1]
+                : errorMessage;
+            toast.error("Error", { description: cleanMessage });
         }
     };
 

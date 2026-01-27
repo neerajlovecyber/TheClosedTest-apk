@@ -16,9 +16,15 @@ interface PendingRequestCardProps {
         offeredApp?: {
             _id?: string;
             title?: string;
+            currentTesters?: number;
+            requiredTesters?: number;
+            status?: string;
         };
         myApp?: {
             title?: string;
+            currentTesters?: number;
+            requiredTesters?: number;
+            status?: string;
         };
     };
     onAccept: (id: string) => void;
@@ -60,6 +66,11 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                                     {offeredApp?.title || 'Unknown App'}
                                 </Text>
                             </TouchableOpacity>
+                            {offeredApp && (
+                                <Text className={`text-[10px] ${offeredApp.currentTesters && offeredApp.requiredTesters && offeredApp.currentTesters >= offeredApp.requiredTesters ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
+                                    {offeredApp.currentTesters ?? 0}/{offeredApp.requiredTesters ?? 20} Testers
+                                </Text>
+                            )}
                         </View>
 
                         {/* Swap Icon */}
@@ -73,9 +84,24 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                             <Text className="font-semibold text-xs text-foreground" numberOfLines={1}>
                                 {myApp?.title || 'Unknown App'}
                             </Text>
+                            {myApp && (
+                                <Text className={`text-[10px] ${myApp.currentTesters && myApp.requiredTesters && myApp.currentTesters >= myApp.requiredTesters ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
+                                    {myApp.currentTesters ?? 0}/{myApp.requiredTesters ?? 20} Testers
+                                </Text>
+                            )}
                         </View>
                     </View>
                 </View>
+
+                {/* Status Warning if full */}
+                {((offeredApp?.currentTesters !== undefined && offeredApp?.requiredTesters !== undefined && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                    (myApp?.currentTesters !== undefined && myApp?.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters)) && (
+                        <View className="bg-destructive/10 p-1.5 rounded-md mb-2 items-center">
+                            <Text className="text-[10px] font-bold text-destructive">
+                                Cannot Accept - Capacity Reached
+                            </Text>
+                        </View>
+                    )}
 
                 {/* Action Buttons */}
                 <View className="flex-row gap-2">
@@ -91,11 +117,24 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
 
                     <Button
                         size="sm"
-                        className="flex-1 h-8 px-0 bg-primary shadow-sm shadow-primary/20"
+                        className={`flex-1 h-8 px-0 shadow-sm ${((offeredApp?.currentTesters && offeredApp?.requiredTesters && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                            (myApp?.currentTesters && myApp?.requiredTesters && myApp.currentTesters >= myApp.requiredTesters))
+                            ? 'bg-muted opacity-50'
+                            : 'bg-primary shadow-primary/20'}`}
                         onPress={() => onAccept(request._id)}
+                        disabled={
+                            (offeredApp?.currentTesters !== undefined && offeredApp?.requiredTesters !== undefined && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                            (myApp?.currentTesters !== undefined && myApp?.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters)
+                        }
                     >
-                        <Icon as={CheckIcon} className="size-3.5 text-primary-foreground mr-1.5" />
-                        <Text className="text-primary-foreground font-semibold text-xs">Accept</Text>
+                        <Icon as={CheckIcon} className={`size-3.5 mr-1.5 ${((offeredApp?.currentTesters && offeredApp?.requiredTesters && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                            (myApp?.currentTesters && myApp?.requiredTesters && myApp.currentTesters >= myApp.requiredTesters))
+                            ? 'text-muted-foreground'
+                            : 'text-primary-foreground'}`} />
+                        <Text className={`${((offeredApp?.currentTesters && offeredApp?.requiredTesters && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                            (myApp?.currentTesters && myApp?.requiredTesters && myApp.currentTesters >= myApp.requiredTesters))
+                            ? 'text-muted-foreground'
+                            : 'text-primary-foreground'} font-semibold text-xs`}>Accept</Text>
                     </Button>
                 </View>
             </CardContent>
