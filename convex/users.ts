@@ -24,6 +24,7 @@ export const store = mutation({
                 await ctx.db.patch(user._id, {
                     name: identity.name,
                     email: identity.email,
+                    avatarUrl: identity.pictureUrl,
                     updatedAt: Date.now()
                 });
             }
@@ -35,6 +36,7 @@ export const store = mutation({
             name: identity.name!,
             tokenIdentifier: identity.tokenIdentifier,
             email: identity.email!,
+            avatarUrl: identity.pictureUrl,
             // Defaults
             reputation: 100,
             appsCount: 0,

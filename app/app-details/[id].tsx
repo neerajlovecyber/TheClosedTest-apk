@@ -423,10 +423,18 @@ export default function AppDetailsScreen() {
                                             key={tester.matchId}
                                             className="flex-row items-center gap-4 p-4"
                                         >
-                                            <Image
-                                                source={{ uri: tester.testerAvatar }}
-                                                className="size-10 rounded-full bg-muted"
-                                            />
+                                            {tester.testerAvatar && !tester.testerAvatar.includes('shadcn.png') ? (
+                                                <Image
+                                                    source={{ uri: tester.testerAvatar }}
+                                                    className="size-10 rounded-full bg-muted"
+                                                />
+                                            ) : (
+                                                <View className="size-10 rounded-full bg-primary/10 items-center justify-center">
+                                                    <Text className="text-sm font-bold text-primary">
+                                                        {tester.testerName?.substring(0, 2).toUpperCase() || "??"}
+                                                    </Text>
+                                                </View>
+                                            )}
                                             <View className="flex-1">
                                                 <View className="flex-row items-center gap-2">
                                                     <Text className="font-bold text-foreground">{tester.testerName}</Text>

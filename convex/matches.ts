@@ -18,6 +18,12 @@ const calculateDay = (startDate: number) => {
     return day > 14 ? 14 : day;
 };
 
+// Helper to sanitize avatar URL (remove default shadcn if present)
+const resolveAvatarUrl = (url: string | undefined | null) => {
+    if (!url || url === "https://github.com/shadcn.png") return undefined;
+    return url;
+};
+
 // Request a swap (Create a pending match)
 export const requestSwap = mutation({
     args: {
@@ -672,7 +678,10 @@ export const getMatchDetails = query({
                 iconUrl: resolvedUrl || "https://github.com/shadcn.png"
             },
             owner, // This is the owner of the app being tested
-            partner, // This is the swap partner (could be same as owner if I am tester)
+            partner: partner ? {
+                ...partner,
+                avatarUrl: resolveAvatarUrl(partner.avatarUrl)
+            } : null,
             startDate: match.startDate,
             day: calculateDay(match.startDate),
             isTester: true,
@@ -698,7 +707,7 @@ export const getMessages = query({
                 return {
                     ...msg,
                     senderName: sender?.name || "Unknown",
-                    senderAvatar: sender?.avatarUrl,
+                    senderAvatar: resolveAvatarUrl(sender?.avatarUrl),
                     isMe: sender?.tokenIdentifier === identity.tokenIdentifier
                 };
             })
@@ -1255,7 +1264,7 @@ export const getAppTesters = query({
             return {
                 matchId: match._id,
                 testerName: tester?.name || "Unknown",
-                testerAvatar: tester?.avatarUrl || "https://github.com/shadcn.png",
+                testerAvatar: resolveAvatarUrl(tester?.avatarUrl),
                 day,
                 status: proof ? proof.status : "pending",
                 uploadedToday: !!proof,
@@ -1784,7 +1793,7 @@ export const getCompletedMatches = query({
                 return {
                     id: match._id,
                     partnerName: partner?.name || "Partner",
-                    partnerAvatar: partner?.avatarUrl,
+                    partnerAvatar: resolveAvatarUrl(partner?.avatarUrl),
                     appName: partnerApp?.title || "App",
                     appIconUrl: partnerApp?.iconUrl,
                     myAppName: myApp?.title || "My App",

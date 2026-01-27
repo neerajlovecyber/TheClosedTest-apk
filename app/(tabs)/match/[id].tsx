@@ -376,12 +376,20 @@ export default function MatchDashboardScreen() {
                         <Card className="bg-card/50 border-border/50">
                             <CardContent className="p-4">
                                 <View className="flex-row items-center gap-3">
-                                    <Image
-                                        source={{ uri: partner?.avatarUrl || 'https://github.com/shadcn.png' }}
-                                        style={{ width: 48, height: 48, borderRadius: 24 }}
-                                        contentFit="cover"
-                                        className="bg-muted"
-                                    />
+                                    {partner?.avatarUrl && !partner.avatarUrl.includes('shadcn.png') ? (
+                                        <Image
+                                            source={{ uri: partner.avatarUrl }}
+                                            style={{ width: 48, height: 48, borderRadius: 24 }}
+                                            contentFit="cover"
+                                            className="bg-muted"
+                                        />
+                                    ) : (
+                                        <View style={{ width: 48, height: 48, borderRadius: 24 }} className="bg-primary/10 items-center justify-center">
+                                            <Text className="text-sm font-bold text-primary">
+                                                {partner?.name?.substring(0, 2).toUpperCase() || "??"}
+                                            </Text>
+                                        </View>
+                                    )}
                                     <View className="flex-1">
                                         <Text className="font-bold text-base">Tested with {partner?.name || 'Partner'}</Text>
                                         <Text className="text-xs text-muted-foreground">
