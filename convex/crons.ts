@@ -77,4 +77,12 @@ crons.daily(
     internal.matches.cleanupCancelledMatches
 );
 
+// Check for inactive app owners (pending proofs > 48h)
+// Runs at 2:30 AM IST (9:00 PM UTC previous day)
+crons.daily(
+    "check-app-owner-inactivity",
+    { hourUTC: 21, minuteUTC: 0 },
+    internal.matches.checkAppOwnerInactivity
+);
+
 export default crons;

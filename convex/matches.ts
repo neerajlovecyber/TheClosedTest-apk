@@ -1598,31 +1598,111 @@ export const cleanupCancelledMatches = internalMutation({
 
         let deletedMatches = 0;
         let deletedProofs = 0;
-        let deletedMessages = 0;
 
         for (const match of cancelledMatches) {
-            // Check if match is old enough
-            if (match.createdAt > cutoffDate) continue;
+            // Delete proofs
+            const proofs = await ctx.db
+                .query("proofs")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .collect();
 
-            // Delete all messages for this match
+            for (const proof of proofs) {
+                await ctx.db.delete(proof._id);
+                deletedProofs++;
+            }
+
+            // Delete messages
             const messages = await ctx.db
                 .query("messages")
                 .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
                 .collect();
-            for (const message of messages) {
-                await ctx.db.delete(message._id);
-                deletedMessages++;
+
+            for (const msg of messages) {
+                await ctx.db.delete(msg._id);
             }
 
-            // Delete the match itself
+            // Delete match
             await ctx.db.delete(match._id);
             deletedMatches++;
         }
 
-        console.log(`Cleaned up cancelled matches: ${deletedMatches} matches, ${deletedProofs} proofs, ${deletedMessages} messages`);
-        return { deletedMatches, deletedProofs, deletedMessages };
+        console.log(`Cleaned up ${deletedMatches} cancelled matches and ${deletedProofs} proofs.`);
     }
 });
+
+// Check for App Owners who missed reviews (Pending proofs > 48h)
+export const checkAppOwnerInactivity = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+        const cutoffTime = Date.now() - TWO_DAYS_MS;
+
+        // Get all active matches
+        const activeMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_status", (q) => q.eq("status", "active"))
+            .collect();
+
+        const slackers = new Set<Id<"users">>();
+
+        for (const match of activeMatches) {
+            // Get pending proofs for this match
+            const proofs = await ctx.db
+                .query("proofs")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .collect();
+
+            for (const proof of proofs) {
+                if (proof.status === "pending" && proof.submittedAt < cutoffTime) {
+                    // Reviewer is the one who ISN'T the uploader
+                    const reviewerId = proof.uploaderId === match.user1Id ? match.user2Id : match.user1Id;
+                    slackers.add(reviewerId);
+                }
+            }
+        }
+
+        console.log(`Found ${slackers.size} inactive app owners.`);
+
+        for (const userId of slackers) {
+            console.log(`Penalizing user ${userId} for inactivity...`);
+
+            // 1. Mark user to see popup
+            await ctx.db.patch(userId, { showDeletionPopup: true });
+
+            // 2. Archive their apps
+            const apps = await ctx.db
+                .query("apps")
+                .withIndex("by_userId", (q) => q.eq("userId", userId))
+                .collect();
+
+            for (const app of apps) {
+                if (app.status !== "archived" && app.status !== "completed") {
+                    await ctx.db.patch(app._id, { status: "archived", updatedAt: Date.now() });
+                }
+            }
+
+            // 3. Cancel ALL their matches (both as user1 and user2)
+            const matchesAsUser1 = await ctx.db
+                .query("matches")
+                .withIndex("by_user1", (q) => q.eq("user1Id", userId))
+                .collect();
+
+            const matchesAsUser2 = await ctx.db
+                .query("matches")
+                .withIndex("by_user2", (q) => q.eq("user2Id", userId))
+                .collect();
+
+            const allUserMatches = [...matchesAsUser1, ...matchesAsUser2];
+
+            for (const m of allUserMatches) {
+                if (m.status === "active" || m.status === "pending") {
+                    await ctx.db.patch(m._id, { status: "cancelled" });
+                }
+            }
+        }
+    }
+});
+
 
 // Helper to calculate raw day (without capping at 14) for completion check
 const calculateRawDay = (startDate: number) => {

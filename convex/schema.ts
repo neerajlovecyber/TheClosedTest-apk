@@ -19,6 +19,7 @@ export default defineSchema({
         unlockedAppSlots: v.optional(v.number()), // Number of unlocked app slots (default 1, max 3)
         boostPoints: v.optional(v.number()), // Boost points in current 48h cycle
         boostedAppId: v.optional(v.id("apps")), // Currently selected app to boost
+        showDeletionPopup: v.optional(v.boolean()), // Flag to show "App Deleted" popup
         createdAt: v.number(),
         updatedAt: v.number(),
     })
