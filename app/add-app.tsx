@@ -41,7 +41,7 @@ function CopyableEmail() {
         >
             <View className="flex-1 mr-3">
                 <Text className="text-xs text-muted-foreground mb-1">Tap to share/copy email</Text>
-                <Text className="text-xs font-mono font-semibold text-foreground" numberOfLines={1}>
+                <Text className="text-sm font-mono font-bold text-foreground" numberOfLines={1}>
                     {GOOGLE_GROUP_EMAIL}
                 </Text>
             </View>
@@ -234,25 +234,23 @@ export default function AddAppScreen() {
                             {/* 1. Google Group */}
                             <View>
                                 <Text className="font-semibold mb-2 text-foreground">1. Join Community</Text>
-                                <View className="gap-3">
+                                <View className="gap-1.5">
                                     <GoogleGroupWidget className="mb-0" />
                                     <TouchableOpacity
                                         onPress={() => {
                                             const { Linking } = require('react-native');
                                             Linking.openURL("https://t.me/developers_community_official/1");
                                         }}
-                                        className="flex-row items-center justify-between bg-sky-500/10 border border-sky-500/20 p-3 rounded-xl"
+                                        className="flex-row items-center gap-3 bg-sky-500 p-3 rounded-xl"
+                                        style={{ elevation: 2 }}
+                                        activeOpacity={0.8}
                                     >
-                                        <View className="flex-row items-center gap-3">
-                                            <View className="bg-sky-500 p-2 rounded-full">
-                                                <Icon as={SendIcon} className="text-white size-4" />
-                                            </View>
-                                            <View>
-                                                <Text className="text-sky-800 dark:text-sky-200 font-bold text-sm">Join Telegram</Text>
-                                                <Text className="text-sky-700/70 dark:text-sky-400/70 text-xs">Official Developers Community</Text>
-                                            </View>
+                                        <View className="bg-white/25 p-2 rounded-lg">
+                                            <Icon as={SendIcon} className="text-white size-4" />
                                         </View>
-                                        <Icon as={SendIcon} className="text-sky-500 size-4" />
+                                        <View className="flex-1">
+                                            <Text className="text-white font-bold text-sm">Join Telegram Community</Text>
+                                        </View>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -260,15 +258,27 @@ export default function AddAppScreen() {
                             {/* 2. Add Email */}
                             <View>
                                 <Text className="font-semibold mb-2 text-foreground">2. Play Console Setup</Text>
-                                <Text className="text-sm text-muted-foreground mb-2">
-                                    Add the group email below to your app's Closed Testing track testers in Google Play Console.
+                                <Text className="text-sm text-muted-foreground mb-3">
+                                    ⚠️ Your app won't be visible to testers unless you add the group email below to your Closed Testing track in Google Play Console.
                                 </Text>
-                                <CopyableEmail />
+
+                                {/* Copy Email - HIGHLIGHTED */}
+                                <View
+                                    className="bg-white dark:bg-card p-3 rounded-xl mb-3 border border-primary/30"
+                                    style={{ elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}
+                                >
+                                    <CopyableEmail />
+                                    <Image
+                                        source={require('@/assets/images/guide/addthegooglegrp.png')}
+                                        className="w-full h-32 rounded-lg mt-2"
+                                        resizeMode="contain"
+                                    />
+                                </View>
 
                                 {/* Detailed Guide Link - PROMINENT */}
                                 <TouchableOpacity
                                     onPress={() => router.push('/playstore-guide')}
-                                    className="flex-row items-center gap-3 bg-blue-600 p-4 rounded-2xl mb-4"
+                                    className="flex-row items-center gap-3 bg-blue-600 p-2 rounded-2xl mb-4"
                                     style={{ elevation: 4, shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
                                     activeOpacity={0.8}
                                 >
@@ -277,19 +287,17 @@ export default function AddAppScreen() {
                                     </View>
                                     <View className="flex-1">
                                         <Text className="text-white font-bold text-base">📖 View Step-by-Step Guide</Text>
-                                        <Text className="text-blue-100 text-sm mt-0.5">Tap here to see screenshots & instructions</Text>
+
                                     </View>
-                                    <View className="bg-white/25 p-2 rounded-full">
-                                        <Icon as={ArrowLeftIcon} className="text-white size-4 rotate-180" />
-                                    </View>
+
                                 </TouchableOpacity>
 
                                 {/* Confirmation Checkbox - PROMINENT */}
-                                <View className={`flex-row items-center gap-4 p-4 rounded-2xl border-2 ${hasAddedEmail ? 'bg-green-500/10 border-green-500' : 'bg-orange-500/10 border-orange-400 animate-pulse'}`}>
+                                <View className={`flex-row items-center gap-4 p-2 pl-5 rounded-2xl border-2 ${hasAddedEmail ? 'bg-green-500/10 border-green-500' : 'bg-orange-500/10 border-orange-400 animate-pulse'}`}>
                                     <Switch
                                         checked={hasAddedEmail}
                                         onCheckedChange={setHasAddedEmail}
-                                        className="scale-125"
+                                        className="scale-150"
                                     />
                                     <View className="flex-1">
                                         <Text className={`text-base font-bold ${hasAddedEmail ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
