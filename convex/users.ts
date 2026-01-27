@@ -3,8 +3,10 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 export const store = mutation({
-    args: {},
-    handler: async (ctx) => {
+    args: {
+        avatarUrl: v.optional(v.string())
+    },
+    handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
             throw new Error("Called storeUser without authentication present");
@@ -18,13 +20,15 @@ export const store = mutation({
             )
             .unique();
 
+        const resolvedAvatarUrl = args.avatarUrl || identity.pictureUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(identity.name || "User")}&background=random`;
+
         if (user !== null) {
-            // If we've seen this identity before but the name/email has changed, patch the value.
-            if (user.name !== identity.name || user.email !== identity.email) {
+            // If we've seen this identity before but the name/email/avatar has changed, patch the value.
+            if (user.name !== identity.name || user.email !== identity.email || user.avatarUrl !== resolvedAvatarUrl) {
                 await ctx.db.patch(user._id, {
                     name: identity.name,
                     email: identity.email,
-                    avatarUrl: identity.pictureUrl,
+                    avatarUrl: resolvedAvatarUrl,
                     updatedAt: Date.now()
                 });
             }
@@ -36,7 +40,7 @@ export const store = mutation({
             name: identity.name!,
             tokenIdentifier: identity.tokenIdentifier,
             email: identity.email!,
-            avatarUrl: identity.pictureUrl,
+            avatarUrl: resolvedAvatarUrl,
             // Defaults
             reputation: 100,
             appsCount: 0,

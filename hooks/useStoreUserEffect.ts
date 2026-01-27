@@ -20,7 +20,9 @@ export function useStoreUserEffect() {
 
         // Call the mutation to store the user
         async function createUser() {
-            const id = await storeUser();
+            const id = await storeUser({
+                avatarUrl: user?.imageUrl
+            });
             setUserId(id);
         }
 
