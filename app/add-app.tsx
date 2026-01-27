@@ -265,28 +265,40 @@ export default function AddAppScreen() {
                                 </Text>
                                 <CopyableEmail />
 
-                                {/* Detailed Guide Link */}
+                                {/* Detailed Guide Link - PROMINENT */}
                                 <TouchableOpacity
                                     onPress={() => router.push('/playstore-guide')}
-                                    className="flex-row items-center gap-2 bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl mb-3"
+                                    className="flex-row items-center gap-3 bg-blue-600 p-4 rounded-2xl mb-4"
+                                    style={{ elevation: 4, shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
+                                    activeOpacity={0.8}
                                 >
-                                    <View className="bg-blue-500 p-2 rounded-full">
-                                        <Icon as={CheckCircleIcon} className="text-white size-4" />
+                                    <View className="bg-white/25 p-3 rounded-xl">
+                                        <Icon as={CheckCircleIcon} className="text-white size-6" />
                                     </View>
                                     <View className="flex-1">
-                                        <Text className="text-blue-800 dark:text-blue-200 font-bold text-sm">📖 View Step-by-Step Guide</Text>
-                                        <Text className="text-blue-700/70 dark:text-blue-400/70 text-xs">See screenshots on how to add Google Group</Text>
+                                        <Text className="text-white font-bold text-base">📖 View Step-by-Step Guide</Text>
+                                        <Text className="text-blue-100 text-sm mt-0.5">Tap here to see screenshots & instructions</Text>
+                                    </View>
+                                    <View className="bg-white/25 p-2 rounded-full">
+                                        <Icon as={ArrowLeftIcon} className="text-white size-4 rotate-180" />
                                     </View>
                                 </TouchableOpacity>
 
-                                <View className="flex-row items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                                {/* Confirmation Checkbox - PROMINENT */}
+                                <View className={`flex-row items-center gap-4 p-4 rounded-2xl border-2 ${hasAddedEmail ? 'bg-green-500/10 border-green-500' : 'bg-orange-500/10 border-orange-400 animate-pulse'}`}>
                                     <Switch
                                         checked={hasAddedEmail}
                                         onCheckedChange={setHasAddedEmail}
+                                        className="scale-125"
                                     />
-                                    <Text className="flex-1 text-sm font-medium">
-                                        I confirm I have added the email to my testers list.
-                                    </Text>
+                                    <View className="flex-1">
+                                        <Text className={`text-base font-bold ${hasAddedEmail ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                                            {hasAddedEmail ? '✓ Confirmed!' : '⚠️ Required Confirmation'}
+                                        </Text>
+                                        <Text className="text-sm text-muted-foreground mt-0.5">
+                                            I have added the group email to my testers list
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
                         </CardContent>
