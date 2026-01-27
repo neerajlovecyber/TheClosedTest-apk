@@ -118,9 +118,15 @@ export function AppCard({ item, onPress, variant = 'marketplace', actionBadge, m
 
                 {/* Middle Row: Subtitle / Stats */}
                 {!isTesting ? (
-                    <Text className="text-muted-foreground text-sm">
-                        {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
-                    </Text>
+                    item.status === 'completed' ? (
+                        <Text className="text-green-600 dark:text-green-400 text-sm font-medium">
+                            Live in Production 🚀
+                        </Text>
+                    ) : (
+                        <Text className="text-muted-foreground text-sm">
+                            {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
+                        </Text>
+                    )
                 ) : (
                     <Text className="text-muted-foreground text-sm">Owner: {item.ownerName}</Text>
                 )}
@@ -140,7 +146,7 @@ export function AppCard({ item, onPress, variant = 'marketplace', actionBadge, m
                         </View>
                     )}
 
-                    {isMyApp && (
+                    {isMyApp && item.status !== 'completed' && (
                         <View className="h-2 bg-secondary rounded-full overflow-hidden w-full">
                             <View
                                 className={`h-full ${isFilled ? 'bg-green-500' : 'bg-primary'}`}

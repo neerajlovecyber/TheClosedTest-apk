@@ -52,7 +52,8 @@ export default function AppDetailsScreen() {
     const { data: app } = useCachedConvexQuery(['appDetails', appId], api.apps.getAppArgs, { appId });
 
     // Fetch user's own apps to offer
-    const myApps = useQuery(api.apps.getMyApps) || [];
+    const myAppsRaw = useQuery(api.apps.getMyApps) || [];
+    const myApps = myAppsRaw.filter(a => a.status !== 'completed');
 
     // Mutation
     const requestSwap = useMutation(api.matches.requestSwap);
@@ -319,24 +320,26 @@ export default function AppDetailsScreen() {
                 </View>
 
                 {/* Progress Section */}
-                <View className="px-4 mb-6 gap-3">
+                {app.status !== 'completed' && (
+                    <View className="px-4 mb-6 gap-3">
 
-                    <Card className="border-0 overflow-hidden">
-                        <CardContent className="p-5 gap-3">
-                            <View className="flex-row justify-between items-center">
-                                <Text className="font-semibold text-foreground">Progress</Text>
-                                <Text className="font-bold text-primary">{app.currentTesters || 0} / {app.requiredTesters} testers</Text>
-                            </View>
-                            <View className="h-3 bg-secondary rounded-full overflow-hidden w-full">
-                                <View
-                                    className="h-full bg-primary rounded-full"
-                                    style={{ width: `${Math.min(100, ((app.currentTesters || 0) / app.requiredTesters) * 100)}%` }}
-                                />
-                            </View>
+                        <Card className="border-0 overflow-hidden">
+                            <CardContent className="p-5 gap-3">
+                                <View className="flex-row justify-between items-center">
+                                    <Text className="font-semibold text-foreground">Progress</Text>
+                                    <Text className="font-bold text-primary">{app.currentTesters || 0} / {app.requiredTesters} testers</Text>
+                                </View>
+                                <View className="h-3 bg-secondary rounded-full overflow-hidden w-full">
+                                    <View
+                                        className="h-full bg-primary rounded-full"
+                                        style={{ width: `${Math.min(100, ((app.currentTesters || 0) / app.requiredTesters) * 100)}%` }}
+                                    />
+                                </View>
 
-                        </CardContent>
-                    </Card>
-                </View>
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
 
                 {/* Instructions Section */}
                 <View className="px-4 mb-6 gap-3">
@@ -407,7 +410,7 @@ export default function AppDetailsScreen() {
                 )}
 
                 {/* Testers Section (Owner Only) */}
-                {app.isMine && (
+                {app.isMine && app.status !== 'completed' && (
                     <View className="px-4 mb-6 gap-3">
                         <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">
                             Active Testers ({testers?.length || 0})

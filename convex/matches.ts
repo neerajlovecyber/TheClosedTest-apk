@@ -95,6 +95,9 @@ export const requestSwap = mutation({
         if (myApp.status === "filled") {
             throw new ConvexError("Your app already has enough testers");
         }
+        if (myApp.status === "completed") {
+            throw new ConvexError("Your app is already in production");
+        }
 
         // Count testers for myApp efficiently using indices
         // 1. Matches where I am User1 (Requestor) and my app (App1) is being tested
@@ -133,6 +136,9 @@ export const requestSwap = mutation({
         // Check if target app is already filled
         if (targetApp.status === "filled") {
             throw new ConvexError("This app already has enough testers");
+        }
+        if (targetApp.status === "completed") {
+            throw new ConvexError("This app is already in production");
         }
 
         // Count testers for targetApp efficiently
