@@ -23,7 +23,8 @@ export default defineSchema({
         createdAt: v.number(),
         updatedAt: v.number(),
     })
-        .index("by_tokenIdentifier", ["tokenIdentifier"]),
+        .index("by_tokenIdentifier", ["tokenIdentifier"])
+        .index("by_boostPoints", ["boostPoints"]),
 
     apps: defineTable({
         userId: v.id("users"),
@@ -76,7 +77,9 @@ export default defineSchema({
     })
         .index("by_user1", ["user1Id"])
         .index("by_user2", ["user2Id"])
-        .index("by_status", ["status"]),
+        .index("by_status", ["status"])
+        .index("by_app1", ["app1Id"])
+        .index("by_app2", ["app2Id"]),
 
     proofs: defineTable({
         matchId: v.id("matches"),

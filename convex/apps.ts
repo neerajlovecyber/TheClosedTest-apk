@@ -114,56 +114,42 @@ export const getMarketplaceApps = query({
     handler: async (ctx, args) => {
         const status = (args.status || "recruiting") as "recruiting" | "filled" | "paused" | "archived";
 
+        // Reduced from 100 to 30 for better performance
         const apps = await ctx.db
             .query("apps")
             .withIndex("by_status", (q) => q.eq("status", status))
             .order("desc")
-            .take(100);
+            .take(30);
 
-        // Map over apps to resolve full image URLs and count active testers
+        if (apps.length === 0) return [];
+
+        // Batch fetch all owners in one go (instead of N queries)
+        const ownerIds = [...new Set(apps.map(app => app.userId))];
+        const owners = await Promise.all(ownerIds.map(id => ctx.db.get(id)));
+        const ownerMap = new Map(owners.filter(Boolean).map(o => [o!._id, o!]));
+
+        const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
+
+        // Map over apps - use cached currentTesters instead of querying matches
         const appsWithUrls = await Promise.all(apps.map(async (app) => {
             let resolvedUrl = app.iconUrl;
             if (app.storageIconId) {
                 resolvedUrl = await getImageUrl(ctx, app.storageIconId);
             } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
-                // Fallback for any legacy data or mis-formatted strings
                 resolvedUrl = await getImageUrl(ctx, app.iconUrl);
             }
 
-            // Count active matches where this app is being tested
-            const matchesAsApp1 = await ctx.db
-                .query("matches")
-                .filter((q) => q.and(
-                    q.eq(q.field("app1Id"), app._id),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
-                .collect();
-
-            const matchesAsApp2 = await ctx.db
-                .query("matches")
-                .filter((q) => q.and(
-                    q.eq(q.field("app2Id"), app._id),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
-                .collect();
-
-            const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+            // Use cached currentTesters (updated when matches change)
+            const actualTesters = app.currentTesters || 0;
 
             // Check if filled
             const isFilled = actualTesters >= app.requiredTesters || app.status === "filled";
 
             // Check if new (created in last 3 days)
-            const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
             const isNew = app.createdAt > threeDaysAgo && !isFilled;
 
-            // Also fetch owner details for the UI
-            const owner = await ctx.db.get(app.userId);
+            // Get owner from pre-fetched map
+            const owner = ownerMap.get(app.userId);
 
             return {
                 ...app,
@@ -177,7 +163,6 @@ export const getMarketplaceApps = query({
             };
         }));
 
-        // Return apps sorted by creation time (desc) - native behavior of the query
         return appsWithUrls;
     },
 });
@@ -202,7 +187,7 @@ export const getMyApps = query({
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
 
-        // Map over apps to resolve full image URLs and count active testers
+        // Map over apps to resolve full image URLs
         const appsWithUrlsAndTesters = await Promise.all(apps.map(async (app) => {
             let resolvedUrl = app.iconUrl;
             if (app.storageIconId) {
@@ -211,35 +196,25 @@ export const getMyApps = query({
                 resolvedUrl = await getImageUrl(ctx, app.iconUrl);
             }
 
-            // Count active matches where this app is being tested
-            // (app is either app1Id or app2Id in an active match)
+            // Use cached currentTesters instead of counting matches
+            const actualTesters = app.currentTesters || 0;
+
+            // Check for unread messages using indexes (much faster than filter)
             const matchesAsApp1 = await ctx.db
                 .query("matches")
-                .filter((q) => q.and(
-                    q.eq(q.field("app1Id"), app._id),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
+                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
                 .collect();
 
             const matchesAsApp2 = await ctx.db
                 .query("matches")
-                .filter((q) => q.and(
-                    q.eq(q.field("app2Id"), app._id),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
+                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
                 .collect();
 
-            const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
-
-            // Check if any active match has unread messages for this user (app owner)
+            // Only check active matches for unread status
             let hasUnread = false;
-            const allActiveMatches = [...matchesAsApp1, ...matchesAsApp2];
+            const allActiveMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
+                m => m.status === "active"
+            );
             for (const m of allActiveMatches) {
                 const isUser1 = m.user1Id === user._id;
                 const lastRead = isUser1 ? (m.lastRead1 || 0) : (m.lastRead2 || 0);
@@ -752,5 +727,41 @@ export const fixAllAppStatuses = internalMutation({
             fixedCount,
             details
         };
+    }
+});
+
+// One-time migration: Sync currentTesters field for all apps
+export const syncCurrentTesters = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const apps = await ctx.db.query("apps").collect();
+        let updated = 0;
+
+        for (const app of apps) {
+            // Count using indexes
+            const matchesAsApp1 = await ctx.db
+                .query("matches")
+                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
+                .collect();
+            const matchesAsApp2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
+                .collect();
+
+            const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
+                m => m.status === "active" || m.status === "completed"
+            );
+            const actualTesters = activeMatches.length;
+
+            if (app.currentTesters !== actualTesters) {
+                await ctx.db.patch(app._id, {
+                    currentTesters: actualTesters,
+                    updatedAt: Date.now()
+                });
+                updated++;
+            }
+        }
+
+        return { totalApps: apps.length, updated };
     }
 });

@@ -248,28 +248,14 @@ export const getBoostedApps = query({
             .sort((a: any, b: any) => (b.boostPoints || 0) - (a.boostPoints || 0))
             .slice(0, 5);
 
-        // Build list with app details
+        // Build list with app details - use cached currentTesters
         const boostedApps = await Promise.all(
             sortedUsers.map(async (user: any) => {
                 const app = await ctx.db.get(user.boostedAppId) as any;
                 if (!app || app.status !== "recruiting") return null;
 
-                // Check if filled
-                const matchesAsApp1 = await ctx.db
-                    .query("matches")
-                    .filter((q: any) => q.and(
-                        q.eq(q.field("app1Id"), app._id),
-                        q.eq(q.field("status"), "active")
-                    ))
-                    .collect();
-                const matchesAsApp2 = await ctx.db
-                    .query("matches")
-                    .filter((q: any) => q.and(
-                        q.eq(q.field("app2Id"), app._id),
-                        q.eq(q.field("status"), "active")
-                    ))
-                    .collect();
-                const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+                // Use cached currentTesters instead of querying matches
+                const actualTesters = app.currentTesters || 0;
 
                 // Skip filled apps
                 if (actualTesters >= app.requiredTesters) return null;

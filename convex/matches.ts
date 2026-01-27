@@ -279,111 +279,68 @@ export const acceptSwap = mutation({
             throw new Error("Match is not pending");
         }
 
-        // Get both apps to check tester counts BEFORE accepting
+        // Get both apps
         const app1 = await ctx.db.get(match.app1Id);
         const app2 = await ctx.db.get(match.app2Id);
 
-        // Count current active testers for app1
-        if (app1) {
-            const app1ActiveMatches = await ctx.db
+        // Helper to count active testers using indexes
+        const countActiveTesters = async (appId: any) => {
+            const matchesAsApp1 = await ctx.db
                 .query("matches")
-                .filter((q) => q.and(
-                    q.or(
-                        q.eq(q.field("app1Id"), app1._id),
-                        q.eq(q.field("app2Id"), app1._id)
-                    ),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
+                .withIndex("by_app1", (q) => q.eq("app1Id", appId))
                 .collect();
+            const matchesAsApp2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2", (q) => q.eq("app2Id", appId))
+                .collect();
+            return [...matchesAsApp1, ...matchesAsApp2].filter(
+                m => m.status === "active" || m.status === "completed"
+            ).length;
+        };
 
-            if (app1ActiveMatches.length >= app1.requiredTesters) {
-                if (app1.status !== "filled") {
-                    await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
-                }
+        // Check if apps are already filled BEFORE accepting
+        if (app1) {
+            const app1ActiveCount = await countActiveTesters(app1._id);
+            if (app1ActiveCount >= app1.requiredTesters) {
+                await ctx.db.patch(app1._id, { status: "filled", currentTesters: app1ActiveCount, updatedAt: Date.now() });
                 throw new ConvexError(`${app1.title} already has enough testers`);
             }
         }
 
-        // Count current active testers for app2
         if (app2) {
-            const app2ActiveMatches = await ctx.db
-                .query("matches")
-                .filter((q) => q.and(
-                    q.or(
-                        q.eq(q.field("app1Id"), app2._id),
-                        q.eq(q.field("app2Id"), app2._id)
-                    ),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
-                .collect();
-
-            if (app2ActiveMatches.length >= app2.requiredTesters) {
-                if (app2.status !== "filled") {
-                    await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
-                }
+            const app2ActiveCount = await countActiveTesters(app2._id);
+            if (app2ActiveCount >= app2.requiredTesters) {
+                await ctx.db.patch(app2._id, { status: "filled", currentTesters: app2ActiveCount, updatedAt: Date.now() });
                 throw new ConvexError(`${app2.title} already has enough testers`);
             }
         }
 
+        // Accept the match
         await ctx.db.patch(args.matchId, {
             status: "active",
             startDate: Date.now(),
             lastActivity: Date.now(),
         });
 
-        // Check if either app is now filled and update status
-        // (app1 and app2 already fetched above)
-
-        // Count active testers for app1
-        if (app1 && (app1.status === "recruiting" || app1.status === "filled")) {
-            const app1Matches = await ctx.db
-                .query("matches")
-                .filter((q) => q.and(
-                    q.or(
-                        q.eq(q.field("app1Id"), app1._id),
-                        q.eq(q.field("app2Id"), app1._id)
-                    ),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
-                .collect();
-
-            if (app1Matches.length >= app1.requiredTesters) {
-                await ctx.db.patch(app1._id, { status: "filled", updatedAt: Date.now() });
-            } else if (app1.status === "filled" && app1Matches.length < app1.requiredTesters) {
-                await ctx.db.patch(app1._id, { status: "recruiting", updatedAt: Date.now() });
-            }
+        // Update both apps' currentTesters and status
+        if (app1) {
+            const newCount = (app1.currentTesters || 0) + 1;
+            const newStatus = newCount >= app1.requiredTesters ? "filled" : app1.status;
+            await ctx.db.patch(app1._id, {
+                currentTesters: newCount,
+                status: newStatus === "recruiting" || newStatus === "filled" ? newStatus : app1.status,
+                updatedAt: Date.now()
+            });
         }
 
-        // Count active testers for app2
-        if (app2 && (app2.status === "recruiting" || app2.status === "filled")) {
-            const app2Matches = await ctx.db
-                .query("matches")
-                .filter((q) => q.and(
-                    q.or(
-                        q.eq(q.field("app1Id"), app2._id),
-                        q.eq(q.field("app2Id"), app2._id)
-                    ),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
-                .collect();
-
-            if (app2Matches.length >= app2.requiredTesters) {
-                await ctx.db.patch(app2._id, { status: "filled", updatedAt: Date.now() });
-            } else if (app2.status === "filled" && app2Matches.length < app2.requiredTesters) {
-                await ctx.db.patch(app2._id, { status: "recruiting", updatedAt: Date.now() });
-            }
+        if (app2) {
+            const newCount = (app2.currentTesters || 0) + 1;
+            const newStatus = newCount >= app2.requiredTesters ? "filled" : app2.status;
+            await ctx.db.patch(app2._id, {
+                currentTesters: newCount,
+                status: newStatus === "recruiting" || newStatus === "filled" ? newStatus : app2.status,
+                updatedAt: Date.now()
+            });
         }
 
         // Notify the requestor
@@ -1349,30 +1306,28 @@ export const cancelMatch = mutation({
             throw new Error("Not authorized");
         }
 
+        const wasActive = match.status === "active";
+
         await ctx.db.patch(args.matchId, { status: "cancelled" });
 
-        const checkAndRevertStatus = async (appId: Id<"apps">) => {
+        // Decrement currentTesters if the match was active
+        const updateAppCounter = async (appId: Id<"apps">) => {
             const app = await ctx.db.get(appId);
-            if (app && app.status === "filled") {
-                const activeMatches = await ctx.db
-                    .query("matches")
-                    .filter((q) => q.and(
-                        q.or(q.eq(q.field("app1Id"), appId), q.eq(q.field("app2Id"), appId)),
-                        q.or(
-                            q.eq(q.field("status"), "active"),
-                            q.eq(q.field("status"), "completed")
-                        )
-                    ))
-                    .collect();
-
-                if (activeMatches.length < app.requiredTesters) {
-                    await ctx.db.patch(appId, { status: "recruiting", updatedAt: Date.now() });
-                }
+            if (app && wasActive) {
+                const newCount = Math.max(0, (app.currentTesters || 0) - 1);
+                const newStatus = newCount < app.requiredTesters && app.status === "filled"
+                    ? "recruiting"
+                    : app.status;
+                await ctx.db.patch(appId, {
+                    currentTesters: newCount,
+                    status: newStatus,
+                    updatedAt: Date.now()
+                });
             }
         };
 
-        await checkAndRevertStatus(match.app1Id);
-        await checkAndRevertStatus(match.app2Id);
+        await updateAppCounter(match.app1Id);
+        await updateAppCounter(match.app2Id);
     }
 });
 
