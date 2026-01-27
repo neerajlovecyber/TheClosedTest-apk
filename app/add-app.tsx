@@ -46,7 +46,7 @@ function CopyableEmail() {
                 </Text>
             </View>
             <View className={`w-9 h-9 rounded-full items-center justify-center ${copied ? 'bg-green-500' : 'bg-primary'}`}>
-                <Icon as={copied ? CheckIcon : ShareIcon} className="text-white size-4" />
+                <Icon as={copied ? CheckIcon : CopyIcon} className="text-white size-4" />
             </View>
         </Pressable>
     );
