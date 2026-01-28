@@ -195,24 +195,27 @@ export const getUsersByFilter = query({
         dateStr: v.optional(v.string()), // Optional date filter
     },
     handler: async (ctx, args) => {
-        const users = await ctx.db.query("users").collect();
-
+        // Optimization: Handle specific filters efficiently
         if (args.dateStr) {
             const startOfDay = new Date(args.dateStr).getTime();
             const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
 
-            if (args.filter === "new" || args.filter === "all") {
-                // When filtering by a specific historical date, we show users created on THAT date
-                return users.filter(u => u.createdAt >= startOfDay && u.createdAt < endOfDay)
-                    .sort((a, b) => b.createdAt - a.createdAt);
-            }
             if (args.filter === "active") {
                 const logs = await ctx.db.query("daily_activity")
                     .withIndex("by_date", q => q.eq("date", args.dateStr!))
                     .collect();
-                const userIds = new Set(logs.map(l => l.userId));
-                return users.filter(u => userIds.has(u._id));
+                const userIds = [...new Set(logs.map(l => l.userId))];
+                const users = await Promise.all(userIds.map(id => ctx.db.get(id)));
+                return users.filter(Boolean);
             }
+
+            // For new/all with date, filter at DB level
+            return await ctx.db.query("users")
+                .filter(q => q.and(
+                    q.gte(q.field("createdAt"), startOfDay),
+                    q.lt(q.field("createdAt"), endOfDay)
+                ))
+                .collect();
         }
 
         const now = Date.now();
@@ -221,28 +224,47 @@ export const getUsersByFilter = query({
 
         if (args.filter === "active") {
             const activeUserIds = new Set<string>();
-            const matches = await ctx.db.query("matches").collect();
-            matches.forEach(m => {
-                if (m.status === 'active' || m.lastActivity > oneDayAgo) {
-                    activeUserIds.add(m.user1Id);
-                    activeUserIds.add(m.user2Id);
-                }
+
+            // 1. Get users active in matches
+            const activeMatches = await ctx.db.query("matches")
+                .filter(q => q.or(
+                    q.eq(q.field("status"), 'active'),
+                    q.gt(q.field("lastActivity"), oneDayAgo)
+                ))
+                .collect();
+
+            activeMatches.forEach(m => {
+                activeUserIds.add(m.user1Id);
+                activeUserIds.add(m.user2Id);
             });
-            users.forEach(u => {
-                if (u.createdAt > oneDayAgo) activeUserIds.add(u._id);
-                // Also check lastCheckInDate for "today"
-                if (u.lastCheckInDate === todayStr) activeUserIds.add(u._id);
-            });
-            return users.filter(u => activeUserIds.has(u._id));
+
+            // 2. Get users who checked in today
+            const todayActivity = await ctx.db.query("daily_activity")
+                .withIndex("by_date", q => q.eq("date", todayStr))
+                .collect();
+            todayActivity.forEach(l => activeUserIds.add(l.userId));
+
+            // 3. Get new users (they are considered active)
+            const newUsers = await ctx.db.query("users")
+                .filter(q => q.gt(q.field("createdAt"), oneDayAgo))
+                .collect();
+            newUsers.forEach(u => activeUserIds.add(u._id));
+
+            // Fetch the specific users we identified
+            const users = await Promise.all(Array.from(activeUserIds).map(id => ctx.db.get(id)));
+            return users.filter(Boolean);
         }
 
         if (args.filter === "new") {
-            // For general 'new' filter (no date), show users from the last 24h
-            return users.filter(u => u.createdAt > oneDayAgo).sort((a, b) => b.createdAt - a.createdAt);
+            return await ctx.db.query("users")
+                .filter(q => q.gt(q.field("createdAt"), oneDayAgo))
+                .collect();
         }
 
-        // Default 'all'
-        return users.sort((a, b) => b.createdAt - a.createdAt);
+        // 'all': Limit to recent 200 users to save bandwidth
+        return await ctx.db.query("users")
+            .order("desc")
+            .take(200);
     },
 });
 

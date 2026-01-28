@@ -165,7 +165,22 @@ export const getMarketplaceApps = query({
             };
         }));
 
-        return appsWithUrls;
+        return appsWithUrls.map((app) => ({
+            _id: app._id,
+            title: app.title,
+            iconUrl: app.iconUrl,
+            currentTesters: app.currentTesters,
+            requiredTesters: app.requiredTesters,
+            isFilled: app.isFilled,
+            isNew: app.isNew,
+            ownerName: app.ownerName,
+            ownerAvatar: app.ownerAvatar,
+            reputation: app.reputation,
+            flagCount: app.flagCount,
+            visibility: app.visibility,
+            updatedAt: app.updatedAt,
+            createdAt: app.createdAt
+        }));
     },
 });
 
