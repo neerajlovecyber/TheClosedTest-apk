@@ -1220,24 +1220,19 @@ export const getAppTesters = query({
         const app = await ctx.db.get(args.appId);
         if (!app) return [];
 
-        // Find all active matches for this app
+        // Use indexes for faster lookup, then filter in memory for active status
         const matchesAsApp1 = await ctx.db
             .query("matches")
-            .filter((q) => q.and(
-                q.eq(q.field("app1Id"), args.appId),
-                q.eq(q.field("status"), "active")
-            ))
+            .withIndex("by_app1", (q) => q.eq("app1Id", args.appId))
             .collect();
 
         const matchesAsApp2 = await ctx.db
             .query("matches")
-            .filter((q) => q.and(
-                q.eq(q.field("app2Id"), args.appId),
-                q.eq(q.field("status"), "active")
-            ))
+            .withIndex("by_app2", (q) => q.eq("app2Id", args.appId))
             .collect();
 
-        const allMatches = [...matchesAsApp1, ...matchesAsApp2];
+        // Filter for active matches in memory (much cheaper than filter() in query)
+        const allMatches = [...matchesAsApp1, ...matchesAsApp2].filter(m => m.status === "active");
 
         return await Promise.all(allMatches.map(async (match) => {
             const isApp1 = match.app1Id === args.appId;

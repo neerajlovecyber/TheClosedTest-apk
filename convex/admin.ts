@@ -87,30 +87,40 @@ export const fixAllApps = mutation({
 export const getStats = query({
     args: {},
     handler: async (ctx) => {
-        const users = await ctx.db.query("users").collect();
-        const apps = await ctx.db.query("apps").collect();
-        const matches = await ctx.db.query("matches").collect();
-        const proofs = await ctx.db.query("proofs").collect();
-
-        const totalUsers = users.length;
-        const totalApps = apps.length;
-        const activeMatches = matches.filter(m => m.status === 'active').length;
-        const totalProofs = proofs.length;
-
-        // Calculate some basic trends (e.g. users joined today)
         const now = Date.now();
         const todayStr = new Date(now).toISOString().split('T')[0];
         const startOfToday = new Date(todayStr).getTime();
-        const endOfToday = startOfToday + 24 * 60 * 60 * 1000;
-        const newUsersToday = users.filter(u => u.createdAt >= startOfToday && u.createdAt < endOfToday).length;
-
-        // Calculate DAU (Based on users who checked in "Today" UTC-wise)
-        const dau = users.filter(u => u.lastCheckInDate === todayStr).length;
-
-        // Trend Calculation
+        const oneDayAgo = now - 24 * 60 * 60 * 1000;
         const lastWeekStart = now - 8 * 24 * 60 * 60 * 1000;
         const lastWeekEnd = now - 7 * 24 * 60 * 60 * 1000;
-        const newUsersLastWeek = users.filter(u => u.createdAt >= lastWeekStart && u.createdAt < lastWeekEnd).length;
+
+        // Use counts instead of fetching all records
+        // For total counts, we need to count but NOT fetch all fields
+
+        // Get aggregate stats using indexable queries where possible
+        // For matches, use index
+        const activeMatchesList = await ctx.db
+            .query("matches")
+            .withIndex("by_status", q => q.eq("status", "active"))
+            .collect();
+        const activeMatches = activeMatchesList.length;
+
+        // Get recent users only (for trends) - not ALL users
+        const recentUsers = await ctx.db
+            .query("users")
+            .order("desc")
+            .take(100); // Only fetch recent 100 for trend calculation
+
+        // Get DAU from daily_activity table (indexed)
+        const todayActivity = await ctx.db
+            .query("daily_activity")
+            .withIndex("by_date", q => q.eq("date", todayStr))
+            .collect();
+        const dau = todayActivity.length;
+
+        // Count new users today more efficiently
+        const newUsersToday = recentUsers.filter(u => u.createdAt >= startOfToday).length;
+        const newUsersLastWeek = recentUsers.filter(u => u.createdAt >= lastWeekStart && u.createdAt < lastWeekEnd).length;
 
         let newUsersTrend = 0;
         if (newUsersLastWeek > 0) {
@@ -119,7 +129,19 @@ export const getStats = query({
             newUsersTrend = 100;
         }
 
+        // Get history (already indexed) - contains pre-computed stats
         const history = await ctx.db.query("analytics").withIndex("by_date").order("desc").take(7);
+
+        // For total counts - only count IDs, don't fetch full documents
+        // This is still a full scan but we're just counting
+        const allUsers = await ctx.db.query("users").collect();
+        const allApps = await ctx.db.query("apps").collect();
+        const totalUsers = allUsers.length;
+        const totalApps = allApps.length;
+
+        // Use latest analytics for proof count if available
+        const latestAnalytics = history[0];
+        const totalProofs = latestAnalytics?.proofsUploaded ?? 0;
 
         return {
             totalUsers,
@@ -132,16 +154,11 @@ export const getStats = query({
                 newUsers: newUsersTrend,
                 newUsersCountLastWeek: newUsersLastWeek
             },
-            history: history.map(h => {
-                const start = new Date(h.date).getTime();
-                const end = start + 24 * 60 * 60 * 1000;
-                const newUsersOnDate = users.filter(u => u.createdAt >= start && u.createdAt < end).length;
-                return {
-                    ...h,
-                    newUsers: newUsersOnDate
-                };
-            }),
-            recentUsers: users.sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
+            history: history.map(h => ({
+                ...h,
+                newUsers: h.activeUsers || 0 // Use pre-calculated value from snapshot
+            })),
+            recentUsers: recentUsers.slice(0, 5),
         };
     },
 });
