@@ -267,30 +267,23 @@ export const getAppArgs = query({
             }
         }
 
-        // Count active testers
+        // Count active testers - use indexes for efficiency
         const matchesAsApp1 = await ctx.db
             .query("matches")
-            .filter((q) => q.and(
-                q.eq(q.field("app1Id"), app._id),
-                q.or(
-                    q.eq(q.field("status"), "active"),
-                    q.eq(q.field("status"), "completed")
-                )
-            ))
+            .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
             .collect();
 
         const matchesAsApp2 = await ctx.db
             .query("matches")
-            .filter((q) => q.and(
-                q.eq(q.field("app2Id"), app._id),
-                q.or(
-                    q.eq(q.field("status"), "active"),
-                    q.eq(q.field("status"), "completed")
-                )
-            ))
+            .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
             .collect();
 
-        const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+        // Filter for active/completed status in memory (cheaper than filter() in query)
+        const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
+            m => m.status === "active" || m.status === "completed"
+        );
+
+        const actualTesters = activeMatches.length;
         const isFilled = actualTesters >= app.requiredTesters || app.status === "filled";
 
         return {
