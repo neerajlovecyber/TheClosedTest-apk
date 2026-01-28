@@ -683,20 +683,20 @@ export default function AppDetailsScreen() {
                             <View className="flex-row gap-3">
                                 <Button
                                     size="lg"
-                                    variant="outline"
-                                    className="flex-1 rounded-xl border-destructive/50"
+                                    variant="destructive"
+                                    className="flex-1 rounded-xl shadow-sm"
                                     onPress={handleRejectRequest}
                                     disabled={isSubmitting}
                                 >
-                                    <Text className="font-bold text-destructive">Decline</Text>
+                                    <Text className="font-bold text-white">Decline</Text>
                                 </Button>
                                 <Button
                                     size="lg"
-                                    className="flex-1 rounded-xl bg-green-600"
+                                    className="flex-1 rounded-xl shadow-sm"
                                     onPress={handleAcceptRequest}
                                     disabled={isSubmitting}
                                 >
-                                    <Text className="font-bold text-white">Accept</Text>
+                                    <Text className="font-bold text-primary-foreground">Accept</Text>
                                 </Button>
                             </View>
                         )
@@ -828,11 +828,14 @@ export default function AppDetailsScreen() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onPress={() => setActiveAlert(null)}>
-                            <Text>Cancel</Text>
+                            <Text className="font-bold text-foreground">Cancel</Text>
                         </AlertDialogCancel>
-                        <AlertDialogAction onPress={handleConfirmAction}>
-                            <Text>
-                                {activeAlert === 'no_apps' ? "Add App" : "Confirm"}
+                        <AlertDialogAction
+                            onPress={handleConfirmAction}
+                            className={activeAlert === 'reject' || activeAlert === 'delete' ? "bg-destructive" : ""}
+                        >
+                            <Text className={activeAlert === 'reject' || activeAlert === 'delete' ? "text-white font-bold" : "font-bold"}>
+                                {activeAlert === 'no_apps' ? "Add App" : (activeAlert === 'reject' ? "Reject" : (activeAlert === 'delete' ? "Delete" : "Confirm"))}
                             </Text>
                         </AlertDialogAction>
                     </AlertDialogFooter>
