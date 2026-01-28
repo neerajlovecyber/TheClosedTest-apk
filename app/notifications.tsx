@@ -44,6 +44,11 @@ export default function NotificationsScreen() {
             }
 
             // Handle navigation based on type
+            if (notification.type === 'match_request') {
+                router.push('/(tabs)');
+                return;
+            }
+
             if (notification.data?.matchId) {
                 router.push({ pathname: '/(tabs)/match/[id]', params: { id: notification.data.matchId } });
             }
