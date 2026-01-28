@@ -797,10 +797,18 @@ export const markMessagesAsRead = mutation({
         if (!match) return;
 
         const now = Date.now();
+        const lastActivity = match.lastActivity || 0;
+
         if (match.user1Id === user._id) {
-            await ctx.db.patch(args.matchId, { lastRead1: now });
+            // Only update if there is actually unread activity
+            if ((match.lastRead1 || 0) < lastActivity) {
+                await ctx.db.patch(args.matchId, { lastRead1: now });
+            }
         } else if (match.user2Id === user._id) {
-            await ctx.db.patch(args.matchId, { lastRead2: now });
+            // Only update if there is actually unread activity
+            if ((match.lastRead2 || 0) < lastActivity) {
+                await ctx.db.patch(args.matchId, { lastRead2: now });
+            }
         }
     }
 });
