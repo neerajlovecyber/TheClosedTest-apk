@@ -240,17 +240,28 @@ export const getIncomingRequests = query({
         const enrichedRequests = await Promise.all(
             requests.map(async (match) => {
                 const requestor = await ctx.db.get(match.user1Id);
-                const offeredApp = await ctx.db.get(match.app1Id); // App they will test for me (Wait, app1Id is THEIR app they offered)
-                // Correction: app1Id is Requestor's App (that *I* will defineatly have to test if I accept)
-                // app2Id is MY App (that *they* will test)
-
+                const offeredApp = await ctx.db.get(match.app1Id);
                 const myAppToCheck = await ctx.db.get(match.app2Id);
 
                 return {
                     ...match,
-                    requestor,
-                    offeredApp, // App I will have to test
-                    myApp: myAppToCheck, // App they want to test
+                    requestor: requestor ? {
+                        name: requestor.name,
+                        avatarUrl: resolveAvatarUrl(requestor.avatarUrl)
+                    } : undefined,
+                    offeredApp: offeredApp ? {
+                        _id: offeredApp._id,
+                        title: offeredApp.title,
+                        currentTesters: offeredApp.currentTesters,
+                        requiredTesters: offeredApp.requiredTesters,
+                        status: offeredApp.status
+                    } : undefined,
+                    myApp: myAppToCheck ? {
+                        title: myAppToCheck.title,
+                        currentTesters: myAppToCheck.currentTesters,
+                        requiredTesters: myAppToCheck.requiredTesters,
+                        status: myAppToCheck.status
+                    } : undefined,
                 };
             })
         );
@@ -674,12 +685,17 @@ export const getMatchDetails = query({
         return {
             match,
             app: {
-                ...appToTest,
-                iconUrl: resolvedUrl || "https://github.com/shadcn.png"
+                title: appToTest?.title,
+                iconUrl: resolvedUrl || "https://github.com/shadcn.png",
+                packageName: appToTest?.packageName,
+                instructions: appToTest?.instructions,
+                playStoreUrl: appToTest?.playStoreUrl,
+                storageIconId: appToTest?.storageIconId
             },
-            owner, // This is the owner of the app being tested
             partner: partner ? {
-                ...partner,
+                _id: partner._id,
+                name: partner.name,
+                email: partner.email,
                 avatarUrl: resolveAvatarUrl(partner.avatarUrl)
             } : null,
             startDate: match.startDate,
@@ -698,8 +714,11 @@ export const getMessages = query({
         const messages = await ctx.db
             .query("messages")
             .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
-            .order("asc")
-            .collect();
+            .order("desc") // Get newest first
+            .take(100); // Limit to 100
+
+        // Reverse to restore asc order (oldest to newest) for UI
+        messages.reverse();
 
         // Batch fetch unique senders (avoid N+1)
         const uniqueSenderIds = [...new Set(messages.map(m => m.senderId))];

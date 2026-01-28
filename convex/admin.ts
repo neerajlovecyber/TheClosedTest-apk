@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const internalSnapshotDailyStats = internalMutation({
     args: {},
@@ -163,31 +164,7 @@ export const getStats = query({
     },
 });
 
-// Get moderation stats for admin dashboard
-export const getModerationStats = query({
-    args: {},
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return null;
 
-        const admin = await ctx.db
-            .query("users")
-            .withIndex("by_tokenIdentifier", (q) =>
-                q.eq("tokenIdentifier", identity.tokenIdentifier)
-            )
-            .unique();
-
-        if (!admin || !admin.isAdmin) return null;
-
-        const reports = await ctx.db.query("reports").collect();
-        const tickets = await ctx.db.query("support_tickets").collect();
-
-        return {
-            pendingReports: reports.filter((r) => r.status === "pending").length,
-            openTickets: tickets.filter((t) => t.status === "open").length,
-        };
-    },
-});
 
 export const getUsersByFilter = query({
     args: {
@@ -251,7 +228,7 @@ export const getUsersByFilter = query({
             newUsers.forEach(u => activeUserIds.add(u._id));
 
             // Fetch the specific users we identified
-            const users = await Promise.all(Array.from(activeUserIds).map(id => ctx.db.get(id)));
+            const users = await Promise.all(Array.from(activeUserIds).map(id => ctx.db.get(id as Id<"users">)));
             return users.filter(Boolean);
         }
 
