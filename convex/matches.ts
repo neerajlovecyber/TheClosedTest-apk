@@ -583,48 +583,36 @@ export const getMyActiveTests = query({
                 const myProofStatus = todayProof?.status || "not_uploaded";
                 const partnerProofStatus = partnerProof?.status || "not_uploaded";
 
-                // Needs review if partner uploaded and it's pending review from me
-                // Note: I am the "reviewer" for the app I am testing?
-                // Wait.
-                // Requestor (User 1) tests App 2 (owned by User 2).
-                // Proofs are uploaded by the tester.
-                // So I upload proof for App 2. Owner (User 2) reviews it.
-                // User 2 uploads proof for App 1 (my app). I review it.
-
-                // So 'partnerProof' here refers to the proof uploaded by the partner for MY app (App 1 if I am User 1).
-                // I need to review 'partnerProof'.
                 const isReviewPending = partnerProofStatus === "pending";
-
-                // If proof is approved, task is complete for today - don't show
-                // BUT also show if I need to review partner's proof
                 const needsAttention = (!todayProof || todayProof.status !== "approved") || isReviewPending;
-
-                const lastRead = isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
-                const hasUnread = (match.lastActivity || 0) > lastRead;
 
                 return {
                     id: match._id,
                     name: appToTest?.title || "Unknown App",
-                    status: match.status,
-                    startDate: match.startDate,
+                    senderId: ownerId,
+                    owner: owner?.name || "Unknown User",
+                    avatarUrl: resolveAvatarUrl(owner?.avatarUrl),
                     day,
                     totalDays: 14,
-                    owner: owner?.name || "Unknown User",
-                    relatedMyApp: myApp?.title || "My App",
-                    iconUrl: resolvedUrl || "https://github.com/shadcn.png",
-                    needsAttention,
                     myProofStatus,
-                    partnerProofStatus,
                     isReviewPending,
-                    hasUnread
+                    myAppId,
+                    appToTestId,
+                    needsAttention,
+                    hasUnread: match.lastActivity > (isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0)),
+                    iconUrl: resolvedUrl || "https://github.com/shadcn.png"
                 };
             })
         );
 
-        // Return all active matches (UI will split into pending/completed)
-        return enrichedMatches;
+        // Sort: tasks needing attention first
+        return enrichedMatches.sort((a, b) => {
+            if (a.needsAttention === b.needsAttention) return 0;
+            return a.needsAttention ? -1 : 1;
+        });
     },
 });
+
 
 export const getMatchDetails = query({
     args: { matchId: v.id("matches") },

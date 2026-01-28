@@ -300,7 +300,7 @@ export const getUnreadCount = query({
         const unreadNotifications = await ctx.db
             .query("notifications")
             .withIndex("by_userId_read", (q) => q.eq("userId", user._id).eq("read", false))
-            .collect();
+            .take(1);
 
         return unreadNotifications.length;
     },
