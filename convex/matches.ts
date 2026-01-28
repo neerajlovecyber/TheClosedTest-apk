@@ -595,6 +595,7 @@ export const getMyActiveTests = query({
                     day,
                     totalDays: 14,
                     myProofStatus,
+                    partnerProofStatus,
                     isReviewPending,
                     myAppId,
                     appToTestId,
