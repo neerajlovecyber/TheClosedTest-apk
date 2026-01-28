@@ -8,9 +8,10 @@ import { api } from '@/convex/_generated/api';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { toast } from '@/lib/sonner';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, SendIcon, UserIcon, ShieldIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, SendIcon, UserIcon, ShieldIcon, ZapIcon } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { Id } from '@/convex/_generated/dataModel';
+import { LinkableText } from '@/components/ui/LinkableText';
 
 export default function AdminChatScreen() {
     const router = useRouter();
@@ -65,6 +66,7 @@ export default function AdminChatScreen() {
 
     const [newMessage, setNewMessage] = useState("");
     const [sending, setSending] = useState(false);
+    const [showQuickActions, setShowQuickActions] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     // Mark as read when messages load
@@ -86,11 +88,17 @@ export default function AdminChatScreen() {
                 type: "text",
             });
             setNewMessage("");
+            setShowQuickActions(false);
         } catch (error: any) {
             toast.error("Failed to send", { description: error.message });
         } finally {
             setSending(false);
         }
+    };
+
+    const handleQuickSetupGuide = () => {
+        setNewMessage("Your app is not visible to everyone on Google Play. Please fix it using this setup guide: https://theclosedtest.neerajlovecyber.com/playstore-guide");
+        setShowQuickActions(false);
     };
 
     if (initializing || (activeChatId && !chatDetails)) {
@@ -159,19 +167,45 @@ export default function AdminChatScreen() {
                                 ? 'bg-primary self-end rounded-tr-none'
                                 : 'bg-muted self-start rounded-tl-none'
                                 }`}>
-                                <Text className={`text-base ${isMe ? 'text-primary-foreground' : 'text-foreground'}`}>
-                                    {item.content}
-                                </Text>
+                                <LinkableText
+                                    text={item.content}
+                                    textClassName={`text-base ${isMe ? 'text-primary-foreground' : 'text-foreground'}`}
+                                    linkClassName={`underline ${isMe ? 'text-white font-bold' : 'text-blue-500'}`}
+                                />
                                 <Text className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                     {format(item.sentAt, 'h:mm a')}
                                 </Text>
                             </View>
                         );
                     }}
+
                 />
 
-                {/* Input */}
-                <View className="flex-row items-center px-4 pt-4 border-t border-border bg-background" style={{ paddingBottom: insets.bottom }}>
+                <View className="flex-row items-center px-4 pt-4 border-t border-border bg-background relative" style={{ paddingBottom: insets.bottom }}>
+                    {/* Quick Actions Menu */}
+                    {showQuickActions && (
+                        <View className="absolute bottom-20 left-4 bg-popover border border-border rounded-lg shadow-lg p-2 min-w-[200px] z-50">
+                            <Text className="text-xs font-bold text-muted-foreground mb-2 px-2">Quick Actions</Text>
+                            <TouchableOpacity
+                                onPress={handleQuickSetupGuide}
+                                className="p-2 hover:bg-muted/50 rounded flex-row items-center"
+                            >
+                                <Icon as={ZapIcon} className="size-4 text-amber-500 mr-2" />
+                                <Text className="text-sm text-foreground font-medium">Send Setup Guide</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* Only show Quick Action button for Admin */}
+                    {userId && (
+                        <TouchableOpacity
+                            onPress={() => setShowQuickActions(!showQuickActions)}
+                            className={`mr-2 w-10 h-10 rounded-full items-center justify-center ${showQuickActions ? 'bg-primary/20' : 'bg-secondary'}`}
+                        >
+                            <Icon as={ZapIcon} className={`size-5 ${showQuickActions ? 'text-primary' : 'text-muted-foreground'}`} />
+                        </TouchableOpacity>
+                    )}
+
                     <TextInput
                         className="flex-1 bg-secondary rounded-2xl px-4 py-2.5 text-foreground max-h-32 text-sm"
                         placeholder="Message..."
