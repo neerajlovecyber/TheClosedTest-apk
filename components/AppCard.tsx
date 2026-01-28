@@ -23,25 +23,37 @@ export interface AppItem {
     isNew?: boolean;
     hasUnread?: boolean;
     isReviewPending?: boolean;
+    flagCount?: number;
+    visibility?: {
+        status: 'unverified' | 'visible' | 'hidden';
+        positiveVotes: number;
+        negativeVotes: number;
+        voters: string[];
+    };
 }
 
 interface AppCardProps {
     item: AppItem;
     onPress?: () => void;
+    onReport?: () => void;
     variant?: 'marketplace' | 'my-app' | 'testing';
     actionBadge?: string;
     matchStatus?: 'active' | 'pending_sent' | 'pending_received' | string;
 }
 
-export function AppCard({ item, onPress, variant = 'marketplace', actionBadge, matchStatus }: AppCardProps) {
+export function AppCard({ item, onPress, onReport, variant = 'marketplace', actionBadge, matchStatus }: AppCardProps) {
     const isMyApp = variant === 'my-app';
     const isTesting = variant === 'testing';
 
     // Determine if filled (either from flag or by comparing testers)
     const isFilled = item.isFilled || (item.currentTesters !== undefined && item.requiredTesters !== undefined && item.currentTesters >= item.requiredTesters);
 
+    // Show warning if flagged multiple times or visibility is hidden
+    const isHidden = item.visibility?.status === 'hidden';
+    const isFlagged = (item.flagCount || 0) > 0 || isHidden;
+
     const Content = (
-        <Card className="mb-3 p-1.5 flex-row gap-2">
+        <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>
             <Image
                 source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
                 className="w-20 h-20 rounded-xl bg-muted border border-border"
@@ -135,14 +147,25 @@ export function AppCard({ item, onPress, variant = 'marketplace', actionBadge, m
                 {/* Bottom Row / Content */}
                 <View className="mt-1">
                     {variant === 'marketplace' && (
-                        <View className="flex-row items-center gap-3">
-                            <View className="bg-secondary/50 px-2 py-1 rounded-md">
-                                <Text className="text-xs font-medium text-foreground" numberOfLines={1}>{item.ownerName || 'Unknown'}</Text>
+                        <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center gap-3">
+                                <View className="bg-secondary/50 px-2 py-1 rounded-md">
+                                    <Text className="text-xs font-medium text-foreground" numberOfLines={1}>{item.ownerName || 'Unknown'}</Text>
+                                </View>
+                                <View className="flex-row items-center gap-1">
+                                    <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
+                                    <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
+                                </View>
                             </View>
-                            <View className="flex-row items-center gap-1">
-                                <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
-                                <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
-                            </View>
+
+                            {/* Flag Warning */}
+                            {isFlagged && (
+                                <View className="flex-row items-center bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded text-[10px]">
+                                    <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold">
+                                        {isHidden ? '⚠️ Not Visible' : '⚠️ Check Info'}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     )}
 
@@ -168,9 +191,12 @@ export function AppCard({ item, onPress, variant = 'marketplace', actionBadge, m
         </Card>
     );
 
-    if (onPress) {
+    if (onPress || onReport) {
         return (
-            <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+            <TouchableOpacity
+                onPress={onPress}
+                activeOpacity={0.7}
+            >
                 {Content}
             </TouchableOpacity>
         );

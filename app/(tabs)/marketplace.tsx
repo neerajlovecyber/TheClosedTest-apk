@@ -16,6 +16,8 @@ import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import { BoostedAppsSection } from '@/components/BoostedAppsSection';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
+import { ReportDialog } from '@/components/ReportDialog';
+import { Alert } from 'react-native';
 
 // Loading placeholder component
 const ListLoadingPlaceholder = memo(() => (
@@ -30,6 +32,10 @@ export default function MarketplaceScreen() {
     const { width: windowWidth } = useWindowDimensions();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
+
+    // Reporting state
+    const [showReportDialog, setShowReportDialog] = useState(false);
+    const [reportApp, setReportApp] = useState<any>(null);
 
     const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any[] }) => {
         if (viewableItems.length > 0) {
@@ -109,15 +115,33 @@ export default function MarketplaceScreen() {
         router.push('/add-app');
     }, [router]);
 
+    const handleReportApp = useCallback((app: any) => {
+        setReportApp(app);
+
+        // Show alert to confirm they want to report (since long press might be accidental)
+        Alert.alert(
+            "Report App",
+            `Do you want to report "${app.title}"?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Report",
+                    onPress: () => setShowReportDialog(true)
+                }
+            ]
+        );
+    }, []);
+
     // Memoized render functions for LegendList
     const renderAppItem = useCallback(({ item }: { item: any }) => (
         <AppCard
             key={item._id}
             item={item}
             onPress={() => handleAppPress(item._id)}
+            onReport={() => handleReportApp(item)}
             matchStatus={matchStatusMap.get(item._id)}
         />
-    ), [handleAppPress, matchStatusMap]);
+    ), [handleAppPress, matchStatusMap, handleReportApp]);
 
     const keyExtractor = useCallback((item: any) => item._id, []);
 
@@ -147,11 +171,12 @@ export default function MarketplaceScreen() {
                     key={app._id}
                     item={app}
                     onPress={() => handleAppPress(app._id)}
+                    onReport={() => handleReportApp(app)}
                     matchStatus={matchStatusMap.get(app._id)}
                 />
             ))}
         </View>
-    ), [windowWidth, handleAppPress, matchStatusMap]);
+    ), [windowWidth, handleAppPress, matchStatusMap, handleReportApp]);
 
     const groupKeyExtractor = useCallback((item: any[], index: number) => `group-${index}`, []);
 
@@ -294,6 +319,18 @@ export default function MarketplaceScreen() {
 
             {/* Floating Action Button - Boost Hub with Premium Animation */}
             <AnimatedFAB onPress={() => router.push('/boost-hub')} />
+
+            {/* Report Dialog */}
+            {reportApp && (
+                <ReportDialog
+                    visible={showReportDialog}
+                    onClose={() => setShowReportDialog(false)}
+                    reportType="app"
+                    targetId={reportApp._id}
+                    reportedAppId={reportApp._id}
+                    targetName={reportApp.title}
+                />
+            )}
         </View>
     );
 }

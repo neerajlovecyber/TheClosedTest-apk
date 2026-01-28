@@ -159,7 +159,9 @@ export const getMarketplaceApps = query({
                 isNew,
                 ownerName: owner?.name || "Unknown",
                 ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
-                reputation: owner?.reputation || 0
+                reputation: owner?.reputation || 0,
+                flagCount: app.flagCount || 0,
+                visibility: app.visibility
             };
         }));
 
@@ -228,7 +230,8 @@ export const getMyApps = query({
                 ...app,
                 iconUrl: resolvedUrl,
                 currentTesters: actualTesters,
-                hasUnread
+                hasUnread,
+                visibility: app.visibility
             };
         }));
 
@@ -763,5 +766,107 @@ export const syncCurrentTesters = mutation({
         }
 
         return { totalApps: apps.length, updated };
+    }
+});
+
+// Verify App Visibility (Crowd-sourced)
+export const verifyAppVisibility = mutation({
+    args: {
+        appId: v.id("apps"),
+        isVisible: v.boolean(),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const app = await ctx.db.get(args.appId);
+        if (!app) throw new Error("App not found");
+
+        // Do not allow owner to vote
+        if (app.userId === user._id) throw new Error("Owner cannot vote");
+
+        // Initialize visibility if missing
+        const currentVisibility = app.visibility || {
+            status: "unverified",
+            positiveVotes: 0,
+            negativeVotes: 0,
+            voters: []
+        };
+
+        // Check if already voted
+        if (currentVisibility.voters.includes(user._id)) {
+            throw new Error("You have already voted");
+        }
+
+        // Update votes
+        let { positiveVotes, negativeVotes, status, voters } = currentVisibility;
+        if (args.isVisible) {
+            positiveVotes++;
+        } else {
+            negativeVotes++;
+        }
+
+        voters.push(user._id);
+
+        // Logic for determining status
+        // Threshold: 2 votes to confirm
+        if (positiveVotes >= 2) {
+            status = "visible";
+        } else if (negativeVotes >= 2) {
+            status = "hidden";
+            // Optional: Auto-flag the app as well?
+        }
+
+        await ctx.db.patch(args.appId, {
+            visibility: {
+                status,
+                positiveVotes,
+                negativeVotes,
+                voters
+            },
+            updatedAt: Date.now()
+        });
+
+        return { status };
+    }
+});
+
+// Reset Visibility Status (Owner Action)
+export const markAppFixed = mutation({
+    args: { appId: v.id("apps") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) throw new Error("User not found");
+
+        const app = await ctx.db.get(args.appId);
+        if (!app) throw new Error("App not found");
+
+        if (app.userId !== user._id) throw new Error("Not authorized");
+
+        // Reset to unverified
+        await ctx.db.patch(args.appId, {
+            visibility: {
+                status: "unverified",
+                positiveVotes: 0,
+                negativeVotes: 0,
+                voters: []
+            },
+            flagCount: 0, // Also reset flags if we are treating this as "I fixed it"
+            updatedAt: Date.now()
+        });
     }
 });

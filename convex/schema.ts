@@ -53,6 +53,14 @@ export default defineSchema({
         // Boost system fields
         boostScore: v.optional(v.number()), // Points in current 48h cycle (default 0)
         lastBoostedAt: v.optional(v.number()), // Timestamp of last boost action
+        flagCount: v.optional(v.number()), // Number of times reported as broken/not visible
+        visibility: v.optional(v.object({
+            status: v.union(v.literal("unverified"), v.literal("visible"), v.literal("hidden")), // hidden = problem
+            positiveVotes: v.number(),
+            negativeVotes: v.number(),
+            // Keep track of who voted to prevent double voting
+            voters: v.array(v.id("users"))
+        })),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
@@ -146,6 +154,7 @@ export default defineSchema({
             v.literal("toxic_user"),
             v.literal("other"),
             v.literal("app_broken"),
+            v.literal("app_not_visible"),
             v.literal("user_unresponsive")
         ),
         targetId: v.string(), // ID of the Match, App, or User

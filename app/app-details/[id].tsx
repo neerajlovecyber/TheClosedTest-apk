@@ -35,7 +35,10 @@ import {
     InfoIcon,
     PlayIcon,
     RocketIcon,
-    FlagIcon
+    FlagIcon,
+    EyeIcon,
+    EyeOffIcon,
+    WrenchIcon
 } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -61,6 +64,9 @@ export default function AppDetailsScreen() {
     const rejectSwap = useMutation(api.matches.rejectSwap);
     const deleteApp = useMutation(api.apps.deleteApp);
     const markAppAsCompleted = useMutation(api.apps.markAppAsCompleted);
+    const verifyAppVisibility = useMutation(api.apps.verifyAppVisibility);
+    const markAppFixed = useMutation(api.apps.markAppFixed);
+    const user = useQuery(api.users.getCurrentUser);
 
     // Check Match Status (with caching)
     const { data: matchStatus } = useCachedConvexQuery(['matchStatus', appId], api.matches.getMatchStatus, { appId });
@@ -146,6 +152,28 @@ export default function AppDetailsScreen() {
             setHasSentRequest(true); // Optimistic update
         } catch (error: any) {
             toast.error('Error', { description: error.message || "Failed to send request" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Visibility Verification
+    const handleVoteVisibility = async (isVisible: boolean) => {
+        try {
+            await verifyAppVisibility({ appId, isVisible });
+            toast.success("Thanks!", { description: "Your feedback helps improve the marketplace." });
+        } catch (error: any) {
+            toast.error("Error", { description: error.message });
+        }
+    };
+
+    const handleMarkFixed = async () => {
+        try {
+            setIsSubmitting(true);
+            await markAppFixed({ appId });
+            toast.success("Status Reset", { description: "App is now marked as unverified." });
+        } catch (error: any) {
+            toast.error("Error", { description: error.message });
         } finally {
             setIsSubmitting(false);
         }
@@ -277,6 +305,78 @@ export default function AppDetailsScreen() {
             </View>
 
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
+                {/* Critical Warning for Owner */}
+                {app.isMine && app.visibility?.status === 'hidden' && (
+                    <View className="px-4 py-2 mt-2">
+                        <Card className="border-red-500 bg-red-50 dark:bg-red-900/10">
+                            <CardContent className="p-4 gap-3">
+                                <View className="flex-row items-center gap-2">
+                                    <Icon as={EyeOffIcon} className="size-5 text-red-600 dark:text-red-400" />
+                                    <Text className="font-bold text-red-700 dark:text-red-400 text-base">
+                                        App Reported Not Visible!
+                                    </Text>
+                                </View>
+
+                                <Text className="text-red-600/80 dark:text-red-300/80 text-sm leading-normal">
+                                    Testers are unable to find your app on the Play Store. Ensure you have added the correct Google Group link and that your app is published.
+                                </Text>
+
+                                <TouchableOpacity
+                                    onPress={() => Linking.openURL('https://theclosedtest.neerajlovecyber.com/playstore-guide')}
+                                >
+                                    <Text className="underline font-bold text-red-700 dark:text-red-400">View Setup Guide</Text>
+                                </TouchableOpacity>
+
+                                <Button
+                                    size="sm"
+                                    className="mt-2 bg-red-600"
+                                    onPress={handleMarkFixed}
+                                    disabled={isSubmitting}
+                                >
+                                    <Icon as={WrenchIcon} className="size-4 text-white mr-2" />
+                                    <Text className="text-white font-bold">I have fixed this</Text>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
+
+                {/* Verification Card for Visitors */}
+                {!app.isMine && (!app.visibility || app.visibility.status !== 'visible') && user && (!app.visibility?.voters?.includes(user._id)) && (
+                    <View className="px-4 py-2 mt-2">
+                        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-900/10">
+                            <CardContent className="p-4 gap-3">
+                                <View className="flex-row items-center gap-2">
+                                    <Icon as={EyeIcon} className="size-5 text-orange-600 dark:text-orange-400" />
+                                    <Text className="font-bold text-orange-700 dark:text-orange-400 text-base">
+                                        Can you see this app?
+                                    </Text>
+                                </View>
+                                <Text className="text-orange-600/80 dark:text-orange-300/80 text-sm">
+                                    Please help us verify if this app is visible on the Play Store.
+                                </Text>
+                                <View className="flex-row gap-3">
+                                    <Button
+                                        size="sm"
+                                        className="flex-1 bg-orange-600 dark:bg-orange-600 border-0 shadow-sm"
+                                        onPress={() => handleVoteVisibility(true)}
+                                    >
+                                        <Text className="text-white font-bold">Yes, it opens</Text>
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="flex-1"
+                                        onPress={() => handleVoteVisibility(false)}
+                                    >
+                                        <Text className="text-foreground font-medium">No, error</Text>
+                                    </Button>
+                                </View>
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
+
                 {/* App Header Card */}
                 <View className="px-4 py-4 mb-2">
                     <Card className="border-0 overflow-hidden bg-blue-950 shadow-lg">

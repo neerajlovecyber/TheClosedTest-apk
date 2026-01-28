@@ -10,6 +10,7 @@ export const createReport = mutation({
             v.literal("toxic_user"),
             v.literal("other"),
             v.literal("app_broken"),
+            v.literal("app_not_visible"),
             v.literal("user_unresponsive")
         ),
         targetId: v.string(),
@@ -45,6 +46,17 @@ export const createReport = mutation({
             status: "pending",
             createdAt: Date.now(),
         });
+
+        // If reporting an app as broken or not visible, increment flag count
+        if (args.reportedAppId && (args.type === "app_broken" || args.type === "app_not_visible" || args.type === "app_spam")) {
+            const app = await ctx.db.get(args.reportedAppId);
+            if (app) {
+                await ctx.db.patch(args.reportedAppId, {
+                    flagCount: (app.flagCount || 0) + 1,
+                    updatedAt: Date.now()
+                });
+            }
+        }
 
         // TODO: Send notification to admins
         // This would be implemented when we have admin notification system

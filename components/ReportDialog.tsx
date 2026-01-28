@@ -32,7 +32,7 @@ export function ReportDialog({
     reportedAppId,
     targetName,
 }: ReportDialogProps) {
-    const [selectedType, setSelectedType] = useState<"dispute" | "app_spam" | "toxic_user" | "other" | "app_broken" | "user_unresponsive">("other");
+    const [selectedType, setSelectedType] = useState<"dispute" | "app_spam" | "toxic_user" | "other" | "app_broken" | "user_unresponsive" | "app_not_visible">("other");
     const [description, setDescription] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const insets = useSafeAreaInsets();
@@ -41,9 +41,10 @@ export function ReportDialog({
 
     const reportTypes = [
         { value: "app_spam" as const, label: "Spam or Fake App", description: "App is fake, misleading, or spam" },
-        { value: "app_broken" as const, label: "App Not Working", description: "App crashes or cannot be installed" }, // New
+        { value: "app_not_visible" as const, label: "App Not Visible", description: "Link broken or not available in country" },
+        { value: "app_broken" as const, label: "App Crashing/Buggy", description: "App crashes frequently or cannot install" },
         { value: "toxic_user" as const, label: "Toxic Behavior", description: "Harassment, inappropriate language" },
-        { value: "user_unresponsive" as const, label: "User Unresponsive", description: "User not fulfilling test requirements" }, // New
+        { value: "user_unresponsive" as const, label: "User Unresponsive", description: "User not fulfilling test requirements" },
         { value: "dispute" as const, label: "Dispute / Conflict", description: "Disagreement about testing or proofs" },
         { value: "other" as const, label: "Other Issue", description: "Something else" },
     ];
