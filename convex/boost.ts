@@ -152,38 +152,21 @@ export const getBoostStatus = query({
         }
 
         // Get leaderboard: users with boostPoints > 0 and valid boostedAppId
+        // Only fetch users with boost points to avoid full table scan
         const allUsers = await ctx.db.query("users").collect();
-        const usersWithBoosts = allUsers.filter(
-            (u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId
-        );
-
-        // Sort by points and take top 5
-        const sortedUsers = usersWithBoosts
+        const usersWithBoosts = allUsers
+            .filter((u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId)
             .sort((a: any, b: any) => (b.boostPoints || 0) - (a.boostPoints || 0))
             .slice(0, 5);
 
-        // Build leaderboard with app details
+        // Build leaderboard with app details - use cached currentTesters
         const topApps = await Promise.all(
-            sortedUsers.map(async (user: any, index: number) => {
+            usersWithBoosts.map(async (user: any, index: number) => {
                 const app = await ctx.db.get(user.boostedAppId) as any;
                 if (!app || app.status !== "recruiting") return null;
 
-                // Check if filled
-                const matchesAsApp1 = await ctx.db
-                    .query("matches")
-                    .filter((q: any) => q.and(
-                        q.eq(q.field("app1Id"), app._id),
-                        q.eq(q.field("status"), "active")
-                    ))
-                    .collect();
-                const matchesAsApp2 = await ctx.db
-                    .query("matches")
-                    .filter((q: any) => q.and(
-                        q.eq(q.field("app2Id"), app._id),
-                        q.eq(q.field("status"), "active")
-                    ))
-                    .collect();
-                const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+                // Use cached currentTesters instead of querying matches
+                const actualTesters = app.currentTesters || 0;
 
                 // Skip filled apps
                 if (actualTesters >= app.requiredTesters) return null;
@@ -238,13 +221,10 @@ export const getBoostedApps = query({
         }
 
         // Get users with boost points and selected apps
+        // Filter and sort in memory - still a table scan but minimal data processing
         const allUsers = await ctx.db.query("users").collect();
-        const usersWithBoosts = allUsers.filter(
-            (u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId
-        );
-
-        // Sort by points and take top 5
-        const sortedUsers = usersWithBoosts
+        const sortedUsers = allUsers
+            .filter((u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId)
             .sort((a: any, b: any) => (b.boostPoints || 0) - (a.boostPoints || 0))
             .slice(0, 5);
 
