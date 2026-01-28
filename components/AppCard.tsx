@@ -66,6 +66,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                         {item.hasUnread && (
                             <View className="bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-background shadow-sm" />
                         )}
+
                     </View>
 
                     {/* Action Badge (highest priority) */}
@@ -175,6 +176,13 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                                 className={`h-full ${isFilled ? 'bg-green-500' : 'bg-primary'}`}
                                 style={{ width: `${Math.min(100, ((item.currentTesters || 0) / (item.requiredTesters || 12)) * 100)}%` }}
                             />
+                        </View>
+                    )}
+
+                    {/* Hidden Warning for My App (Below Progress Bar) */}
+                    {isMyApp && isHidden && (
+                        <View className="flex-row items-center gap-1.5 mt-2 bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded self-start">
+                            <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold">⚠️ App reported not visible to testers</Text>
                         </View>
                     )}
 
