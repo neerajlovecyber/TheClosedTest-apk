@@ -46,7 +46,8 @@ export const getChatDetails = query({
         if (!identity) throw new Error("Not authenticated");
 
         const chat = await ctx.db.get(args.chatId);
-        if (!chat) throw new Error("Chat not found");
+        // If chat is deleted/not found, return null so UI can handle it gracefully
+        if (!chat) return null;
 
         const messages = await ctx.db
             .query("admin_messages")
@@ -65,6 +66,8 @@ export const getChatDetails = query({
         };
     },
 });
+
+
 
 // Send a message
 export const sendMessage = mutation({
@@ -289,5 +292,37 @@ export const hasUnreadForAdmin = query({
         // Check for any unread chats
         const chats = await ctx.db.query("admin_chats").collect();
         return chats.some(c => c.hasUnreadAdmin);
+    },
+});
+
+// Delete a chat (presumably Admin only)
+export const deleteChat = mutation({
+    args: { chatId: v.id("admin_chats") },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .first();
+        if (!user) throw new Error("User not found");
+
+        if (!user.isAdmin) throw new Error("Unauthorized");
+
+        // Delete all messages associated with the chat
+        const messages = await ctx.db
+            .query("admin_messages")
+            .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
+            .collect();
+
+        await Promise.all(messages.map(msg => ctx.db.delete(msg._id)));
+
+        // Delete the chat itself
+        // Check if chat exists before deleting to be safe
+        const existingChat = await ctx.db.get(args.chatId);
+        if (existingChat) {
+            await ctx.db.delete(args.chatId);
+        }
     },
 });

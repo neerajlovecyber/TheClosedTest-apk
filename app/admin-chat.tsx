@@ -8,10 +8,11 @@ import { api } from '@/convex/_generated/api';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { toast } from '@/lib/sonner';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, SendIcon, UserIcon, ShieldIcon, ZapIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, SendIcon, UserIcon, ShieldIcon, ZapIcon, TrashIcon } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { Id } from '@/convex/_generated/dataModel';
 import { LinkableText } from '@/components/ui/LinkableText';
+import { Alert } from 'react-native';
 
 export default function AdminChatScreen() {
     const router = useRouter();
@@ -63,6 +64,7 @@ export default function AdminChatScreen() {
 
     const sendMessage = useMutation(api.adminChats.sendMessage);
     const markAsRead = useMutation(api.adminChats.markAsRead);
+    const deleteChat = useMutation(api.adminChats.deleteChat);
 
     const [newMessage, setNewMessage] = useState("");
     const [sending, setSending] = useState(false);
@@ -94,6 +96,31 @@ export default function AdminChatScreen() {
         } finally {
             setSending(false);
         }
+    };
+
+    const handleDeleteChat = () => {
+        if (!activeChatId) return;
+
+        Alert.alert(
+            "Delete Chat",
+            "Are you sure you want to delete this chat history? This action cannot be undone.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteChat({ chatId: activeChatId });
+                            toast.success("Chat deleted");
+                            router.back();
+                        } catch (error: any) {
+                            toast.error("Failed to delete", { description: error.message });
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const handleQuickSetupGuide = () => {
@@ -143,6 +170,13 @@ export default function AdminChatScreen() {
                         </>
                     )}
                 </View>
+
+                {/* Delete Button (Admin Only) */}
+                {userId && activeChatId && (
+                    <TouchableOpacity onPress={handleDeleteChat} className="p-2">
+                        <Icon as={TrashIcon} className="size-5 text-red-500" />
+                    </TouchableOpacity>
+                )}
             </View>
 
             <KeyboardAvoidingView
@@ -156,7 +190,7 @@ export default function AdminChatScreen() {
                     contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                     onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-                    renderItem={({ item }) => {
+                    renderItem={({ item, index }) => {
                         // "isMe" depends on the viewer's perspective:
                         // - If viewing as Admin (userId param exists): Admin messages are "mine"
                         // - If viewing as User (no userId param): User messages (not admin) are "mine"
@@ -175,6 +209,14 @@ export default function AdminChatScreen() {
                                 <Text className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                     {format(item.sentAt, 'h:mm a')}
                                 </Text>
+                                {/* Seen indicator */}
+                                {isMe && index === (chatDetails?.messages?.length || 0) - 1 && (
+                                    (userId ? !chatDetails?.hasUnreadUser : !chatDetails?.hasUnreadAdmin) && (
+                                        <Text className="text-[10px] text-right text-primary-foreground/70 -mt-1 font-medium">
+                                            Seen
+                                        </Text>
+                                    )
+                                )}
                             </View>
                         );
                     }}
@@ -224,6 +266,6 @@ export default function AdminChatScreen() {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
