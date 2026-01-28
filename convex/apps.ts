@@ -189,7 +189,18 @@ export const getMyApps = query({
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
 
-        // Map over apps to resolve full image URLs
+        // Batch fetch all matches for this user upfront (avoid N+1)
+        const matchesAsUser1 = await ctx.db
+            .query("matches")
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .collect();
+        const matchesAsUser2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .collect();
+        const allUserMatches = [...matchesAsUser1, ...matchesAsUser2];
+
+        // Map apps to resolved data
         const appsWithUrlsAndTesters = await Promise.all(apps.map(async (app) => {
             let resolvedUrl = app.iconUrl;
             if (app.storageIconId) {
@@ -198,26 +209,15 @@ export const getMyApps = query({
                 resolvedUrl = await getImageUrl(ctx, app.iconUrl);
             }
 
-            // Use cached currentTesters instead of counting matches
+            // Use cached currentTesters
             const actualTesters = app.currentTesters || 0;
 
-            // Check for unread messages using indexes (much faster than filter)
-            const matchesAsApp1 = await ctx.db
-                .query("matches")
-                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
-                .collect();
-
-            const matchesAsApp2 = await ctx.db
-                .query("matches")
-                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
-                .collect();
-
-            // Only check active matches for unread status
+            // Check for unread in memory (no additional queries!)
             let hasUnread = false;
-            const allActiveMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
-                m => m.status === "active"
+            const appMatches = allUserMatches.filter(
+                m => (m.app1Id === app._id || m.app2Id === app._id) && m.status === "active"
             );
-            for (const m of allActiveMatches) {
+            for (const m of appMatches) {
                 const isUser1 = m.user1Id === user._id;
                 const lastRead = isUser1 ? (m.lastRead1 || 0) : (m.lastRead2 || 0);
                 if ((m.lastActivity || 0) > lastRead) {

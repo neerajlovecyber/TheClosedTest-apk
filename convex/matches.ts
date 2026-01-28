@@ -701,17 +701,20 @@ export const getMessages = query({
             .order("asc")
             .collect();
 
-        const messagesWithSender = await Promise.all(
-            messages.map(async (msg) => {
-                const sender = await ctx.db.get(msg.senderId);
-                return {
-                    ...msg,
-                    senderName: sender?.name || "Unknown",
-                    senderAvatar: resolveAvatarUrl(sender?.avatarUrl),
-                    isMe: sender?.tokenIdentifier === identity.tokenIdentifier
-                };
-            })
-        );
+        // Batch fetch unique senders (avoid N+1)
+        const uniqueSenderIds = [...new Set(messages.map(m => m.senderId))];
+        const senders = await Promise.all(uniqueSenderIds.map(id => ctx.db.get(id)));
+        const senderMap = new Map(senders.filter(Boolean).map(s => [s!._id, s!]));
+
+        const messagesWithSender = messages.map((msg) => {
+            const sender = senderMap.get(msg.senderId);
+            return {
+                ...msg,
+                senderName: sender?.name || "Unknown",
+                senderAvatar: resolveAvatarUrl(sender?.avatarUrl),
+                isMe: sender?.tokenIdentifier === identity.tokenIdentifier
+            };
+        });
         return messagesWithSender;
     }
 });
