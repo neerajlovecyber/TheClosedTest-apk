@@ -130,6 +130,8 @@ export default function EditAppScreen() {
                     const { uploadImageToR2 } = require('@/utils/image-uploader');
                     // Use deterministic filename: app-icons/<appId>.webp
                     iconUrl = await uploadImageToR2(processedImageUri, "app-icons", `${appId}.webp`);
+                    // Append timestamp to force cache refresh
+                    iconUrl = `${iconUrl}?t=${Date.now()}`;
                 } catch (uploadError: any) {
                     toast.error("Error", { description: "Icon upload failed: " + uploadError.message });
                     setIsSubmitting(false);
