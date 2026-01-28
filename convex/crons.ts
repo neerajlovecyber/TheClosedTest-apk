@@ -85,4 +85,12 @@ crons.daily(
     internal.matches.checkAppOwnerInactivity
 );
 
+// Sync currentTesters cache every 4 hours (0:00, 4:00, 8:00, 12:00, 16:00, 20:00 UTC)
+// Fixes discrepancies between marketplace and app details tester counts
+crons.interval(
+    "sync-tester-counts",
+    { hours: 4 },
+    internal.apps.internalSyncCurrentTesters
+);
+
 export default crons;

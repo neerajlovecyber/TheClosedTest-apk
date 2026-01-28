@@ -769,6 +769,48 @@ export const syncCurrentTesters = mutation({
     }
 });
 
+// Internal version for cron job - syncs currentTesters every 4 hours
+export const internalSyncCurrentTesters = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const apps = await ctx.db.query("apps").collect();
+        let updated = 0;
+        let details: string[] = [];
+
+        for (const app of apps) {
+            // Skip archived/completed apps to save resources
+            if (app.status === "archived") continue;
+
+            // Count using indexes
+            const matchesAsApp1 = await ctx.db
+                .query("matches")
+                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
+                .collect();
+            const matchesAsApp2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
+                .collect();
+
+            const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
+                m => m.status === "active" || m.status === "completed"
+            );
+            const actualTesters = activeMatches.length;
+
+            if (app.currentTesters !== actualTesters) {
+                await ctx.db.patch(app._id, {
+                    currentTesters: actualTesters,
+                    updatedAt: Date.now()
+                });
+                details.push(`${app.title}: ${app.currentTesters} -> ${actualTesters}`);
+                updated++;
+            }
+        }
+
+        console.log(`[Cron] Synced currentTesters: ${updated} apps updated`, details);
+        return { totalApps: apps.length, updated, details };
+    }
+});
+
 // Verify App Visibility (Crowd-sourced)
 export const verifyAppVisibility = mutation({
     args: {
