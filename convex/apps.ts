@@ -662,6 +662,7 @@ export const fixAppStatus = mutation({
 });
 
 // Batch fix for all apps (Admin/Maintenance)
+// Now also syncs currentTesters cache alongside status
 export const fixAllAppStatuses = internalMutation({
     args: {},
     handler: async (ctx) => {
@@ -669,57 +670,66 @@ export const fixAllAppStatuses = internalMutation({
         const apps = await ctx.db.query("apps").collect();
 
         let fixedCount = 0;
+        let syncedCount = 0;
         let appsChecked = 0;
-        let details = [];
+        let details: string[] = [];
 
         for (const app of apps) {
             appsChecked++;
-            // Skip archived or completed if we only care about active process
-            // But let's check 'filled' specifically as that's the bug
-            if (app.status !== 'filled' && app.status !== 'recruiting') continue;
+            // Skip archived apps
+            if (app.status === 'archived') continue;
 
-            // Recalculate active tester count
+            // Recalculate active tester count using indexes (faster)
             const matchesAsApp1 = await ctx.db
                 .query("matches")
-                .filter((q) => q.and(
-                    q.eq(q.field("app1Id"), app._id),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
+                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
                 .collect();
 
             const matchesAsApp2 = await ctx.db
                 .query("matches")
-                .filter((q) => q.and(
-                    q.eq(q.field("app2Id"), app._id),
-                    q.or(
-                        q.eq(q.field("status"), "active"),
-                        q.eq(q.field("status"), "completed")
-                    )
-                ))
+                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
                 .collect();
 
-            const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
+            const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
+                m => m.status === "active" || m.status === "completed"
+            );
+            const actualTesters = activeMatches.length;
             const shouldBeFilled = actualTesters >= app.requiredTesters;
 
-            let changed = false;
+            let statusChanged = false;
+            let testersSynced = false;
             let newStatus = app.status;
+            const updates: any = { updatedAt: Date.now() };
 
-            if (shouldBeFilled && app.status !== "filled") {
-                await ctx.db.patch(app._id, { status: "filled", updatedAt: Date.now() });
-                newStatus = "filled";
-                changed = true;
-            } else if (!shouldBeFilled && app.status === "filled") {
-                await ctx.db.patch(app._id, { status: "recruiting", updatedAt: Date.now() });
-                newStatus = "recruiting";
-                changed = true;
+            // Sync currentTesters if out of sync
+            if (app.currentTesters !== actualTesters) {
+                updates.currentTesters = actualTesters;
+                testersSynced = true;
+                syncedCount++;
             }
 
-            if (changed) {
-                fixedCount++;
-                details.push(`${app.title}: ${app.status} -> ${newStatus} (${actualTesters}/${app.requiredTesters})`);
+            // Fix status if needed (only for recruiting/filled apps)
+            if (app.status === 'filled' || app.status === 'recruiting') {
+                if (shouldBeFilled && app.status !== "filled") {
+                    updates.status = "filled";
+                    newStatus = "filled";
+                    statusChanged = true;
+                } else if (!shouldBeFilled && app.status === "filled") {
+                    updates.status = "recruiting";
+                    newStatus = "recruiting";
+                    statusChanged = true;
+                }
+            }
+
+            // Apply updates if any changes
+            if (statusChanged || testersSynced) {
+                await ctx.db.patch(app._id, updates);
+                if (statusChanged) fixedCount++;
+
+                const changes = [];
+                if (testersSynced) changes.push(`testers: ${app.currentTesters} -> ${actualTesters}`);
+                if (statusChanged) changes.push(`status: ${app.status} -> ${newStatus}`);
+                details.push(`${app.title}: ${changes.join(', ')}`);
             }
         }
 
@@ -727,7 +737,8 @@ export const fixAllAppStatuses = internalMutation({
             success: true,
             totalApps: apps.length,
             appsChecked,
-            fixedCount,
+            statusFixed: fixedCount,
+            testersSynced: syncedCount,
             details
         };
     }
