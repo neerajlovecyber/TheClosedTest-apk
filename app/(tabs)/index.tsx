@@ -378,7 +378,9 @@ export default function HomeScreen() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onPress={() => setIsRejectDialogOpen(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel onPress={() => setIsRejectDialogOpen(false)}>
+                            <Text className="font-bold text-foreground">Cancel</Text>
+                        </AlertDialogCancel>
                         <AlertDialogAction onPress={confirmReject} className="bg-destructive">
                             <Text className="text-white">Reject</Text>
                         </AlertDialogAction>

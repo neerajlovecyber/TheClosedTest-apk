@@ -106,13 +106,13 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                 {/* Action Buttons */}
                 <View className="flex-row gap-2">
                     <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
-                        className="flex-1 h-8 px-0 border-destructive/30 hover:bg-destructive/10 active:bg-destructive/20"
+                        className="flex-1 h-8 px-0 shadow-sm"
                         onPress={() => onReject(request._id)}
                     >
-                        <Icon as={XIcon} className="size-3.5 text-destructive mr-1.5" />
-                        <Text className="text-destructive font-semibold text-xs">Decline</Text>
+                        <Icon as={XIcon} className="size-3.5 text-white mr-1.5" />
+                        <Text className="text-white font-semibold text-xs">Decline</Text>
                     </Button>
 
                     <Button
