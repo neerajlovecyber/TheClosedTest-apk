@@ -53,7 +53,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
     const isFlagged = (item.flagCount || 0) > 0 || isHidden;
 
     const Content = (
-        <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>
+        <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-2 border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>
             <Image
                 source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
                 className="w-20 h-20 rounded-xl bg-muted border border-border"
