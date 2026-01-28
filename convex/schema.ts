@@ -24,7 +24,13 @@ export default defineSchema({
         updatedAt: v.number(),
     })
         .index("by_tokenIdentifier", ["tokenIdentifier"])
-        .index("by_boostPoints", ["boostPoints"]),
+        .index("by_boostPoints", ["boostPoints"])
+        .searchIndex("search_name", {
+            searchField: "name",
+        })
+        .searchIndex("search_email", {
+            searchField: "email",
+        }),
 
     apps: defineTable({
         userId: v.id("users"),

@@ -195,21 +195,24 @@ export const searchUsersToChat = query({
 
         if (!args.query) return [];
 
-        // Simple search (Convex doesn't have partial string match natively efficiently without search index, 
-        // but for this scale a filtered scan or if they have a search index is fine. 
-        // We'll fallback to scanning recent users or similar if no search service defined.
-        // Assuming small user base for now or using existing search capabilities if any)
+        // Search for users by name or email using the search indexes
 
-        // Use the existing users table. Ideally we'd use a search index. 
-        // For now, let's just fetch all and filter JS side (LIMITATION: won't scale indefinitely)
-        // OR better, if we assume they want to chat inactive users, we might need a dedicated search index.
-        // Let's implement a 'get all users' for now, capped.
+        // Use search indexes for efficient searching
+        const usersByName = await ctx.db
+            .query("users")
+            .withSearchIndex("search_name", (q) => q.search("name", args.query))
+            .take(20);
 
-        const users = await ctx.db.query("users").take(50);
-        return users.filter(u =>
-            u.name?.toLowerCase().includes(args.query.toLowerCase()) ||
-            u.email?.toLowerCase().includes(args.query.toLowerCase())
-        );
+        const usersByEmail = await ctx.db
+            .query("users")
+            .withSearchIndex("search_email", (q) => q.search("email", args.query))
+            .take(20);
+
+        // Deduplicate results
+        const userMap = new Map();
+        [...usersByName, ...usersByEmail].forEach(u => userMap.set(u._id, u));
+
+        return Array.from(userMap.values());
     }
 });
 
