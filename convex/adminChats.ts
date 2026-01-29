@@ -289,9 +289,13 @@ export const hasUnreadForAdmin = query({
             .first();
         if (!user?.isAdmin) return false;
 
-        // Check for any unread chats
-        const chats = await ctx.db.query("admin_chats").collect();
-        return chats.some(c => c.hasUnreadAdmin);
+        // OPTIMIZED: Just check if ANY chat has unread, exit early
+        const anyUnread = await ctx.db
+            .query("admin_chats")
+            .filter((q) => q.eq(q.field("hasUnreadAdmin"), true))
+            .first();
+
+        return anyUnread !== null;
     },
 });
 

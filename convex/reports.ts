@@ -278,12 +278,12 @@ export const getRecentReports = query({
     },
 });
 
-// Get count of pending reports (for Admin tab badge)
-export const getPendingCount = query({
+// Check if there are ANY pending reports (for Admin tab badge)
+export const hasPendingReports = query({
     args: {},
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return 0;
+        if (!identity) return false;
 
         const admin = await ctx.db
             .query("users")
@@ -292,13 +292,14 @@ export const getPendingCount = query({
             )
             .unique();
 
-        if (!admin || !admin.isAdmin) return 0;
+        if (!admin || !admin.isAdmin) return false;
 
-        const pending = await ctx.db
+        // OPTIMIZED: Just check if ANY pending report exists, exit early
+        const anyPending = await ctx.db
             .query("reports")
             .withIndex("by_status", (q) => q.eq("status", "pending"))
-            .collect();
+            .first();
 
-        return pending.length;
+        return anyPending !== null;
     },
 });

@@ -5,8 +5,8 @@ import { Icon } from '@/components/ui/icon';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/clerk-expo';
-import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
+import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 
 export default function TabLayout() {
     const { user } = useUser();
@@ -14,19 +14,19 @@ export default function TabLayout() {
     const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
     const insets = useSafeAreaInsets();
 
-    // Check for pending tasks that need attention
-    const activeTests = useQuery(api.matches.getMyActiveTests) || [];
+    // Optimized: Check if ANY tasks need attention (boolean, not count)
+    const { data: activeTests = [] } = useCachedConvexQuery(['activeTests'], api.matches.getMyActiveTests);
     const hasPendingTasks = activeTests.some((t: any) => t.needsAttention);
 
-    // Check for unread admin messages (User sees red dot on Settings)
-    const hasUnreadFromAdmin = useQuery(api.adminChats.hasUnreadFromAdmin) ?? false;
+    // Optimized: Check if user has ANY unread from admin (boolean)
+    const { data: hasUnreadFromAdmin = false } = useCachedConvexQuery(['hasUnreadFromAdmin'], api.adminChats.hasUnreadFromAdmin);
 
-    // Check for unread messages for Admin (Admin sees red dot on Admin tab)
-    const hasUnreadForAdmin = useQuery(api.adminChats.hasUnreadForAdmin) ?? false;
+    // Optimized: Check if admin has ANY unread (boolean)
+    const { data: hasUnreadForAdmin = false } = useCachedConvexQuery(['hasUnreadForAdmin'], api.adminChats.hasUnreadForAdmin);
 
-    // Check for pending reports (Admin sees red dot on Admin tab)
-    const pendingReportsCount = useQuery(api.reports.getPendingCount) ?? 0;
-    const hasAdminNotifications = hasUnreadForAdmin || pendingReportsCount > 0;
+    // Optimized: Check if there are ANY pending reports (boolean, not count)
+    const { data: hasPendingReports = false } = useCachedConvexQuery(['hasPendingReports'], api.reports.hasPendingReports);
+    const hasAdminNotifications = hasUnreadForAdmin || hasPendingReports;
 
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
