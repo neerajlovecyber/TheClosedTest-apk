@@ -7,7 +7,7 @@ const CYCLE_DURATION_MS = 48 * 60 * 60 * 1000;
 // Points awarded per ad watch
 const POINTS_PER_BOOST = 1;
 
-// Helper to get image URL
+// Helper to get image URL (Batched version preferred inline, this is kept for legacy calls)
 const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
     if (!storageId) return "https://github.com/shadcn.png";
     if (storageId.startsWith("http")) return storageId;
@@ -152,46 +152,65 @@ export const getBoostStatus = query({
         }
 
         // Get leaderboard: users with boostPoints > 0 and valid boostedAppId
-        // Only fetch users with boost points to avoid full table scan
-        const allUsers = await ctx.db.query("users").collect();
-        const usersWithBoosts = allUsers
+        // OPTIMIZED: Use index instead of full table scan
+        const potentialUsers = await ctx.db
+            .query("users")
+            .withIndex("by_boostPoints")
+            .order("desc")
+            .take(50); // Fetch top 50 to ensure we find 5 valid ones
+
+        const usersWithBoosts = potentialUsers
             .filter((u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId)
-            .sort((a: any, b: any) => (b.boostPoints || 0) - (a.boostPoints || 0))
             .slice(0, 5);
 
-        // Build leaderboard with app details - use cached currentTesters
-        const topApps = await Promise.all(
-            usersWithBoosts.map(async (user: any, index: number) => {
-                const app = await ctx.db.get(user.boostedAppId) as any;
-                if (!app || app.status !== "recruiting") return null;
+        // Batch fetch apps
+        const appIds = usersWithBoosts.map(u => u.boostedAppId!);
+        const apps = await Promise.all(appIds.map(id => ctx.db.get(id)));
+        const appMap = new Map(apps.filter(Boolean).map(a => [a!._id, a]));
 
-                // Use cached currentTesters instead of querying matches
-                const actualTesters = app.currentTesters || 0;
+        // Batch fetch icons
+        const storageIds = new Set<string>();
+        apps.forEach(app => {
+            if (app?.storageIconId) storageIds.add(app.storageIconId);
+        });
+        const urlMap = new Map<string, string>();
+        await Promise.all([...storageIds].map(async id => {
+            const url = await ctx.storage.getUrl(id);
+            if (url) urlMap.set(id, url);
+        }));
 
-                // Skip filled apps
-                if (actualTesters >= app.requiredTesters) return null;
+        const resolveIcon = (app: any) => {
+            if (!app) return "https://github.com/shadcn.png";
+            if (app.storageIconId && urlMap.has(app.storageIconId)) return urlMap.get(app.storageIconId)!;
+            if (app.iconUrl && !app.iconUrl.startsWith("http")) return "https://github.com/shadcn.png";
+            return app.iconUrl || "https://github.com/shadcn.png";
+        };
 
-                let iconUrl = app.iconUrl;
-                if (app.storageIconId) {
-                    iconUrl = await getImageUrl(ctx, app.storageIconId);
-                }
+        // Build leaderboard with app details
+        const topApps = usersWithBoosts.map((user: any, index: number) => {
+            const app = appMap.get(user.boostedAppId) as any;
+            if (!app || app.status !== "recruiting") return null;
 
-                return {
-                    _id: app._id,
-                    title: app.title,
-                    iconUrl,
-                    boostScore: user.boostPoints || 0,
-                    rank: index + 1,
-                    ownerName: user.name || "Unknown",
-                    userId: user._id,
-                };
-            })
-        );
+            // Use cached currentTesters instead of querying matches
+            const actualTesters = app.currentTesters || 0;
 
-        // Filter out nulls and re-rank
-        const validTopApps = topApps
-            .filter((app): app is NonNullable<typeof app> => app !== null)
-            .map((app, index) => ({ ...app, rank: index + 1 }));
+            // Skip filled apps
+            if (actualTesters >= app.requiredTesters) return null;
+
+            return {
+                _id: app._id,
+                title: app.title,
+                iconUrl: resolveIcon(app),
+                boostScore: user.boostPoints || 0,
+                rank: index + 1,
+                ownerName: user.name || "Unknown",
+                userId: user._id,
+            };
+        })
+            .filter((app): app is NonNullable<typeof app> => app !== null);
+
+        // Re-rank after filtering
+        const validTopApps = topApps.map((app, index) => ({ ...app, rank: index + 1 }));
 
         return {
             cycleEnd,
@@ -221,41 +240,64 @@ export const getBoostedApps = query({
         }
 
         // Get users with boost points and selected apps
-        // Filter and sort in memory - still a table scan but minimal data processing
-        const allUsers = await ctx.db.query("users").collect();
-        const sortedUsers = allUsers
+        // OPTIMIZED: Use index instead of full table scan
+        const potentialUsers = await ctx.db
+            .query("users")
+            .withIndex("by_boostPoints")
+            .order("desc")
+            .take(50); // Fetch top 50
+
+        const sortedUsers = potentialUsers
             .filter((u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId)
-            .sort((a: any, b: any) => (b.boostPoints || 0) - (a.boostPoints || 0))
             .slice(0, 5);
 
-        // Build list with app details - use cached currentTesters
-        const boostedApps = await Promise.all(
-            sortedUsers.map(async (user: any) => {
-                const app = await ctx.db.get(user.boostedAppId) as any;
-                if (!app || app.status !== "recruiting") return null;
+        // Batch fetch apps
+        const appIds = sortedUsers.map(u => u.boostedAppId!);
+        const apps = await Promise.all(appIds.map(id => ctx.db.get(id)));
+        const appMap = new Map(apps.filter(Boolean).map(a => [a!._id, a]));
 
-                // Use cached currentTesters instead of querying matches
-                const actualTesters = app.currentTesters || 0;
+        // Batch fetch icons
+        const storageIds = new Set<string>();
+        apps.forEach(app => {
+            if (app?.storageIconId) storageIds.add(app.storageIconId);
+        });
+        const urlMap = new Map<string, string>();
+        await Promise.all([...storageIds].map(async id => {
+            const url = await ctx.storage.getUrl(id);
+            if (url) urlMap.set(id, url);
+        }));
 
-                // Skip filled apps
-                if (actualTesters >= app.requiredTesters) return null;
+        const resolveIcon = (app: any) => {
+            if (!app) return "https://github.com/shadcn.png";
+            if (app.storageIconId && urlMap.has(app.storageIconId)) return urlMap.get(app.storageIconId)!;
+            if (app.iconUrl && !app.iconUrl.startsWith("http")) return "https://github.com/shadcn.png";
+            return app.iconUrl || "https://github.com/shadcn.png";
+        };
 
-                let iconUrl = app.iconUrl;
-                if (app.storageIconId) {
-                    iconUrl = await getImageUrl(ctx, app.storageIconId);
-                }
+        // Build list with app details
+        const boostedApps = sortedUsers.map((user: any) => {
+            const app = appMap.get(user.boostedAppId) as any;
+            if (!app || app.status !== "recruiting") return null;
 
-                return {
-                    ...app,
-                    iconUrl,
-                    currentTesters: actualTesters,
-                    boostScore: user.boostPoints || 0,
-                    ownerName: user.name || "Unknown",
-                    ownerAvatar: user.avatarUrl || "https://github.com/shadcn.png",
-                    reputation: user.reputation || 0,
-                };
-            })
-        );
+            // Use cached currentTesters instead of querying matches
+            const actualTesters = app.currentTesters || 0;
+
+            // Skip filled apps
+            if (actualTesters >= app.requiredTesters) return null;
+
+            return {
+                _id: app._id,
+                title: app.title,
+                status: app.status,
+                requiredTesters: app.requiredTesters,
+                iconUrl: resolveIcon(app),
+                currentTesters: actualTesters,
+                boostScore: user.boostPoints || 0,
+                ownerName: user.name || "Unknown",
+                ownerAvatar: user.avatarUrl || "https://github.com/shadcn.png",
+                reputation: user.reputation || 0,
+            };
+        });
 
         return boostedApps.filter((app): app is NonNullable<typeof app> => app !== null);
     },
