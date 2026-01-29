@@ -147,7 +147,6 @@ export default function MarketplaceScreen() {
 
     const keyExtractor = useCallback((item: any) => item._id, []);
 
-    // Open Play Store for Hall of Fame apps
     const handleOpenPlayStore = useCallback((app: any) => {
         if (!app.packageName) return;
 

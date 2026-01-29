@@ -545,42 +545,6 @@ export const markAppAsCompleted = mutation({
     }
 });
 
-// Get completed apps for Hall of Fame
-export const getCompletedApps = query({
-    args: {},
-    handler: async (ctx) => {
-        const apps = await ctx.db
-            .query("apps")
-            .withIndex("by_status", (q) => q.eq("status", "completed"))
-            .order("desc")
-            .take(50);
-
-        // Map over apps to resolve full image URLs
-        const appsWithUrls = await Promise.all(apps.map(async (app) => {
-            let resolvedUrl = app.iconUrl;
-            if (app.storageIconId) {
-                resolvedUrl = await getImageUrl(ctx, app.storageIconId);
-            } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
-                resolvedUrl = await getImageUrl(ctx, app.iconUrl);
-            }
-
-            // Fetch owner details
-            const owner = await ctx.db.get(app.userId);
-
-            return {
-                ...app,
-                iconUrl: resolvedUrl,
-                ownerName: owner?.name || "Unknown",
-                ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
-                reputation: owner?.reputation || 0
-            };
-        }));
-
-        // Sort by completedAt (most recent first)
-        return appsWithUrls.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
-    },
-});
-
 // Fix a specific app's status if it's stuck as 'filled' when it shouldn't be
 export const fixAppStatus = mutation({
     args: { appId: v.id("apps") },

@@ -227,7 +227,7 @@ export default function AppDetailsScreen() {
                 setIsSubmitting(true);
                 const result = await markAppAsCompleted({ appId: app._id });
                 toast.success("Congratulations!", {
-                    description: `${app.title} is now in the Hall of Fame!\n\n+20 reputation earned!\n${result.archivedMatches > 0 ? `${result.archivedMatches} active match(es) completed.` : ''}`
+                    description: `${app.title} marked as completed!\n\n+20 reputation earned!\n${result.archivedMatches > 0 ? `${result.archivedMatches} active match(es) completed.` : ''}`
                 });
             } catch (err: any) {
                 toast.error("Error", { description: err.message || "Failed to mark as completed" });
@@ -822,7 +822,7 @@ export default function AppDetailsScreen() {
                         <AlertDialogDescription>
                             {activeAlert === 'no_apps' && "You need to add an app first to request a swap."}
                             {activeAlert === 'reject' && "Are you sure you want to reject this request?"}
-                            {activeAlert === 'complete' && "Congratulations on getting production access!\n\nThis will:\n• Give you +20 reputation\n• Complete all active matches\n• Remove pending swap requests\n• Add your app to Hall of Fame\n\nThis action cannot be undone."}
+                            {activeAlert === 'complete' && "Congratulations on getting production access!\n\nThis will:\n• Give you +20 reputation\n• Complete all active matches\n• Remove pending swap requests\n\nThis action cannot be undone."}
                             {activeAlert === 'delete' && "Are you sure? This will permanently remove your app and all associated test records. This cannot be undone."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
