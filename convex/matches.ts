@@ -1925,16 +1925,22 @@ export const getCompletedMatches = query({
 
         if (!user) return [];
 
-        // Get completed matches where user is either user1 or user2
-        const completedMatches = await ctx.db
+        if (!user) return [];
+
+        // OPTIMIZED: Query specific matches for this user only
+        const matches1 = await ctx.db
             .query("matches")
-            .withIndex("by_status", (q) => q.eq("status", "completed"))
+            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .filter(q => q.eq(q.field("status"), "completed"))
             .collect();
 
-        // Filter for matches involving this user
-        const myCompletedMatches = completedMatches.filter(
-            m => m.user1Id === user._id || m.user2Id === user._id
-        );
+        const matches2 = await ctx.db
+            .query("matches")
+            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .filter(q => q.eq(q.field("status"), "completed"))
+            .collect();
+
+        const myCompletedMatches = [...matches1, ...matches2];
 
         // Enrich with partner and app details
         const enrichedMatches = await Promise.all(
