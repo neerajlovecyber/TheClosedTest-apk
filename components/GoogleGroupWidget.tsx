@@ -77,31 +77,9 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
     const renderContent = () => {
         if (user.isGroupMember) {
             return (
-                <Card className={cn("border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900/50 overflow-hidden", className)}>
-                    <CardContent className="p-4 flex-row items-center justify-between">
-                        <View className="flex-row items-center gap-3 flex-1">
-                            <View className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full">
-                                <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-5" />
-                            </View>
-                            <View className="flex-1">
-                                <Text className="text-green-800 dark:text-green-200 font-bold text-sm">
-                                    Verified Member
-                                </Text>
-                                <Text className="text-green-700/70 dark:text-green-400/70 text-xs">
-                                    Google Group Community
-                                </Text>
-                            </View>
-                        </View>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onPress={handleJoinGroup}
-                            className="h-8"
-                        >
-                            <Text className="text-green-700 dark:text-green-300 text-xs font-semibold">Visit Group</Text>
-                        </Button>
-                    </CardContent>
-                </Card>
+                <View className={cn("flex-row items-center justify-center px-2 py-1.5 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/50 rounded-md", className)}>
+                    <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-4" />
+                </View>
             );
         }
 

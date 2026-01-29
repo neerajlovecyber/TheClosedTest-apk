@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, Image, Linking } from 'react-native';
+import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, Image } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
-import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, FlameIcon } from 'lucide-react-native';
+import { Modal, Pressable, Linking } from 'react-native';
+import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, FlameIcon, CheckCircleIcon, UsersIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
@@ -36,6 +37,7 @@ export default function MarketplaceScreen() {
     // Reporting state
     const [showReportDialog, setShowReportDialog] = useState(false);
     const [reportApp, setReportApp] = useState<any>(null);
+    const [showGroupModal, setShowGroupModal] = useState(false);
 
     const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any[] }) => {
         if (viewableItems.length > 0) {
@@ -48,6 +50,7 @@ export default function MarketplaceScreen() {
     });
 
     // Cached Queries
+    const { data: user } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser);
     const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
     const { data: recruitingApps } = useCachedConvexQuery(['marketplaceRecruiting'], api.apps.getMarketplaceApps, { status: 'recruiting' });
     const { data: filledApps } = useCachedConvexQuery(['marketplaceFilled'], api.apps.getMarketplaceApps, { status: 'filled' });
@@ -190,16 +193,29 @@ export default function MarketplaceScreen() {
                             <Text className="text-3xl font-extrabold text-foreground tracking-tight">Marketplace</Text>
                             <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
                         </View>
-                        <TouchableOpacity
-                            onPress={() => router.push('/help')}
-                            className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
-                            activeOpacity={0.7}
-                        >
-                            <Icon as={HelpCircleIcon} className="text-primary size-5" />
-                        </TouchableOpacity>
+                        <View className="flex-row gap-2">
+                            {/* Google Group Status Icon */}
+                            {user?.isGroupMember && (
+                                <TouchableOpacity
+                                    onPress={() => setShowGroupModal(true)}
+                                    className="w-10 h-10 rounded-full bg-green-500/10 items-center justify-center border border-green-500/20"
+                                    activeOpacity={0.7}
+                                >
+                                    <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-5" />
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                onPress={() => router.push('/help')}
+                                className="w-10 h-10 rounded-full bg-orange-500/10 items-center justify-center border border-orange-500/20"
+                                activeOpacity={0.7}
+                            >
+                                <Text className="text-orange-600 dark:text-orange-400 text-xl font-bold">?</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <GoogleGroupWidget className="mb-0" />
+                    {/* Show join prompt if not a member */}
+                    {user && !user.isGroupMember && <GoogleGroupWidget className="mb-0" />}
 
                     {/* Search Bar */}
                     <View className="relative">
@@ -281,6 +297,46 @@ export default function MarketplaceScreen() {
 
             {/* Floating Action Button - Boost Hub with Premium Animation */}
             <AnimatedFAB onPress={() => router.push('/boost-hub')} />
+
+            {/* Google Group Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showGroupModal}
+                onRequestClose={() => setShowGroupModal(false)}
+            >
+                <Pressable
+                    className="flex-1 justify-end bg-black/50"
+                    onPress={() => setShowGroupModal(false)}
+                >
+                    <Pressable className="bg-background rounded-t-3xl p-6">
+                        <View className="flex-row items-center gap-3 mb-4">
+                            <View className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
+                                <Icon as={UsersIcon} className="size-6 text-green-600 dark:text-green-400" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-xl font-bold text-foreground">Google Group</Text>
+                                <Text className="text-sm text-muted-foreground">Community Member</Text>
+                            </View>
+                        </View>
+
+                        <Text className="text-muted-foreground mb-4">
+                            You're a verified member of our developer community Google Group.
+                        </Text>
+
+                        <Button
+                            size="lg"
+                            className="bg-green-600 dark:bg-green-600"
+                            onPress={() => {
+                                Linking.openURL("https://groups.google.com/g/developers-community-official");
+                                setShowGroupModal(false);
+                            }}
+                        >
+                            <Text className="text-white font-bold">Open Google Group</Text>
+                        </Button>
+                    </Pressable>
+                </Pressable>
+            </Modal>
 
             {/* Report Dialog */}
             {reportApp && (
