@@ -63,7 +63,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                 <View className="flex-row justify-between items-start">
                     <View className="flex-1 flex-row items-center gap-1.5 mr-2">
                         <Text className="font-bold text-sm leading-tight shrink" numberOfLines={2}>
-                            {item.title.length > 20 ? `${item.title.substring(0, 20)}...` : item.title}
+                            {item.title.length > 15 ? `${item.title.substring(0, 15)}...` : item.title}
                         </Text>
                         {item.hasUnread && (
                             <View className="bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-background shadow-sm" />
