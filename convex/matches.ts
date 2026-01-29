@@ -549,20 +549,12 @@ export const getMyActiveTests = query({
             userIds.add(match.user2Id);
         });
 
-        // Batch fetch Apps and Users
-        const [apps, users] = await Promise.all([
-            Promise.all([...appIds].map((id) => ctx.db.get(id))),
-            Promise.all([...userIds].map((id) => ctx.db.get(id))),
-        ]);
+        // Batch fetch Apps (We don't need Users anymore as UI doesn't show partner name)
+        const apps = await Promise.all([...appIds].map((id) => ctx.db.get(id)));
 
         const appMap = new Map<string, any>();
         apps.forEach((a) => {
             if (a) appMap.set(a._id, a);
-        });
-
-        const userMap = new Map<string, any>();
-        users.forEach((u) => {
-            if (u) userMap.set(u._id, u);
         });
 
         // Batch fetch Storage URLs (Icon URLs)
@@ -603,8 +595,8 @@ export const getMyActiveTests = query({
                 const ownerId = isRequestor ? match.user2Id : match.user1Id;
 
                 const appToTest = appMap.get(appToTestId);
-                // const myApp = appMap.get(myAppId); // Not used in return but good to have if needed logic
-                const owner = userMap.get(ownerId);
+                // const myApp = appMap.get(myAppId); 
+                // We don't fetch owner anymore to prevent frequent invalidation
 
                 // Calculate current day
                 const day = calculateDay(match.startDate || Date.now());
@@ -640,8 +632,8 @@ export const getMyActiveTests = query({
                     id: match._id,
                     name: appToTest?.title || "Unknown App",
                     senderId: ownerId,
-                    owner: owner?.name || "Unknown User",
-                    avatarUrl: resolveAvatarUrl(owner?.avatarUrl),
+                    // owner: "Unknown User", // Removed
+                    // avatarUrl: "https://github.com/shadcn.png", // Removed
                     day,
                     totalDays: 14,
                     myProofStatus,
