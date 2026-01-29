@@ -135,11 +135,8 @@ const getTimeUntilMidnightIST = () => {
 export default function TestsScreen() {
     const router = useRouter();
     const { data: testingApps = [] } = useCachedConvexQuery(['activeTests'], api.matches.getMyActiveTests);
-    const { data: completedMatches = [] } = useCachedConvexQuery(['completedMatches'], api.matches.getCompletedMatches);
-
     // Countdown timer state
     const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
-    const [isFinishedExpanded, setIsFinishedExpanded] = useState(false);
 
     // Update countdown every second
     useEffect(() => {
@@ -259,70 +256,7 @@ export default function TestsScreen() {
                         </View>
                     )}
 
-                    {/* Finished Matches Section (14-day completed) */}
-                    {completedMatches.length > 0 && (
-                        <View className="mt-6">
-                            <TouchableOpacity
-                                onPress={() => setIsFinishedExpanded(!isFinishedExpanded)}
-                                className="flex-row items-center justify-between mb-3"
-                                activeOpacity={0.7}
-                            >
-                                <View className="flex-row items-center gap-2">
-                                    <Icon as={TrophyIcon} className="size-5 text-amber-500" />
-                                    <Text className="text-lg font-bold">Finished Matches</Text>
-                                    <View className="bg-amber-500 px-2 py-0.5 rounded-full">
-                                        <Text className="text-xs text-white font-bold">{completedMatches.length}</Text>
-                                    </View>
-                                </View>
-                                <Icon
-                                    as={isFinishedExpanded ? ChevronUpIcon : ChevronDownIcon}
-                                    className="size-5 text-muted-foreground"
-                                />
-                            </TouchableOpacity>
 
-                            {isFinishedExpanded && (
-                                <View className="gap-3">
-                                    {completedMatches.map((match: any) => (
-                                        <TouchableOpacity
-                                            key={match.id}
-                                            onPress={() => handleTaskPress(match.id)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Card className="bg-amber-500/5 border-amber-500/20">
-                                                <CardContent className="p-4">
-                                                    <View className="flex-row items-center gap-3">
-                                                        <Image
-                                                            source={{ uri: match.appIconUrl || 'https://github.com/shadcn.png' }}
-                                                            style={{ width: 48, height: 48, borderRadius: 12 }}
-                                                            contentFit="cover"
-                                                            cachePolicy="memory-disk"
-                                                        />
-                                                        <View className="flex-1">
-                                                            <Text className="font-bold text-base" numberOfLines={1}>{match.appName}</Text>
-                                                            <Text className="text-muted-foreground text-xs">
-                                                                with {match.partnerName}
-                                                            </Text>
-                                                        </View>
-                                                        <View className="items-end">
-                                                            <View className="flex-row items-center gap-1 bg-green-500/20 px-2 py-1 rounded-full">
-                                                                <Icon as={CheckCircleIcon} className="size-3 text-green-600" />
-                                                                <Text className="text-xs font-bold text-green-600">
-                                                                    {match.myApprovedCount}/{match.totalDays}
-                                                                </Text>
-                                                            </View>
-                                                            <Text className="text-[10px] text-muted-foreground mt-1">
-                                                                {match.completedAt ? new Date(match.completedAt).toLocaleDateString() : ''}
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                </CardContent>
-                                            </Card>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    )}
 
                     {/* Enhanced Empty State */}
                     {testingApps.length === 0 && (
