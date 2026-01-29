@@ -1493,32 +1493,6 @@ export const cancelMatch = mutation({
     }
 });
 
-// Maintenance: Delete images for proofs that were ALREADY approved before the change
-export const cleanupOldApprovedProofs = mutation({
-    args: {},
-    handler: async (ctx) => {
-        const proofs = await ctx.db
-            .query("proofs")
-            .filter((q) => q.eq(q.field("status"), "approved"))
-            .collect();
-
-        let count = 0;
-        for (const proof of proofs) {
-            if (proof.storageIds && proof.storageIds.length > 0) {
-                // Delete files
-                for (const storageId of proof.storageIds) {
-                    await ctx.storage.delete(storageId);
-                }
-                // Update record
-                await ctx.db.patch(proof._id, {
-                    storageIds: []
-                });
-                count++;
-            }
-        }
-        return `Cleaned up ${count} approved proofs`;
-    }
-});
 
 // Scheduled Job to check for missed penalties
 export const checkMissedPenalties = internalMutation({
@@ -1596,81 +1570,6 @@ export const checkMissedPenalties = internalMutation({
     }
 });
 
-/**
- * Mutation to mark old proofs for deletion and clear their storageIds.
- * Returns a list of URLs that need to be deleted from R2.
- */
-export const markOldProofsForDeletion = internalMutation({
-    args: {},
-    handler: async (ctx) => {
-        const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
-
-        // Find proofs older than 3 days that have storageIds
-        const oldProofs = await ctx.db
-            .query("proofs")
-            .filter((q) =>
-                q.and(
-                    q.lt(q.field("_creationTime"), threeDaysAgo),
-                    q.neq(q.field("storageIds"), []) // Only get ones with files
-                )
-            )
-            .collect();
-
-        const urlsToDelete: string[] = [];
-
-        for (const proof of oldProofs) {
-            // Check if storageIds exists and is not empty
-            if (proof.storageIds && proof.storageIds.length > 0) {
-                // Add all URLs to deletion list (filter for R2 URLs just in case)
-                const r2Urls = proof.storageIds.filter(id => id.startsWith('http'));
-                urlsToDelete.push(...r2Urls);
-
-                // Clear the storageIds in DB immediately to "expire" them
-                await ctx.db.patch(proof._id, {
-                    storageIds: []
-                });
-            }
-        }
-
-        return urlsToDelete;
-    }
-});
-
-/**
- * Action to physically delete the old proof files from R2.
- * Scheduled to run daily.
- */
-export const cleanupOldProofsAction = internalAction({
-    args: {},
-    handler: async (ctx) => {
-        // 1. Get list of URLs and clear them from DB
-        const urlsToDelete = await ctx.runMutation(internal.matches.markOldProofsForDeletion, {});
-
-        if (urlsToDelete.length === 0) {
-            console.log("No old proofs to clean up.");
-            return;
-        }
-
-        // 2. Delete each file from R2
-        console.log(`Starting cleanup: Deleting ${urlsToDelete.length} old proof images...`);
-
-        const results = await Promise.allSettled(urlsToDelete.map(async (url: string) => {
-            try {
-                const response = await fetch(url, { method: 'DELETE' });
-                if (!response.ok) {
-                    throw new Error(`Failed to delete ${url}: ${response.statusText}`);
-                }
-                return url;
-            } catch (error) {
-                console.error(`Error deleting ${url}:`, error);
-                throw error;
-            }
-        }));
-
-        const successCount = results.filter((r: PromiseSettledResult<string>) => r.status === 'fulfilled').length;
-        console.log(`Cleanup complete: Deleted ${successCount}/${urlsToDelete.length} images.`);
-    }
-});
 
 // Delete proof DATABASE ROWS older than 20 days (stats already saved in matches table)
 export const cleanupOldProofRows = internalMutation({

@@ -1,5 +1,5 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions, Modal, FlatList } from 'react-native';
+import { View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions, Modal, FlatList, Pressable } from 'react-native';
 import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
@@ -69,6 +69,15 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     const isApproved = useMemo(() => partnerProof?.status === "approved", [partnerProof?.status]);
     const images = useMemo(() => partnerProof?.urls || [], [partnerProof?.urls]);
 
+    // Reset currentImageIndex when images change or when it's out of bounds
+    useEffect(() => {
+        if (currentImageIndex >= images.length && images.length > 0) {
+            setCurrentImageIndex(0);
+        } else if (images.length === 0) {
+            setCurrentImageIndex(0);
+        }
+    }, [images, currentImageIndex]);
+
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [sliderWidth, setSliderWidth] = useState(SCREEN_WIDTH - 48); // Approximate initial width (Screen - padding)
     const flatListRef = useRef<FlatList>(null);
@@ -83,7 +92,7 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     }, [currentImageIndex, sliderWidth]);
 
     const handleInlineScroll = (event: any) => {
-        if (sliderWidth <= 0) return;
+        if (sliderWidth <= 0 || images.length === 0) return;
         const contentOffset = event.nativeEvent.contentOffset;
         const index = Math.round(contentOffset.x / sliderWidth);
         if (index !== currentImageIndex && index >= 0 && index < images.length) {
@@ -113,12 +122,16 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     // Sync FlatList position when modal opens
     useEffect(() => {
         if (isFullScreen && flatListRef.current && images.length > 0) {
+            // Ensure index is within bounds before scrolling
+            const safeIndex = Math.min(currentImageIndex, images.length - 1);
             // Small timeout to allow layout to compute
             setTimeout(() => {
-                flatListRef.current?.scrollToIndex({ index: currentImageIndex, animated: false });
+                if (safeIndex >= 0 && safeIndex < images.length) {
+                    flatListRef.current?.scrollToIndex({ index: safeIndex, animated: false });
+                }
             }, 100);
         }
-    }, [isFullScreen]);
+    }, [isFullScreen, images.length, currentImageIndex]);
 
     // Partner hasn't uploaded yet
     if (!partnerProof || partnerProof.status === "not_uploaded") {
@@ -159,26 +172,44 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
 
     return (
         <View>
-            {/* Approved State Summary Card */}
+            {/* Approved State - Compact View with Small Images */}
             {isApproved && (
-                <Card className="bg-green-500/10 border-green-500/30 mb-4">
-                    <CardContent className="p-4">
-                        <View className="flex-row items-center justify-between">
-                            <View className="flex-row items-center flex-1">
-                                <Icon as={CheckCircleIcon} className="text-green-500 size-6 mr-3" />
-                                <View>
-                                    <Text className="font-bold text-green-600 text-lg">Day {partnerProof.day} Complete!</Text>
-                                    <Text className="text-muted-foreground text-xs">
-                                        You approved this proof.
-                                    </Text>
+                <>
+                    <Card className="bg-green-500/10 border-green-500/30 mb-4">
+                        <CardContent className="p-3">
+                            <View className="flex-row items-center mb-2">
+                                <Icon as={CheckCircleIcon} className="text-green-500 size-5 mr-2" />
+                                <View className="flex-1">
+                                    <Text className="font-bold text-green-600 text-base">Day {partnerProof.day} Complete!</Text>
+                                    <Text className="text-muted-foreground text-xs">You approved {partnerProof.partnerName}'s proof</Text>
                                 </View>
                             </View>
-                        </View>
-                    </CardContent>
-                </Card>
+                            {/* Show proof images in small boxes - clickable */}
+                            {images.length > 0 && (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                    {images.map((url, i) => (
+                                        <Pressable key={i} onPress={handleOpenFullScreen}>
+                                            <Image
+                                                source={{ uri: url }}
+                                                style={{ width: 80, height: 80, borderRadius: 8, marginRight: 8 }}
+                                                contentFit="cover"
+                                                cachePolicy="memory-disk"
+                                                transition={150}
+                                            />
+                                        </Pressable>
+                                    ))}
+                                </ScrollView>
+                            )}
+                            {/* Partner's Comment */}
+                            {partnerProof.comment && (
+                                <Text className="text-xs text-muted-foreground italic mt-2">"{partnerProof.comment}"</Text>
+                            )}
+                        </CardContent>
+                    </Card>
+                </>
             )}
 
-            {/* Main Content (Images & Details) */}
+            {/* Pending State - Full Review UI */}
             {!isApproved && (
                 <View>
                     {/* Header */}
