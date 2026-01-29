@@ -230,11 +230,13 @@ export const getIncomingRequests = query({
         }
 
         // Find matches where I am user2 (the target) and status is pending
+        // OPTIMIZED: Limit to 50 requests
         const requests = await ctx.db
             .query("matches")
             .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
             .filter((q) => q.eq(q.field("status"), "pending"))
-            .collect();
+            .order("desc")
+            .take(50);
 
         // Enrich data
         const enrichedRequests = await Promise.all(
@@ -1084,13 +1086,14 @@ export const getTodayProof = query({
         const day = calculateDay(match.startDate);
 
         // Find user's proof for today
+        // OPTIMIZED: Use by_uploader_day index
         const todayProof = await ctx.db
             .query("proofs")
-            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
-            .filter((q) => q.and(
-                q.eq(q.field("uploaderId"), user._id),
-                q.eq(q.field("day"), day)
-            ))
+            .withIndex("by_uploader_day", (q) =>
+                q.eq("uploaderId", user._id)
+                    .eq("matchId", args.matchId)
+                    .eq("day", day)
+            )
             .first();
 
         if (!todayProof) {
@@ -1146,13 +1149,14 @@ export const getPartnerTodayProof = query({
         const day = calculateDay(match.startDate);
 
         // Find partner's proof for today (any status)
+        // OPTIMIZED: Use by_uploader_day index
         const partnerProof = await ctx.db
             .query("proofs")
-            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
-            .filter((q) => q.and(
-                q.eq(q.field("uploaderId"), partnerId),
-                q.eq(q.field("day"), day)
-            ))
+            .withIndex("by_uploader_day", (q) =>
+                q.eq("uploaderId", partnerId)
+                    .eq("matchId", args.matchId)
+                    .eq("day", day)
+            )
             .first();
 
         if (!partnerProof) {
