@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
-import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, TrophyIcon, FlameIcon } from 'lucide-react-native';
+import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, FlameIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
@@ -51,7 +51,6 @@ export default function MarketplaceScreen() {
     const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
     const { data: recruitingApps } = useCachedConvexQuery(['marketplaceRecruiting'], api.apps.getMarketplaceApps, { status: 'recruiting' });
     const { data: filledApps } = useCachedConvexQuery(['marketplaceFilled'], api.apps.getMarketplaceApps, { status: 'filled' });
-    const { data: completedApps } = useCachedConvexQuery(['marketplaceCompleted'], api.apps.getCompletedApps);
     const { data: myMatchStatuses = [] } = useCachedConvexQuery(['matchStatus'], api.matches.getMyMatchStatuses);
 
     const displayRecruiting = recruitingApps || [];
@@ -75,7 +74,10 @@ export default function MarketplaceScreen() {
     );
 
     const sortedAllApps = useMemo(() => {
-        const allApps = [...displayRecruiting, ...displayFilled];
+        // Combine recruiting and filled apps, but exclude any that are completed
+        const allApps = [...displayRecruiting, ...displayFilled].filter(
+            (app: any) => app.status !== 'completed'
+        );
         return allApps.sort((a: any, b: any) => {
             // Priority 1: Status (Active first)
             if (a.isFilled && !b.isFilled) return 1;
@@ -274,46 +276,7 @@ export default function MarketplaceScreen() {
                         )}
                     </View>
 
-                    {/* Hall of Fame - Successfully Launched Apps */}
-                    {!searchQuery && completedApps && completedApps.length > 0 && (
-                        <View className="mt-4">
-                            <View className="flex-row items-center gap-2 px-1 mb-3">
-                                <Icon as={TrophyIcon} className="size-5 text-yellow-500" />
-                                <Text className="text-lg font-bold">Hall of Fame</Text>
-                                <Icon as={RocketIcon} className="size-4 text-green-500" />
-                            </View>
-                            <Text className="text-xs text-muted-foreground px-1 mb-3">Apps that got production access</Text>
-                            <View className="gap-3">
-                                {completedApps.slice(0, 10).map((app: any) => (
-                                    <TouchableOpacity
-                                        key={app._id}
-                                        onPress={() => handleOpenPlayStore(app)}
-                                        activeOpacity={0.7}
-                                        className="flex-row items-center gap-3 p-3 bg-gradient-to-r from-green-500/10 to-yellow-500/10 border border-green-500/20 rounded-xl"
-                                    >
-                                        <View className="relative">
-                                            <Image
-                                                source={{ uri: app.iconUrl || 'https://github.com/shadcn.png' }}
-                                                className="w-12 h-12 rounded-xl bg-muted"
-                                            />
-                                            <View className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
-                                                <Icon as={RocketIcon} className="size-3 text-white" />
-                                            </View>
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="font-bold text-foreground">{app.title}</Text>
-                                            <Text className="text-xs text-muted-foreground">
-                                                by {app.ownerName} • Launched {app.completedAt ? new Date(app.completedAt).toLocaleDateString() : ''}
-                                            </Text>
-                                        </View>
-                                        <View className="bg-green-500/20 px-2 py-1 rounded-full">
-                                            <Text className="text-[10px] font-bold text-green-600 dark:text-green-400">🚀 LAUNCHED</Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-                    )}
+
                 </View>
             </ScrollView>
 
