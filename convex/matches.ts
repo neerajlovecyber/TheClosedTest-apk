@@ -536,6 +536,60 @@ export const getMyActiveTests = query({
 
         const allActiveMatches = [...myRequests, ...requestsToMe];
 
+        // Collect all unique IDs to fetch
+        const appIds = new Set<Id<"apps">>();
+        const userIds = new Set<Id<"users">>();
+
+        allActiveMatches.forEach((match) => {
+            appIds.add(match.app1Id);
+            appIds.add(match.app2Id);
+            userIds.add(match.user1Id);
+            userIds.add(match.user2Id);
+        });
+
+        // Batch fetch Apps and Users
+        const [apps, users] = await Promise.all([
+            Promise.all([...appIds].map((id) => ctx.db.get(id))),
+            Promise.all([...userIds].map((id) => ctx.db.get(id))),
+        ]);
+
+        const appMap = new Map<string, any>();
+        apps.forEach((a) => {
+            if (a) appMap.set(a._id, a);
+        });
+
+        const userMap = new Map<string, any>();
+        users.forEach((u) => {
+            if (u) userMap.set(u._id, u);
+        });
+
+        // Batch fetch Storage URLs (Icon URLs)
+        const storageIdsToResolve = new Set<string>();
+        apps.forEach((a) => {
+            if (a?.storageIconId) storageIdsToResolve.add(a.storageIconId);
+        });
+
+        const storageUrlMap = new Map<string, string>();
+        await Promise.all(
+            [...storageIdsToResolve].map(async (id) => {
+                const url = await ctx.storage.getUrl(id);
+                if (url) storageUrlMap.set(id, url);
+            })
+        );
+
+        // Helper to resolve resolved URL using the map
+        const resolveIconUrl = (app: any) => {
+            if (!app) return "https://github.com/shadcn.png";
+            if (app.storageIconId && storageUrlMap.has(app.storageIconId)) {
+                return storageUrlMap.get(app.storageIconId)!;
+            }
+            if (app.iconUrl && !app.iconUrl.startsWith("http")) { // Legacy handling if needed
+                // We didn't pre-resolve this case, but it's rare if storageIconId is preferred
+                return "https://github.com/shadcn.png";
+            }
+            return app.iconUrl || "https://github.com/shadcn.png";
+        };
+
         const enrichedMatches = await Promise.all(
             allActiveMatches.map(async (match) => {
                 const isRequestor = match.user1Id === user._id;
@@ -546,38 +600,32 @@ export const getMyActiveTests = query({
                 const myAppId = isRequestor ? match.app1Id : match.app2Id;
                 const ownerId = isRequestor ? match.user2Id : match.user1Id;
 
-                const appToTest = await ctx.db.get(appToTestId);
-                const myApp = await ctx.db.get(myAppId);
-                const owner = await ctx.db.get(ownerId);
+                const appToTest = appMap.get(appToTestId);
+                // const myApp = appMap.get(myAppId); // Not used in return but good to have if needed logic
+                const owner = userMap.get(ownerId);
 
                 // Calculate current day
                 const day = calculateDay(match.startDate || Date.now());
 
-                // Check if user has uploaded proof for today and if it's approved
+                // OPTIMIZED: Use 'by_uploader_day' index
+                // Check if user has uploaded proof for today
                 const todayProof = await ctx.db
                     .query("proofs")
-                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
-                    .filter((q) => q.and(
-                        q.eq(q.field("uploaderId"), user._id),
-                        q.eq(q.field("day"), day)
-                    ))
+                    .withIndex("by_uploader_day", (q) =>
+                        q.eq("uploaderId", user._id)
+                            .eq("matchId", match._id)
+                            .eq("day", day)
+                    )
                     .first();
-
-                let resolvedUrl = appToTest?.iconUrl;
-                if (appToTest?.storageIconId) {
-                    resolvedUrl = await getImageUrl(ctx, appToTest.storageIconId);
-                } else if (appToTest?.iconUrl && !appToTest.iconUrl.startsWith("http")) {
-                    resolvedUrl = await getImageUrl(ctx, appToTest.iconUrl);
-                }
 
                 // Check partner's proof status
                 const partnerProof = await ctx.db
                     .query("proofs")
-                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
-                    .filter((q) => q.and(
-                        q.eq(q.field("uploaderId"), ownerId),
-                        q.eq(q.field("day"), day)
-                    ))
+                    .withIndex("by_uploader_day", (q) =>
+                        q.eq("uploaderId", ownerId)
+                            .eq("matchId", match._id)
+                            .eq("day", day)
+                    )
                     .first();
 
                 const myProofStatus = todayProof?.status || "not_uploaded";
@@ -601,7 +649,7 @@ export const getMyActiveTests = query({
                     appToTestId,
                     needsAttention,
                     hasUnread: match.lastActivity > (isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0)),
-                    iconUrl: resolvedUrl || "https://github.com/shadcn.png"
+                    iconUrl: resolveIconUrl(appToTest)
                 };
             })
         );
