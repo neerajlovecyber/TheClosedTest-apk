@@ -1,5 +1,7 @@
-import { R2_WORKER_URL } from "./r2-config";
-import * as FileSystem from 'expo-file-system/legacy'; // Use legacy for uploadAsync
+import * as FileSystem from 'expo-file-system/legacy';
+
+// R2 public URL base for serving files (via Cloudflare Worker)
+const R2_PUBLIC_URL = "https://r2-image-worker.dodo-webhook.workers.dev";
 
 /**
  * Uploads an image to R2 via the Cloudflare Worker.
@@ -8,11 +10,15 @@ import * as FileSystem from 'expo-file-system/legacy'; // Use legacy for uploadA
  * @param customFilename Optional custom filename (e.g. "image.webp"). If not provided, a random one is generated.
  * @returns The public URL of the uploaded image
  */
-export async function uploadImageToR2(uri: string, pathPrefix: string = "uploads", customFilename?: string): Promise<string> {
+export async function uploadImageToR2(
+    uri: string,
+    pathPrefix: string = "uploads",
+    customFilename?: string
+): Promise<string> {
     try {
         const name = customFilename || `${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
         const filename = `${pathPrefix}/${name}`;
-        const uploadUrl = `${R2_WORKER_URL}/${filename}`;
+        const uploadUrl = `${R2_PUBLIC_URL}/${filename}`;
 
         console.log(`Uploading to R2: ${uploadUrl}`);
 
@@ -47,7 +53,7 @@ export async function uploadImageToR2(uri: string, pathPrefix: string = "uploads
  */
 export async function deleteImageFromR2(filename: string): Promise<boolean> {
     try {
-        const url = `${R2_WORKER_URL}/${filename}`;
+        const url = `${R2_PUBLIC_URL}/${filename}`;
         console.log(`Deleting from R2: ${url}`);
         const response = await fetch(url, {
             method: "DELETE",

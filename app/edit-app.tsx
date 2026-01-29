@@ -37,6 +37,8 @@ export default function EditAppScreen() {
     const app = useQuery(api.apps.getAppArgs, { appId });
     const updateApp = useMutation(api.apps.updateApp);
     const deleteApp = useMutation(api.apps.deleteApp);
+    const generateAppIconUploadUrl = useMutation(api.r2.generateAppIconUploadUrl);
+    const deleteR2Object = useMutation(api.r2.deleteR2Object);
 
     const [title, setTitle] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
@@ -77,7 +79,7 @@ export default function EditAppScreen() {
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
             quality: 1,
@@ -124,14 +126,46 @@ export default function EditAppScreen() {
         try {
             let iconUrl = currentIconUrl;
 
-            // Upload new image if selected
+            // Upload new image if selected using Convex R2
             if (processedImageUri) {
                 try {
-                    const { uploadImageToR2 } = require('@/utils/image-uploader');
-                    // Use deterministic filename: app-icons/<appId>.webp
-                    iconUrl = await uploadImageToR2(processedImageUri, "app-icons", `${appId}.webp`);
-                    // Append timestamp to force cache refresh
-                    iconUrl = `${iconUrl}?t=${Date.now()}`;
+                    // Generate signed upload URL with deterministic key
+                    const { key: r2Key, url: signedUrl } = await generateAppIconUploadUrl({
+                        appId: appId as string
+                    });
+
+                    // Read file as base64 and upload via XMLHttpRequest (works in React Native)
+                    const FileSystem = require('expo-file-system/legacy');
+                    const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
+
+                    // Upload using XMLHttpRequest (React Native compatible)
+                    await new Promise<void>((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('PUT', signedUrl, true);
+                        xhr.setRequestHeader('Content-Type', 'image/webp');
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Upload failed: ${xhr.status}`));
+                            }
+                        };
+                        xhr.onerror = () => reject(new Error('Upload failed'));
+
+                        // Convert base64 to binary and send
+                        const binaryString = atob(base64);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        xhr.send(bytes.buffer);
+                    });
+
+                    // Build the public URL with cache-bust timestamp
+                    iconUrl = `https://r2-image-worker.dodo-webhook.workers.dev/${r2Key}?t=${Date.now()}`;
+                    console.log(`R2 Upload Success via Convex: ${iconUrl}`);
                 } catch (uploadError: any) {
                     toast.error("Error", { description: "Icon upload failed: " + uploadError.message });
                     setIsSubmitting(false);
@@ -336,10 +370,9 @@ export default function EditAppScreen() {
                             setShowDeleteConfirm(false);
                             try {
                                 setIsSubmitting(true);
-                                // Delete image from R2 first
+                                // Delete image from R2 using Convex mutation
                                 try {
-                                    const { deleteImageFromR2 } = require('@/utils/image-uploader');
-                                    await deleteImageFromR2(`app-icons/${appId}.webp`);
+                                    await deleteR2Object({ key: `app-icons/${appId}.webp` });
                                 } catch (imgError) {
                                     console.warn("Failed to delete image", imgError);
                                 }

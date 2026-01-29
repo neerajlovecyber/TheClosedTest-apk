@@ -1135,6 +1135,101 @@ export const getPartnerTodayProof = query({
     }
 });
 
+// Get both users' proofs for a specific day with image URLs (for viewing previous day screenshots)
+export const getProofForDay = query({
+    args: {
+        matchId: v.id("matches"),
+        day: v.number()
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) =>
+                q.eq("tokenIdentifier", identity.tokenIdentifier)
+            )
+            .unique();
+
+        if (!user) return null;
+
+        const match = await ctx.db.get(args.matchId);
+        if (!match) return null;
+
+        // Validate user is part of this match
+        if (match.user1Id !== user._id && match.user2Id !== user._id) {
+            return null;
+        }
+
+        const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
+        const partner = await ctx.db.get(partnerId);
+
+        const currentDay = calculateDay(match.startDate);
+
+        // Get my proof for this day
+        const myProof = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .filter((q) => q.and(
+                q.eq(q.field("uploaderId"), user._id),
+                q.eq(q.field("day"), args.day)
+            ))
+            .first();
+
+        // Get partner's proof for this day
+        const partnerProof = await ctx.db
+            .query("proofs")
+            .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
+            .filter((q) => q.and(
+                q.eq(q.field("uploaderId"), partnerId),
+                q.eq(q.field("day"), args.day)
+            ))
+            .first();
+
+        // Helper to get image URLs
+        const getUrls = async (storageIds: string[] | undefined) => {
+            if (!storageIds || storageIds.length === 0) return [];
+            return Promise.all(
+                storageIds.map(async (sid) => {
+                    if (sid.startsWith("http")) return sid;
+                    const url = await ctx.storage.getUrl(sid);
+                    return url || "";
+                })
+            );
+        };
+
+        const myUrls = myProof ? await getUrls(myProof.storageIds) : [];
+        const partnerUrls = partnerProof ? await getUrls(partnerProof.storageIds) : [];
+
+        return {
+            day: args.day,
+            currentDay,
+            isFuture: args.day > currentDay,
+            isToday: args.day === currentDay,
+            myProof: myProof ? {
+                _id: myProof._id,
+                status: myProof.status,
+                urls: myUrls,
+                comment: myProof.comment,
+                rejectionReason: myProof.rejectionReason,
+                submittedAt: myProof.submittedAt,
+                reviewedAt: myProof.reviewedAt
+            } : null,
+            partnerProof: partnerProof ? {
+                _id: partnerProof._id,
+                status: partnerProof.status,
+                urls: partnerUrls,
+                comment: partnerProof.comment,
+                submittedAt: partnerProof.submittedAt,
+                reviewedAt: partnerProof.reviewedAt
+            } : null,
+            partnerName: partner?.name || "Partner",
+            userName: user.name || "You"
+        };
+    }
+});
+
 // Get full 14-day progress data for both users
 export const getProgressData = query({
     args: { matchId: v.id("matches") },

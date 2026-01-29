@@ -57,6 +57,7 @@ export default function AddAppScreen() {
 
     const createApp = useMutation(api.apps.createApp);
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const generateAppIconUploadUrl = useMutation(api.r2.generateAppIconUploadUrl);
     const currentUser = useQuery(api.users.getCurrentUser);
 
     // Cache invalidation
@@ -93,7 +94,7 @@ export default function AddAppScreen() {
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
             quality: 1,
@@ -172,23 +173,56 @@ export default function AddAppScreen() {
                 requiredTesters: testers,
             });
 
-            // 2. Upload Image if selected, using App ID as filename
+            // 2. Upload Image if selected, using Convex R2 signed URL flow
             if (processedImageUri) {
                 try {
-                    const { uploadImageToR2 } = require('@/utils/image-uploader');
-                    // Use deterministic filename: app-icons/<appId>.webp (appId is standard ID string)
-                    // This allows overwriting/updating easily
-                    const uploadUrl = await uploadImageToR2(processedImageUri, "app-icons", `${appId}.webp`);
+                    // Generate signed upload URL from Convex R2 with deterministic key
+                    const { key: r2Key, url: signedUrl } = await generateAppIconUploadUrl({
+                        appId: appId as string
+                    });
+
+                    // Read file as base64 and upload via XMLHttpRequest (works in React Native)
+                    const FileSystem = require('expo-file-system/legacy');
+                    const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
+
+                    // Upload using XMLHttpRequest (React Native compatible)
+                    await new Promise<void>((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('PUT', signedUrl, true);
+                        xhr.setRequestHeader('Content-Type', 'image/webp');
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Upload failed: ${xhr.status}`));
+                            }
+                        };
+                        xhr.onerror = () => reject(new Error('Upload failed'));
+
+                        // Convert base64 to binary and send
+                        const binaryString = atob(base64);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        xhr.send(bytes.buffer);
+                    });
+
+                    // Build the public URL (using R2 worker for serving)
+                    const iconUrl = `https://r2-image-worker.dodo-webhook.workers.dev/${r2Key}`;
 
                     // 3. Update App with real icon URL
                     await updateApp({
                         appId: appId,
-                        iconUrl: uploadUrl
+                        iconUrl: iconUrl
                     });
+
+                    console.log(`R2 Upload Success via Convex: ${iconUrl}`);
                 } catch (uploadError: any) {
                     console.error("Upload failed but app created:", uploadError);
                     toast.info("Warning", { description: "App created but icon upload failed: " + uploadError.message });
-                    // Optionally delete app if critical
                 }
             }
 
