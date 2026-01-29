@@ -73,13 +73,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
 
                     {/* Action Badge & Reputation Container */}
                     <View className="flex-row items-center gap-2">
-                        {/* Reputation (Marketplace only - moved from bottom) */}
-                        {variant === 'marketplace' && (
-                            <View className="flex-row items-center gap-1">
-                                <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
-                                <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
-                            </View>
-                        )}
+                        {/* Reputation removed from here */}
 
                         {/* Action Badge (highest priority) */}
                         {actionBadge ? (
@@ -164,7 +158,16 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                         <View className="flex-row items-center justify-between">
                             <View className="flex-row items-center gap-3">
                                 <View className="bg-secondary/50 px-2 py-1 rounded-md">
-                                    <Text className="text-xs font-medium text-foreground" numberOfLines={1}>{item.ownerName || 'Unknown'}</Text>
+                                    <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
+                                        {(item.ownerName || 'Unknown').length > 15
+                                            ? `${(item.ownerName || 'Unknown').substring(0, 15)}...`
+                                            : (item.ownerName || 'Unknown')}
+                                    </Text>
+                                </View>
+                                {/* Reputation (Moved back to bottom) */}
+                                <View className="flex-row items-center gap-1">
+                                    <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
+                                    <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
                                 </View>
                             </View>
 
