@@ -204,22 +204,6 @@ export const getMyApps = query({
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
 
-        // OPTIMIZED: Only fetch ACTIVE matches for unread count check
-        // We don't need archived or pending matches to check for "unread active messages"
-        const matchesAsUser1 = await ctx.db
-            .query("matches")
-            .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
-            .filter(q => q.eq(q.field("status"), "active"))
-            .collect();
-
-        const matchesAsUser2 = await ctx.db
-            .query("matches")
-            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
-            .filter(q => q.eq(q.field("status"), "active"))
-            .collect();
-
-        const activeUserMatches = [...matchesAsUser1, ...matchesAsUser2];
-
         // Batch resolve icons
         const storageIds = new Set<string>();
         apps.forEach(app => {
@@ -238,28 +222,12 @@ export const getMyApps = query({
             return app.iconUrl || "https://github.com/shadcn.png";
         };
 
-        // Map apps to resolved data
-        const appsWithUrlsAndTesters = apps.map((app) => {
-            // Use cached currentTesters
+        // OPTIMIZED: Removed hasUnread calculation to prevent cache invalidation
+        // hasUnread changes on every message, causing poor cache hit rates
+        // Apps list itself changes rarely (only when user adds/deletes apps)
+        const appsWithUrls = apps.map((app) => {
             const actualTesters = app.currentTesters || 0;
 
-            // Check for unread in memory (now only iterating active matches)
-            let hasUnread = false;
-            // Only check matches related to THIS app
-            const appMatches = activeUserMatches.filter(
-                m => (m.app1Id === app._id || m.app2Id === app._id)
-            );
-
-            for (const m of appMatches) {
-                const isUser1 = m.user1Id === user._id;
-                const lastRead = isUser1 ? (m.lastRead1 || 0) : (m.lastRead2 || 0);
-                if ((m.lastActivity || 0) > lastRead) {
-                    hasUnread = true;
-                    break;
-                }
-            }
-
-            // OPTIMIZED: Explicitly return only needed fields
             return {
                 _id: app._id,
                 title: app.title,
@@ -268,13 +236,12 @@ export const getMyApps = query({
                 requiredTesters: app.requiredTesters,
                 iconUrl: resolveIcon(app),
                 currentTesters: actualTesters,
-                hasUnread,
                 visibility: app.visibility,
                 createdAt: app.createdAt
             };
         });
 
-        return appsWithUrlsAndTesters;
+        return appsWithUrls;
     },
 });
 
