@@ -204,34 +204,52 @@ export const getMyApps = query({
             .withIndex("by_userId", (q) => q.eq("userId", user._id))
             .collect();
 
-        // Batch fetch all matches for this user upfront (avoid N+1)
+        // OPTIMIZED: Only fetch ACTIVE matches for unread count check
+        // We don't need archived or pending matches to check for "unread active messages"
         const matchesAsUser1 = await ctx.db
             .query("matches")
             .withIndex("by_user1", (q) => q.eq("user1Id", user._id))
+            .filter(q => q.eq(q.field("status"), "active"))
             .collect();
+
         const matchesAsUser2 = await ctx.db
             .query("matches")
             .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
+            .filter(q => q.eq(q.field("status"), "active"))
             .collect();
-        const allUserMatches = [...matchesAsUser1, ...matchesAsUser2];
+
+        const activeUserMatches = [...matchesAsUser1, ...matchesAsUser2];
+
+        // Batch resolve icons
+        const storageIds = new Set<string>();
+        apps.forEach(app => {
+            if (app?.storageIconId) storageIds.add(app.storageIconId);
+        });
+        const urlMap = new Map<string, string>();
+        await Promise.all([...storageIds].map(async id => {
+            const url = await ctx.storage.getUrl(id);
+            if (url) urlMap.set(id, url);
+        }));
+
+        const resolveIcon = (app: any) => {
+            if (!app) return "https://github.com/shadcn.png";
+            if (app.storageIconId && urlMap.has(app.storageIconId)) return urlMap.get(app.storageIconId)!;
+            if (app.iconUrl && !app.iconUrl.startsWith("http")) return "https://github.com/shadcn.png";
+            return app.iconUrl || "https://github.com/shadcn.png";
+        };
 
         // Map apps to resolved data
-        const appsWithUrlsAndTesters = await Promise.all(apps.map(async (app) => {
-            let resolvedUrl = app.iconUrl;
-            if (app.storageIconId) {
-                resolvedUrl = await getImageUrl(ctx, app.storageIconId);
-            } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
-                resolvedUrl = await getImageUrl(ctx, app.iconUrl);
-            }
-
+        const appsWithUrlsAndTesters = apps.map((app) => {
             // Use cached currentTesters
             const actualTesters = app.currentTesters || 0;
 
-            // Check for unread in memory (no additional queries!)
+            // Check for unread in memory (now only iterating active matches)
             let hasUnread = false;
-            const appMatches = allUserMatches.filter(
-                m => (m.app1Id === app._id || m.app2Id === app._id) && m.status === "active"
+            // Only check matches related to THIS app
+            const appMatches = activeUserMatches.filter(
+                m => (m.app1Id === app._id || m.app2Id === app._id)
             );
+
             for (const m of appMatches) {
                 const isUser1 = m.user1Id === user._id;
                 const lastRead = isUser1 ? (m.lastRead1 || 0) : (m.lastRead2 || 0);
@@ -241,14 +259,20 @@ export const getMyApps = query({
                 }
             }
 
+            // OPTIMIZED: Explicitly return only needed fields
             return {
-                ...app,
-                iconUrl: resolvedUrl,
+                _id: app._id,
+                title: app.title,
+                packageName: app.packageName,
+                status: app.status,
+                requiredTesters: app.requiredTesters,
+                iconUrl: resolveIcon(app),
                 currentTesters: actualTesters,
                 hasUnread,
-                visibility: app.visibility
+                visibility: app.visibility,
+                createdAt: app.createdAt
             };
-        }));
+        });
 
         return appsWithUrlsAndTesters;
     },
