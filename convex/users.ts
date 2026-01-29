@@ -159,20 +159,10 @@ export const savePushToken = mutation({
 
         if (!user) return;
 
-        // Remove this token from any other users (in case of device reuse or re-login)
-        const usersWithSameToken = await ctx.db
-            .query("users")
-            .filter((q) => q.eq(q.field("pushToken"), args.pushToken))
-            .collect();
 
-        for (const otherUser of usersWithSameToken) {
-            if (otherUser._id !== user._id) {
-                await ctx.db.patch(otherUser._id, {
-                    pushToken: undefined,
-                    updatedAt: Date.now(),
-                });
-            }
-        }
+
+        // Don't update if nothing changed (prevents cache invalidation)
+        if (user.pushToken === args.pushToken) return;
 
         // Update current user's token
         await ctx.db.patch(user._id, {

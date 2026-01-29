@@ -24,6 +24,7 @@ export default defineSchema({
         updatedAt: v.number(),
     })
         .index("by_tokenIdentifier", ["tokenIdentifier"])
+        .index("by_pushToken", ["pushToken"])
         .index("by_boostPoints", ["boostPoints"])
         .searchIndex("search_name", {
             searchField: "name",
