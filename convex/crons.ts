@@ -68,11 +68,12 @@ crons.daily(
 
 // Check for inactive app owners (pending proofs > 48h)
 // Runs at 2:30 AM IST (9:00 PM UTC previous day)
-crons.daily(
-    "check-app-owner-inactivity",
-    { hourUTC: 21, minuteUTC: 0 },
-    internal.matches.checkAppOwnerInactivity
-);
+// DISABLED PER USER REQUEST
+// crons.daily(
+//     "check-app-owner-inactivity",
+//     { hourUTC: 21, minuteUTC: 0 },
+//     internal.matches.checkAppOwnerInactivity
+// );
 
 // Sync currentTesters cache every 4 hours (0:00, 4:00, 8:00, 12:00, 16:00, 20:00 UTC)
 // Fixes discrepancies between marketplace and app details tester counts
