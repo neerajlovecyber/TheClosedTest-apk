@@ -1647,13 +1647,10 @@ export const cleanupCancelledMatches = internalMutation({
     }
 });
 
-// Check for App Owners who missed reviews (Pending proofs > 48h)
+// Check for users who haven't uploaded proofs for 2 consecutive days
 export const checkAppOwnerInactivity = internalMutation({
     args: {},
     handler: async (ctx) => {
-        const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
-        const cutoffTime = Date.now() - TWO_DAYS_MS;
-
         // Get all active matches
         const activeMatches = await ctx.db
             .query("matches")
@@ -1663,25 +1660,51 @@ export const checkAppOwnerInactivity = internalMutation({
         const slackers = new Set<Id<"users">>();
 
         for (const match of activeMatches) {
-            // Get pending proofs for this match
+            const currentDay = calculateDay(match.startDate);
+            // Grace period: allow first 2 days to pass
+            if (currentDay < 3) continue;
+
+            const daysToCheck = [currentDay - 1, currentDay - 2];
+
+            // Get proofs for this match efficiently
             const proofs = await ctx.db
                 .query("proofs")
                 .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
                 .collect();
 
-            for (const proof of proofs) {
-                if (proof.status === "pending" && proof.submittedAt < cutoffTime) {
-                    // Reviewer is the one who ISN'T the uploader
-                    const reviewerId = proof.uploaderId === match.user1Id ? match.user2Id : match.user1Id;
-                    slackers.add(reviewerId);
+            // Check both users
+            const usersInfo = [
+                { id: match.user1Id, role: "user1" },
+                { id: match.user2Id, role: "user2" }
+            ];
+
+            for (const user of usersInfo) {
+                // Check if user missed BOTH days
+                const missedBoth = daysToCheck.every(day => {
+                    const hasProof = proofs.some(p => p.uploaderId === user.id && p.day === day);
+                    return !hasProof;
+                });
+
+                if (missedBoth) {
+                    console.log(`User ${user.id} missed uploads for days ${daysToCheck.join(", ")} in match ${match._id}`);
+                    slackers.add(user.id);
                 }
             }
         }
 
-        console.log(`Found ${slackers.size} inactive app owners.`);
+        console.log(`Found ${slackers.size} inactive users (missed 2 days consecutively).`);
 
         for (const userId of slackers) {
             console.log(`Penalizing user ${userId} for inactivity...`);
+
+            // Notify Slacker
+            await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                userId: userId,
+                type: "message",
+                title: "⚠️ Inactivity Penalty",
+                body: "You missed uploading screenshots for 2 consecutive days. Your apps have been archived and matches cancelled.",
+                data: { type: "penalty" }
+            });
 
             // 1. Mark user to see popup
             await ctx.db.patch(userId, { showDeletionPopup: true });
@@ -1714,6 +1737,18 @@ export const checkAppOwnerInactivity = internalMutation({
             for (const m of allUserMatches) {
                 if (m.status === "active" || m.status === "pending") {
                     await ctx.db.patch(m._id, { status: "cancelled" });
+
+                    // Notify Partner (if active match)
+                    if (m.status === "active") {
+                        const partnerId = m.user1Id === userId ? m.user2Id : m.user1Id;
+                        await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
+                            userId: partnerId,
+                            type: "message",
+                            title: "Match Cancelled",
+                            body: "This match was cancelled because your partner was inactive for 2 consecutive days.",
+                            data: { matchId: m._id, type: "match_cancelled" }
+                        });
+                    }
                 }
             }
         }
