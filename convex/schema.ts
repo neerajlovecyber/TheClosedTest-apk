@@ -232,14 +232,14 @@ export default defineSchema({
 
 
     analytics: defineTable({
-        date: v.string(), // YYYY-MM-DD
-        activeMatches: v.number(),
+        date: v.string(),
         activeUsers: v.number(),
+        activeMatches: v.number(),
         proofsUploaded: v.number(),
         appsSubmitted: v.number(),
         reportsCreated: v.number(),
-    })
-        .index("by_date", ["date"]),
+        newUsers: v.number(),
+    }).index("by_date", ["date"]),
 
     daily_activity: defineTable({
         userId: v.id("users"),

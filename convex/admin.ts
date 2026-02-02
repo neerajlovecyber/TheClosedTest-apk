@@ -42,6 +42,7 @@ export const internalSnapshotDailyStats = internalMutation({
                 proofsUploaded: proofsCount,
                 appsSubmitted: appsCount,
                 reportsCreated: reportsCount,
+                newUsers: newUsersCount,
             });
         } else {
             await ctx.db.insert("analytics", {
@@ -51,6 +52,7 @@ export const internalSnapshotDailyStats = internalMutation({
                 proofsUploaded: proofsCount,
                 appsSubmitted: appsCount,
                 reportsCreated: reportsCount,
+                newUsers: newUsersCount,
             });
         }
         return "Snapshot updated for " + dateStr;
@@ -157,7 +159,7 @@ export const getStats = query({
             },
             history: history.map(h => ({
                 ...h,
-                newUsers: h.activeUsers || 0 // Use pre-calculated value from snapshot
+                newUsers: h.newUsers || 0 // Use stored value from snapshot
             })),
             recentUsers: recentUsers.slice(0, 5),
         };
