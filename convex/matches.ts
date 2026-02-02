@@ -538,6 +538,43 @@ export const getMyActiveTests = query({
 
         const allActiveMatches = [...myRequests, ...requestsToMe];
 
+        // OPTIMIZED: Batch fetch ALL proofs for today for current user in ONE query
+        // This eliminates N*2 proof queries (was 2 queries per match)
+        const day = allActiveMatches.length > 0
+            ? calculateDay(allActiveMatches[0].startDate || Date.now())
+            : 1;
+
+        // Fetch all user's proofs for today in one query
+        const allUserProofsToday = await ctx.db
+            .query("proofs")
+            .withIndex("by_uploader_day", (q) =>
+                q.eq("uploaderId", user._id).eq("day", day)
+            )
+            .collect();
+
+        // Create lookup map: matchId -> proof
+        const userProofMap = new Map(
+            allUserProofsToday.map(p => [p.matchId, p])
+        );
+
+        // Fetch all partner proofs for today
+        const partnerIds = allActiveMatches.map(m =>
+            m.user1Id === user._id ? m.user2Id : m.user1Id
+        );
+
+        // Batch fetch partner proofs (one query for all partners)
+        const allPartnerProofsToday = await ctx.db
+            .query("proofs")
+            .filter((q) => q.eq(q.field("day"), day))
+            .collect();
+
+        // Create lookup map: matchId -> proof (for partners only)
+        const partnerProofMap = new Map(
+            allPartnerProofsToday
+                .filter(p => partnerIds.includes(p.uploaderId))
+                .map(p => [p.matchId, p])
+        );
+
         // Collect all unique IDs to fetch
         const appIds = new Set<Id<"apps">>();
         const userIds = new Set<Id<"users">>();
@@ -598,29 +635,12 @@ export const getMyActiveTests = query({
                 // const myApp = appMap.get(myAppId); 
                 // We don't fetch owner anymore to prevent frequent invalidation
 
-                // Calculate current day
-                const day = calculateDay(match.startDate || Date.now());
+                // Calculate current day (use same day as batch fetch)
+                const matchDay = calculateDay(match.startDate || Date.now());
 
-                // OPTIMIZED: Use 'by_uploader_day' index
-                // Check if user has uploaded proof for today
-                const todayProof = await ctx.db
-                    .query("proofs")
-                    .withIndex("by_uploader_day", (q) =>
-                        q.eq("uploaderId", user._id)
-                            .eq("matchId", match._id)
-                            .eq("day", day)
-                    )
-                    .first();
-
-                // Check partner's proof status
-                const partnerProof = await ctx.db
-                    .query("proofs")
-                    .withIndex("by_uploader_day", (q) =>
-                        q.eq("uploaderId", ownerId)
-                            .eq("matchId", match._id)
-                            .eq("day", day)
-                    )
-                    .first();
+                // OPTIMIZED: Use pre-fetched proof maps instead of individual queries
+                const todayProof = userProofMap.get(match._id);
+                const partnerProof = partnerProofMap.get(match._id);
 
                 const myProofStatus = todayProof?.status || "not_uploaded";
                 const partnerProofStatus = partnerProof?.status || "not_uploaded";
@@ -634,7 +654,7 @@ export const getMyActiveTests = query({
                     senderId: ownerId,
                     // owner: "Unknown User", // Removed
                     // avatarUrl: "https://github.com/shadcn.png", // Removed
-                    day,
+                    day: matchDay,
                     totalDays: 14,
                     myProofStatus,
                     partnerProofStatus,
@@ -1392,23 +1412,28 @@ export const getAppTesters = query({
         // Filter for active matches in memory (much cheaper than filter() in query)
         const allMatches = [...matchesAsApp1, ...matchesAsApp2].filter(m => m.status === "active");
 
+        // OPTIMIZED: Batch fetch all proofs for today in ONE query
+        const day = allMatches.length > 0
+            ? calculateDay(allMatches[0].startDate || Date.now())
+            : 1;
+
+        const allProofsToday = await ctx.db
+            .query("proofs")
+            .filter((q) => q.eq(q.field("day"), day))
+            .collect();
+
+        // Create proof lookup map: matchId+uploaderId -> proof
+        const proofMap = new Map(
+            allProofsToday.map(p => [`${p.matchId}-${p.uploaderId}`, p])
+        );
+
         return await Promise.all(allMatches.map(async (match) => {
             const isApp1 = match.app1Id === args.appId;
             const testerId = isApp1 ? match.user2Id : match.user1Id;
             const tester = await ctx.db.get(testerId);
 
-            // Calculate current day
-            const day = calculateDay(match.startDate || Date.now());
-
-            // Check if tester uploaded proof for today
-            const proof = await ctx.db
-                .query("proofs")
-                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
-                .filter((q) => q.and(
-                    q.eq(q.field("uploaderId"), testerId),
-                    q.eq(q.field("day"), day)
-                ))
-                .first();
+            // OPTIMIZED: Use pre-fetched proof map instead of individual query
+            const proof = proofMap.get(`${match._id}-${testerId}`);
 
             const isUser1 = match.user1Id === user?._id;
             const lastRead = isUser1 ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
@@ -1418,7 +1443,7 @@ export const getAppTesters = query({
                 matchId: match._id,
                 testerName: tester?.name || "Unknown",
                 testerAvatar: resolveAvatarUrl(tester?.avatarUrl),
-                day,
+                day: day,
                 status: proof ? proof.status : "pending",
                 uploadedToday: !!proof,
                 hasUnread,

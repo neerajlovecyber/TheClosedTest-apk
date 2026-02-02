@@ -273,23 +273,9 @@ export const getAppArgs = query({
             }
         }
 
-        // Count active testers - use indexes for efficiency
-        const matchesAsApp1 = await ctx.db
-            .query("matches")
-            .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
-            .collect();
-
-        const matchesAsApp2 = await ctx.db
-            .query("matches")
-            .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
-            .collect();
-
-        // Filter for active/completed status in memory (cheaper than filter() in query)
-        const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
-            m => m.status === "active" || m.status === "completed"
-        );
-
-        const actualTesters = activeMatches.length;
+        // OPTIMIZED: Use pre-computed currentTesters field (synced by cron every 4 hours)
+        // This eliminates 2 expensive match table queries
+        const actualTesters = app.currentTesters || 0;
         const isFilled = actualTesters >= app.requiredTesters || app.status === "filled";
 
         return {
@@ -748,7 +734,8 @@ export const internalSyncCurrentTesters = internalMutation({
     args: {},
     handler: async (ctx) => {
         const apps = await ctx.db.query("apps").collect();
-        let updated = 0;
+        let counterUpdated = 0;
+        let statusFixed = 0;
         let details: string[] = [];
 
         for (const app of apps) {
@@ -769,19 +756,41 @@ export const internalSyncCurrentTesters = internalMutation({
                 m => m.status === "active" || m.status === "completed"
             );
             const actualTesters = activeMatches.length;
+            const shouldBeFilled = actualTesters >= app.requiredTesters;
 
+            const updates: any = {};
+            const changes: string[] = [];
+
+            // Fix counter drift
             if (app.currentTesters !== actualTesters) {
-                await ctx.db.patch(app._id, {
-                    currentTesters: actualTesters,
-                    updatedAt: Date.now()
-                });
-                details.push(`${app.title}: ${app.currentTesters} -> ${actualTesters}`);
-                updated++;
+                updates.currentTesters = actualTesters;
+                changes.push(`testers: ${app.currentTesters} -> ${actualTesters}`);
+                counterUpdated++;
+            }
+
+            // Fix status mismatches (recruiting ↔ filled)
+            if (app.status === 'filled' || app.status === 'recruiting') {
+                if (shouldBeFilled && app.status !== "filled") {
+                    updates.status = "filled";
+                    changes.push(`status: ${app.status} -> filled`);
+                    statusFixed++;
+                } else if (!shouldBeFilled && app.status === "filled") {
+                    updates.status = "recruiting";
+                    changes.push(`status: ${app.status} -> recruiting`);
+                    statusFixed++;
+                }
+            }
+
+            // Apply updates if any changes needed
+            if (Object.keys(updates).length > 0) {
+                updates.updatedAt = Date.now();
+                await ctx.db.patch(app._id, updates);
+                details.push(`${app.title}: ${changes.join(', ')}`);
             }
         }
 
-        console.log(`[Cron] Synced currentTesters: ${updated} apps updated`, details);
-        return { totalApps: apps.length, updated, details };
+        console.log(`[Cron] Reconciliation complete: ${counterUpdated} counters synced, ${statusFixed} statuses fixed`, details);
+        return { totalApps: apps.length, counterUpdated, statusFixed, details };
     }
 });
 

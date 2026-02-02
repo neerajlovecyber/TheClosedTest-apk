@@ -320,27 +320,19 @@ export const getMyNotifications = query({
 
         if (!user) return [];
 
-        // Simplified query: get by user, order desc by creation time
-        // Note: We might need an index for this if volume is high.
-        // Schema has "by_userId_read". We can use that if we only wanted read/unread.
-        // Ideally we want all. Let's filter by user in-memory for now or add index later if needed.
-        // Actually, schema definition: .index("by_userId_read", ["userId", "read"])
-        // We can use this index and merge or just filter.
-        // Better: define a separate index for "by_userId" or sort in memory for small sets.
-        // Given current schema, let's just use the existing logic or inefficiently filter:
-        // Proper way: Add index "by_userId" to schema.
-        // Short term fix: Filter all notifications. (Not efficient but works for small app)
-        // Wait, "by_userId_read" supports prefix "userId". So we can query all for user!
-
-        return await ctx.db
+        // OPTIMIZED: Take only 20 most recent notifications
+        // Note: This queries by userId prefix, then sorts by creation time (system default)
+        // and limits to 20. Much more efficient than fetching all and sorting in memory.
+        const notifications = await ctx.db
             .query("notifications")
             .withIndex("by_userId_read", (q) => q.eq("userId", user._id))
-            .order("desc") // This might not work if index doesn't support it, but userId is equality.
-            // Actually, Convex indices dictate sort order. If index is ["userId", "read"], it sorts by read then creation (system).
-            // Default creation time sort is only available on table scan or specific indexes.
-            // Let's just collect and sort in memory for now (safe for < 100 items).
-            .collect()
-            .then(notifications => notifications.sort((a, b) => b.createdAt - a.createdAt).slice(0, 20));
+            .order("desc")
+            .take(50); // Take 50 to ensure we get 20 after filtering if needed
+
+        // Sort by createdAt and limit to 20
+        return notifications
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .slice(0, 20);
     },
 });
 

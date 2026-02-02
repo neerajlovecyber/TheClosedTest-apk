@@ -117,6 +117,39 @@ export const getUsersNeedingReminders = internalQuery({
             .filter((q) => q.eq(q.field("status"), "active"))
             .collect();
 
+        if (activeMatches.length === 0) {
+            return [];
+        }
+
+        // OPTIMIZED: Batch fetch recent proofs (days 1-14) in ONE query
+        // Note: Each match may be on a different day (1-14) of their testing period.
+        // We fetch all proofs for days 1-14 to cover all active matches.
+        const allProofs = await ctx.db
+            .query("proofs")
+            .filter((q) => q.and(
+                q.gte(q.field("day"), 1),
+                q.lte(q.field("day"), 14)
+            ))
+            .collect();
+
+        // Create lookup map: matchId+uploaderId+day -> proof
+        const proofMap = new Map(
+            allProofs.map(p => [`${p.matchId}-${p.uploaderId}-${p.day}`, p])
+        );
+
+        // Collect all app IDs to batch fetch
+        const appIds = new Set<string>();
+        for (const match of activeMatches) {
+            appIds.add(match.app1Id);
+            appIds.add(match.app2Id);
+        }
+
+        // Batch fetch all apps
+        const apps = await Promise.all(
+            Array.from(appIds).map(id => ctx.db.get(id as any))
+        );
+        const appMap = new Map(apps.filter(a => a).map(a => [a!._id, a]));
+
         const usersToRemind: Array<{
             userId: string;
             appName: string;
@@ -125,7 +158,7 @@ export const getUsersNeedingReminders = internalQuery({
         }> = [];
 
         for (const match of activeMatches) {
-            const currentDay = calculateDay(match.startDate);
+            const matchDay = calculateDay(match.startDate);
 
             // Check both users in the match
             const users = [
@@ -134,24 +167,18 @@ export const getUsersNeedingReminders = internalQuery({
             ];
 
             for (const { userId, appId } of users) {
-                // Check if user has uploaded for today
-                const todayProof = await ctx.db
-                    .query("proofs")
-                    .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
-                    .filter((q) => q.and(
-                        q.eq(q.field("uploaderId"), userId),
-                        q.eq(q.field("day"), currentDay)
-                    ))
-                    .first();
+                // OPTIMIZED: Use pre-fetched proof map instead of query
+                // Use matchId+uploaderId+day as key since each match can be on different days
+                const todayProof = proofMap.get(`${match._id}-${userId}-${matchDay}`);
 
                 // No proof for today - needs reminder
                 if (!todayProof) {
-                    const app = await ctx.db.get(appId);
+                    const app = appMap.get(appId);
                     usersToRemind.push({
                         userId: userId as string,
                         appName: app?.title || "your app",
                         matchId: match._id as string,
-                        day: currentDay,
+                        day: matchDay,
                     });
                 }
             }
