@@ -538,20 +538,31 @@ export const getMyActiveTests = query({
 
         const allActiveMatches = [...myRequests, ...requestsToMe];
 
-        // OPTIMIZED: Batch fetch proofs for days 1-14 in ONE query
-        // Note: Each match may be on a different day (1-14) of their testing period
-        // We can't assume all matches are on the same day!
+        // Calculate which specific days we need proofs for
+        // Each match may be on a different day of their 14-day period
+        const daysNeeded = new Set<number>();
+        const matchDayMap = new Map<string, number>();
 
-        // Fetch all user's proofs for days 1-14 in one query
+        allActiveMatches.forEach(match => {
+            const day = calculateDay(match.startDate || Date.now());
+            daysNeeded.add(day);
+            matchDayMap.set(match._id, day);
+        });
+
+        // Fetch user's proofs for ONLY the specific days needed (not all 1-14)
         const allUserProofs = await ctx.db
             .query("proofs")
             .withIndex("by_uploader_day", (q) =>
                 q.eq("uploaderId", user._id)
             )
-            .filter((q) => q.and(
-                q.gte(q.field("day"), 1),
-                q.lte(q.field("day"), 14)
-            ))
+            .filter((q) => {
+                const dayConditions = Array.from(daysNeeded).map(day =>
+                    q.eq(q.field("day"), day)
+                );
+                return dayConditions.length === 1
+                    ? dayConditions[0]
+                    : q.or(...dayConditions);
+            })
             .collect();
 
         // Create lookup map: matchId+day -> proof
@@ -559,25 +570,37 @@ export const getMyActiveTests = query({
             allUserProofs.map(p => [`${p.matchId}-${p.day}`, p])
         );
 
-        // Fetch all partner proofs for days 1-14
+        // Fetch partner proofs for ONLY the specific days needed
         const partnerIds = allActiveMatches.map(m =>
             m.user1Id === user._id ? m.user2Id : m.user1Id
         );
 
-        // Batch fetch partner proofs (one query for all partners, all days)
+        // Batch fetch partner proofs (one query for specific days only)
         const allPartnerProofs = await ctx.db
             .query("proofs")
-            .filter((q) => q.and(
-                q.gte(q.field("day"), 1),
-                q.lte(q.field("day"), 14)
-            ))
+            .filter((q) => {
+                const uploaderConditions = partnerIds.map(id =>
+                    q.eq(q.field("uploaderId"), id)
+                );
+                const dayConditions = Array.from(daysNeeded).map(day =>
+                    q.eq(q.field("day"), day)
+                );
+
+                const uploaderFilter = uploaderConditions.length === 1
+                    ? uploaderConditions[0]
+                    : q.or(...uploaderConditions);
+
+                const dayFilter = dayConditions.length === 1
+                    ? dayConditions[0]
+                    : q.or(...dayConditions);
+
+                return q.and(uploaderFilter, dayFilter);
+            })
             .collect();
 
         // Create lookup map: matchId+day -> proof (for partners only)
         const partnerProofMap = new Map(
-            allPartnerProofs
-                .filter(p => partnerIds.includes(p.uploaderId))
-                .map(p => [`${p.matchId}-${p.day}`, p])
+            allPartnerProofs.map(p => [`${p.matchId}-${p.day}`, p])
         );
 
         // Collect all unique IDs to fetch
@@ -640,8 +663,8 @@ export const getMyActiveTests = query({
                 // const myApp = appMap.get(myAppId); 
                 // We don't fetch owner anymore to prevent frequent invalidation
 
-                // Calculate current day for THIS match (each match may be on different day)
-                const matchDay = calculateDay(match.startDate || Date.now());
+                // Use pre-calculated day from matchDayMap
+                const matchDay = matchDayMap.get(match._id) || calculateDay(match.startDate || Date.now());
 
                 // OPTIMIZED: Use pre-fetched proof maps with day-aware lookup
                 const todayProof = userProofMap.get(`${match._id}-${matchDay}`);
