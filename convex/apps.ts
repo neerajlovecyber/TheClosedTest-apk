@@ -286,6 +286,7 @@ export const getAppArgs = query({
             currentTesters: actualTesters,
             isFilled,
             ownerName: owner?.name || "Unknown",
+            ownerEmail: owner?.email || null,
             ownerAvatar: owner?.avatarUrl || "https://github.com/shadcn.png",
             reputation: owner?.reputation || 0,
             isMine

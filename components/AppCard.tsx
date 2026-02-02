@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Image, TouchableOpacity, Share } from 'react-native';
+import { View, Image, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -158,21 +158,12 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                     {variant === 'marketplace' && (
                         <View className="flex-row items-center justify-between">
                             <View className="flex-row items-center gap-3">
-                                <View className="gap-0.5">
-                                    <View className="bg-secondary/50 px-2 py-1 rounded-md">
-                                        <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
-                                            {(item.ownerName || 'Unknown').length > 15
-                                                ? `${(item.ownerName || 'Unknown').substring(0, 15)}...`
-                                                : (item.ownerName || 'Unknown')}
-                                        </Text>
-                                    </View>
-                                    {item.ownerEmail && (
-                                        <TouchableOpacity onPress={() => Share.share({ message: item.ownerEmail || "" })}>
-                                            <Text className="text-[10px] text-blue-500 mt-0.5" numberOfLines={1}>
-                                                {item.ownerEmail}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
+                                <View className="bg-secondary/50 px-2 py-1 rounded-md">
+                                    <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
+                                        {(item.ownerName || 'Unknown').length > 15
+                                            ? `${(item.ownerName || 'Unknown').substring(0, 15)}...`
+                                            : (item.ownerName || 'Unknown')}
+                                    </Text>
                                 </View>
                                 {/* Reputation (Moved back to bottom) */}
                                 <View className="flex-row items-center gap-1">
