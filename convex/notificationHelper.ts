@@ -246,14 +246,42 @@ export const sendUrgentReminders = action({
     handler: async (ctx) => {
         const usersToRemind = await ctx.runQuery(internal.notificationHelper.getUsersNeedingReminders, {});
 
-        let sentCount = 0;
+        // DEDUPLICATE: Group by userId to send only ONE notification per user
+        const userMap = new Map<string, { userId: string; matches: Array<{ appName: string; day: number; matchId: string }> }>();
+
         for (const reminder of usersToRemind) {
+            const existing = userMap.get(reminder.userId);
+            if (existing) {
+                existing.matches.push({
+                    appName: reminder.appName,
+                    day: reminder.day,
+                    matchId: reminder.matchId
+                });
+            } else {
+                userMap.set(reminder.userId, {
+                    userId: reminder.userId,
+                    matches: [{
+                        appName: reminder.appName,
+                        day: reminder.day,
+                        matchId: reminder.matchId
+                    }]
+                });
+            }
+        }
+
+        let sentCount = 0;
+        for (const [userId, data] of userMap) {
+            const count = data.matches.length;
+            const body = count === 1
+                ? `Upload your Day ${data.matches[0].day} screenshot for ${data.matches[0].appName} before midnight or lose reputation points!`
+                : `Upload your ${count} pending screenshots before midnight or lose reputation points!`;
+
             await ctx.runAction(internal.notificationHelper.createNotification, {
-                userId: reminder.userId as any,
+                userId: userId as any,
                 type: "reminder",
                 title: "⚠️ Last Chance! Upload Now",
-                body: `Upload your Day ${reminder.day} screenshot for ${reminder.appName} before midnight or lose reputation points!`,
-                data: { matchId: reminder.matchId, type: "urgent_reminder" },
+                body,
+                data: { type: "urgent_reminder", count },
             });
             sentCount++;
         }
