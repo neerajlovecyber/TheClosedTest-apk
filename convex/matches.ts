@@ -571,36 +571,31 @@ export const getMyActiveTests = query({
         );
 
         // Fetch partner proofs for ONLY the specific days needed
-        const partnerIds = allActiveMatches.map(m =>
-            m.user1Id === user._id ? m.user2Id : m.user1Id
-        );
+        // Use matchId index to avoid table scan
+        const partnerProofPromises = allActiveMatches.map(async (match) => {
+            const matchDay = matchDayMap.get(match._id)!;
+            const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
 
-        // Batch fetch partner proofs (one query for specific days only)
-        const allPartnerProofs = await ctx.db
-            .query("proofs")
-            .filter((q) => {
-                const uploaderConditions = partnerIds.map(id =>
-                    q.eq(q.field("uploaderId"), id)
-                );
-                const dayConditions = Array.from(daysNeeded).map(day =>
-                    q.eq(q.field("day"), day)
-                );
+            // Query by matchId index
+            const proof = await ctx.db
+                .query("proofs")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .filter((q) => q.and(
+                    q.eq(q.field("uploaderId"), partnerId),
+                    q.eq(q.field("day"), matchDay)
+                ))
+                .first();
 
-                const uploaderFilter = uploaderConditions.length === 1
-                    ? uploaderConditions[0]
-                    : q.or(...uploaderConditions);
+            return proof ? { matchId: match._id, day: matchDay, proof } : null;
+        });
 
-                const dayFilter = dayConditions.length === 1
-                    ? dayConditions[0]
-                    : q.or(...dayConditions);
+        const partnerProofResults = await Promise.all(partnerProofPromises);
 
-                return q.and(uploaderFilter, dayFilter);
-            })
-            .collect();
-
-        // Create lookup map: matchId+day -> proof (for partners only)
+        // Create lookup map: matchId+day -> proof
         const partnerProofMap = new Map(
-            allPartnerProofs.map(p => [`${p.matchId}-${p.day}`, p])
+            partnerProofResults
+                .filter((r): r is NonNullable<typeof r> => r !== null)
+                .map(r => [`${r.matchId}-${r.day}`, r.proof])
         );
 
         // Collect all unique IDs to fetch
