@@ -393,6 +393,13 @@ export default function AppDetailsScreen() {
                                             {app.title}
                                         </Text>
                                         <Text className="text-blue-100 text-sm" numberOfLines={1}>{app.packageName}</Text>
+                                        {app.ownerEmail && (
+                                            <TouchableOpacity onPress={() => Share.share({ message: app.ownerEmail || "" })} className="mt-1">
+                                                <Text className="text-blue-300 text-xs">
+                                                    {app.ownerEmail}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
                                     </View>
 
                                     <TouchableOpacity
@@ -407,22 +414,13 @@ export default function AppDetailsScreen() {
                             </View>
 
                             {/* Integrated Footer for Owner */}
-                            <View className="px-5 py-4 border-t border-white/10">
-                                <View className="flex-row items-center justify-between mb-1">
-                                    <Text className="text-xs font-semibold text-blue-100 uppercase tracking-widest">
-                                        Published by
-                                    </Text>
-                                    <Text className="text-sm font-bold text-white">
-                                        {app.ownerName || "Unknown"}
-                                    </Text>
-                                </View>
-                                {app.ownerEmail && (
-                                    <TouchableOpacity onPress={() => Share.share({ message: app.ownerEmail || "" })}>
-                                        <Text className="text-xs text-blue-300 text-right">
-                                            {app.ownerEmail}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
+                            <View className="px-5 py-4 flex-row items-center justify-between border-t border-white/10">
+                                <Text className="text-xs font-semibold text-blue-100 uppercase tracking-widest">
+                                    Published by
+                                </Text>
+                                <Text className="text-sm font-bold text-white">
+                                    {app.ownerName || "Unknown"}
+                                </Text>
                             </View>
                         </CardContent>
                     </Card>
