@@ -238,7 +238,7 @@ export default defineSchema({
         proofsUploaded: v.number(),
         appsSubmitted: v.number(),
         reportsCreated: v.number(),
-        newUsers: v.number(),
+        newUsers: v.optional(v.number()),
     }).index("by_date", ["date"]),
 
     daily_activity: defineTable({
