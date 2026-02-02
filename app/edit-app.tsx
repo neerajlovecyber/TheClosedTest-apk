@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,6 +28,7 @@ import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Id } from '@/convex/_generated/dataModel';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 export default function EditAppScreen() {
     const router = useRouter();
@@ -216,143 +217,142 @@ export default function EditAppScreen() {
                 <Text className="text-xl font-bold ml-2">Edit App</Text>
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1"
+            <KeyboardAwareScrollView
+                bottomOffset={Platform.OS === 'ios' ? 100 : 80}
+                className="flex-1 p-4"
+                contentContainerStyle={{ paddingBottom: 40 }}
             >
-                <ScrollView className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 40 }}>
-                    <Card className="mb-6">
-                        <CardHeader>
-                            <CardTitle>App Details</CardTitle>
-                        </CardHeader>
-                        <CardContent className="gap-4">
-                            <View className="mb-6 items-center">
-                                <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
-                                    <View className="relative">
-                                        <Image
-                                            source={{ uri: processedImageUri || currentIconUrl || 'https://github.com/shadcn.png' }}
-                                            className="size-28 rounded-2xl border-2 border-primary/20 bg-muted"
-                                        />
-                                        <View className="absolute -top-2 -right-2 bg-background rounded-full p-1 border border-border shadow-sm">
-                                            <Icon as={processedImageUri ? CheckCircleIcon : EditIcon} className="size-4 text-primary" />
-                                        </View>
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle>App Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="gap-4">
+                        <View className="mb-6 items-center">
+                            <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+                                <View className="relative">
+                                    <Image
+                                        source={{ uri: processedImageUri || currentIconUrl || 'https://github.com/shadcn.png' }}
+                                        className="size-28 rounded-2xl border-2 border-primary/20 bg-muted"
+                                    />
+                                    <View className="absolute -top-2 -right-2 bg-background rounded-full p-1 border border-border shadow-sm">
+                                        <Icon as={processedImageUri ? CheckCircleIcon : EditIcon} className="size-4 text-primary" />
                                     </View>
-                                    <Text className="text-xs text-center text-muted-foreground mt-2">Tap to change icon</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <View>
-                                <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name (max 30)</Label>
-                                <Input
-                                    nativeID="appName"
-                                    placeholder="e.g. Flappy Bird 2"
-                                    value={title}
-                                    onChangeText={setTitle}
-                                    maxLength={30}
-                                    className="bg-background/50 border-primary/20 focus:border-primary"
-                                />
-                                <Text className="text-xs text-muted-foreground text-right mt-1">{title.length}/30</Text>
-                            </View>
-
-                            <View>
-                                <Label nativeID="playUrl" className="text-base font-semibold mb-1.5">Google Play Link</Label>
-                                <Input
-                                    nativeID="playUrl"
-                                    placeholder="https://play.google.com/..."
-                                    value={playStoreUrl}
-                                    onChangeText={setPlayStoreUrl}
-                                    maxLength={200}
-                                    className="bg-background/50 border-primary/20 focus:border-primary"
-                                />
-                                {/* Package Name Display */}
-                                {packageName ? (
-                                    <Text className="text-xs text-green-600 mt-1 font-medium">
-                                        Detected Package: {packageName}
-                                    </Text>
-                                ) : (
-                                    <Text className="text-xs text-destructive mt-1">
-                                        Invalid Play Store URL
-                                    </Text>
-                                )}
-                            </View>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="mb-6">
-                        <CardHeader>
-                            <CardTitle>Testing Requirements</CardTitle>
-                        </CardHeader>
-                        <CardContent className="gap-4">
-                            <View>
-                                <Label nativeID="testers">Testers Needed (max 12) *</Label>
-                                <Input
-                                    nativeID="testers"
-                                    keyboardType="numeric"
-                                    value={requiredTesters}
-                                    onChangeText={setRequiredTesters}
-                                    placeholder="12"
-                                />
-                            </View>
-
-                            <View>
-                                <Label nativeID="instructions">Instructions for Testers (max 250) *</Label>
-                                <Textarea
-                                    nativeID="instructions"
-                                    placeholder="Explain how to test your app..."
-                                    value={instructions}
-                                    onChangeText={setInstructions}
-                                    maxLength={250}
-                                    className="h-32"
-                                />
-                                <Text className="text-xs text-muted-foreground text-right mt-1">{instructions.length}/250</Text>
-                                <View className="flex-row flex-wrap gap-2 mt-3">
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Keep installed for 14 days")}>
-                                        <Text>+ 14 Days</Text>
-                                    </Button>
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Open daily")}>
-                                        <Text>+ Open Daily</Text>
-                                    </Button>
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Leave constructive feedback")}>
-                                        <Text>+ Feedback</Text>
-                                    </Button>
-                                    <Button variant="outline" size="sm" onPress={() => addInstruction("Upload screenshot")}>
-                                        <Text>+ Screenshot</Text>
-                                    </Button>
                                 </View>
-                            </View>
-                        </CardContent>
-                    </Card>
-
-                    <Button
-                        size="lg"
-                        onPress={handleSubmit}
-                        disabled={isSubmitting}
-                        className="mb-4 rounded-2xl shadow-sm"
-                    >
-                        {isSubmitting ? (
-                            <View className="flex-row items-center gap-2">
-                                <ActivityIndicator color="white" size="small" />
-                                <Text className="text-white font-bold">Updating...</Text>
-                            </View>
-                        ) : (
-                            <Text className="text-white font-bold text-lg">Save Changes</Text>
-                        )}
-                    </Button>
-
-                    <Button
-                        variant="destructive"
-                        size="lg"
-                        onPress={() => setShowDeleteConfirm(true)}
-                        disabled={isSubmitting}
-                        className="mb-12 rounded-2xl shadow-sm"
-                    >
-                        <View className="flex-row items-center gap-2">
-                            <Icon as={Trash2Icon} className="size-5 text-white" />
-                            <Text className="text-white font-bold text-lg">Delete App</Text>
+                                <Text className="text-xs text-center text-muted-foreground mt-2">Tap to change icon</Text>
+                            </TouchableOpacity>
                         </View>
-                    </Button>
-                </ScrollView>
-            </KeyboardAvoidingView>
+
+                        <View>
+                            <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name (max 30)</Label>
+                            <Input
+                                nativeID="appName"
+                                placeholder="e.g. Flappy Bird 2"
+                                value={title}
+                                onChangeText={setTitle}
+                                maxLength={30}
+                                className="bg-background/50 border-primary/20 focus:border-primary"
+                            />
+                            <Text className="text-xs text-muted-foreground text-right mt-1">{title.length}/30</Text>
+                        </View>
+
+                        <View>
+                            <Label nativeID="playUrl" className="text-base font-semibold mb-1.5">Google Play Link</Label>
+                            <Input
+                                nativeID="playUrl"
+                                placeholder="https://play.google.com/..."
+                                value={playStoreUrl}
+                                onChangeText={setPlayStoreUrl}
+                                maxLength={200}
+                                className="bg-background/50 border-primary/20 focus:border-primary"
+                            />
+                            {/* Package Name Display */}
+                            {packageName ? (
+                                <Text className="text-xs text-green-600 mt-1 font-medium">
+                                    Detected Package: {packageName}
+                                </Text>
+                            ) : (
+                                <Text className="text-xs text-destructive mt-1">
+                                    Invalid Play Store URL
+                                </Text>
+                            )}
+                        </View>
+                    </CardContent>
+                </Card>
+
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle>Testing Requirements</CardTitle>
+                    </CardHeader>
+                    <CardContent className="gap-4">
+                        <View>
+                            <Label nativeID="testers">Testers Needed (max 12) *</Label>
+                            <Input
+                                nativeID="testers"
+                                keyboardType="numeric"
+                                value={requiredTesters}
+                                onChangeText={setRequiredTesters}
+                                placeholder="12"
+                            />
+                        </View>
+
+                        <View>
+                            <Label nativeID="instructions">Instructions for Testers (max 250) *</Label>
+                            <Textarea
+                                nativeID="instructions"
+                                placeholder="Explain how to test your app..."
+                                value={instructions}
+                                onChangeText={setInstructions}
+                                maxLength={250}
+                                className="h-32"
+                            />
+                            <Text className="text-xs text-muted-foreground text-right mt-1">{instructions.length}/250</Text>
+                            <View className="flex-row flex-wrap gap-2 mt-3">
+                                <Button variant="outline" size="sm" onPress={() => addInstruction("Keep installed for 14 days")}>
+                                    <Text>+ 14 Days</Text>
+                                </Button>
+                                <Button variant="outline" size="sm" onPress={() => addInstruction("Open daily")}>
+                                    <Text>+ Open Daily</Text>
+                                </Button>
+                                <Button variant="outline" size="sm" onPress={() => addInstruction("Leave constructive feedback")}>
+                                    <Text>+ Feedback</Text>
+                                </Button>
+                                <Button variant="outline" size="sm" onPress={() => addInstruction("Upload screenshot")}>
+                                    <Text>+ Screenshot</Text>
+                                </Button>
+                            </View>
+                        </View>
+                    </CardContent>
+                </Card>
+
+                <Button
+                    size="lg"
+                    onPress={handleSubmit}
+                    disabled={isSubmitting}
+                    className="mb-4 rounded-2xl shadow-sm"
+                >
+                    {isSubmitting ? (
+                        <View className="flex-row items-center gap-2">
+                            <ActivityIndicator color="white" size="small" />
+                            <Text className="text-white font-bold">Updating...</Text>
+                        </View>
+                    ) : (
+                        <Text className="text-white font-bold text-lg">Save Changes</Text>
+                    )}
+                </Button>
+
+                <Button
+                    variant="destructive"
+                    size="lg"
+                    onPress={() => setShowDeleteConfirm(true)}
+                    disabled={isSubmitting}
+                    className="mb-12 rounded-2xl shadow-sm"
+                >
+                    <View className="flex-row items-center gap-2">
+                        <Icon as={Trash2Icon} className="size-5 text-white" />
+                        <Text className="text-white font-bold text-lg">Delete App</Text>
+                    </View>
+                </Button>
+            </KeyboardAwareScrollView>
 
             <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                 <AlertDialogContent>

@@ -86,7 +86,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-            <KeyboardProvider>
+            <KeyboardProvider statusBarTranslucent>
               <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
               <InitialLayout />
               <PortalHost />

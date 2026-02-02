@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, TextInput, TouchableOpacity, Platform } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation } from 'convex/react';
@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { toast } from '@/lib/sonner';
 import { Icon } from '@/components/ui/icon';
 import { ArrowLeftIcon } from 'lucide-react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 export default function CreateTicketScreen() {
     const router = useRouter();
@@ -49,7 +50,10 @@ export default function CreateTicketScreen() {
                 <Text className="text-xl font-bold text-foreground">New Support Ticket</Text>
             </View>
 
-            <ScrollView className="flex-1 p-6">
+            <KeyboardAwareScrollView
+                bottomOffset={Platform.OS === 'ios' ? 100 : 80}
+                className="flex-1 p-6"
+            >
                 <View className="mb-6">
                     <Text className="text-sm font-semibold text-foreground mb-2">Subject</Text>
                     <TextInput
@@ -69,8 +73,8 @@ export default function CreateTicketScreen() {
                                 key={p}
                                 onPress={() => setPriority(p)}
                                 className={`flex-1 py-3 items-center rounded-xl border ${priority === p
-                                        ? 'bg-primary border-primary'
-                                        : 'bg-card border-border'
+                                    ? 'bg-primary border-primary'
+                                    : 'bg-card border-border'
                                     }`}
                             >
                                 <Text className={`font-semibold capitalize ${priority === p ? 'text-primary-foreground' : 'text-foreground'
@@ -104,7 +108,7 @@ export default function CreateTicketScreen() {
                         {submitting ? 'Creating Ticket...' : 'Submit Ticket'}
                     </Text>
                 </TouchableOpacity>
-            </ScrollView>
+            </KeyboardAwareScrollView>
         </SafeAreaView>
     );
 }

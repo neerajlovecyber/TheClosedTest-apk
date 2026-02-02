@@ -32,8 +32,8 @@
         "backgroundColor": "#3B82F6"
       },
       "package": "com.theneerajsec.theclosedtest",
-      "googleServicesFile": "./google-services.json"
-
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
