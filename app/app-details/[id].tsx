@@ -677,7 +677,7 @@ export default function AppDetailsScreen() {
                                 className="w-full rounded-xl opacity-80"
                                 disabled={true}
                             >
-                                <Text className="font-bold text-lg">Request Sent</Text>
+                                <Text className="font-bold text-lg">Waiting to Accept</Text>
                             </Button>
                         ) : (
                             <View className="flex-row gap-3">
@@ -729,7 +729,7 @@ export default function AppDetailsScreen() {
                                 disabled={isSubmitting || (!!selectedAppData && (selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled'))}
                             >
                                 <Text className="font-bold text-lg">
-                                    {isSubmitting ? 'Sending Request...' : (selectedAppData && (selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled') ? 'App Full' : 'Request Swap')}
+                                    {isSubmitting ? 'Sending Request...' : (selectedAppData && (selectedAppData.currentTesters >= selectedAppData.requiredTesters || selectedAppData.status === 'filled') ? 'No Spots Available' : 'Start Testing Together')}
                                 </Text>
                             </Button>
                         )
