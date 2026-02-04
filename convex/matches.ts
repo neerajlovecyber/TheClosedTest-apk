@@ -135,7 +135,7 @@ export const requestSwap = mutation({
         const myAppTotalTesters = myAppMatchesAsApp1.length + myAppMatchesAsApp2.length;
 
         if (myAppTotalTesters >= myApp.requiredTesters) {
-            await ctx.db.patch(myApp._id, { status: "filled", updatedAt: Date.now() });
+            await ctx.db.patch(myApp._id, { status: "filled" });
             throw new ConvexError(`Your app "${myApp.title}" already has enough testers (${myAppTotalTesters}/${myApp.requiredTesters})`);
         }
 
@@ -180,7 +180,7 @@ export const requestSwap = mutation({
         const targetAppTotalTesters = targetAppMatchesAsApp1.length + targetAppMatchesAsApp2.length;
 
         if (targetAppTotalTesters >= targetApp.requiredTesters) {
-            await ctx.db.patch(targetApp._id, { status: "filled", updatedAt: Date.now() });
+            await ctx.db.patch(targetApp._id, { status: "filled" });
             throw new ConvexError(`The app "${targetApp.title}" already has enough testers`);
         }
 
@@ -321,7 +321,7 @@ export const acceptSwap = mutation({
         if (app1) {
             const app1ActiveCount = await countActiveTesters(app1._id);
             if (app1ActiveCount >= app1.requiredTesters) {
-                await ctx.db.patch(app1._id, { status: "filled", currentTesters: app1ActiveCount, updatedAt: Date.now() });
+                await ctx.db.patch(app1._id, { status: "filled", currentTesters: app1ActiveCount });
                 throw new ConvexError(`${app1.title} already has enough testers`);
             }
         }
@@ -329,7 +329,7 @@ export const acceptSwap = mutation({
         if (app2) {
             const app2ActiveCount = await countActiveTesters(app2._id);
             if (app2ActiveCount >= app2.requiredTesters) {
-                await ctx.db.patch(app2._id, { status: "filled", currentTesters: app2ActiveCount, updatedAt: Date.now() });
+                await ctx.db.patch(app2._id, { status: "filled", currentTesters: app2ActiveCount });
                 throw new ConvexError(`${app2.title} already has enough testers`);
             }
         }
@@ -348,7 +348,6 @@ export const acceptSwap = mutation({
             await ctx.db.patch(app1._id, {
                 currentTesters: newCount,
                 status: newStatus === "recruiting" || newStatus === "filled" ? newStatus : app1.status,
-                updatedAt: Date.now()
             });
         }
 
@@ -358,7 +357,6 @@ export const acceptSwap = mutation({
             await ctx.db.patch(app2._id, {
                 currentTesters: newCount,
                 status: newStatus === "recruiting" || newStatus === "filled" ? newStatus : app2.status,
-                updatedAt: Date.now()
             });
         }
 
