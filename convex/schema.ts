@@ -60,7 +60,6 @@ export default defineSchema({
             voters: v.array(v.id("users"))
         })),
         createdAt: v.number(),
-        updatedAt: v.number(),
     })
         .index("by_userId", ["userId"])
         .index("by_status", ["status"])

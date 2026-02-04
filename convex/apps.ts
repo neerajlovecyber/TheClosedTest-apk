@@ -87,7 +87,6 @@ export const createApp = mutation({
             currentTesters: 0,
             status: "recruiting",
             createdAt: Date.now(),
-            updatedAt: Date.now(),
         });
 
         // Update user's app count
@@ -180,7 +179,6 @@ export const getMarketplaceApps = query({
             reputation: app.reputation,
             flagCount: app.flagCount,
             visibility: app.visibility,
-            updatedAt: app.updatedAt,
             createdAt: app.createdAt
         }));
     },
@@ -361,7 +359,7 @@ export const deleteApp = mutation({
                     .collect();
 
                 if (activeMatches.length < partnerApp.requiredTesters) {
-                    await ctx.db.patch(partnerAppId, { status: "recruiting", updatedAt: Date.now() });
+                    await ctx.db.patch(partnerAppId, { status: "recruiting" });
                 }
             }
         }
@@ -404,7 +402,6 @@ export const updateApp = mutation({
             playStoreUrl: args.playStoreUrl ?? app.playStoreUrl,
             packageName: args.packageName ?? app.packageName,
             requiredTesters: args.requiredTesters ?? app.requiredTesters,
-            updatedAt: Date.now(),
         });
     }
 });
@@ -523,7 +520,6 @@ export const markAppAsCompleted = mutation({
         await ctx.db.patch(args.appId, {
             status: "completed",
             completedAt: now,
-            updatedAt: now,
         });
 
         return {
@@ -591,11 +587,11 @@ export const fixAppStatus = mutation({
         let newStatus = app.status;
 
         if (shouldBeFilled && app.status !== "filled") {
-            await ctx.db.patch(args.appId, { status: "filled", updatedAt: Date.now() });
+            await ctx.db.patch(args.appId, { status: "filled" });
             newStatus = "filled";
             changed = true;
         } else if (!shouldBeFilled && app.status === "filled") {
-            await ctx.db.patch(args.appId, { status: "recruiting", updatedAt: Date.now() });
+            await ctx.db.patch(args.appId, { status: "recruiting" });
             newStatus = "recruiting";
             changed = true;
         }
@@ -651,7 +647,7 @@ export const fixAllAppStatuses = internalMutation({
             let statusChanged = false;
             let testersSynced = false;
             let newStatus = app.status;
-            const updates: any = { updatedAt: Date.now() };
+            const updates: any = {};
 
             // Sync currentTesters if out of sync
             if (app.currentTesters !== actualTesters) {
@@ -722,7 +718,6 @@ export const syncCurrentTesters = mutation({
             if (app.currentTesters !== actualTesters) {
                 await ctx.db.patch(app._id, {
                     currentTesters: actualTesters,
-                    updatedAt: Date.now()
                 });
                 updated++;
             }
@@ -786,7 +781,6 @@ export const internalSyncCurrentTesters = internalMutation({
 
             // Apply updates if any changes needed
             if (Object.keys(updates).length > 0) {
-                updates.updatedAt = Date.now();
                 await ctx.db.patch(app._id, updates);
                 details.push(`${app.title}: ${changes.join(', ')}`);
             }
@@ -859,7 +853,6 @@ export const verifyAppVisibility = mutation({
                 negativeVotes,
                 voters
             },
-            updatedAt: Date.now()
         });
 
         return { status };
@@ -894,7 +887,6 @@ export const markAppFixed = mutation({
                 voters: []
             },
             flagCount: 0, // Also reset flags if we are treating this as "I fixed it"
-            updatedAt: Date.now()
         });
     }
 });
