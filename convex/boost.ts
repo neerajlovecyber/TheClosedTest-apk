@@ -319,8 +319,23 @@ export const earnBoostPoints = mutation({
         const currentPoints = boostEntry?.boostScore || 0;
         const newPoints = currentPoints + POINTS_PER_BOOST;
 
+        // Determine target app (preserve existing or auto-select first recruiting)
+        let targetAppId = boostEntry?.appId;
+
+        if (!targetAppId) {
+            const userApp = await ctx.db
+                .query("apps")
+                .withIndex("by_userId", (q) => q.eq("userId", user._id))
+                .filter((q) => q.eq(q.field("status"), "recruiting"))
+                .first();
+
+            if (userApp) {
+                targetAppId = userApp._id;
+            }
+        }
+
         // Update leaderboard ONLY
-        await updateLeaderboardEntry(ctx, user._id, newPoints, boostEntry?.appId);
+        await updateLeaderboardEntry(ctx, user._id, newPoints, targetAppId);
 
         return {
             success: true,
