@@ -1470,7 +1470,7 @@ export const cancelMatch = mutation({
                 await ctx.db.patch(appId, {
                     currentTesters: newCount,
                     status: newStatus,
-                    updatedAt: Date.now()
+
                 });
             }
         };
@@ -1704,7 +1704,7 @@ export const checkAppOwnerInactivity = internalMutation({
 
             for (const app of apps) {
                 if (app.status !== "archived" && app.status !== "completed") {
-                    await ctx.db.patch(app._id, { status: "archived", updatedAt: Date.now() });
+                    await ctx.db.patch(app._id, { status: "archived" });
                 }
             }
 
