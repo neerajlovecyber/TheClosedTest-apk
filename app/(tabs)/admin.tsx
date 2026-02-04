@@ -6,31 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Icon } from '@/components/ui/icon';
-import { ActivityIcon, UserPlusIcon, BarChart3Icon, ChevronRightIcon, BellIcon, SparklesIcon, AlertCircleIcon, MessageSquareIcon } from 'lucide-react-native';
+import { ActivityIcon, UserPlusIcon, BarChart3Icon, ChevronRightIcon, BellIcon, SparklesIcon, AlertCircleIcon, MessageSquareIcon, WrenchIcon } from 'lucide-react-native';
 import { toast } from '@/lib/sonner';
 import { useRouter } from 'expo-router';
 
 export default function AdminDashboardScreen() {
     const router = useRouter();
     const stats = useQuery(api.admin.getStats);
-    const fixAllApps = useMutation(api.admin.fixAllApps);
-    const [isFixing, setIsFixing] = React.useState(false);
-
-    const handleBatchFix = async () => {
-        try {
-            setIsFixing(true);
-            const result: any = await fixAllApps();
-            if (result.success) {
-                toast.success("Batch Fix Complete", {
-                    description: `Checked ${result.appsChecked} apps. Fixed ${result.fixedCount} apps.`
-                });
-            }
-        } catch (error: any) {
-            toast.error("Error", { description: error.message });
-        } finally {
-            setIsFixing(false);
-        }
-    };
+    // const fixAllApps = useMutation(api.admin.fixAllApps); // Removed
+    // const [isFixing, setIsFixing] = React.useState(false); // Removed
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -170,16 +154,15 @@ export default function AdminDashboardScreen() {
                 <Card className="border-border shadow-sm mb-4">
                     <TouchableOpacity
                         className="flex-row items-center justify-between p-4"
-                        onPress={handleBatchFix}
-                        disabled={isFixing}
+                        onPress={() => router.push('/admin/fixes')}
                     >
                         <View className="flex-row items-center">
-                            <View className="bg-orange-500/10 p-2.5 rounded-xl mr-3">
-                                <Icon as={SparklesIcon} className="text-orange-600 size-5" />
+                            <View className="bg-slate-500/10 p-2.5 rounded-xl mr-3">
+                                <Icon as={WrenchIcon} className="text-slate-600 size-5" />
                             </View>
                             <View>
-                                <Text className="font-semibold text-foreground">Batch Fix App Statuses</Text>
-                                <Text className="text-xs text-muted-foreground">{isFixing ? 'Checking...' : "Recalculate 'Filled' status for all"}</Text>
+                                <Text className="font-semibold text-foreground">Maintenance & Fixes</Text>
+                                <Text className="text-xs text-muted-foreground">Run cleanup scripts & tools</Text>
                             </View>
                         </View>
                         <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />

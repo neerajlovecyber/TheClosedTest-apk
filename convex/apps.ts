@@ -869,24 +869,4 @@ export const markAppFixed = mutation({
     }
 });
 
-// Migration to remove cleanup fields
-export const removeAppUpdatedAt = mutation({
-    args: {},
-    handler: async (ctx) => {
-        const apps = await ctx.db.query("apps").collect();
-        let count = 0;
-        for (const app of apps) {
-            const a = app as any;
-            if (a.updatedAt !== undefined || a.boostScore !== undefined || a.lastBoostedAt !== undefined || a.storageIconId !== undefined) {
-                await ctx.db.patch(app._id, {
-                    updatedAt: undefined,
-                    boostScore: undefined,
-                    lastBoostedAt: undefined,
-                    storageIconId: undefined
-                } as any);
-                count++;
-            }
-        }
-        return `Removed legacy fields from ${count} apps`;
-    }
-});
+
