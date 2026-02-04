@@ -29,17 +29,12 @@ async function getOrCreateCurrentCycle(ctx: any) {
 
     // If no cycle exists or current cycle has ended, create a new one
     if (!currentCycle || currentCycle.cycleEnd <= now) {
-        // If there was an old cycle, reset all user boost points
+        // If there was an old cycle, reset leaderboard ONLY
         if (currentCycle) {
-            const users = await ctx.db.query("users").collect();
-            for (const user of users) {
-                if (user.boostPoints && user.boostPoints > 0) {
-                    await ctx.db.patch(user._id, {
-                        boostPoints: 0,
-                        updatedAt: now,
-                    });
-                }
-            }
+            // Clear leaderboard - much faster than iterating all users
+            const leaderboardEntries = await ctx.db.query("boost_leaderboard").collect();
+            await Promise.all(leaderboardEntries.map((e: any) => ctx.db.delete(e._id)));
+            // No need to clear users table anymore
         }
 
         // Create new cycle
@@ -98,7 +93,13 @@ export const getBoostStatus = query({
                 .unique();
 
             if (currentUser) {
-                userPoints = currentUser.boostPoints || 0;
+                // Get boost state from leaderboard
+                const boostEntry = await ctx.db
+                    .query("boost_leaderboard")
+                    .withIndex("by_userId", (q: any) => q.eq("userId", currentUser._id))
+                    .unique();
+
+                userPoints = boostEntry?.boostScore || 0;
 
                 // Get user's recruiting apps
                 const userApps = await ctx.db
@@ -127,7 +128,7 @@ export const getBoostStatus = query({
 
 
                 // Get selected app details, or default to first app
-                let boostedAppId = currentUser.boostedAppId;
+                let boostedAppId = boostEntry?.appId;
 
                 // If no app selected but user has recruiting apps, use first one
                 if (!boostedAppId && recruitingApps.length > 0) {
@@ -152,21 +153,21 @@ export const getBoostStatus = query({
         }
 
         // Get leaderboard: users with boostPoints > 0 and valid boostedAppId
-        // OPTIMIZED: Use index instead of full table scan
-        const potentialUsers = await ctx.db
-            .query("users")
-            .withIndex("by_boostPoints")
+        // OPTIMIZED: Use index on leaderboard table
+        const topEntries = await ctx.db
+            .query("boost_leaderboard")
+            .withIndex("by_boostScore")
             .order("desc")
-            .take(50); // Fetch top 50 to ensure we find 5 valid ones
+            .take(20);
 
-        const usersWithBoosts = potentialUsers
-            .filter((u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId)
-            .slice(0, 5);
+        const validEntries = topEntries.filter(e => e.appId && e.boostScore > 0).slice(0, 5);
 
-        // Batch fetch apps
-        const appIds = usersWithBoosts.map(u => u.boostedAppId!);
-        const apps = await Promise.all(appIds.map(id => ctx.db.get(id)));
+        // Batch fetch Apps and Users
+        const apps = await Promise.all(validEntries.map(e => ctx.db.get(e.appId!)));
+        const users = await Promise.all(validEntries.map(e => ctx.db.get(e.userId)));
+
         const appMap = new Map(apps.filter(Boolean).map(a => [a!._id, a]));
+        const userMap = new Map(users.filter(Boolean).map(u => [u!._id, u]));
 
         // Batch fetch icons
         const storageIds = new Set<string>();
@@ -187,21 +188,21 @@ export const getBoostStatus = query({
         };
 
         // Build leaderboard with app details
-        const topApps = usersWithBoosts.map((user: any, index: number) => {
-            const app = appMap.get(user.boostedAppId) as any;
+        const topApps = validEntries.map((entry: any, index: number) => {
+            const app = appMap.get(entry.appId!) as any;
+            const user = userMap.get(entry.userId) as any;
+
             if (!app || app.status !== "recruiting") return null;
+            if (!user) return null;
 
-            // Use cached currentTesters instead of querying matches
             const actualTesters = app.currentTesters || 0;
-
-            // Skip filled apps
             if (actualTesters >= app.requiredTesters) return null;
 
             return {
                 _id: app._id,
                 title: app.title,
                 iconUrl: resolveIcon(app),
-                boostScore: user.boostPoints || 0,
+                boostScore: entry.boostScore,
                 rank: index + 1,
                 ownerName: user.name || "Unknown",
                 userId: user._id,
@@ -241,20 +242,24 @@ export const getBoostedApps = query({
 
         // Get users with boost points and selected apps
         // OPTIMIZED: Use index instead of full table scan
-        const potentialUsers = await ctx.db
-            .query("users")
-            .withIndex("by_boostPoints")
+        const potentialEntries = await ctx.db
+            .query("boost_leaderboard")
+            .withIndex("by_boostScore")
             .order("desc")
             .take(50); // Fetch top 50
 
-        const sortedUsers = potentialUsers
-            .filter((u: any) => (u.boostPoints || 0) > 0 && u.boostedAppId)
+        const sortedEntries = potentialEntries
+            .filter((e: any) => (e.boostScore || 0) > 0 && e.appId)
             .slice(0, 5);
 
-        // Batch fetch apps
-        const appIds = sortedUsers.map(u => u.boostedAppId!);
+        // Batch fetch apps and users
+        const appIds = sortedEntries.map(e => e.appId!);
+        const userIds = sortedEntries.map(e => e.userId);
         const apps = await Promise.all(appIds.map(id => ctx.db.get(id)));
+        const users = await Promise.all(userIds.map(id => ctx.db.get(id)));
+
         const appMap = new Map(apps.filter(Boolean).map(a => [a!._id, a]));
+        const userMap = new Map(users.filter(Boolean).map(u => [u!._id, u]));
 
         // Batch fetch icons
         const storageIds = new Set<string>();
@@ -275,9 +280,12 @@ export const getBoostedApps = query({
         };
 
         // Build list with app details
-        const boostedApps = sortedUsers.map((user: any) => {
-            const app = appMap.get(user.boostedAppId) as any;
+        const boostedApps = sortedEntries.map((entry: any) => {
+            const app = appMap.get(entry.appId) as any;
+            const user = userMap.get(entry.userId) as any;
+
             if (!app || app.status !== "recruiting") return null;
+            if (!user) return null;
 
             // Use cached currentTesters instead of querying matches
             const actualTesters = app.currentTesters || 0;
@@ -292,7 +300,7 @@ export const getBoostedApps = query({
                 requiredTesters: app.requiredTesters,
                 iconUrl: resolveIcon(app),
                 currentTesters: actualTesters,
-                boostScore: user.boostPoints || 0,
+                boostScore: entry.boostScore || 0,
                 ownerName: user.name || "Unknown",
                 ownerAvatar: user.avatarUrl || "https://github.com/shadcn.png",
                 reputation: user.reputation || 0,
@@ -326,14 +334,17 @@ export const earnBoostPoints = mutation({
         // Ensure cycle exists
         await getOrCreateCurrentCycle(ctx);
 
-        const now = Date.now();
-        const currentPoints = user.boostPoints || 0;
+        // Fetch current points from leaderboard
+        const boostEntry = await ctx.db
+            .query("boost_leaderboard")
+            .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+            .unique();
+
+        const currentPoints = boostEntry?.boostScore || 0;
         const newPoints = currentPoints + POINTS_PER_BOOST;
 
-        await ctx.db.patch(user._id, {
-            boostPoints: newPoints,
-            updatedAt: now,
-        });
+        // Update leaderboard ONLY
+        await updateLeaderboardEntry(ctx, user._id, newPoints, boostEntry?.appId);
 
         return {
             success: true,
@@ -380,11 +391,14 @@ export const selectBoostedApp = mutation({
             throw new Error("Only recruiting apps can be boosted");
         }
 
-        const now = Date.now();
-        await ctx.db.patch(user._id, {
-            boostedAppId: args.appId,
-            updatedAt: now,
-        });
+        // Get current score
+        const boostEntry = await ctx.db
+            .query("boost_leaderboard")
+            .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+            .unique();
+
+        // Update leaderboard with new app
+        await updateLeaderboardEntry(ctx, user._id, boostEntry?.boostScore || 0, args.appId);
 
         return { success: true };
     },
@@ -437,18 +451,19 @@ export const boostApp = mutation({
             throw new Error("Only recruiting apps can be boosted");
         }
 
+        // Fetch current points from leaderboard
+        const boostEntry = await ctx.db
+            .query("boost_leaderboard")
+            .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+            .unique();
+
         await getOrCreateCurrentCycle(ctx);
 
-        const now = Date.now();
-        const currentPoints = user.boostPoints || 0;
+        const currentPoints = boostEntry?.boostScore || 0;
         const newPoints = currentPoints + POINTS_PER_BOOST;
 
-        // Update user points and set this app as boosted
-        await ctx.db.patch(user._id, {
-            boostPoints: newPoints,
-            boostedAppId: args.appId,
-            updatedAt: now,
-        });
+        // Update leaderboard ONLY
+        await updateLeaderboardEntry(ctx, user._id, newPoints, args.appId);
 
         return {
             success: true,
@@ -457,3 +472,57 @@ export const boostApp = mutation({
         };
     },
 });
+
+// Removed backfillLeaderboard as requested - data will populate naturally
+
+// Helper to update leaderboard entry
+async function updateLeaderboardEntry(
+    ctx: any,
+    userId: any, // Using any to avoid import issues if Id not imported, or string
+    score: number,
+    appId?: any | null
+) {
+    const existing = await ctx.db
+        .query("boost_leaderboard")
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+        .unique();
+
+    if (existing) {
+        const patch: any = {
+            boostScore: score,
+            updatedAt: Date.now()
+        };
+        if (appId !== undefined) {
+            patch.appId = appId;
+        }
+        await ctx.db.patch(existing._id, patch);
+    } else {
+        await ctx.db.insert("boost_leaderboard", {
+            userId,
+            boostScore: score,
+            appId: appId || undefined,
+            updatedAt: Date.now(),
+        });
+    }
+}
+
+export const cleanupLegacyFields = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const users = await ctx.db.query("users").collect();
+        let count = 0;
+        for (const user of users) {
+            // Check if fields exist (even if undefined in types, they might be in DB)
+            const u = user as any;
+            if (u.boostPoints !== undefined || u.boostedAppId !== undefined) {
+                await ctx.db.patch(user._id, {
+                    boostPoints: undefined,
+                    boostedAppId: undefined,
+                } as any);
+                count++;
+            }
+        }
+        return `Cleaned legacy fields from ${count} users`;
+    },
+});
+
