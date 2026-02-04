@@ -295,8 +295,8 @@ export default function MarketplaceScreen() {
                 </View>
             </ScrollView>
 
-            {/* Floating Action Button - Boost Hub with Premium Animation */}
-            <AnimatedFAB onPress={() => router.push('/boost-hub')} />
+            {/* Floating Action Button - Boost Hub with Premium Animation - HIDDEN (AdMob Rejected) */}
+            {/* <AnimatedFAB onPress={() => router.push('/boost-hub')} /> */}
 
             {/* Google Group Modal */}
             <Modal
