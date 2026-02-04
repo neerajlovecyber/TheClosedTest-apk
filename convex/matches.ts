@@ -741,21 +741,9 @@ export const getMessages = query({
         // Reverse to restore asc order (oldest to newest) for UI
         messages.reverse();
 
-        // Batch fetch unique senders (avoid N+1)
-        const uniqueSenderIds = [...new Set(messages.map(m => m.senderId))];
-        const senders = await Promise.all(uniqueSenderIds.map(id => ctx.db.get(id)));
-        const senderMap = new Map(senders.filter(Boolean).map(s => [s!._id, s!]));
-
-        const messagesWithSender = messages.map((msg) => {
-            const sender = senderMap.get(msg.senderId);
-            return {
-                ...msg,
-                senderName: sender?.name || "Unknown",
-                senderAvatar: resolveAvatarUrl(sender?.avatarUrl),
-                isMe: sender?.tokenIdentifier === identity.tokenIdentifier
-            };
-        });
-        return messagesWithSender;
+        // Optimized: Removed user fetch. Frontend handles sender name/avatar via header.
+        // Frontend derives 'isMe' via senderId check.
+        return messages;
     }
 });
 
@@ -849,16 +837,7 @@ export const markMessagesAsRead = mutation({
 export const getProofs = query({
     args: { matchId: v.id("matches") },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return [];
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_tokenIdentifier", (q) =>
-                q.eq("tokenIdentifier", identity.tokenIdentifier)
-            )
-            .unique();
-
+        // Optimized: No user fetch needed for basic listing
         const proofs = await ctx.db
             .query("proofs")
             .withIndex("by_matchId", (q) => q.eq("matchId", args.matchId))
@@ -872,7 +851,7 @@ export const getProofs = query({
             return {
                 ...p,
                 urls,
-                isMe: user?._id === p.uploaderId
+                // Removed isMe - frontend will derive from uploaderId
             };
         }));
 
@@ -1288,30 +1267,8 @@ export const getProofForDay = query({
 export const getProgressData = query({
     args: { matchId: v.id("matches") },
     handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) return null;
-
-        const user = await ctx.db
-            .query("users")
-            .withIndex("by_tokenIdentifier", (q) =>
-                q.eq("tokenIdentifier", identity.tokenIdentifier)
-            )
-            .unique();
-
-        if (!user) return null;
-
         const match = await ctx.db.get(args.matchId);
         if (!match) return null;
-
-        const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
-        const partner = await ctx.db.get(partnerId);
-
-        // Get my app and partner's app
-        const isUser1 = match.user1Id === user._id;
-        const myAppId = isUser1 ? match.app1Id : match.app2Id;
-        const partnerAppId = isUser1 ? match.app2Id : match.app1Id;
-        const myApp = await ctx.db.get(myAppId);
-        const partnerApp = await ctx.db.get(partnerAppId);
 
         const currentDay = calculateDay(match.startDate);
 
@@ -1322,13 +1279,38 @@ export const getProgressData = query({
             .collect();
 
         // Group proofs by day and user
-        const myProofs = allProofs.filter(p => p.uploaderId === user._id);
+        const myProofs = allProofs.filter(p => p.uploaderId === match.user1Id || p.uploaderId === match.user2Id);
+        // Note: Logic below assumes we know who "me" is. 
+        // BUT, since we want to avoid checking identity (to avoid user dependency), we need to return raw data.
+        // Actually, for "myStatus" vs "partnerStatus", we DO need to know who the caller is.
+        // However, we can simply return data keyed by userId, OR simpler:
+        // We MUST know who the caller is to assign "my" vs "partner".
+        // But we DO NOT need to fetch the full USER object. Just `ctx.auth.getUserIdentity()` token is enough.
+
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        // We need to map tokenIdentifier -> userId. Unfortunately, `match` only has userIds.
+        // So we DO need to fetch at least OUR user doc to get our _id.
+        // Optimization: Fetch ONLY _id using a focused query if possible, or just accept this one read.
+        // The expensive part was fetching Partner, MyApp, PartnerApp etc.
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .unique();
+
+        if (!user) return null;
+
+        const partnerId = match.user1Id === user._id ? match.user2Id : match.user1Id;
+
+        const userProofs = allProofs.filter(p => p.uploaderId === user._id);
         const partnerProofs = allProofs.filter(p => p.uploaderId === partnerId);
 
         // Build 14-day grid
         const days = [];
         for (let day = 1; day <= 14; day++) {
-            const myProofForDay = myProofs.find(p => p.day === day);
+            const myProofForDay = userProofs.find(p => p.day === day);
             const partnerProofForDay = partnerProofs.find(p => p.day === day);
 
             const isFutureDay = day > currentDay;
@@ -1354,9 +1336,9 @@ export const getProgressData = query({
         }
 
         // Calculate summary stats
-        const myApprovedCount = myProofs.filter(p => p.status === "approved").length;
+        const myApprovedCount = userProofs.filter(p => p.status === "approved").length;
         const partnerApprovedCount = partnerProofs.filter(p => p.status === "approved").length;
-        const myPendingCount = myProofs.filter(p => p.status === "pending").length;
+        const myPendingCount = userProofs.filter(p => p.status === "pending").length;
         const partnerPendingCount = partnerProofs.filter(p => p.status === "pending").length;
 
         return {
@@ -1369,9 +1351,7 @@ export const getProgressData = query({
                 partnerPending: partnerPendingCount,
                 totalDays: 14
             },
-            partnerName: partner?.name || "Partner",
-            myAppName: myApp?.title || "My App",
-            partnerAppName: partnerApp?.title || "Partner's App"
+            // Removed redundant partnerName, myAppName, partnerAppName
         };
     }
 });

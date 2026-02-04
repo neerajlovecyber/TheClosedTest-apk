@@ -15,9 +15,10 @@ interface MatchChatProps {
     matchId: Id<"matches">;
     partnerName: string;
     onReport?: () => void;
+    currentUserId?: Id<"users">;
 }
 
-export function MatchChat({ visible, onClose, matchId, partnerName, onReport }: MatchChatProps) {
+export function MatchChat({ visible, onClose, matchId, partnerName, onReport, currentUserId }: MatchChatProps) {
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const messages = useQuery(api.matches.getMessages, { matchId }) || [];
@@ -53,7 +54,8 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport }: 
     };
 
     const renderMessage = ({ item }: { item: any }) => {
-        const isMe = item.isMe;
+        // Optimized: Derive isMe locally to avoid dependency on user doc fetch in backend
+        const isMe = currentUserId ? item.senderId === currentUserId : item.isMe;
         return (
             <View className={`flex-row ${isMe ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
                 <View

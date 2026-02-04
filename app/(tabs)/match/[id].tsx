@@ -63,10 +63,15 @@ export default function MatchDashboardScreen() {
     const router = useRouter();
     const matchId = id as Id<"matches">;
 
+    // Need current user ID to derive isMe
+    const { data: currentUser } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser, {});
+    const currentUserId = currentUser?._id;
+
     // Queries (with caching for instant loading)
     const { data: matchDetails } = useCachedConvexQuery(['matchDetails', matchId], api.matches.getMatchDetails, { matchId });
-    const { data: todayProof } = useCachedConvexQuery(['todayProof', matchId], api.matches.getTodayProof, { matchId });
-    const { data: partnerProof } = useCachedConvexQuery(['partnerProof', matchId], api.matches.getPartnerTodayProof, { matchId });
+    // Optimized: Consolidated into allProofs or derived from matchDetails
+    // const { data: todayProof } = useCachedConvexQuery(['todayProof', matchId], api.matches.getTodayProof, { matchId });
+    // const { data: partnerProof } = useCachedConvexQuery(['partnerProof', matchId], api.matches.getPartnerTodayProof, { matchId });
     const { data: progressData } = useCachedConvexQuery(['progressData', matchId], api.matches.getProgressData, { matchId });
 
     // Get all proofs for day-specific modal
@@ -134,11 +139,9 @@ export default function MatchDashboardScreen() {
 
     const handleRejectPress = (proofId: Id<"proofs">) => {
         setProofToReject(proofId);
-        // If the proofId matches the partnerProof we loaded, use its URLs
-        // Note: partnerProof is the proof object for TODAY.
-        // If we reject a proof, it's usually the one displayed in ProofReviewer, which is `partnerProof`.
-        if (partnerProof && partnerProof.status !== 'not_uploaded' && partnerProof._id === proofId) {
-            setProofToRejectUrls(partnerProof.urls || []);
+        // If the proofId matches the selected partner proof (which is from the selected day), use its URLs
+        if (selectedDayPartnerProof && selectedDayPartnerProof._id === proofId) {
+            setProofToRejectUrls(selectedDayPartnerProof.urls || []);
         } else {
             setProofToRejectUrls([]);
         }
@@ -149,11 +152,12 @@ export default function MatchDashboardScreen() {
     const effectiveDay = selectedDay ?? currentDay;
 
     // Get proofs for the selected day
+    // Optimized: Derived from allProofs
     const selectedDayMyProof = effectiveDay && allProofs ?
-        allProofs.find((p: any) => p.day === effectiveDay && p.isMe) : null;
+        allProofs.find((p: any) => p.day === effectiveDay && p.uploaderId === currentUserId) : null;
 
     const selectedDayPartnerProof = effectiveDay && allProofs ?
-        allProofs.find((p: any) => p.day === effectiveDay && !p.isMe) : null;
+        allProofs.find((p: any) => p.day === effectiveDay && p.uploaderId !== currentUserId) : null;
 
     // Header Component
     const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -504,6 +508,7 @@ export default function MatchDashboardScreen() {
                 onClose={() => setChatVisible(false)}
                 matchId={matchId}
                 partnerName={partner?.name || "Partner"}
+                currentUserId={currentUserId}
                 onReport={() => {
                     setChatVisible(false);
                     setReportDialogVisible(true);
