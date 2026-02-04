@@ -36,7 +36,6 @@ export default defineSchema({
         packageName: v.string(),
         playStoreUrl: v.string(),
         iconUrl: v.string(),
-        storageIconId: v.optional(v.string()),
         instructions: v.string(),
         requiredTesters: v.number(), // e.g., 12
         currentTesters: v.number(),
@@ -49,8 +48,6 @@ export default defineSchema({
         ),
         completedAt: v.optional(v.number()), // NEW: When marked as completed
         // Boost system fields
-        boostScore: v.optional(v.number()), // Points in current 48h cycle (default 0)
-        lastBoostedAt: v.optional(v.number()), // Timestamp of last boost action
         flagCount: v.optional(v.number()), // Number of times reported as broken/not visible
         visibility: v.optional(v.object({
             status: v.union(v.literal("unverified"), v.literal("visible"), v.literal("hidden")), // hidden = problem
@@ -62,8 +59,7 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_userId", ["userId"])
-        .index("by_status", ["status"])
-        .index("by_boostScore", ["boostScore"]),
+        .index("by_status", ["status"]),
 
     matches: defineTable({
         user1Id: v.id("users"),

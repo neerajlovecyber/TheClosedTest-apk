@@ -18,7 +18,6 @@ export const createApp = mutation({
         packageName: v.string(),
         playStoreUrl: v.string(),
         iconUrl: v.string(), // Keeping for backward compat logic if needed, but we will prefer storageId
-        storageId: v.optional(v.string()), // New field for storage ID
         instructions: v.string(),
         requiredTesters: v.number(),
     },
@@ -73,15 +72,7 @@ export const createApp = mutation({
             title: args.title,
             packageName: args.packageName,
             playStoreUrl: args.playStoreUrl,
-            iconUrl: args.storageId ? "" : args.iconUrl, // Clear text URL if storage ID is provided
-            storageIconId: args.storageId, // Store the storage ID (add this field to schema later or rely on loose schema if enabled, usually need schema update)
-            // Note: Schema update required if 'storageIconId' is not in schema. 
-            // For now, I'll assume we can repurpose iconUrl or store it. 
-            // ACTUALLY: Let's stick to using `iconUrl` as the string field. 
-            // If it starts with "http", it's a URL. If it's a UUID, it's a storage ID? 
-            // Safer: Add `storageIconId` to schema or update schema. let's check schema.ts first. or just put it in iconUrl if schema allows string. 
-            // Re-reading plan: "Change iconUrl argument to accept storageId (string)". 
-            // I will use `iconUrl` to store the storageId string if provided.
+            iconUrl: args.iconUrl,
             instructions: args.instructions,
             requiredTesters: args.requiredTesters,
             currentTesters: 0,
@@ -132,9 +123,7 @@ export const getMarketplaceApps = query({
         // Map over apps - use cached currentTesters instead of querying matches
         const appsWithUrls = await Promise.all(apps.map(async (app) => {
             let resolvedUrl = app.iconUrl;
-            if (app.storageIconId) {
-                resolvedUrl = await getImageUrl(ctx, app.storageIconId);
-            } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+            if (app.iconUrl && !app.iconUrl.startsWith("http")) {
                 resolvedUrl = await getImageUrl(ctx, app.iconUrl);
             }
 
@@ -205,19 +194,10 @@ export const getMyApps = query({
             .collect();
 
         // Batch resolve icons
-        const storageIds = new Set<string>();
-        apps.forEach(app => {
-            if (app?.storageIconId) storageIds.add(app.storageIconId);
-        });
         const urlMap = new Map<string, string>();
-        await Promise.all([...storageIds].map(async id => {
-            const url = await ctx.storage.getUrl(id);
-            if (url) urlMap.set(id, url);
-        }));
 
         const resolveIcon = (app: any) => {
             if (!app) return "https://github.com/shadcn.png";
-            if (app.storageIconId && urlMap.has(app.storageIconId)) return urlMap.get(app.storageIconId)!;
             if (app.iconUrl && !app.iconUrl.startsWith("http")) return "https://github.com/shadcn.png";
             return app.iconUrl || "https://github.com/shadcn.png";
         };
@@ -252,9 +232,7 @@ export const getAppArgs = query({
         if (!app) return null;
 
         let resolvedUrl = app.iconUrl;
-        if (app.storageIconId) {
-            resolvedUrl = await getImageUrl(ctx, app.storageIconId);
-        } else if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+        if (app.iconUrl && !app.iconUrl.startsWith("http")) {
             resolvedUrl = await getImageUrl(ctx, app.iconUrl);
         }
 
@@ -888,5 +866,27 @@ export const markAppFixed = mutation({
             },
             flagCount: 0, // Also reset flags if we are treating this as "I fixed it"
         });
+    }
+});
+
+// Migration to remove cleanup fields
+export const removeAppUpdatedAt = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const apps = await ctx.db.query("apps").collect();
+        let count = 0;
+        for (const app of apps) {
+            const a = app as any;
+            if (a.updatedAt !== undefined || a.boostScore !== undefined || a.lastBoostedAt !== undefined || a.storageIconId !== undefined) {
+                await ctx.db.patch(app._id, {
+                    updatedAt: undefined,
+                    boostScore: undefined,
+                    lastBoostedAt: undefined,
+                    storageIconId: undefined
+                } as any);
+                count++;
+            }
+        }
+        return `Removed legacy fields from ${count} apps`;
     }
 });

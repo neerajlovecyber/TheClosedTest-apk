@@ -114,9 +114,6 @@ export const getBoostStatus = query({
                 myApps = await Promise.all(
                     recruitingApps.map(async (app: any) => {
                         let iconUrl = app.iconUrl;
-                        if (app.storageIconId) {
-                            iconUrl = await getImageUrl(ctx, app.storageIconId);
-                        }
                         return {
                             _id: app._id,
                             title: app.title,
@@ -139,9 +136,6 @@ export const getBoostStatus = query({
                     const boostedApp = await ctx.db.get(boostedAppId) as any;
                     if (boostedApp && boostedApp.status === "recruiting") {
                         let iconUrl = boostedApp.iconUrl;
-                        if (boostedApp.storageIconId) {
-                            iconUrl = await getImageUrl(ctx, boostedApp.storageIconId);
-                        }
                         selectedApp = {
                             _id: boostedApp._id,
                             title: boostedApp.title,
@@ -170,19 +164,10 @@ export const getBoostStatus = query({
         const userMap = new Map(users.filter(Boolean).map(u => [u!._id, u]));
 
         // Batch fetch icons
-        const storageIds = new Set<string>();
-        apps.forEach(app => {
-            if (app?.storageIconId) storageIds.add(app.storageIconId);
-        });
         const urlMap = new Map<string, string>();
-        await Promise.all([...storageIds].map(async id => {
-            const url = await ctx.storage.getUrl(id);
-            if (url) urlMap.set(id, url);
-        }));
 
         const resolveIcon = (app: any) => {
             if (!app) return "https://github.com/shadcn.png";
-            if (app.storageIconId && urlMap.has(app.storageIconId)) return urlMap.get(app.storageIconId)!;
             if (app.iconUrl && !app.iconUrl.startsWith("http")) return "https://github.com/shadcn.png";
             return app.iconUrl || "https://github.com/shadcn.png";
         };
@@ -262,19 +247,10 @@ export const getBoostedApps = query({
         const userMap = new Map(users.filter(Boolean).map(u => [u!._id, u]));
 
         // Batch fetch icons
-        const storageIds = new Set<string>();
-        apps.forEach(app => {
-            if (app?.storageIconId) storageIds.add(app.storageIconId);
-        });
         const urlMap = new Map<string, string>();
-        await Promise.all([...storageIds].map(async id => {
-            const url = await ctx.storage.getUrl(id);
-            if (url) urlMap.set(id, url);
-        }));
 
         const resolveIcon = (app: any) => {
             if (!app) return "https://github.com/shadcn.png";
-            if (app.storageIconId && urlMap.has(app.storageIconId)) return urlMap.get(app.storageIconId)!;
             if (app.iconUrl && !app.iconUrl.startsWith("http")) return "https://github.com/shadcn.png";
             return app.iconUrl || "https://github.com/shadcn.png";
         };
