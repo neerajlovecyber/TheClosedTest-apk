@@ -72,7 +72,7 @@ export const refreshDailyStats = mutation({
 
 export const fixAllApps = mutation({
     args: {},
-    handler: async (ctx) => {
+    handler: async (ctx): Promise<any> => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Unauthorized");
 
@@ -267,6 +267,7 @@ export const sendTestNotification = action({
     args: {
         title: v.string(),
         body: v.string(),
+        data: v.optional(v.any()),
     },
     handler: async (ctx, args): Promise<any> => {
         const identity = await ctx.auth.getUserIdentity();
@@ -297,7 +298,7 @@ export const sendTestNotification = action({
             sound: 'default',
             title: args.title,
             body: args.body,
-            data: { type: 'test' },
+            data: args.data || { type: 'test' },
         };
 
         console.log("Message payload:", JSON.stringify(message));
@@ -348,6 +349,7 @@ export const sendBroadcastNotification = action({
     args: {
         title: v.string(),
         body: v.string(),
+        data: v.optional(v.any()),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -377,7 +379,7 @@ export const sendBroadcastNotification = action({
             sound: 'default',
             title: args.title,
             body: args.body,
-            data: { type: 'broadcast' },
+            data: args.data || { type: 'broadcast' },
         }));
 
         // Send in batches of 100 (Expo limit)

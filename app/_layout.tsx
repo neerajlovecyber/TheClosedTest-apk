@@ -1,6 +1,6 @@
 
 import '@/global.css'; // This must be first
-import { Text, TextInput } from 'react-native';
+import { Text, TextInput, Linking } from 'react-native';
 
 // Disable system font scaling
 if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
@@ -161,9 +161,9 @@ function InitialLayout() {
         // Use setParams if we were already there? No, push is safer for deep links generally
         // But for reliable updates:
         if (data.type === 'message') {
-          router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId, tab: 'chat' } });
+          router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId as string, tab: 'chat' } });
         } else {
-          router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId } });
+          router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId as string } });
         }
       } else if (data?.type === 'new_app' && data.appId) {
         // Navigate to new app details
@@ -171,6 +171,9 @@ function InitialLayout() {
       } else if (data?.type === 'admin_chat') {
         // Navigate to admin chat (support)
         router.push('/admin-chat');
+      } else if (data?.type === 'open_url' && data.url) {
+        // Open external URL (e.g. Play Store)
+        Linking.openURL(data.url as string).catch(err => console.error("Failed to open URL:", err));
       } else if (data?.type === 'test') {
         console.log("Test notification tapped");
       }

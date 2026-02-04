@@ -27,7 +27,15 @@ const DEFAULT_TEMPLATES = [
         title: '✨ New Features Available!',
         body: 'We\'ve added exciting new features to improve your testing experience.',
         icon: '✨',
+        data: { type: 'open_url', url: 'https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest' } // Example, logic will handle override
     },
+    {
+        id: 'rate',
+        title: '⭐ Enjoying the app?',
+        body: 'Please take a moment to rate us on the Play Store! It helps a lot.',
+        icon: '⭐',
+        data: { type: 'open_url', url: 'https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest' }
+    }
 ];
 
 export default function NotificationsAdminScreen() {
@@ -35,6 +43,7 @@ export default function NotificationsAdminScreen() {
     const insets = useSafeAreaInsets();
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
+    const [notificationData, setNotificationData] = useState<any>(null); // Store custom data
     const [sending, setSending] = useState(false);
     const [showBroadcastConfirm, setShowBroadcastConfirm] = useState(false);
 
@@ -50,7 +59,10 @@ export default function NotificationsAdminScreen() {
 
         setSending(true);
         try {
-            const result = await sendTestNotification({ title, body });
+            // Use custom data if selected from template, otherwise default test type
+            const dataPayload = notificationData || { type: 'test' };
+
+            const result = await sendTestNotification({ title, body, data: dataPayload });
             console.log("Test notification result:", result);
 
             // Show detailed result
@@ -80,12 +92,16 @@ export default function NotificationsAdminScreen() {
         setSending(true);
         setShowBroadcastConfirm(false);
         try {
-            const result = await sendBroadcastNotification({ title, body });
+            // Use custom data if selected from template, otherwise default broadcast type
+            const dataPayload = notificationData || { type: 'broadcast' };
+
+            const result = await sendBroadcastNotification({ title, body, data: dataPayload });
             toast.success('Success', {
                 description: `Notification sent to ${result.successCount} users!\nFailed: ${result.failureCount}`
             });
             setTitle('');
             setBody('');
+            setNotificationData(null);
         } catch (error: any) {
             toast.error('Error', { description: error.message || 'Failed to send broadcast' });
         } finally {
@@ -141,6 +157,7 @@ export default function NotificationsAdminScreen() {
                                     onPress={() => {
                                         setTitle(template.title);
                                         setBody(template.body);
+                                        setNotificationData(template.data || null);
                                     }}
                                     className="bg-card border border-border rounded-xl p-3 mr-2 w-[180px]"
                                 >
