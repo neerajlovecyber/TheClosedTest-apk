@@ -325,7 +325,7 @@ export const getMyNotifications = query({
         // and limits to 20. Much more efficient than fetching all and sorting in memory.
         const notifications = await ctx.db
             .query("notifications")
-            .withIndex("by_userId_read", (q) => q.eq("userId", user._id))
+            .withIndex("by_userId_createdAt", (q) => q.eq("userId", user._id))
             .order("desc")
             .take(50); // Take 50 to ensure we get 20 after filtering if needed
 

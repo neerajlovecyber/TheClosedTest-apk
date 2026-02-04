@@ -155,7 +155,8 @@ export default defineSchema({
         read: v.boolean(),
         createdAt: v.number(),
     })
-        .index("by_userId_read", ["userId", "read"]),
+        .index("by_userId_read", ["userId", "read"])
+        .index("by_userId_createdAt", ["userId", "createdAt"]),
 
     reports: defineTable({
         reporterId: v.id("users"),
