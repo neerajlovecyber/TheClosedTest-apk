@@ -1410,15 +1410,14 @@ export const getAppTesters = query({
             // Calculate current day
             const day = calculateDay(match.startDate || Date.now());
 
-            // Check if tester uploaded proof for today
-            const proof = await ctx.db
-                .query("proofs")
-                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
-                .filter((q) => q.and(
-                    q.eq(q.field("uploaderId"), testerId),
-                    q.eq(q.field("day"), day)
-                ))
-                .first();
+            // OPTIMIZED: Use cached proof status from match object
+            const isUser1Tester = match.user1Id === testerId;
+            const testerLastProof = isUser1Tester ? match.user1LastProof : match.user2LastProof;
+
+            const uploadedToday = testerLastProof?.day === day;
+            const status = uploadedToday ? (testerLastProof?.status || "pending") : "pending";
+
+            // Removed DB query for proof
 
             const isUser1 = match.user1Id === user?._id;
             const lastRead = isUser1 ? (match.lastRead1 || 0) : (match.lastRead2 || 0);
@@ -1429,8 +1428,8 @@ export const getAppTesters = query({
                 testerName: tester?.name || "Unknown",
                 testerAvatar: resolveAvatarUrl(tester?.avatarUrl),
                 day,
-                status: proof ? proof.status : "pending",
-                uploadedToday: !!proof,
+                status,
+                uploadedToday,
                 hasUnread,
                 testerEmail: tester?.email
             };
