@@ -601,32 +601,22 @@ export const getMyActiveTests = query({
                 // Calculate current day
                 const day = calculateDay(match.startDate || Date.now());
 
-                // OPTIMIZED: Use 'by_uploader_day' index
-                // Check if user has uploaded proof for today
-                const todayProof = await ctx.db
-                    .query("proofs")
-                    .withIndex("by_uploader_day", (q) =>
-                        q.eq("uploaderId", user._id)
-                            .eq("matchId", match._id)
-                            .eq("day", day)
-                    )
-                    .first();
+                // OPTIMIZED: Use cached proof status from match object
+                const myLastProof = isRequestor ? match.user1LastProof : match.user2LastProof;
+                const partnerLastProof = isRequestor ? match.user2LastProof : match.user1LastProof;
 
-                // Check partner's proof status
-                const partnerProof = await ctx.db
-                    .query("proofs")
-                    .withIndex("by_uploader_day", (q) =>
-                        q.eq("uploaderId", ownerId)
-                            .eq("matchId", match._id)
-                            .eq("day", day)
-                    )
-                    .first();
+                const isMyProofForToday = myLastProof?.day === day;
+                const isPartnerProofForToday = partnerLastProof?.day === day;
 
-                const myProofStatus = todayProof?.status || "not_uploaded";
-                const partnerProofStatus = partnerProof?.status || "not_uploaded";
+                const myProofStatus = isMyProofForToday ? (myLastProof?.status || "not_uploaded") : "not_uploaded";
+                const partnerProofStatus = isPartnerProofForToday ? (partnerLastProof?.status || "not_uploaded") : "not_uploaded";
+
+                // We don't need the full proof objects anymore for the list view
+                // const todayProof = ... (Removed DB call)
+                // const partnerProof = ... (Removed DB call)
 
                 const isReviewPending = partnerProofStatus === "pending";
-                const needsAttention = (!todayProof || todayProof.status !== "approved") || isReviewPending;
+                const needsAttention = myProofStatus !== "approved" || isReviewPending;
 
                 return {
                     id: match._id,
@@ -965,6 +955,16 @@ export const uploadProof = mutation({
             submittedAt: Date.now()
         });
 
+        // Update match cache
+        const updateField = match.user1Id === user._id ? "user1LastProof" : "user2LastProof";
+        await ctx.db.patch(args.matchId, {
+            [updateField]: {
+                day: args.day,
+                status: "pending",
+                updatedAt: Date.now()
+            }
+        });
+
         // Notify partner about proof upload
         const matchInfo = await ctx.db.get(args.matchId);
         if (matchInfo) {
@@ -1019,6 +1019,16 @@ export const reviewProof = mutation({
             status: args.status,
             rejectionReason: args.status === "rejected" ? args.rejectionReason : undefined,
             reviewedAt: Date.now()
+        });
+
+        // Update match cache
+        const updateField = match.user1Id === proof.uploaderId ? "user1LastProof" : "user2LastProof";
+        await ctx.db.patch(match._id, {
+            [updateField]: {
+                day: proof.day,
+                status: args.status,
+                updatedAt: Date.now()
+            }
         });
 
         if (args.status === "approved") {
@@ -1954,6 +1964,55 @@ export const getMyMatchStatuses = query({
                     status
                 };
             });
+    }
+});
+
+export const backfillMatchProofStatus = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const matches = await ctx.db.query("matches").collect();
+        let count = 0;
+
+        for (const match of matches) {
+            // Find latest proof for User 1
+            const proof1 = await ctx.db
+                .query("proofs")
+                .withIndex("by_uploader_day", (q) => q.eq("uploaderId", match.user1Id).eq("matchId", match._id))
+                .order("desc")
+                .first();
+
+            // Find latest proof for User 2
+            const proof2 = await ctx.db
+                .query("proofs")
+                .withIndex("by_uploader_day", (q) => q.eq("uploaderId", match.user2Id).eq("matchId", match._id))
+                .order("desc")
+                .first();
+
+            const updates: any = {};
+
+            if (proof1) {
+                updates.user1LastProof = {
+                    day: proof1.day,
+                    status: proof1.status,
+                    updatedAt: proof1.submittedAt || Date.now()
+                };
+            }
+
+            if (proof2) {
+                updates.user2LastProof = {
+                    day: proof2.day,
+                    status: proof2.status,
+                    updatedAt: proof2.submittedAt || Date.now()
+                };
+            }
+
+            if (Object.keys(updates).length > 0) {
+                await ctx.db.patch(match._id, updates);
+                count++;
+            }
+        }
+
+        return `Updated ${count} matches`;
     }
 });
 

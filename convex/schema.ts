@@ -89,6 +89,16 @@ export default defineSchema({
         user1ApprovedCount: v.optional(v.number()), // How many proofs user1 got approved
         user2ApprovedCount: v.optional(v.number()), // How many proofs user2 got approved
         createdAt: v.number(),
+        user1LastProof: v.optional(v.object({
+            day: v.number(),
+            status: v.string(), // "pending", "approved", "rejected"
+            updatedAt: v.number()
+        })),
+        user2LastProof: v.optional(v.object({
+            day: v.number(),
+            status: v.string(),
+            updatedAt: v.number()
+        })),
     })
         .index("by_user1", ["user1Id"])
         .index("by_user2", ["user2Id"])
