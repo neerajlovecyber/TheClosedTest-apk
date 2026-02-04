@@ -82,10 +82,13 @@ export default function BoostHubScreen() {
     const time = formatTime(timeRemaining);
 
     const handleEarnPoints = async () => {
+        // BYPASS ADS: Direct logic for testing
+        /*
         if (Platform.OS === 'web') {
             toast.info('Ads Not Available', { description: 'Rewarded ads are only available on mobile devices.' });
             return;
         }
+        */
 
         if (!boostStatus?.selectedApp) {
             toast.info('Select an App', { description: 'Please select an app to boost first.' });
@@ -93,17 +96,22 @@ export default function BoostHubScreen() {
             return;
         }
 
+        /*
         if (!adLoaded) {
             toast.info('Ad Loading', { description: 'Please wait while the ad loads...' });
             return;
         }
+        */
 
         setBoosting(true);
         try {
-            const rewarded = await showAd();
+            // BYPASS: Skip actual ad show
+            // const rewarded = await showAd(); 
+            const rewarded = true;
+
             if (rewarded) {
                 const result = await earnBoostPoints();
-                toast.success('Points Earned! 🚀', {
+                toast.success('Dev Bypass: Points Earned! 🚀', {
                     description: `+${result.pointsEarned} point! Total: ${result.newPoints}`,
                 });
             }
@@ -266,11 +274,11 @@ export default function BoostHubScreen() {
                 {/* Main CTA Button */}
                 <TouchableOpacity
                     onPress={handleEarnPoints}
-                    disabled={boosting || adLoading || !adLoaded}
+                    disabled={boosting}
                     activeOpacity={0.8}
                     className="w-full py-4 rounded-2xl bg-orange-500 items-center justify-center mb-4"
                     style={{
-                        opacity: boosting || adLoading || !adLoaded ? 0.6 : 1,
+                        opacity: boosting ? 0.6 : 1,
                         shadowColor: '#f97316',
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.3,
@@ -281,7 +289,7 @@ export default function BoostHubScreen() {
                     <View className="flex-row items-center gap-2">
                         <Icon as={PlayCircleIcon} className="text-white size-6" />
                         <Text className="text-white font-bold text-lg">
-                            {adLoading ? 'Loading Ad...' : boosting ? 'Boosting...' : !adLoaded ? 'Ad Not Ready' : 'WATCH AD & EARN +1'}
+                            {boosting ? 'Boosting...' : 'DEV BYPASS: CLICK TO EARN'}
                         </Text>
                     </View>
                 </TouchableOpacity>

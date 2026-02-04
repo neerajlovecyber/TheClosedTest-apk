@@ -264,4 +264,14 @@ export default defineSchema({
         cycleStart: v.number(),   // Timestamp when current 48h cycle started
         cycleEnd: v.number(),     // Timestamp when cycle ends
     }),
+
+    // Dedicated leaderboard table for O(1) reads
+    boost_leaderboard: defineTable({
+        userId: v.id("users"),
+        boostScore: v.number(),
+        appId: v.optional(v.id("apps")), // Nullable initially
+        updatedAt: v.number(),
+    })
+        .index("by_boostScore", ["boostScore"])
+        .index("by_userId", ["userId"]),
 });
