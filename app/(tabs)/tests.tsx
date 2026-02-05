@@ -18,6 +18,10 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
     const isMyTaskDone = item.myProofStatus === "approved" || item.myProofStatus === "pending";
     const isPartnerTaskDone = item.partnerProofStatus === "approved";
 
+    // Resolve storage URL if needed
+    const resolvedUrlQuery = useQuery(api.files.getUrl, item.storageIconId ? { storageId: item.storageIconId } : "skip");
+    const displayIconUrl = item.storageIconId ? (resolvedUrlQuery || "https://github.com/shadcn.png") : (item.iconUrl || 'https://github.com/shadcn.png');
+
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -29,7 +33,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                     <View className="flex-row items-center justify-between mb-3">
                         <View className="flex-row items-center gap-3 flex-1">
                             <Image
-                                source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
+                                source={{ uri: displayIconUrl }}
                                 style={{ width: 40, height: 40, borderRadius: 12 }}
                                 contentFit="cover"
                                 cachePolicy="memory-disk"

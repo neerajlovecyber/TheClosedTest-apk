@@ -65,9 +65,20 @@ export default function HomeScreen() {
 
     React.useEffect(() => {
         if (currentUser) {
-            checkIn();
+            const now = new Date();
+            const lastCheckIn = new Date(currentUser.lastCheckInDate || 0);
+
+            // Check if same calendar day (local time)
+            const isSameDay =
+                now.getFullYear() === lastCheckIn.getFullYear() &&
+                now.getMonth() === lastCheckIn.getMonth() &&
+                now.getDate() === lastCheckIn.getDate();
+
+            if (!isSameDay) {
+                checkIn();
+            }
         }
-    }, [currentUser]);
+    }, [currentUser?.lastCheckInDate, checkIn]);
 
     // Get tasks due today (only those needing attention)
     // Filter: Show tasks where we need to review OR upload, but hide tasks where we're just waiting for approval

@@ -8,6 +8,7 @@
         "@clerk/clerk-expo": "2.16.1",
         "@codsod/react-native-chat": "^1.0.14",
         "@convex-dev/r2": "^0.8.1",
+        "@convex-dev/rate-limiter": "^0.3.2",
         "@legendapp/list": "^2.0.19",
         "@react-native-async-storage/async-storage": "^2.2.0",
         "@react-navigation/native": "^7.0.0",
@@ -396,6 +397,8 @@
     "@convex-dev/action-retrier": ["@convex-dev/action-retrier@0.3.0", "", { "peerDependencies": { "convex": "^1.24.8" } }, "sha512-opBNsgOPSuVY3qSARNub98XqPzSpSS7Jga0oGeWFhO+DcWBMt2gD3ssUeEA1Gi7wTNiZBX+T6OBfBnqMfv6Tuw=="],
 
     "@convex-dev/r2": ["@convex-dev/r2@0.8.1", "", { "dependencies": { "@aws-sdk/client-s3": "3.726.1", "@aws-sdk/s3-request-presigner": "^3.693.0", "@convex-dev/action-retrier": "^0.3.0", "convex-helpers": "^0.1.67", "file-type": "^20.4.1", "uuid": "^11.1.0" }, "peerDependencies": { "convex": "^1.24.8", "convex-svelte": "^0.0.11", "react": "^18 || ^19", "react-dom": "^18 || ^19", "svelte": ">=5.0.0" } }, "sha512-a+eP+9Tk4m9w0G3qnSUv297ye05AtSio6nxvF9gsp1tfHuZg+6ch3vZa5iDnYIfWQXv5CCNW+CdoAQqmizPnQA=="],
+
+    "@convex-dev/rate-limiter": ["@convex-dev/rate-limiter@0.3.2", "", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.2.0 || ^19.0.0" }, "optionalPeers": ["react"] }, "sha512-+oBPsBfFbzdxiF/9XaaTQmVnvDlvEfg/c69/v8LxTbw4VLuiflIKlfnPQL8OS0azXQQ11hcPWHmU8ytFmHKDXA=="],
 
     "@egjs/hammerjs": ["@egjs/hammerjs@2.0.17", "", { "dependencies": { "@types/hammerjs": "^2.0.36" } }, "sha512-XQsZgjm2EcVUiZQf11UBJQfmZeEmOW8DpI1gsFeln6w0ae0ii4dMQEQ0kjl6DspdWX1aGY1/loyXnP0JS06e/A=="],
 

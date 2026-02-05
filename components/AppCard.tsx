@@ -5,11 +5,14 @@ import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { StarIcon } from 'lucide-react-native';
+import { useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
 
 export interface AppItem {
     _id: string;
     title: string;
     iconUrl?: string;
+    storageIconId?: string;
     currentTesters?: number;
     requiredTesters?: number;
     ownerAvatar?: string;
@@ -53,10 +56,14 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
     const isHidden = item.visibility?.status === 'hidden';
     const isFlagged = (item.flagCount || 0) > 0 || isHidden;
 
+    // Resolve storage URL if needed
+    const resolvedUrlQuery = useQuery(api.files.getUrl, item.storageIconId ? { storageId: item.storageIconId } : "skip");
+    const displayIconUrl = item.storageIconId ? (resolvedUrlQuery || "https://github.com/shadcn.png") : (item.iconUrl || 'https://github.com/shadcn.png');
+
     const Content = (
         <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-2 border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>
             <Image
-                source={{ uri: item.iconUrl || 'https://github.com/shadcn.png' }}
+                source={{ uri: displayIconUrl }}
                 className="w-20 h-20 rounded-xl bg-muted border border-border"
             />
             <View className="flex-1 justify-between py-0.5">

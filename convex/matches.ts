@@ -555,31 +555,17 @@ export const getMyActiveTests = query({
             if (a) appMap.set(a._id, a);
         });
 
-        // Batch fetch Storage URLs (Icon URLs)
-        const storageIdsToResolve = new Set<string>();
-        apps.forEach((a) => {
-            if (a?.storageIconId) storageIdsToResolve.add(a.storageIconId);
-        });
+        // Helper to resolve icon source (prefer storageId for client-side resolution)
+        const resolveIconSource = (app: any) => {
+            if (!app) return { iconUrl: "https://github.com/shadcn.png" };
 
-        const storageUrlMap = new Map<string, string>();
-        await Promise.all(
-            [...storageIdsToResolve].map(async (id) => {
-                const url = await ctx.storage.getUrl(id);
-                if (url) storageUrlMap.set(id, url);
-            })
-        );
+            // If iconUrl exists and is NOT a web URL, it is a storage ID
+            if (app.iconUrl && !app.iconUrl.startsWith("http")) {
+                return { storageIconId: app.iconUrl, iconUrl: undefined };
+            }
 
-        // Helper to resolve resolved URL using the map
-        const resolveIconUrl = (app: any) => {
-            if (!app) return "https://github.com/shadcn.png";
-            if (app.storageIconId && storageUrlMap.has(app.storageIconId)) {
-                return storageUrlMap.get(app.storageIconId)!;
-            }
-            if (app.iconUrl && !app.iconUrl.startsWith("http")) { // Legacy handling if needed
-                // We didn't pre-resolve this case, but it's rare if storageIconId is preferred
-                return "https://github.com/shadcn.png";
-            }
-            return app.iconUrl || "https://github.com/shadcn.png";
+            // Otherwise it's a web URL or empty
+            return { iconUrl: app.iconUrl || "https://github.com/shadcn.png" };
         };
 
         const enrichedMatches = await Promise.all(
@@ -619,19 +605,13 @@ export const getMyActiveTests = query({
                 return {
                     id: match._id,
                     name: appToTest?.title || "Unknown App",
-                    senderId: ownerId,
-                    // owner: "Unknown User", // Removed
-                    // avatarUrl: "https://github.com/shadcn.png", // Removed
                     day,
-                    totalDays: 14,
                     myProofStatus,
                     partnerProofStatus,
                     isReviewPending,
-                    myAppId,
-                    appToTestId,
                     needsAttention,
                     hasUnread: match.lastActivity > (isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0)),
-                    iconUrl: resolveIconUrl(appToTest)
+                    ...resolveIconSource(appToTest)
                 };
             })
         );

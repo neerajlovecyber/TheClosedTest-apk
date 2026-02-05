@@ -1,6 +1,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { rateLimiter } from "./rateLimits";
 
 export const store = mutation({
     args: {
@@ -58,6 +59,11 @@ export const checkIn = mutation({
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Unauthenticated");
+
+        const { ok, retryAfter } = await rateLimiter.limit(ctx, "checkIn", { key: identity.tokenIdentifier });
+        if (!ok) {
+            throw new Error(`Rate limit exceeded. Try again in ${Math.ceil((retryAfter - Date.now()) / 60000)} minutes.`);
+        }
 
         const user = await ctx.db
             .query("users")
