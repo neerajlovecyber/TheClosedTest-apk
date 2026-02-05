@@ -21,7 +21,7 @@ interface MatchChatProps {
 export function MatchChat({ visible, onClose, matchId, partnerName, onReport, currentUserId }: MatchChatProps) {
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const insets = useSafeAreaInsets();
-    const messages = useQuery(api.matches.getMessages, { matchId }) || [];
+    const messages = useQuery(api.matches.getMessages, visible ? { matchId } : "skip") || [];
     const sendMessageMutation = useMutation(api.matches.sendMessage);
     const markAsReadMutation = useMutation(api.matches.markMessagesAsRead);
     const [newMessage, setNewMessage] = useState('');
