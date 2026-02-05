@@ -19,8 +19,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
     const isPartnerTaskDone = item.partnerProofStatus === "approved";
 
     // Resolve storage URL if needed
-    const resolvedUrlQuery = useQuery(api.files.getUrl, item.storageIconId ? { storageId: item.storageIconId } : "skip");
-    const displayIconUrl = item.storageIconId ? (resolvedUrlQuery || "https://github.com/shadcn.png") : (item.iconUrl || 'https://github.com/shadcn.png');
+    const displayIconUrl = item.iconUrl || 'https://github.com/shadcn.png';
 
     return (
         <TouchableOpacity

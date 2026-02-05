@@ -12,7 +12,6 @@ export interface AppItem {
     _id: string;
     title: string;
     iconUrl?: string;
-    storageIconId?: string;
     currentTesters?: number;
     requiredTesters?: number;
     ownerAvatar?: string;
@@ -57,8 +56,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
     const isFlagged = (item.flagCount || 0) > 0 || isHidden;
 
     // Resolve storage URL if needed
-    const resolvedUrlQuery = useQuery(api.files.getUrl, item.storageIconId ? { storageId: item.storageIconId } : "skip");
-    const displayIconUrl = item.storageIconId ? (resolvedUrlQuery || "https://github.com/shadcn.png") : (item.iconUrl || 'https://github.com/shadcn.png');
+    const displayIconUrl = item.iconUrl || 'https://github.com/shadcn.png';
 
     const Content = (
         <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-2 border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>

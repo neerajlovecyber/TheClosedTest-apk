@@ -558,13 +558,6 @@ export const getMyActiveTests = query({
         // Helper to resolve icon source (prefer storageId for client-side resolution)
         const resolveIconSource = (app: any) => {
             if (!app) return { iconUrl: "https://github.com/shadcn.png" };
-
-            // If iconUrl exists and is NOT a web URL, it is a storage ID
-            if (app.iconUrl && !app.iconUrl.startsWith("http")) {
-                return { storageIconId: app.iconUrl, iconUrl: undefined };
-            }
-
-            // Otherwise it's a web URL or empty
             return { iconUrl: app.iconUrl || "https://github.com/shadcn.png" };
         };
 
@@ -668,9 +661,7 @@ export const getMatchDetails = query({
         const owner = await ctx.db.get(ownerId);
 
         let resolvedUrl = appToTest?.iconUrl;
-        if (appToTest?.storageIconId) {
-            resolvedUrl = await getImageUrl(ctx, appToTest.storageIconId);
-        } else if (appToTest?.iconUrl && !appToTest.iconUrl.startsWith("http")) {
+        if (appToTest?.iconUrl && !appToTest.iconUrl.startsWith("http")) {
             resolvedUrl = await getImageUrl(ctx, appToTest.iconUrl);
         }
 
@@ -688,8 +679,7 @@ export const getMatchDetails = query({
                 iconUrl: resolvedUrl || "https://github.com/shadcn.png",
                 packageName: appToTest?.packageName,
                 instructions: appToTest?.instructions,
-                playStoreUrl: appToTest?.playStoreUrl,
-                storageIconId: appToTest?.storageIconId
+                playStoreUrl: appToTest?.playStoreUrl
             },
             partner: partner ? {
                 _id: partner._id,
