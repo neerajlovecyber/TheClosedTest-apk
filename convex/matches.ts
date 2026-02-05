@@ -599,6 +599,7 @@ export const getMyActiveTests = query({
                     id: match._id,
                     name: appToTest?.title || "Unknown App",
                     day,
+                    totalDays: 14,
                     myProofStatus,
                     partnerProofStatus,
                     isReviewPending,
