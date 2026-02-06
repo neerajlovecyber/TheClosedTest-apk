@@ -173,12 +173,7 @@ export const getUsersByFilter = query({
             const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
 
             if (args.filter === "active") {
-                const logs = await ctx.db.query("daily_activity")
-                    .withIndex("by_date", q => q.eq("date", args.dateStr!))
-                    .collect();
-                const userIds = [...new Set(logs.map(l => l.userId))];
-                const users = await Promise.all(userIds.map(id => ctx.db.get(id)));
-                return users.filter(Boolean);
+                return []; // Disabled to save bandwidth
             }
 
             // For new/all with date, filter at DB level
@@ -195,36 +190,7 @@ export const getUsersByFilter = query({
         const todayStr = new Date(now).toISOString().split('T')[0];
 
         if (args.filter === "active") {
-            const activeUserIds = new Set<string>();
-
-            // 1. Get users active in matches
-            const activeMatches = await ctx.db.query("matches")
-                .filter(q => q.or(
-                    q.eq(q.field("status"), 'active'),
-                    q.gt(q.field("lastActivity"), oneDayAgo)
-                ))
-                .collect();
-
-            activeMatches.forEach(m => {
-                activeUserIds.add(m.user1Id);
-                activeUserIds.add(m.user2Id);
-            });
-
-            // 2. Get users who checked in today
-            const todayActivity = await ctx.db.query("daily_activity")
-                .withIndex("by_date", q => q.eq("date", todayStr))
-                .collect();
-            todayActivity.forEach(l => activeUserIds.add(l.userId));
-
-            // 3. Get new users (they are considered active)
-            const newUsers = await ctx.db.query("users")
-                .filter(q => q.gt(q.field("createdAt"), oneDayAgo))
-                .collect();
-            newUsers.forEach(u => activeUserIds.add(u._id));
-
-            // Fetch the specific users we identified
-            const users = await Promise.all(Array.from(activeUserIds).map(id => ctx.db.get(id as Id<"users">)));
-            return users.filter(Boolean);
+            return []; // Disabled to save bandwidth
         }
 
         if (args.filter === "new") {

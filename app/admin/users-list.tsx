@@ -120,14 +120,13 @@ export default function AnalyticsScreen() {
                     <SimpleBarChart
                         data={chartData}
                         selectedDate={selectedDate}
-                        onSelectDate={setSelectedDate}
+                        selectedDate={null}
+                    // onSelectDate={setSelectedDate} // Disabled to prevent heavy queries
                     />
                 )}
 
                 {/* Users List */}
-                <Text className="text-lg font-bold mb-2 mt-4">
-                    {selectedDate ? `Users on ${selectedDate}` : `All ${getTitle()}`}
-                </Text>
+
 
                 {users ? (
                     users.length > 0 ? (
@@ -136,12 +135,7 @@ export default function AnalyticsScreen() {
                         ))
                     ) : (
                         <View className="py-20 items-center">
-                            <Text className="text-muted-foreground">No users found for this selection.</Text>
-                            {selectedDate && (
-                                <TouchableOpacity onPress={() => setSelectedDate(null)} className="mt-4 bg-secondary py-2 px-4 rounded-full">
-                                    <Text className="text-xs font-bold">Clear Date Filter</Text>
-                                </TouchableOpacity>
-                            )}
+
                         </View>
                     )
                 ) : (

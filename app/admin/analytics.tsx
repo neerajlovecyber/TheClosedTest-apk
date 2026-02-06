@@ -108,7 +108,6 @@ export default function AnalyticsOverviewScreen() {
                         value={stats?.dau}
                         icon={ActivityIcon}
                         showChart={true}
-                        onPress={() => router.push({ pathname: '/admin/users-list', params: { filter: 'active' } })}
                     />
                     <StatCard
                         title="New Users Today"
