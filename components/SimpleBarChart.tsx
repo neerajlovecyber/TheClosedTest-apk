@@ -11,7 +11,7 @@ interface ChartDataPoint {
 interface SimpleBarChartProps {
     data: ChartDataPoint[];
     selectedDate: string | null;
-    onSelectDate: (date: string | null) => void;
+    onSelectDate?: (date: string | null) => void;
     barColor?: string;
 }
 
@@ -34,7 +34,8 @@ export function SimpleBarChart({ data, selectedDate, onSelectDate, barColor = 'b
                     return (
                         <TouchableOpacity
                             key={d.date}
-                            onPress={() => onSelectDate(isSelected ? null : d.date)}
+                            onPress={() => onSelectDate?.(isSelected ? null : d.date)}
+                            disabled={!onSelectDate}
                             className="items-center w-8"
                         >
                             <View className="w-full items-center justify-end h-full">
@@ -47,7 +48,7 @@ export function SimpleBarChart({ data, selectedDate, onSelectDate, barColor = 'b
                                             {d.value}
                                         </Text>
                                     )}
-                                    <View className={`w-full h-full rounded-t-sm ${isSelected ? barColor : `${barColor}/30`}`} />
+                                    <View className={`w-full h-full rounded-t-sm ${isSelected ? barColor : `${barColor}`}`} />
                                 </View>
                             </View>
                             <Text className={`text-[10px] mt-2 ${isSelected ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
