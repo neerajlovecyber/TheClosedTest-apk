@@ -98,7 +98,8 @@ export default defineSchema({
         .index("by_app1", ["app1Id"])
         .index("by_app2", ["app2Id"])
         .index("by_app1_status", ["app1Id", "status"])
-        .index("by_app2_status", ["app2Id", "status"]),
+        .index("by_app2_status", ["app2Id", "status"])
+        .index("by_user2_status", ["user2Id", "status"]),
 
     proofs: defineTable({
         matchId: v.id("matches"),

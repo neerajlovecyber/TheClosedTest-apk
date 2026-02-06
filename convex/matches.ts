@@ -238,10 +238,10 @@ export const getIncomingRequests = query({
 
         // Find matches where I am user2 (the target) and status is pending
         // OPTIMIZED: Limit to 50 requests
+        // OPTIMIZED: Limit to 50 requests, use index for reactivity isolation
         const requests = await ctx.db
             .query("matches")
-            .withIndex("by_user2", (q) => q.eq("user2Id", user._id))
-            .filter((q) => q.eq(q.field("status"), "pending"))
+            .withIndex("by_user2_status", (q) => q.eq("user2Id", user._id).eq("status", "pending"))
             .order("desc")
             .take(50);
 
@@ -253,7 +253,9 @@ export const getIncomingRequests = query({
                 const myAppToCheck = await ctx.db.get(match.app2Id);
 
                 return {
-                    ...match,
+                    _id: match._id,
+                    createdAt: match.createdAt,
+                    status: match.status,
                     requestor: requestor ? {
                         name: requestor.name,
                         avatarUrl: resolveAvatarUrl(requestor.avatarUrl)
