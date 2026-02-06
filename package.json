@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/clerk-expo": "2.16.1",
     "@codsod/react-native-chat": "^1.0.14",
+    "@convex-dev/aggregate": "^0.2.1",
     "@convex-dev/r2": "^0.8.1",
     "@convex-dev/rate-limiter": "^0.3.2",
     "@legendapp/list": "^2.0.19",

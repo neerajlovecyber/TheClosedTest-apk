@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
+import { matchesAggregate } from "./aggregates";
 
 // Helper to calculate current testing day (Day 1 to 14) based on midnight reset (IST/Local time logic)
 const calculateDay = (startDate: number) => {
@@ -197,6 +198,12 @@ export const requestSwap = mutation({
             createdAt: now,
         });
 
+        // Sync Matches Aggregate
+        const newMatch = await ctx.db.get(matchId);
+        if (newMatch) {
+            await matchesAggregate.insert(ctx, newMatch);
+        }
+
         // Create notification and send push notification automatically
         await ctx.scheduler.runAfter(0, internal.notificationHelper.createNotification, {
             userId: targetApp.userId,
@@ -341,6 +348,12 @@ export const acceptSwap = mutation({
             lastActivity: Date.now(),
         });
 
+        // Sync Matches Aggregate (Update Status)
+        const updatedMatch = await ctx.db.get(args.matchId);
+        if (updatedMatch) {
+            await matchesAggregate.replace(ctx, match, updatedMatch);
+        }
+
         // Update both apps' currentTesters and status
         if (app1) {
             const newCount = (app1.currentTesters || 0) + 1;
@@ -410,6 +423,12 @@ export const rejectSwap = mutation({
         await ctx.db.patch(args.matchId, {
             status: "cancelled", // Or archived/deleted
         });
+
+        // Sync Matches Aggregate - Update to cancelled
+        const updatedMatch = await ctx.db.get(args.matchId);
+        if (updatedMatch) {
+            await matchesAggregate.replace(ctx, match, updatedMatch);
+        }
 
     },
 });

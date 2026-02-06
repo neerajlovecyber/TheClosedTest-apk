@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import { appsAggregate } from "./aggregates";
 
 // Helper to get image URL
 const getImageUrl = async (ctx: any, storageId: string | undefined | null) => {
@@ -79,6 +80,12 @@ export const createApp = mutation({
             status: "recruiting",
             createdAt: Date.now(),
         });
+
+        // Sync Apps aggregate
+        const newApp = await ctx.db.get(appId);
+        if (newApp) {
+            await appsAggregate.insert(ctx, newApp);
+        }
 
         // Update user's app count
         await ctx.db.patch(user._id, {
@@ -342,7 +349,10 @@ export const deleteApp = mutation({
             }
         }
 
-        // 4. Delete the app record
+
+        // Sync Apps aggregate (Delete)
+        await appsAggregate.delete(ctx, app);
+
         await ctx.db.delete(args.appId);
     }
 });

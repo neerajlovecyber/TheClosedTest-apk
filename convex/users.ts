@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { rateLimiter } from "./rateLimits";
+import { usersAggregate, dauAggregate } from "./aggregates";
 
 export const store = mutation({
     args: {
@@ -37,7 +38,7 @@ export const store = mutation({
         }
 
         // If it's a new identity, create a new `User`.
-        return await ctx.db.insert("users", {
+        const id = await ctx.db.insert("users", {
             name: identity.name!,
             tokenIdentifier: identity.tokenIdentifier,
             email: identity.email!,
@@ -51,6 +52,14 @@ export const store = mutation({
             createdAt: Date.now(),
             updatedAt: Date.now(),
         });
+
+        // NEW user created, sync aggregate
+        const newUser = await ctx.db.get(id);
+        if (newUser) {
+            await usersAggregate.insert(ctx, newUser);
+        }
+
+        return id;
     },
 });
 
@@ -81,7 +90,12 @@ export const checkIn = mutation({
             .withIndex("by_user_date", q => q.eq("userId", user._id).eq("date", today))
             .unique();
         if (!existingLog) {
-            await ctx.db.insert("daily_activity", { userId: user._id, date: today });
+            const id = await ctx.db.insert("daily_activity", { userId: user._id, date: today });
+            // Sync DAU aggregate
+            const log = await ctx.db.get(id);
+            if (log) {
+                await dauAggregate.insert(ctx, log);
+            }
         }
 
         const lastCheckIn = user.lastCheckInDate;

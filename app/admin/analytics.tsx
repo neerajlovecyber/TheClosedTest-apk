@@ -124,21 +124,13 @@ export default function AnalyticsOverviewScreen() {
                         icon={UsersIcon}
                         onPress={() => router.push({ pathname: '/admin/users-list', params: { filter: 'all' } })}
                     />
-                    <StatCard
-                        title="Active Matches"
-                        value={stats?.activeMatches}
-                        icon={ZapIcon}
-                    />
+
                     <StatCard
                         title="Total Apps"
                         value={stats?.totalApps}
                         icon={AppWindowIcon}
                     />
-                    <StatCard
-                        title="Proofs Uploaded"
-                        value={stats?.totalProofs}
-                        icon={FileCheckIcon}
-                    />
+
                 </View>
 
                 {/* Recent Users Table */}

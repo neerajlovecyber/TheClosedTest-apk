@@ -2,6 +2,7 @@ import { query, mutation, internalMutation, action, internalQuery } from "./_gen
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { usersAggregate, appsAggregate, matchesAggregate, dauAggregate } from "./aggregates";
 
 export const internalSnapshotDailyStats = internalMutation({
     args: {},
@@ -99,14 +100,12 @@ export const getStats = query({
 
         // Use counts instead of fetching all records
         // For total counts, we need to count but NOT fetch all fields
+        // Optimized using @convex-dev/aggregate
 
         // Get aggregate stats using indexable queries where possible
-        // For matches, use index
-        const activeMatchesList = await ctx.db
-            .query("matches")
-            .withIndex("by_status", q => q.eq("status", "active"))
-            .collect();
-        const activeMatches = activeMatchesList.length;
+
+        // Active Matches
+
 
         // Get recent users only (for trends) - not ALL users
         const recentUsers = await ctx.db
@@ -114,12 +113,11 @@ export const getStats = query({
             .order("desc")
             .take(100); // Only fetch recent 100 for trend calculation
 
-        // Get DAU from daily_activity table (indexed)
-        const todayActivity = await ctx.db
-            .query("daily_activity")
-            .withIndex("by_date", q => q.eq("date", todayStr))
-            .collect();
-        const dau = todayActivity.length;
+        // Get DAU from aggregate
+        // Get DAU from aggregate using bounds for today
+        const dau = await dauAggregate.count(ctx, {
+            bounds: { eq: todayStr }
+        });
 
         // Count new users today more efficiently
         const newUsersToday = recentUsers.filter(u => u.createdAt >= startOfToday).length;
@@ -135,12 +133,9 @@ export const getStats = query({
         // Get history (already indexed) - contains pre-computed stats
         const history = await ctx.db.query("analytics").withIndex("by_date").order("desc").take(7);
 
-        // For total counts - only count IDs, don't fetch full documents
-        // This is still a full scan but we're just counting
-        const allUsers = await ctx.db.query("users").collect();
-        const allApps = await ctx.db.query("apps").collect();
-        const totalUsers = allUsers.length;
-        const totalApps = allApps.length;
+        // For total counts - use aggregates
+        const totalUsers = await usersAggregate.count(ctx);
+        const totalApps = await appsAggregate.count(ctx);
 
         // Use latest analytics for proof count if available
         const latestAnalytics = history[0];
@@ -149,8 +144,6 @@ export const getStats = query({
         return {
             totalUsers,
             totalApps,
-            activeMatches,
-            totalProofs,
             newUsersToday,
             dau,
             trends: {
