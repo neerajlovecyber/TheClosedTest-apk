@@ -546,27 +546,28 @@ export const fixAppStatus = mutation({
         }
 
         // Recalculate active tester count
-        const matchesAsApp1 = await ctx.db
+        // Efficiently fetch active and completed matches for app1
+        const activeMatches1 = await ctx.db
             .query("matches")
-            .filter((q) => q.and(
-                q.eq(q.field("app1Id"), args.appId),
-                q.or(
-                    q.eq(q.field("status"), "active"),
-                    q.eq(q.field("status"), "completed")
-                )
-            ))
+            .withIndex("by_app1_status", (q) => q.eq("app1Id", args.appId).eq("status", "active"))
+            .collect();
+        const completedMatches1 = await ctx.db
+            .query("matches")
+            .withIndex("by_app1_status", (q) => q.eq("app1Id", args.appId).eq("status", "completed"))
             .collect();
 
-        const matchesAsApp2 = await ctx.db
+        // Efficiently fetch active and completed matches for app2
+        const activeMatches2 = await ctx.db
             .query("matches")
-            .filter((q) => q.and(
-                q.eq(q.field("app2Id"), args.appId),
-                q.or(
-                    q.eq(q.field("status"), "active"),
-                    q.eq(q.field("status"), "completed")
-                )
-            ))
+            .withIndex("by_app2_status", (q) => q.eq("app2Id", args.appId).eq("status", "active"))
             .collect();
+        const completedMatches2 = await ctx.db
+            .query("matches")
+            .withIndex("by_app2_status", (q) => q.eq("app2Id", args.appId).eq("status", "completed"))
+            .collect();
+
+        const matchesAsApp1 = [...activeMatches1, ...completedMatches1];
+        const matchesAsApp2 = [...activeMatches2, ...completedMatches2];
 
         const actualTesters = matchesAsApp1.length + matchesAsApp2.length;
         const shouldBeFilled = actualTesters >= app.requiredTesters;
@@ -615,20 +616,26 @@ export const fixAllAppStatuses = internalMutation({
             // Skip archived apps
             if (app.status === 'archived') continue;
 
-            // Recalculate active tester count using indexes (faster)
-            const matchesAsApp1 = await ctx.db
+            // Recalculate active tester count using specific status indexes (much faster)
+            const activeMatches1 = await ctx.db
                 .query("matches")
-                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
+                .withIndex("by_app1_status", (q) => q.eq("app1Id", app._id).eq("status", "active"))
+                .collect();
+            const completedMatches1 = await ctx.db
+                .query("matches")
+                .withIndex("by_app1_status", (q) => q.eq("app1Id", app._id).eq("status", "completed"))
                 .collect();
 
-            const matchesAsApp2 = await ctx.db
+            const activeMatches2 = await ctx.db
                 .query("matches")
-                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
+                .withIndex("by_app2_status", (q) => q.eq("app2Id", app._id).eq("status", "active"))
+                .collect();
+            const completedMatches2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2_status", (q) => q.eq("app2Id", app._id).eq("status", "completed"))
                 .collect();
 
-            const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
-                m => m.status === "active" || m.status === "completed"
-            );
+            const activeMatches = [...activeMatches1, ...completedMatches1, ...activeMatches2, ...completedMatches2];
             const actualTesters = activeMatches.length;
             const shouldBeFilled = actualTesters >= app.requiredTesters;
 
@@ -689,18 +696,26 @@ export const syncCurrentTesters = mutation({
 
         for (const app of apps) {
             // Count using indexes
-            const matchesAsApp1 = await ctx.db
+            // Count using new efficient indexes
+            const activeMatches1 = await ctx.db
                 .query("matches")
-                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
+                .withIndex("by_app1_status", (q) => q.eq("app1Id", app._id).eq("status", "active"))
                 .collect();
-            const matchesAsApp2 = await ctx.db
+            const completedMatches1 = await ctx.db
                 .query("matches")
-                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
+                .withIndex("by_app1_status", (q) => q.eq("app1Id", app._id).eq("status", "completed"))
                 .collect();
 
-            const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
-                m => m.status === "active" || m.status === "completed"
-            );
+            const activeMatches2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2_status", (q) => q.eq("app2Id", app._id).eq("status", "active"))
+                .collect();
+            const completedMatches2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2_status", (q) => q.eq("app2Id", app._id).eq("status", "completed"))
+                .collect();
+
+            const activeMatches = [...activeMatches1, ...completedMatches1, ...activeMatches2, ...completedMatches2];
             const actualTesters = activeMatches.length;
 
             if (app.currentTesters !== actualTesters) {
@@ -729,18 +744,26 @@ export const internalSyncCurrentTesters = internalMutation({
             if (app.status === "archived") continue;
 
             // Count using indexes
-            const matchesAsApp1 = await ctx.db
+            // Count using indexes efficiently
+            const activeMatches1 = await ctx.db
                 .query("matches")
-                .withIndex("by_app1", (q) => q.eq("app1Id", app._id))
+                .withIndex("by_app1_status", (q) => q.eq("app1Id", app._id).eq("status", "active"))
                 .collect();
-            const matchesAsApp2 = await ctx.db
+            const completedMatches1 = await ctx.db
                 .query("matches")
-                .withIndex("by_app2", (q) => q.eq("app2Id", app._id))
+                .withIndex("by_app1_status", (q) => q.eq("app1Id", app._id).eq("status", "completed"))
                 .collect();
 
-            const activeMatches = [...matchesAsApp1, ...matchesAsApp2].filter(
-                m => m.status === "active" || m.status === "completed"
-            );
+            const activeMatches2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2_status", (q) => q.eq("app2Id", app._id).eq("status", "active"))
+                .collect();
+            const completedMatches2 = await ctx.db
+                .query("matches")
+                .withIndex("by_app2_status", (q) => q.eq("app2Id", app._id).eq("status", "completed"))
+                .collect();
+
+            const activeMatches = [...activeMatches1, ...completedMatches1, ...activeMatches2, ...completedMatches2];
             const actualTesters = activeMatches.length;
             const shouldBeFilled = actualTesters >= app.requiredTesters;
 
