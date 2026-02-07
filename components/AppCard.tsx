@@ -154,7 +154,6 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                                 {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
                             </Text>
                         )}
-                        {item.ownerName ? <Text className="text-muted-foreground text-sm">Owner: {item.ownerName}</Text> : null}
                     </View>
                 )}
 
@@ -211,6 +210,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                             <View className="bg-secondary/50 px-2 py-1 rounded-md">
                                 <Text className="text-xs font-medium text-foreground">Day {item.day || 1} of {item.totalDays || 14}</Text>
                             </View>
+                            {item.ownerName ? <Text className="text-muted-foreground text-xs ml-2">Owner: {item.ownerName}</Text> : null}
                         </View>
                     )}
                 </View>
