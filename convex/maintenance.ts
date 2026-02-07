@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // Helper to calculate current testing day (Day 1 to 14) based on midnight reset (IST/Local time logic)
 const calculateDay = (startDate: number) => {
@@ -226,5 +227,146 @@ export const penalizeInactiveUser = mutation({
             reputationBefore: user.reputation,
             reputationAfter: newReputation,
         };
+    }
+});
+
+// Admin mutation to manually trigger auto-penalize (calls internal mutation)
+export const triggerAutoPenalize = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+
+        const admin = await ctx.db
+            .query("users")
+            .withIndex("by_tokenIdentifier", q => q.eq("tokenIdentifier", identity.tokenIdentifier))
+            .first();
+
+        if (!admin || !admin.isAdmin) throw new Error("Unauthorized");
+
+        // Schedule the internal mutation to run immediately
+        await ctx.scheduler.runAfter(0, internal.maintenance.autoPenalizeInactiveUsers, {});
+
+        return { success: true, message: "Auto-penalize job scheduled" };
+    }
+});
+
+// Internal mutation for cron job - auto-penalizes all inactive users
+export const autoPenalizeInactiveUsers = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        // Get all active matches
+        const activeMatches = await ctx.db
+            .query("matches")
+            .withIndex("by_status", (q) => q.eq("status", "active"))
+            .collect();
+
+        const penalized: string[] = [];
+        const now = Date.now();
+
+        for (const match of activeMatches) {
+            const currentDay = calculateDay(match.startDate);
+            // Grace period: allow first 2 days to pass
+            if (currentDay < 3) continue;
+
+            // Check previous 2 days
+            const daysToCheck = [currentDay - 1, currentDay - 2];
+
+            // Get proofs for this match
+            const proofs = await ctx.db
+                .query("proofs")
+                .withIndex("by_matchId", (q) => q.eq("matchId", match._id))
+                .collect();
+
+            // Check both users
+            const usersInfo = [
+                { id: match.user1Id, appId: match.app1Id },
+                { id: match.user2Id, appId: match.app2Id }
+            ];
+
+            for (const uInfo of usersInfo) {
+                // Check if user missed BOTH days
+                const missedBoth = daysToCheck.every(day => {
+                    const hasProof = proofs.some(p => p.uploaderId === uInfo.id && p.day === day);
+                    return !hasProof;
+                });
+
+                if (missedBoth) {
+                    const user = await ctx.db.get(uInfo.id);
+                    const app = await ctx.db.get(uInfo.appId);
+
+                    if (!user || !app) continue;
+
+                    // Skip if already penalized in this run
+                    if (penalized.includes(uInfo.id)) continue;
+                    penalized.push(uInfo.id);
+
+                    // 1. Cancel all active matches for this app
+                    const matchesAsApp1 = await ctx.db
+                        .query("matches")
+                        .withIndex("by_app1_status", q => q.eq("app1Id", uInfo.appId).eq("status", "active"))
+                        .collect();
+                    const matchesAsApp2 = await ctx.db
+                        .query("matches")
+                        .withIndex("by_app2_status", q => q.eq("app2Id", uInfo.appId).eq("status", "active"))
+                        .collect();
+
+                    for (const m of [...matchesAsApp1, ...matchesAsApp2]) {
+                        await ctx.db.patch(m._id, { status: "cancelled", lastActivity: now });
+
+                        // Notify partner
+                        const partnerId = m.user1Id === uInfo.id ? m.user2Id : m.user1Id;
+                        await ctx.db.insert("notifications", {
+                            userId: partnerId,
+                            type: "proof_update",
+                            title: "Test Cancelled",
+                            body: `Your test with ${app.title} was cancelled due to partner inactivity.`,
+                            data: { matchId: m._id },
+                            read: false,
+                            createdAt: now,
+                        });
+                    }
+
+                    // 2. Delete pending matches
+                    const pendingMatches = await ctx.db
+                        .query("matches")
+                        .filter(q => q.and(
+                            q.or(
+                                q.eq(q.field("app1Id"), uInfo.appId),
+                                q.eq(q.field("app2Id"), uInfo.appId)
+                            ),
+                            q.eq(q.field("status"), "pending")
+                        ))
+                        .collect();
+
+                    for (const m of pendingMatches) {
+                        await ctx.db.delete(m._id);
+                    }
+
+                    // 3. Deduct reputation
+                    const newRep = Math.max(0, user.reputation - 20);
+                    await ctx.db.patch(uInfo.id, { reputation: newRep, updatedAt: now });
+
+                    // 4. Delete the app
+                    await ctx.db.delete(uInfo.appId);
+
+                    // 5. Notify user
+                    await ctx.db.insert("notifications", {
+                        userId: uInfo.id,
+                        type: "proof_update",
+                        title: "⚠️ App Removed",
+                        body: `Your app "${app.title}" was removed due to inactivity. You lost 20 reputation.`,
+                        data: { reason: "inactivity" },
+                        read: false,
+                        createdAt: now,
+                    });
+
+                    console.log(`[Cron] Penalized ${user.name || user.email}: deleted ${app.title}, rep ${user.reputation} → ${newRep}`);
+                }
+            }
+        }
+
+        console.log(`[Cron] Auto-penalize complete. ${penalized.length} users penalized.`);
+        return { penalizedCount: penalized.length };
     }
 });

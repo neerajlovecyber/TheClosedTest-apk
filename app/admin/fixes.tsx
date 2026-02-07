@@ -11,14 +11,16 @@ import { toast } from '@/lib/sonner';
 export default function AdminFixesScreen() {
     const backfillMatchProofStatus = useMutation(api.matches.backfillMatchProofStatus);
     const fixAllApps = useMutation(api.admin.fixAllApps);
+    const triggerAutoPenalize = useMutation(api.maintenance.triggerAutoPenalize);
 
     const [loadingMatchFix, setLoadingMatchFix] = useState(false);
     const [loadingStatusFix, setLoadingStatusFix] = useState(false);
+    const [loadingAutoPenalize, setLoadingAutoPenalize] = useState(false);
 
     // We don't need a result state anymore if we use toast, but keeping it simple if needed for debug
     const [result, setResult] = useState<string | null>(null);
 
-    const isLoading = loadingMatchFix || loadingStatusFix;
+    const isLoading = loadingMatchFix || loadingStatusFix || loadingAutoPenalize;
 
     const handleMatchFix = async () => {
         try {
@@ -52,6 +54,33 @@ export default function AdminFixesScreen() {
         }
     };
 
+    const handleAutoPenalize = async () => {
+        Alert.alert(
+            "Run Auto-Penalize",
+            "This will penalize ALL inactive users (missed 2+ days). Their apps will be deleted and they'll lose 20 reputation.\n\nContinue?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Run",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setLoadingAutoPenalize(true);
+                            const result = await triggerAutoPenalize();
+                            toast.success("Auto-Penalize Scheduled", {
+                                description: result.message
+                            });
+                        } catch (e: any) {
+                            toast.error("Error", { description: e.message });
+                        } finally {
+                            setLoadingAutoPenalize(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <ScrollView className="flex-1 bg-background p-4">
             <Stack.Screen options={{ title: "Maintenance Fixes" }} />
@@ -72,6 +101,25 @@ export default function AdminFixesScreen() {
                         variant="outline"
                     >
                         {loadingStatusFix ? <ActivityIndicator color="black" /> : <Text>Run Batch Fix</Text>}
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <Card className="mb-4 border-red-200">
+                <CardHeader>
+                    <CardTitle className="text-red-700">🚨 Auto-Penalize Inactive Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Text className="mb-4 text-muted-foreground">
+                        Runs the cron job manually. Penalizes ALL users who missed 2+ consecutive days:
+                        deletes their app, cancels matches, -20 reputation.
+                    </Text>
+                    <Button
+                        onPress={handleAutoPenalize}
+                        disabled={isLoading}
+                        variant="destructive"
+                    >
+                        {loadingAutoPenalize ? <ActivityIndicator color="white" /> : <Text>Run Auto-Penalize Now</Text>}
                     </Button>
                 </CardContent>
             </Card>

@@ -66,14 +66,13 @@ crons.daily(
     internal.matches.cleanupCancelledMatches
 );
 
-// Check for inactive app owners (pending proofs > 48h)
-// Runs at 2:30 AM IST (9:00 PM UTC previous day)
-// DISABLED PER USER REQUEST
-// crons.daily(
-//     "check-app-owner-inactivity",
-//     { hourUTC: 21, minuteUTC: 0 },
-//     internal.matches.checkAppOwnerInactivity
-// );
+// Auto-penalize inactive users (missed 2+ days) - Daily at 12:30 AM IST (19:00 UTC)
+// Deletes their app, cancels matches, deducts 20 reputation
+crons.daily(
+    "auto-penalize-inactive-users",
+    { hourUTC: 19, minuteUTC: 0 },
+    internal.maintenance.autoPenalizeInactiveUsers
+);
 
 // Sync currentTesters cache every 1 hour
 // Fixes discrepancies between marketplace and app details tester counts
