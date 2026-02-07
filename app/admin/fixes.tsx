@@ -3,7 +3,7 @@ import { View, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Stack } from 'expo-router';
 import { toast } from '@/lib/sonner';
@@ -100,6 +100,57 @@ export default function AdminFixesScreen() {
                     <Text className="font-mono text-sm">{result}</Text>
                 </View>
             )}
+
+            <InactiveAppsScan />
         </ScrollView>
+    );
+}
+
+function InactiveAppsScan() {
+    const [enabled, setEnabled] = useState(false);
+
+    // Only fetch when enabled
+    const inactiveApps = useQuery(api.maintenance.listInactiveApps, enabled ? {} : "skip");
+
+    return (
+        <Card className="mb-4 mt-4 border-red-200">
+            <CardHeader>
+                <CardTitle className="text-red-700">Inactive Apps (Missed 2+ Days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Text className="mb-4 text-muted-foreground">
+                    Scans for applications where the owner has missed uploading proofs for 2 consecutive days.
+                    This usually triggers auto-deletion/archiving (currently disabled).
+                </Text>
+
+                <Button
+                    onPress={() => setEnabled(true)}
+                    variant="destructive"
+                    className="mb-4"
+                >
+                    <Text>{enabled ? "Refresh Scan" : "Scan for Inactive Apps"}</Text>
+                </Button>
+
+                {enabled && !inactiveApps && <ActivityIndicator color="red" />}
+
+                {enabled && inactiveApps && inactiveApps.length === 0 && (
+                    <Text className="text-green-600 font-bold">No inactive apps found! Everyone is diligent.</Text>
+                )}
+
+                {enabled && inactiveApps && inactiveApps.length > 0 && (
+                    <View className="gap-2">
+                        {inactiveApps.map((item: any, idx: number) => (
+                            <View key={idx} className="bg-red-50 p-3 rounded border border-red-100">
+                                <Text className="font-bold text-base">{item.appName || "Unknown App"}</Text>
+                                <Text className="text-red-700 font-semibold">Failed to test: {item.targetAppName || "Unknown Target App"}</Text>
+                                <Text>Owner: {item.userName} ({item.userEmail})</Text>
+                                <Text className="text-xs text-muted-foreground">Days Missed: {item.daysMissed.join(", ")}</Text>
+                                <Text className="text-xs text-muted-foreground">Match: {item.matchId}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+            </CardContent>
+        </Card>
     );
 }

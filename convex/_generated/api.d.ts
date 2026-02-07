@@ -16,6 +16,7 @@ import type * as boost from "../boost.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
+import type * as maintenance from "../maintenance.js";
 import type * as matches from "../matches.js";
 import type * as migrations from "../migrations.js";
 import type * as moderation from "../moderation.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   files: typeof files;
   http: typeof http;
+  maintenance: typeof maintenance;
   matches: typeof matches;
   migrations: typeof migrations;
   moderation: typeof moderation;
