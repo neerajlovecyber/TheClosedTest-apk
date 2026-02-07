@@ -108,9 +108,38 @@ export default function AdminFixesScreen() {
 
 function InactiveAppsScan() {
     const [enabled, setEnabled] = useState(false);
+    const [penalizingId, setPenalizingId] = useState<string | null>(null);
 
     // Only fetch when enabled
     const inactiveApps = useQuery(api.maintenance.listInactiveApps, enabled ? {} : "skip");
+    const penalizeUser = useMutation(api.maintenance.penalizeInactiveUser);
+
+    const handlePenalize = async (userId: any, appId: any, appName: string) => {
+        Alert.alert(
+            "Confirm Penalty",
+            `This will:\n• Delete "${appName}"\n• Cancel all matches\n• Deduct 20 reputation\n\nProceed?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Penalize",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setPenalizingId(userId);
+                            const result = await penalizeUser({ userId, appId });
+                            toast.success("Penalty Applied", {
+                                description: `App "${result.appDeleted}" deleted. Rep: ${result.reputationBefore} → ${result.reputationAfter}`
+                            });
+                        } catch (e: any) {
+                            toast.error("Error", { description: e.message });
+                        } finally {
+                            setPenalizingId(null);
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     return (
         <Card className="mb-4 mt-4 border-red-200">
@@ -120,7 +149,7 @@ function InactiveAppsScan() {
             <CardContent>
                 <Text className="mb-4 text-muted-foreground">
                     Scans for applications where the owner has missed uploading proofs for 2 consecutive days.
-                    This usually triggers auto-deletion/archiving (currently disabled).
+                    Use "Penalize" to delete their app and deduct 20 reputation.
                 </Text>
 
                 <Button
@@ -144,8 +173,16 @@ function InactiveAppsScan() {
                                 <Text className="font-bold text-base">{item.appName || "Unknown App"}</Text>
                                 <Text className="text-red-700 font-semibold">Failed to test: {item.targetAppName || "Unknown Target App"}</Text>
                                 <Text>Owner: {item.userName} ({item.userEmail})</Text>
-                                <Text className="text-xs text-muted-foreground">Days Missed: {item.daysMissed.join(", ")}</Text>
-                                <Text className="text-xs text-muted-foreground">Match: {item.matchId}</Text>
+                                <Text className="text-xs text-muted-foreground">Days Missed: {item.daysMissed.join(", ")} (Current Day: {item.currentDay})</Text>
+                                <Text className="text-xs text-muted-foreground mb-2">Match: {item.matchId}</Text>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onPress={() => handlePenalize(item.userId, item.appId, item.appName)}
+                                    disabled={penalizingId === item.userId}
+                                >
+                                    {penalizingId === item.userId ? <ActivityIndicator color="white" size="small" /> : <Text>Penalize (-20 Rep, Delete App)</Text>}
+                                </Button>
                             </View>
                         ))}
                     </View>
