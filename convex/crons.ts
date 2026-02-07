@@ -27,10 +27,10 @@ crons.daily(
     internal.notifications.cleanupOldNotifications
 );
 
-// Gentle reminder to upload screenshot - 6 PM IST (12:30 PM UTC)
+// Gentle reminder to upload screenshot - 5:55 PM IST (12:25 PM UTC)
 crons.daily(
     "gentle-upload-reminder",
-    { hourUTC: 12, minuteUTC: 30 },
+    { hourUTC: 12, minuteUTC: 55 },
     internal.notificationHelper.sendGentleReminders
 );
 
