@@ -60,9 +60,9 @@ export function ReportDialog({
             await createReport({
                 type: selectedType,
                 targetId,
-                matchId,
-                reportedUserId,
-                reportedAppId,
+                matchId: matchId ?? undefined,
+                reportedUserId: reportedUserId ?? undefined,
+                reportedAppId: reportedAppId ?? undefined,
                 description: description.trim(),
             });
             toast.success("Report submitted successfully");

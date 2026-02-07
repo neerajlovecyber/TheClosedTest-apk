@@ -53,7 +53,6 @@ export const createReport = mutation({
             if (app) {
                 await ctx.db.patch(args.reportedAppId, {
                     flagCount: (app.flagCount || 0) + 1,
-                    updatedAt: Date.now()
                 });
             }
         }
