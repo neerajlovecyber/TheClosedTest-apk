@@ -230,8 +230,8 @@ export default function MarketplaceScreen() {
                         />
                     </View>
 
-                    {/* Boosted Apps Section */}
-                    {!searchQuery && <BoostedAppsSection />}
+                    {/* Boosted Apps Section - HIDDEN */}
+                    {/* {!searchQuery && <BoostedAppsSection />} */}
 
                     {/* Recruiting Now / Latest */}
                     {!searchQuery && (
@@ -296,7 +296,7 @@ export default function MarketplaceScreen() {
             </ScrollView>
 
             {/* Floating Action Button - Boost Hub with Premium Animation - HIDDEN (AdMob Rejected) */}
-            <AnimatedFAB onPress={() => router.push('/boost-hub')} />
+            {/* <AnimatedFAB onPress={() => router.push('/boost-hub')} /> */}
 
             {/* Google Group Modal */}
             <Modal
