@@ -143,18 +143,19 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                 </View>
 
                 {/* Middle Row: Subtitle / Stats */}
-                {!isTesting ? (
-                    item.status === 'completed' ? (
-                        <Text className="text-green-600 dark:text-green-400 text-sm font-medium">
-                            Live in Production 🚀
-                        </Text>
-                    ) : (
-                        <Text className="text-muted-foreground text-sm">
-                            {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
-                        </Text>
-                    )
-                ) : (
-                    <Text className="text-muted-foreground text-sm">Owner: {item.ownerName}</Text>
+                {!isTesting && (
+                    <View>
+                        {item.status === 'completed' ? (
+                            <Text className="text-green-600 dark:text-green-400 text-sm font-medium">
+                                Live in Production 🚀
+                            </Text>
+                        ) : (
+                            <Text className="text-muted-foreground text-sm">
+                                {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
+                            </Text>
+                        )}
+                        {item.ownerName ? <Text className="text-muted-foreground text-sm">Owner: {item.ownerName}</Text> : null}
+                    </View>
                 )}
 
 
