@@ -13,7 +13,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
-import { useRewardedAd } from '@/hooks/useRewardedAd';
+// import { useRewardedAd } from '@/hooks/useRewardedAd';
 import { Id } from '@/convex/_generated/dataModel';
 import { toast } from '@/lib/sonner';
 import {
@@ -49,7 +49,7 @@ export default function HomeScreen() {
     const unlockAppSlot = useMutation(api.users.unlockAppSlot);
 
     // Rewarded Ad for unlocking slots
-    const { loaded: adLoaded, loading: adLoading, showAd } = useRewardedAd();
+    // const { loaded: adLoaded, loading: adLoading, showAd } = useRewardedAd();
     const [unlocking, setUnlocking] = useState(false);
 
     // Cache invalidation
@@ -316,7 +316,8 @@ export default function HomeScreen() {
                                 return;
                             }
 
-                            // Need to unlock via ad
+                            // Need to unlock via ad (TEMPORARILY DISABLED due to AdMob rejection)
+                            /*
                             if (Platform.OS === 'web') {
                                 toast.info('Ads Not Available', { description: 'Rewarded ads are only available on mobile devices.' });
                                 return;
@@ -326,15 +327,16 @@ export default function HomeScreen() {
                                 toast.info('Ad Loading', { description: 'Please wait while the ad loads...' });
                                 return;
                             }
+                            */
 
                             setUnlocking(true);
                             try {
-                                const rewarded = await showAd();
-                                if (rewarded) {
-                                    await unlockAppSlot();
-                                    invalidateUser(); // Refresh unlocked slots
-                                    toast.success('Slot Unlocked!', { description: `App slot ${slotNumber} is now available!` });
-                                }
+                                // const rewarded = await showAd();
+                                // if (rewarded) {
+                                await unlockAppSlot();
+                                invalidateUser(); // Refresh unlocked slots
+                                toast.success('Slot Unlocked!', { description: `App slot ${slotNumber} is now available!` });
+                                // }
                             } catch (error) {
                                 console.error('Failed to unlock slot:', error);
                                 toast.error('Error', { description: 'Failed to unlock slot. Please try again.' });
@@ -368,7 +370,8 @@ export default function HomeScreen() {
                                             <View className="flex-row items-center gap-1.5 bg-orange-500/10 px-2 py-1 rounded-md self-start">
                                                 <Icon as={PlayCircleIcon} className="size-3.5 text-orange-600 dark:text-orange-400" />
                                                 <Text className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
-                                                    {adLoading ? 'Loading...' : 'Watch Ad to Unlock'}
+                                                    {/* {adLoading ? 'Loading...' : 'Watch Ad to Unlock'} */}
+                                                    Tap to Unlock (Free)
                                                 </Text>
                                             </View>
                                         )}
