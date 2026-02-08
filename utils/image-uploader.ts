@@ -1,7 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 // R2 public URL base for serving files (via Cloudflare Worker)
-const R2_PUBLIC_URL = "https://r2-image-worker.dodo-webhook.workers.dev";
+import { R2_WORKER_URL } from "./r2-config";
+
+const R2_PUBLIC_URL = R2_WORKER_URL;
 
 /**
  * Uploads an image to R2 via the Cloudflare Worker.

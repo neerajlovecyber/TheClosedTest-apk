@@ -11,6 +11,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { R2_WORKER_URL } from "@/utils/r2-config";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -158,7 +159,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 });
 
                 // Return the public URL for this image
-                return `https://r2-image-worker.dodo-webhook.workers.dev/${r2Key}`;
+                return `${R2_WORKER_URL}/${r2Key}`;
             });
 
             const r2Urls = await Promise.all(uploadPromises);

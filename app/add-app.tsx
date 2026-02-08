@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { R2_WORKER_URL } from "@/utils/r2-config";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 const GOOGLE_GROUP_EMAIL = 'developers-community-official@googlegroups.com';
@@ -212,7 +213,9 @@ export default function AddAppScreen() {
                     });
 
                     // Build the public URL (using R2 worker for serving)
-                    const iconUrl = `https://r2-image-worker.dodo-webhook.workers.dev/${r2Key}`;
+
+
+                    const iconUrl = `${R2_WORKER_URL}/${r2Key}`;
 
                     // 3. Update App with real icon URL
                     await updateApp({

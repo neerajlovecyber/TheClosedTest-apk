@@ -28,6 +28,7 @@ import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Id } from '@/convex/_generated/dataModel';
+import { R2_WORKER_URL } from "@/utils/r2-config";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 export default function EditAppScreen() {
@@ -165,7 +166,9 @@ export default function EditAppScreen() {
                     });
 
                     // Build the public URL with cache-bust timestamp
-                    iconUrl = `https://r2-image-worker.dodo-webhook.workers.dev/${r2Key}?t=${Date.now()}`;
+
+
+                    iconUrl = `${R2_WORKER_URL}/${r2Key}?t=${Date.now()}`;
                     console.log(`R2 Upload Success via Convex: ${iconUrl}`);
                 } catch (uploadError: any) {
                     toast.error("Error", { description: "Icon upload failed: " + uploadError.message });
