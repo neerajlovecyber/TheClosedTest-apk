@@ -148,7 +148,10 @@ function InitialLayout() {
       const data = notificationResponse.notification.request.content.data;
       console.log("Handling notification navigation:", data);
 
-      if (data?.matchId) {
+      if (data?.type === 'request') {
+        // Navigate to Home (Incoming Requests)
+        router.push('/(tabs)');
+      } else if (data?.matchId) {
         // Navigate to the match page
         const path = `/(tabs)/match/${data.matchId}`;
         const params = data.type === 'message' ? { tab: 'chat' } : undefined;

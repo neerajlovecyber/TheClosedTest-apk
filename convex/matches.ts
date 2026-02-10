@@ -210,7 +210,7 @@ export const requestSwap = mutation({
             type: "request",
             title: "New Swap Request",
             body: `${user.name || "A user"} wants to swap tests with you!`,
-            data: { matchId, appId: args.targetAppId },
+            data: { matchId, appId: args.targetAppId, type: "request" },
         });
 
         return matchId;
