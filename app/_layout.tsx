@@ -33,7 +33,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import * as React from 'react';
 import { useOTAUpdate } from '@/hooks/useOTAUpdate';
 import { useInAppUpdate } from '@/hooks/useInAppUpdate';
-import { UpdateBanner } from '@/components/UpdateBanner';
+import { ForceUpdateDialog } from '@/components/ForceUpdateDialog';
 import { WarningDisplay } from '@/components/WarningDisplay';
 import AppDeletedModal from '@/components/AppDeletedModal';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -122,7 +122,6 @@ function InitialLayout() {
   }, [expoPushToken, isSignedIn]);
 
 
-
   React.useEffect(() => {
     if (!isLoaded) return;
 
@@ -196,7 +195,7 @@ function InitialLayout() {
 
   return (
     <>
-      <UpdateBanner isVisible={isUpdateDownloaded} onReload={reloadApp} />
+      <ForceUpdateDialog isVisible={isUpdateDownloaded} onReload={reloadApp} />
       <WarningDisplay />
       <AppDeletedModal />
       <Stack>
