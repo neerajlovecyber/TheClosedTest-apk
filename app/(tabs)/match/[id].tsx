@@ -31,6 +31,7 @@ import { ProgressGrid } from '@/components/ProgressGrid';
 import { RejectionReasonModal } from '@/components/RejectionReasonModal';
 import { MatchChat } from '@/components/MatchChat';
 import { ReportDialog } from '@/components/ReportDialog';
+import { useIsFocused } from '@react-navigation/native';
 const isWeb = Platform.OS === 'web';
 
 // Calculate time until next midnight IST
@@ -62,20 +63,37 @@ export default function MatchDashboardScreen() {
     const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
     const router = useRouter();
     const matchId = id as Id<"matches">;
+    const isFocused = useIsFocused();
 
     // Need current user ID to derive isMe
     const { data: currentUser } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser, {});
     const currentUserId = currentUser?._id;
 
     // Queries (with caching for instant loading)
-    const { data: matchDetails } = useCachedConvexQuery(['matchDetails', matchId], api.matches.getMatchDetails, { matchId });
+    // Only fetch deep details when focused
+    const { data: matchDetails } = useCachedConvexQuery(
+        ['matchDetails', matchId],
+        api.matches.getMatchDetails,
+        { matchId },
+        { enabled: isFocused }
+    );
     // Optimized: Consolidated into allProofs or derived from matchDetails
     // const { data: todayProof } = useCachedConvexQuery(['todayProof', matchId], api.matches.getTodayProof, { matchId });
     // const { data: partnerProof } = useCachedConvexQuery(['partnerProof', matchId], api.matches.getPartnerTodayProof, { matchId });
-    const { data: progressData } = useCachedConvexQuery(['progressData', matchId], api.matches.getProgressData, { matchId });
+    const { data: progressData } = useCachedConvexQuery(
+        ['progressData', matchId],
+        api.matches.getProgressData,
+        { matchId },
+        { enabled: isFocused }
+    );
 
     // Get all proofs for day-specific modal
-    const { data: allProofs } = useCachedConvexQuery(['allProofs', matchId], api.matches.getProofs, { matchId });
+    const { data: allProofs } = useCachedConvexQuery(
+        ['allProofs', matchId],
+        api.matches.getProofs,
+        { matchId },
+        { enabled: isFocused }
+    );
 
     // Mutations
     const cancelMatchMutation = useMutation(api.matches.cancelMatch);

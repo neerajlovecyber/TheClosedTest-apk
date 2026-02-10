@@ -27,19 +27,33 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+import { useIsFocused } from '@react-navigation/native';
+
 export default function HomeScreen() {
     const { user } = useUser();
     const router = useRouter();
+    const isFocused = useIsFocused();
     const [refreshing, setRefreshing] = useState(false);
     const [requestToReject, setRequestToReject] = useState<Id<"matches"> | null>(null);
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
     const attentionScrollRef = React.useRef<ScrollView>(null);
 
     // Convex Data (with persistent caching)
-    const { data: incomingRequests = [] } = useCachedConvexQuery(['incomingRequests'], api.matches.getIncomingRequests);
-    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
+    // Only fetch high-frequency data when screen is focused
+    const { data: incomingRequests = [] } = useCachedConvexQuery(
+        ['incomingRequests'],
+        api.matches.getIncomingRequests,
+        undefined,
+        { enabled: isFocused }
+    );
+    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps); // Keep myApps always fresh as it changes rarely
     const { data: currentUser } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser);
-    const { data: activeTasks = [] } = useCachedConvexQuery(['activeTasks'], api.matches.getMyActiveTests);
+    const { data: activeTasks = [] } = useCachedConvexQuery(
+        ['activeTasks'],
+        api.matches.getMyActiveTests,
+        undefined,
+        { enabled: isFocused }
+    );
     const { data: unreadCount = 0 } = useCachedConvexQuery(['unreadCount'], api.notifications.getUnreadCount);
 
     // Mutations

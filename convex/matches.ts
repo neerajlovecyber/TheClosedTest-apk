@@ -625,7 +625,6 @@ export const getMyActiveTests = query({
                     partnerProofStatus,
                     isReviewPending,
                     needsAttention,
-                    hasUnread: match.lastActivity > (isRequestor ? (match.lastRead1 || 0) : (match.lastRead2 || 0)),
                     ...resolveIconSource(appToTest)
                 };
             })

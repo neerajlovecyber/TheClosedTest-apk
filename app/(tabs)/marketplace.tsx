@@ -19,6 +19,7 @@ import { BoostedAppsSection } from '@/components/BoostedAppsSection';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
 import { ReportDialog } from '@/components/ReportDialog';
 import { Alert } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 
 // Loading placeholder component
 const ListLoadingPlaceholder = memo(() => (
@@ -33,6 +34,7 @@ export default function MarketplaceScreen() {
     const { width: windowWidth } = useWindowDimensions();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
+    const isFocused = useIsFocused();
 
     // Reporting state
     const [showReportDialog, setShowReportDialog] = useState(false);
@@ -51,10 +53,27 @@ export default function MarketplaceScreen() {
 
     // Cached Queries
     const { data: user } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser);
-    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps);
-    const { data: recruitingApps } = useCachedConvexQuery(['marketplaceRecruiting'], api.apps.getMarketplaceApps, { status: 'recruiting' });
-    const { data: filledApps } = useCachedConvexQuery(['marketplaceFilled'], api.apps.getMarketplaceApps, { status: 'filled' });
-    const { data: myMatchStatuses = [] } = useCachedConvexQuery(['matchStatus'], api.matches.getMyMatchStatuses);
+    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps); // Keep myApps active or maybe cached is fine
+
+    // Only fetch marketplace data when screen is focused
+    const { data: recruitingApps } = useCachedConvexQuery(
+        ['marketplaceRecruiting'],
+        api.apps.getMarketplaceApps,
+        { status: 'recruiting' },
+        { enabled: isFocused }
+    );
+    const { data: filledApps } = useCachedConvexQuery(
+        ['marketplaceFilled'],
+        api.apps.getMarketplaceApps,
+        { status: 'filled' },
+        { enabled: isFocused }
+    );
+    const { data: myMatchStatuses = [] } = useCachedConvexQuery(
+        ['matchStatus'],
+        api.matches.getMyMatchStatuses,
+        undefined,
+        { enabled: isFocused }
+    );
 
     const displayRecruiting = recruitingApps || [];
     const displayFilled = filledApps || [];

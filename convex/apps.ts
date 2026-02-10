@@ -170,10 +170,10 @@ export const getMarketplaceApps = query({
             isFilled: app.isFilled,
             isNew: app.isNew,
             ownerName: app.ownerName,
-            ownerEmail: app.ownerEmail,
+            // ownerEmail: app.ownerEmail, // Removed for bandwidth
             ownerAvatar: app.ownerAvatar,
             reputation: app.reputation,
-            flagCount: app.flagCount,
+            // flagCount: app.flagCount, // Removed for bandwidth
             visibility: app.visibility,
             createdAt: app.createdAt
         }));

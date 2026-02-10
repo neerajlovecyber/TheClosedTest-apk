@@ -17,14 +17,17 @@ import { useEffect } from 'react';
 export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
     queryKey: string[],
     query: Query,
-    args?: any
+    args?: any,
+    options: { enabled?: boolean } = { enabled: true }
 ) {
     const convex = useConvex();
     const queryClient = useQueryClient();
+    const isEnabled = options.enabled !== false;
 
     // 1. Live Subscription (Real-time source of truth)
     // This will automatically update whenever backend data changes
-    const liveData = useConvexQuery(query, args ?? undefined);
+    // Conditional subscription: pass "skip" if disabled (Convex React hook pattern)
+    const liveData = useConvexQuery(query, isEnabled ? (args ?? undefined) : "skip");
 
     // 2. Persistent Cache (Offline/Startup source)
     // We set staleTime to Infinity because we rely on the live subscription for updates
@@ -35,6 +38,10 @@ export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
             // Only fetch if we really have to (e.g. no cache and no live data yet)
             // But usually this won't run often if we rely on initialData from persistence
             if (liveData !== undefined) return liveData as FunctionReturnType<Query>;
+
+            // If disabled, don't fetch from Convex, just return what we have (undefined if nothing)
+            if (!isEnabled) return undefined;
+
             return await convex.query(query, args ?? undefined);
         },
         staleTime: Infinity, // Important: Don't auto-refetch, let Convex drive updates
@@ -42,6 +49,7 @@ export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
         refetchOnMount: false,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
+        enabled: isEnabled // Also control React Query fetching
     });
 
     // 3. Sync: When live data arrives, update the persistent cache
@@ -54,6 +62,7 @@ export function useCachedConvexQuery<Query extends FunctionReference<'query'>>(
 
     // 4. Return the best available data
     // Prefer live data, fall back to cached data (for instant load), then undefined (loading)
+    // If disabled and we have cached data, return cached data.
     const data = liveData !== undefined ? liveData : cachedData;
 
     return { ...queryResult, data, isLoading: data === undefined };

@@ -28,7 +28,7 @@ import { useColorScheme } from 'nativewind';
 import { ConvexReactClient, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
-import { vexo, identifyDevice } from 'vexo-analytics';
+
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import * as React from 'react';
 import { useOTAUpdate } from '@/hooks/useOTAUpdate';
@@ -39,7 +39,6 @@ import AppDeletedModal from '@/components/AppDeletedModal';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 
-vexo('4beaa20e-2695-4263-aa86-5ddaf7ff29ee');
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,
@@ -122,11 +121,7 @@ function InitialLayout() {
     }
   }, [expoPushToken, isSignedIn]);
 
-  React.useEffect(() => {
-    if (user?.emailAddresses?.[0]?.emailAddress) {
-      identifyDevice(user.emailAddresses[0].emailAddress);
-    }
-  }, [user]);
+
 
   React.useEffect(() => {
     if (!isLoaded) return;
