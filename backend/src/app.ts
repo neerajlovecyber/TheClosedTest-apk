@@ -1,9 +1,16 @@
 import { configureOpenAPI } from "./lib/configure-open-api"
 import { createApp } from "./lib/create-app"
+import adminRoute from "./routes/admin.route"
+import appsRoute from "./routes/apps.route"
 import indexRoute from "./routes/index.route"
+import leaderboardRoute from "./routes/leaderboard.route"
+import matchesRoute from "./routes/matches.route"
+import messagesRoute from "./routes/messages.route"
+import notificationsRoute from "./routes/notifications.route"
+import proofsRoute from "./routes/proofs.route"
+import storageRoute from "./routes/storage.route"
 import streamRoute from "./routes/stream"
-import userRoutes from "./routes/user"
-import waitlistRoutes from "./routes/waitlist"
+import usersRoute from "./routes/users.route"
 import { auth } from "./utils/auth"
 
 const app = createApp()
@@ -17,17 +24,18 @@ app.on(
   async (c) => await auth.handler(c.req.raw),
 )
 
-// API routes
-const routes = [
-  indexRoute,
-  userRoutes,
-  waitlistRoutes,
-  streamRoute,
-] as const
+const appWithRoutes = app
+  .route("/", indexRoute)
+  .route("/", usersRoute)
+  .route("/", appsRoute)
+  .route("/", matchesRoute)
+  .route("/", proofsRoute)
+  .route("/", messagesRoute)
+  .route("/", notificationsRoute)
+  .route("/", storageRoute)
+  .route("/", leaderboardRoute)
+  .route("/", adminRoute)
+  .route("/", streamRoute)
 
-routes.forEach((route) => {
-  app.route("/", route)
-})
-
-export type AppType = typeof routes[number]
+export type AppType = typeof appWithRoutes
 export default app

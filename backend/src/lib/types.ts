@@ -8,6 +8,7 @@ export interface AppBindings {
       id: string
       email: string
       name?: string
+      isAdmin?: boolean
     }
   }
 }

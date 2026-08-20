@@ -1,0 +1,367 @@
+import { createRoute, z } from "@hono/zod-openapi"
+import { and, desc, eq, ilike, not, or, sql } from "drizzle-orm"
+import * as HttpStatusCodes from "stoker/http-status-codes"
+import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
+import { createMessageObjectSchema } from "stoker/openapi/schemas"
+
+import { db } from "../db"
+import { appBans, apps, users } from "../db/schema"
+import { createRouter } from "../lib/create-app"
+import { authMiddleware } from "../middlewares/auth"
+
+const AppSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  title: z.string(),
+  packageName: z.string(),
+  playStoreUrl: z.string(),
+  iconUrl: z.string(),
+  instructions: z.string(),
+  requiredTesters: z.number(),
+  currentTesters: z.number(),
+  status: z.enum(["recruiting", "filled", "paused", "archived", "completed"]),
+  completedAt: z.string().or(z.date()).nullable().optional(),
+  flagCount: z.number(),
+  visibilityStatus: z.enum(["unverified", "visible", "hidden"]).nullable().optional(),
+  positiveVotes: z.number(),
+  negativeVotes: z.number(),
+  voters: z.array(z.string()),
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()),
+})
+
+const CreateAppSchema = z.object({
+  title: z.string().min(2),
+  packageName: z.string().min(3),
+  playStoreUrl: z.string().url(),
+  iconUrl: z.string().url(),
+  instructions: z.string().min(10),
+  requiredTesters: z.number().int().min(1).default(12),
+})
+
+const UpdateAppSchema = CreateAppSchema.partial().extend({
+  status: z.enum(["recruiting", "filled", "paused", "archived", "completed"]).optional(),
+})
+
+const VoteSchema = z.object({
+  type: z.enum(["positive", "negative"]),
+})
+
+const router = createRouter()
+
+// 1. List Public Recruiting Apps
+router.openapi(
+  createRoute({
+    tags: ["Apps"],
+    method: "get",
+    path: "/api/apps",
+    summary: "List Recruiting Apps",
+    request: {
+      query: z.object({
+        search: z.string().optional(),
+        limit: z.coerce.number().default(20),
+        offset: z.coerce.number().default(0),
+      }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.object({
+          apps: z.array(AppSchema),
+          total: z.number(),
+        }),
+        "List of recruiting apps",
+      ),
+    },
+  }),
+  async (c) => {
+    const { search, limit, offset } = c.req.valid("query")
+
+    const conditions = [
+      eq(apps.status, "recruiting"),
+      or(eq(apps.visibilityStatus, "visible"), eq(apps.visibilityStatus, "unverified")),
+    ]
+
+    if (search) {
+      conditions.push(
+        or(
+          ilike(apps.title, `%${search}%`),
+          ilike(apps.packageName, `%${search}%`),
+        )!,
+      )
+    }
+
+    const items = await db.query.apps.findMany({
+      where: and(...conditions),
+      orderBy: [desc(apps.positiveVotes), desc(apps.createdAt)],
+      limit,
+      offset,
+    })
+
+    return c.json(
+      {
+        apps: items,
+        total: items.length,
+      },
+      HttpStatusCodes.OK,
+    )
+  },
+)
+
+// 2. List Current User's Apps
+router.openapi(
+  createRoute({
+    tags: ["Apps"],
+    method: "get",
+    path: "/api/apps/my",
+    summary: "List My Submitted Apps",
+    middleware: [authMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(z.array(AppSchema), "My apps list"),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+    const userApps = await db.query.apps.findMany({
+      where: and(eq(apps.userId, userVar.id), not(eq(apps.status, "archived"))),
+      orderBy: [desc(apps.createdAt)],
+    })
+
+    return c.json(userApps, HttpStatusCodes.OK)
+  },
+)
+
+// 3. Submit New App
+router.openapi(
+  createRoute({
+    tags: ["Apps"],
+    method: "post",
+    path: "/api/apps",
+    summary: "Submit New App for Closed Testing",
+    middleware: [authMiddleware] as const,
+    request: {
+      body: jsonContentRequired(CreateAppSchema, "App Creation Payload"),
+    },
+    responses: {
+      [HttpStatusCodes.CREATED]: jsonContent(AppSchema, "App created"),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
+        createMessageObjectSchema("Validation Error or Limit Exceeded"),
+        "Validation error",
+      ),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+    const body = c.req.valid("json")
+
+    // Check if package name is banned
+    const isBanned = await db.query.appBans.findFirst({
+      where: eq(appBans.packageName, body.packageName),
+    })
+
+    if (isBanned) {
+      return c.json(
+        { message: `Package name "${body.packageName}" is banned: ${isBanned.reason}` },
+        HttpStatusCodes.BAD_REQUEST,
+      )
+    }
+
+    // Check user app slot limit
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userVar.id),
+    })
+
+    if (!user) {
+      return c.json({ message: "User not found" }, HttpStatusCodes.BAD_REQUEST)
+    }
+
+    const currentActiveApps = await db.query.apps.findMany({
+      where: and(eq(apps.userId, user.id), not(eq(apps.status, "archived"))),
+    })
+
+    if (currentActiveApps.length >= user.unlockedAppSlots) {
+      return c.json(
+        {
+          message: `You have reached your maximum active app limit (${user.unlockedAppSlots}). Test other apps or maintain your streak to unlock more slots!`,
+        },
+        HttpStatusCodes.BAD_REQUEST,
+      )
+    }
+
+    const [newApp] = await db
+      .insert(apps)
+      .values({
+        userId: user.id,
+        title: body.title,
+        packageName: body.packageName,
+        playStoreUrl: body.playStoreUrl,
+        iconUrl: body.iconUrl,
+        instructions: body.instructions,
+        requiredTesters: body.requiredTesters,
+        currentTesters: 0,
+        status: "recruiting",
+        visibilityStatus: "unverified",
+      })
+      .returning()
+
+    // Increment user's appsCount
+    await db
+      .update(users)
+      .set({ appsCount: user.appsCount + 1 })
+      .where(eq(users.id, user.id))
+
+    return c.json(newApp, HttpStatusCodes.CREATED)
+  },
+)
+
+// 4. Get App by ID
+router.openapi(
+  createRoute({
+    tags: ["Apps"],
+    method: "get",
+    path: "/api/apps/:id",
+    summary: "Get App Details",
+    request: {
+      params: z.object({ id: z.string() }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(AppSchema, "App details"),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(
+        createMessageObjectSchema("App not found"),
+        "App not found",
+      ),
+    },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param")
+    const app = await db.query.apps.findFirst({
+      where: eq(apps.id, id),
+    })
+
+    if (!app) {
+      return c.json({ message: "App not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    return c.json(app, HttpStatusCodes.OK)
+  },
+)
+
+// 5. Update App
+router.openapi(
+  createRoute({
+    tags: ["Apps"],
+    method: "patch",
+    path: "/api/apps/:id",
+    summary: "Update App Details",
+    middleware: [authMiddleware] as const,
+    request: {
+      params: z.object({ id: z.string() }),
+      body: jsonContentRequired(UpdateAppSchema, "App Update Payload"),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(AppSchema, "Updated app"),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(
+        createMessageObjectSchema("Not owner"),
+        "Not owner",
+      ),
+    },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param")
+    const userVar = c.get("user")!
+    const body = c.req.valid("json")
+
+    const existing = await db.query.apps.findFirst({
+      where: eq(apps.id, id),
+    })
+
+    if (!existing || existing.userId !== userVar.id) {
+      return c.json({ message: "Forbidden: Not owner of this app" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    const [updated] = await db
+      .update(apps)
+      .set({
+        ...body,
+        updatedAt: new Date(),
+      })
+      .where(eq(apps.id, id))
+      .returning()
+
+    return c.json(updated, HttpStatusCodes.OK)
+  },
+)
+
+// 6. Vote / Boost App
+router.openapi(
+  createRoute({
+    tags: ["Apps"],
+    method: "post",
+    path: "/api/apps/:id/vote",
+    summary: "Vote on App Visibility",
+    middleware: [authMiddleware] as const,
+    request: {
+      params: z.object({ id: z.string() }),
+      body: jsonContentRequired(VoteSchema, "Vote Payload"),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        createMessageObjectSchema("Vote recorded"),
+        "Vote recorded",
+      ),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
+        createMessageObjectSchema("Already voted"),
+        "Already voted",
+      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(
+        createMessageObjectSchema("App not found"),
+        "App not found",
+      ),
+    },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param")
+    const userVar = c.get("user")!
+    const { type } = c.req.valid("json")
+
+    const app = await db.query.apps.findFirst({
+      where: eq(apps.id, id),
+    })
+
+    if (!app) {
+      return c.json({ message: "App not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    if (app.voters.includes(userVar.id)) {
+      return c.json(
+        { message: "You have already voted on this app" },
+        HttpStatusCodes.BAD_REQUEST,
+      )
+    }
+
+    const positiveVotes = type === "positive" ? app.positiveVotes + 1 : app.positiveVotes
+    const negativeVotes = type === "negative" ? app.negativeVotes + 1 : app.negativeVotes
+    const updatedVoters = [...app.voters, userVar.id]
+
+    let visibilityStatus = app.visibilityStatus
+    if (positiveVotes >= 3 && positiveVotes > negativeVotes) {
+      visibilityStatus = "visible"
+    } else if (negativeVotes >= 3 && negativeVotes > positiveVotes) {
+      visibilityStatus = "hidden"
+    }
+
+    await db
+      .update(apps)
+      .set({
+        positiveVotes,
+        negativeVotes,
+        visibilityStatus,
+        voters: updatedVoters,
+        updatedAt: new Date(),
+      })
+      .where(eq(apps.id, id))
+
+    return c.json({ message: "Vote recorded successfully" }, HttpStatusCodes.OK)
+  },
+)
+
+export default router
