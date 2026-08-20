@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: closedtest-api
+    restart: always
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=9000
