@@ -1,7 +1,7 @@
 import { and, eq, lt, sql } from "drizzle-orm"
 
 import { db } from "../db"
-import { analytics, boostCycles, boostLeaderboard, matches, notifications, users } from "../db/schema"
+import { boostCycles, boostLeaderboard, matches, users } from "../db/schema"
 import { sendExpoPushNotification } from "../services/expo-push"
 
 export async function runDailyStreakMaintenance() {
@@ -26,6 +26,58 @@ export async function runDailyStreakMaintenance() {
     console.log("✅ Streaks updated successfully")
   } catch (error) {
     console.error("❌ Failed to maintain streaks:", error)
+  }
+}
+
+export async function runMatchProgressionAndCleanup() {
+  console.log("⏰ Running match completion and cleanup checks...")
+
+  try {
+    // Find active matches where both users completed 14 approved days
+    const activeMatches = await db.query.matches.findMany({
+      where: and(
+        eq(matches.status, "active"),
+        sql`${matches.user1ApprovedCount} >= 14`,
+        sql`${matches.user2ApprovedCount} >= 14`,
+      ),
+    })
+
+    for (const match of activeMatches) {
+      console.log(`🎉 Auto-completing 14-day match ${match.id}...`)
+      await db
+        .update(matches)
+        .set({
+          status: "completed",
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(matches.id, match.id))
+
+      // Reward +20 reputation to both participants
+      await db
+        .update(users)
+        .set({
+          reputation: sql`${users.reputation} + 20`,
+        })
+        .where(sql`${users.id} = ${match.user1Id} OR ${users.id} = ${match.user2Id}`)
+    }
+
+    // Auto-expire stale pending requests older than 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    await db
+      .update(matches)
+      .set({
+        status: "cancelled",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(matches.status, "pending"),
+          lt(matches.createdAt, sevenDaysAgo),
+        ),
+      )
+  } catch (error) {
+    console.error("❌ Failed match progression check:", error)
   }
 }
 
@@ -104,11 +156,13 @@ export function startBackgroundJobs() {
     runBoostCycleMaintenance()
   }, 60 * 60 * 1000)
 
-  // Run daily streak maintenance every 6 hours
+  // Run daily streak & match progression maintenance every 4 hours
   setInterval(() => {
     runDailyStreakMaintenance()
-  }, 6 * 60 * 60 * 1000)
+    runMatchProgressionAndCleanup()
+  }, 4 * 60 * 60 * 1000)
 
   // Trigger initial checks on boot
   runBoostCycleMaintenance()
+  runMatchProgressionAndCleanup()
 }
