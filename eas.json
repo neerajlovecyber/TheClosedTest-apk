@@ -7,12 +7,26 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
+        "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com"
+      }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
+        "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com",
         "GRADLE_OPTS": "-Xmx4g -Xms2g -XX:MaxMetaspaceSize=3g -XX:MetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
       }
     },
@@ -21,7 +35,7 @@
       "channel": "production",
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_CONVEX_URL": "https://artful-grasshopper-509.convex.cloud",
+        "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
         "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com",
         "GRADLE_OPTS": "-Xmx4g -Xms2g -XX:MaxMetaspaceSize=3g -XX:MetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
