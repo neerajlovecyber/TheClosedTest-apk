@@ -3,8 +3,7 @@ import { z } from "zod"
 const rawDbUrl =
   process.env.DATABASE_URL ||
   process.env.NF_TESTERDB_POSTGRES_URI ||
-  process.env.NF_TESTERDB_EXTERNAL_POSTGRES_URI ||
-  "postgresql://_3c65fa5a9abf5de8:_2b6d3daa8a5ce112e4e50b8f4d6774@primary.testerdb--7tlh8kl746cq.addon.code.run:29777/_21052a96657c?sslmode=require"
+  process.env.NF_TESTERDB_EXTERNAL_POSTGRES_URI
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -12,7 +11,10 @@ const EnvSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
-  DATABASE_URL: z.string().min(1).default(rawDbUrl),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .default(rawDbUrl || "postgresql://postgres:postgres@localhost:5432/closedtest"),
   BETTER_AUTH_SECRET: z
     .string()
     .default("dev-secret-change-me-in-production-1234567890abcdef"),
