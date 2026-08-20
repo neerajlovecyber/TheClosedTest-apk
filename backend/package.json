@@ -1,0 +1,65 @@
+{
+  "name": "hono-bun-starter",
+  "version": "1.0.0",
+  "description": "Hono Bun Starter",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "build": "bun build src/index.ts --outdir dist",
+    "start": "bun dist/index.js",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt ./src",
+    "format:check": "oxfmt --check ./src",
+    "check": "oxlint && oxfmt --check ./src",
+    "check:fix": "oxlint --fix && oxfmt ./src",
+    "type-check": "tsc --pretty --noEmit",
+    "prepare": "husky",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nirnejak/hono-bun-starter.git"
+  },
+  "keywords": [
+    "Typescript",
+    "Bun",
+    "Hono",
+    "Drizzle"
+  ],
+  "author": "Jitendra Nirnejak",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nirnejak/hono-bun-starter/issues"
+  },
+  "homepage": "https://github.com/nirnejak/hono-bun-starter#readme",
+  "dependencies": {
+    "@hono/zod-validator": "^0.9.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "better-auth": "^1.6.29",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "^0.45.2",
+    "drizzle-zod": "^0.8.3",
+    "hono": "^4.13.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "drizzle-kit": "^0.31.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
+    "typescript": "^7.0.2"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": ["oxlint --fix", "oxfmt"]
+  },
+  "volta": {
+    "node": "24.12.0"
+  }
+}

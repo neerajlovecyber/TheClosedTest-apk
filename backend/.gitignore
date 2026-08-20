@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+
+.husky
+
+.env
+
+dump.rdb
+.DS_Store

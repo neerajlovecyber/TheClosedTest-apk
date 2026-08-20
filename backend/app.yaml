@@ -1,0 +1,13 @@
+# Google App Engine Config
+runtime: custom
+env: flex
+
+instance_class: F2
+
+env_variables:
+  PORT: 9000
+  NODE_ENV: "production"
+
+network:
+  forwarded_ports:
+    - 9000
