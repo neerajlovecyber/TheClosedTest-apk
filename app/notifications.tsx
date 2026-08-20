@@ -1,59 +1,49 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { BellIcon, CheckCircleIcon, ArrowLeftIcon, MessageSquareIcon, InfoIcon, AlertCircleIcon } from 'lucide-react-native';
-import { Button } from '@/components/ui/button';
-
-import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
-import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
+import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, NotificationEntity } from '@/lib/api-hooks';
 
 export default function NotificationsScreen() {
     const router = useRouter();
-    const { data: notifications = [] } = useCachedConvexQuery(['notifications'], api.notifications.getMyNotifications);
-    const markAllAsRead = useMutation(api.notifications.markAllAsRead);
-    const markAsRead = useMutation(api.notifications.markAsRead);
-    const { invalidateNotifications } = useInvalidateQueries();
+    const { data: notificationsData, refetch, isFetching } = useNotifications();
+    const markAllAsRead = useMarkAllNotificationsRead();
+    const markAsRead = useMarkNotificationRead();
 
-    const [refreshing, setRefreshing] = React.useState(false);
+    const notifications = notificationsData?.notifications || [];
+    const unreadCount = notificationsData?.unreadCount ?? 0;
 
-    const onRefresh = React.useCallback(() => {
-        setRefreshing(true);
-        // Convex queries are reactive, but we can force cache invalidation to be sure
-        invalidateNotifications();
-        setTimeout(() => setRefreshing(false), 1000);
-    }, [invalidateNotifications]);
+    const onRefresh = React.useCallback(async () => {
+        await refetch();
+    }, [refetch]);
 
     const handleMarkAllRead = async () => {
         try {
-            await markAllAsRead();
-            invalidateNotifications();
+            await markAllAsRead.mutateAsync();
         } catch (error) {
             console.error(error);
         }
     };
 
-    const handleNotificationPress = async (notification: any) => {
+    const handleNotificationPress = async (notification: NotificationEntity) => {
         try {
-            if (!notification.read) {
-                await markAsRead({ notificationId: notification._id });
-                invalidateNotifications();
+            if (!notification.isRead) {
+                await markAsRead.mutateAsync(notification.id);
             }
 
-            // Handle navigation based on type
             if (notification.type === 'match_request') {
                 router.push('/(tabs)');
                 return;
             }
 
-            if (notification.data?.matchId) {
-                router.push({ pathname: '/(tabs)/match/[id]', params: { id: notification.data.matchId } });
+            const data = notification.data as Record<string, unknown> | undefined;
+            if (data?.matchId) {
+                router.push({ pathname: '/(tabs)/match/[id]', params: { id: String(data.matchId) } });
             }
         } catch (error) {
-            console.error("Error handling notification press:", error);
+            console.error('Error handling notification press:', error);
         }
     };
 
@@ -79,7 +69,7 @@ export default function NotificationsScreen() {
                     </TouchableOpacity>
                     <Text className="text-2xl font-bold">Notifications</Text>
                 </View>
-                {notifications.some((n: any) => !n.read) && (
+                {unreadCount > 0 && (
                     <TouchableOpacity onPress={handleMarkAllRead}>
                         <Text className="text-primary font-medium">Mark all read</Text>
                     </TouchableOpacity>
@@ -88,40 +78,43 @@ export default function NotificationsScreen() {
 
             <ScrollView
                 className="flex-1 px-6 pt-4"
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
             >
                 {notifications.length > 0 ? (
                     <View className="pb-10">
-                        {notifications.map((notification: any) => (
+                        {notifications.map((notification) => (
                             <TouchableOpacity
-                                key={notification._id}
-                                className={`flex-row p-4 mb-3 rounded-xl border ${notification.read ? 'bg-card border-border' : 'bg-primary/5 border-primary/20'}`}
+                                key={notification.id}
+                                className={`flex-row p-4 mb-3 rounded-xl border ${notification.isRead ? 'bg-card border-border' : 'bg-primary/5 border-primary/20'}`}
                                 onPress={() => handleNotificationPress(notification)}
                             >
                                 <View className="mr-4 mt-1">
                                     {getIcon(notification.type)}
                                 </View>
                                 <View className="flex-1">
-                                    <Text className={`font-semibold mb-1 ${notification.read ? 'text-foreground' : 'text-primary'}`}>
+                                    <Text className={`text-base ${notification.isRead ? 'font-medium' : 'font-bold'}`}>
                                         {notification.title}
                                     </Text>
-                                    <Text className="text-muted-foreground text-sm">
+                                    <Text className="text-muted-foreground text-sm mt-1 leading-relaxed">
                                         {notification.body}
                                     </Text>
-                                    <Text className="text-[10px] text-muted-foreground/50 mt-2 text-right">
-                                        {new Date(notification.createdAt).toLocaleDateString()}
+                                    <Text className="text-muted-foreground/60 text-xs mt-2">
+                                        {new Date(notification.createdAt).toLocaleDateString()} at {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </Text>
                                 </View>
-                                {!notification.read && (
-                                    <View className="w-2 h-2 bg-primary rounded-full ml-2 mt-2" />
+                                {!notification.isRead && (
+                                    <View className="w-2 h-2 rounded-full bg-primary mt-2" />
                                 )}
                             </TouchableOpacity>
                         ))}
                     </View>
                 ) : (
-                    <View className="flex-1 items-center justify-center py-20 opacity-50">
-                        <Icon as={BellIcon} className="size-16 text-muted-foreground mb-4" />
-                        <Text className="text-lg font-medium text-muted-foreground">No notifications yet</Text>
+                    <View className="items-center justify-center py-20">
+                        <Icon as={BellIcon} className="text-muted-foreground/30 size-16 mb-4" />
+                        <Text className="text-muted-foreground font-medium text-lg">No notifications yet</Text>
+                        <Text className="text-muted-foreground/60 text-sm mt-1 text-center">
+                            You will receive updates when developers request swaps or review your testing proofs.
+                        </Text>
                     </View>
                 )}
             </ScrollView>

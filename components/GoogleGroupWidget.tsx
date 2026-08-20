@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Linking, AppState } from 'react-native';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { CheckCircleIcon, AlertTriangleIcon } from 'lucide-react-native';
+import { useCurrentUser, useConfirmGroup } from '@/lib/api-hooks';
 
 import { toast } from '@/lib/sonner';
 import { cn } from '@/lib/utils';
@@ -22,13 +21,15 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export function GoogleGroupWidget({ className }: { className?: string }) {
-    const user = useQuery(api.users.getCurrentUser);
-    const confirmMembership = useMutation(api.users.confirmGroupMembership);
+    const { data: user, isLoading } = useCurrentUser();
+    const confirmMembership = useConfirmGroup();
 
     const [hasClickedLink, setHasClickedLink] = React.useState(false);
     const appState = React.useRef(AppState.currentState);
 
     const [showJoinConfirm, setShowJoinConfirm] = React.useState(false);
+
+    const isGroupMember = user?.googleGroupConfirmed;
 
     const handleJoinGroup = () => {
         setHasClickedLink(true);
@@ -37,7 +38,7 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
 
     const handleConfirm = async () => {
         try {
-            await confirmMembership();
+            await confirmMembership.mutateAsync();
             toast.success("Success", { description: "Thanks for joining the group!" });
         } catch (err) {
             toast.error("Error", { description: "Failed to update profile." });
@@ -54,11 +55,8 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
                 nextAppState === 'active' &&
                 hasClickedLink
             ) {
-                // Check if user is already a member before showing dialog
-                if (user?.isGroupMember) {
-                    setHasClickedLink(false); // Reset click state
-                    // Optionally show a welcome back toast if needed, but silence is often better if verified
-                    // toast.success("Verified", { description: "You are already a member." });
+                if (isGroupMember) {
+                    setHasClickedLink(false);
                 } else {
                     setShowJoinConfirm(true);
                 }
@@ -67,15 +65,12 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
         });
 
         return () => subscription.remove();
-    }, [hasClickedLink, user?.isGroupMember]);
+    }, [hasClickedLink, isGroupMember]);
 
-    // If loading, don't show
-    if (user === undefined) return null;
-    // If not authenticated or error
-    if (user === null) return null;
+    if (isLoading || !user) return null;
 
     const renderContent = () => {
-        if (user.isGroupMember) {
+        if (isGroupMember) {
             return (
                 <View className={cn("flex-row items-center justify-center px-2 py-1.5 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/50 rounded-md", className)}>
                     <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-4" />

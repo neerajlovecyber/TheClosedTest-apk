@@ -1,4 +1,3 @@
-
 import '@/global.css'; // This must be first
 import { Text, TextInput, Linking } from 'react-native';
 
@@ -8,8 +7,6 @@ if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
 
 if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
 (TextInput as any).defaultProps.allowFontScaling = false;
-
-
 
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ToastConfig';
@@ -25,9 +22,6 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
-import { ConvexReactClient, useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { ConvexProviderWithClerk } from 'convex/react-clerk';
 
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import * as React from 'react';
@@ -38,11 +32,8 @@ import { WarningDisplay } from '@/components/WarningDisplay';
 import AppDeletedModal from '@/components/AppDeletedModal';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
-
-
-const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
-  unsavedChangesWarning: false,
-});
+import { useStoreUserEffect } from '@/hooks/useStoreUserEffect';
+import { useUpdatePushToken } from '@/lib/api-hooks';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -83,16 +74,14 @@ export default function RootLayout() {
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <QueryClientProvider client={queryClient}>
-        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-          <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-            <KeyboardProvider statusBarTranslucent>
-              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-              <InitialLayout />
-              <PortalHost />
-              <Toast config={toastConfig} topOffset={60} />
-            </KeyboardProvider>
-          </ThemeProvider>
-        </ConvexProviderWithClerk>
+        <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+          <KeyboardProvider statusBarTranslucent>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            <InitialLayout />
+            <PortalHost />
+            <Toast config={toastConfig} topOffset={60} />
+          </KeyboardProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );
@@ -100,27 +89,25 @@ export default function RootLayout() {
 
 SplashScreen.preventAutoHideAsync();
 
-import { useStoreUserEffect } from '@/hooks/useStoreUserEffect';
-
 function InitialLayout() {
   const { isSignedIn, isLoaded } = useAuth();
-  const { user } = useUser();
   const segments = useSegments();
   const router = useRouter();
 
-  // Sync user with Convex
+  // Sync user with backend
   useStoreUserEffect();
 
   /* eslint-disable react-hooks/exhaustive-deps */
   const { expoPushToken, notificationResponse } = usePushNotifications();
-  const savePushToken = useMutation(api.users.savePushToken);
+  const updatePushToken = useUpdatePushToken();
 
   React.useEffect(() => {
     if (expoPushToken && isSignedIn) {
-      savePushToken({ pushToken: expoPushToken }).catch(e => console.error("Failed to save push token:", e));
+      updatePushToken.mutateAsync(expoPushToken).catch((e) =>
+        console.error('Failed to save push token:', e),
+      );
     }
   }, [expoPushToken, isSignedIn]);
-
 
   React.useEffect(() => {
     if (!isLoaded) return;
@@ -138,46 +125,32 @@ function InitialLayout() {
 
   // Handle Notification Navigation Safely
   React.useEffect(() => {
-    // Only navigate if:
-    // 1. App is loaded (isLoaded)
-    // 2. User is signed in (isSignedIn) - most notifications require auth
-    // 3. We have a response to handle
     if (!isLoaded || !isSignedIn || !notificationResponse) return;
 
     try {
-      const data = notificationResponse.notification.request.content.data;
-      console.log("Handling notification navigation:", data);
+      const data = notificationResponse.notification.request.content.data as Record<string, unknown> | undefined;
+      console.log('Handling notification navigation:', data);
 
       if (data?.type === 'request') {
-        // Navigate to Home (Incoming Requests)
         router.push('/(tabs)');
       } else if (data?.matchId) {
-        // Navigate to the match page
-        const path = `/(tabs)/match/${data.matchId}`;
-        const params = data.type === 'message' ? { tab: 'chat' } : undefined;
-        // Use setParams if we were already there? No, push is safer for deep links generally
-        // But for reliable updates:
         if (data.type === 'message') {
           router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId as string, tab: 'chat' } });
         } else {
           router.push({ pathname: '/(tabs)/match/[id]', params: { id: data.matchId as string } });
         }
       } else if (data?.type === 'new_app' && data.appId) {
-        // Navigate to new app details
         router.push(`/app-details/${data.appId}`);
       } else if (data?.type === 'admin_chat') {
-        // Navigate to admin chat (support)
         router.push('/admin-chat');
       } else if (data?.type === 'open_url' && data.url) {
-        // Open external URL (e.g. Play Store)
-        Linking.openURL(data.url as string).catch(err => console.error("Failed to open URL:", err));
-      } else if (data?.type === 'test') {
-        console.log("Test notification tapped");
+        Linking.openURL(data.url as string).catch((err) =>
+          console.error('Failed to open URL:', err),
+        );
       }
     } catch (e) {
-      console.error("Failed to navigate from notification:", e);
+      console.error('Failed to navigate from notification:', e);
     }
-
   }, [notificationResponse, isLoaded, isSignedIn]);
 
   React.useEffect(() => {

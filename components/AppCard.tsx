@@ -5,8 +5,6 @@ import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { StarIcon } from 'lucide-react-native';
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 
 export interface AppItem {
     _id: string;

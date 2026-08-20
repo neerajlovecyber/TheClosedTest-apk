@@ -1,34 +1,38 @@
-
-import { useUser } from "@clerk/clerk-expo";
-import { useMutation } from "convex/react";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useEffect, useState } from "react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { setAuthTokenGetter } from "@/lib/api";
+import { useSyncUser } from "@/lib/api-hooks";
 
 export function useStoreUserEffect() {
-    const { user } = useUser();
-    // Use a state to track if we have stored the user to avoid constant re-calls if not needed,
-    // although the mutation is idempotent (checks for existence).
-    const [userId, setUserId] = useState<Id<"users"> | null>(null);
-    const storeUser = useMutation(api.users.store);
+  const { user } = useUser();
+  const { getToken } = useAuth();
+  const [userId, setUserId] = useState<string | null>(null);
+  const syncUser = useSyncUser();
 
-    useEffect(() => {
-        // If the user is not logged in don't do anything
-        if (!user) {
-            return;
-        }
+  useEffect(() => {
+    // Wire up Clerk auth token generator for all backend requests
+    setAuthTokenGetter(() => getToken());
+  }, [getToken]);
 
-        // Call the mutation to store the user
-        async function createUser() {
-            const id = await storeUser({
-                avatarUrl: user?.imageUrl
-            });
-            setUserId(id);
-        }
+  useEffect(() => {
+    if (!user) return;
 
-        createUser();
-        return () => setUserId(null);
-    }, [user, storeUser]);
+    async function createUser() {
+      try {
+        const synced = await syncUser.mutateAsync({
+          name: user?.fullName || user?.firstName || "Developer",
+          email: user?.primaryEmailAddress?.emailAddress || "",
+          avatarUrl: user?.imageUrl,
+        });
+        setUserId(synced.id);
+      } catch (e) {
+        console.warn("Failed to sync user with backend:", e);
+      }
+    }
 
-    return userId;
+    createUser();
+    return () => setUserId(null);
+  }, [user]);
+
+  return userId;
 }

@@ -1,25 +1,21 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Dimensions, Modal, FlatList, Pressable } from 'react-native';
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Modal, FlatList, Pressable } from 'react-native';
 import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { CheckCircleIcon, XCircleIcon, ClockIcon, UserIcon, MessageSquareIcon, ImageIcon } from 'lucide-react-native';
-import { useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { Id } from '@/convex/_generated/dataModel';
-import { useSmartMutation } from '@/hooks/useSmartMutation';
+import { useReviewProof } from '@/lib/api-hooks';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-// Blurhash placeholder for images
 const IMAGE_PLACEHOLDER = '|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7teleayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[';
 
 interface ProofReviewerProps {
-    matchId: Id<"matches">;
+    matchId: string;
     partnerProof?: {
-        _id?: Id<"proofs">;
+        _id?: string;
         day?: number;
         urls?: string[];
         comment?: string;
@@ -28,33 +24,33 @@ interface ProofReviewerProps {
         status?: string;
     } | null;
     onReviewComplete?: () => void;
-    onReject?: (proofId: Id<"proofs">) => void;
+    onReject?: (proofId: string) => void;
 }
 
 function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onReject }: ProofReviewerProps) {
     const [isReviewing, setIsReviewing] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-    const reviewProof = useSmartMutation(api.matches.reviewProof, ['matches']);
+    const reviewProofMutation = useReviewProof();
 
     const handleApprove = useCallback(async () => {
         if (!partnerProof?._id) return;
 
         setIsReviewing(true);
         try {
-            await reviewProof({
+            await reviewProofMutation.mutateAsync({
                 proofId: partnerProof._id,
+                matchId,
                 status: "approved"
             });
             toast.success('Approved', { description: 'You approved the proof!' });
-            // Cache automatically invalidated
             onReviewComplete?.();
         } catch (error: any) {
             toast.error('Error', { description: error.message });
         } finally {
             setIsReviewing(false);
         }
-    }, [partnerProof?._id, reviewProof, onReviewComplete]);
+    }, [partnerProof?._id, matchId, reviewProofMutation, onReviewComplete]);
 
     const handleRejectPress = useCallback(() => {
         if (!partnerProof?._id) return;
@@ -65,11 +61,9 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         setCurrentImageIndex(index);
     }, []);
 
-    // Memoize computed values
     const isApproved = useMemo(() => partnerProof?.status === "approved", [partnerProof?.status]);
     const images = useMemo(() => partnerProof?.urls || [], [partnerProof?.urls]);
 
-    // Reset currentImageIndex when images change or when it's out of bounds
     useEffect(() => {
         if (currentImageIndex >= images.length && images.length > 0) {
             setCurrentImageIndex(0);
@@ -79,12 +73,11 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     }, [images, currentImageIndex]);
 
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [sliderWidth, setSliderWidth] = useState(SCREEN_WIDTH - 48); // Approximate initial width (Screen - padding)
+    const [sliderWidth, setSliderWidth] = useState(SCREEN_WIDTH - 48);
     const flatListRef = useRef<FlatList>(null);
     const inlineListRef = useRef<FlatList>(null);
     const [isSyncing, setIsSyncing] = useState(false);
 
-    // Sync inline list when index changes (e.g. via thumbnail click)
     useEffect(() => {
         if (!isSyncing && inlineListRef.current && sliderWidth > 0 && currentImageIndex >= 0) {
             inlineListRef.current.scrollToIndex({ index: currentImageIndex, animated: true });
@@ -98,7 +91,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         if (index !== currentImageIndex && index >= 0 && index < images.length) {
             setIsSyncing(true);
             setCurrentImageIndex(index);
-            // Reset syncing flag after animation
             setTimeout(() => setIsSyncing(false), 500);
         }
     };
@@ -119,12 +111,9 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         }
     };
 
-    // Sync FlatList position when modal opens
     useEffect(() => {
         if (isFullScreen && flatListRef.current && images.length > 0) {
-            // Ensure index is within bounds before scrolling
             const safeIndex = Math.min(currentImageIndex, images.length - 1);
-            // Small timeout to allow layout to compute
             setTimeout(() => {
                 if (safeIndex >= 0 && safeIndex < images.length) {
                     flatListRef.current?.scrollToIndex({ index: safeIndex, animated: false });
@@ -133,7 +122,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         }
     }, [isFullScreen, images.length, currentImageIndex]);
 
-    // Partner hasn't uploaded yet
     if (!partnerProof || partnerProof.status === "not_uploaded") {
         return (
             <Card className="bg-secondary/30 mb-6">
@@ -148,8 +136,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         );
     }
 
-
-    // Already rejected (partner needs to re-upload)
     if (partnerProof.status === "rejected") {
         return (
             <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
@@ -166,13 +152,8 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
         );
     }
 
-
-
-    // ... existing renders ...
-
     return (
         <View>
-            {/* Approved State - Compact View with Small Images */}
             {isApproved && (
                 <>
                     <Card className="bg-green-500/10 border-green-500/30 mb-4">
@@ -184,7 +165,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                                     <Text className="text-muted-foreground text-xs">You approved {partnerProof.partnerName}'s proof</Text>
                                 </View>
                             </View>
-                            {/* Show proof images in small boxes - clickable */}
                             {images.length > 0 && (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {images.map((url, i) => (
@@ -200,7 +180,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                                     ))}
                                 </ScrollView>
                             )}
-                            {/* Partner's Comment */}
                             {partnerProof.comment && (
                                 <Text className="text-xs text-muted-foreground italic mt-2">"{partnerProof.comment}"</Text>
                             )}
@@ -209,10 +188,8 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                 </>
             )}
 
-            {/* Pending State - Full Review UI */}
             {!isApproved && (
                 <View>
-                    {/* Header */}
                     <View className="flex-row items-center mb-4">
                         <View className="bg-primary/10 p-2 rounded-full mr-3">
                             <Icon as={UserIcon} className="text-primary size-5" />
@@ -223,11 +200,8 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                         </View>
                     </View>
 
-                    {/* Image Gallery with expo-image caching */}
                     {images.length > 0 && (
                         <View className="mb-4">
-                            {/* Main Image - Clickable for Full Screen */}
-                            {/* Main Image Slider - Swipeable */}
                             <View
                                 className="mb-2 h-96 rounded-xl overflow-hidden bg-muted border border-border relative"
                                 onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
@@ -264,13 +238,11 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                                     )}
                                 />
 
-                                {/* Zoom Hint Overlay - Always visible on top */}
                                 <View className="absolute bottom-3 right-3 bg-black/50 p-1.5 rounded-full pointer-events-none">
                                     <Icon as={ImageIcon} className="text-white size-4" />
                                 </View>
                             </View>
 
-                            {/* Image Thumbnails */}
                             {images.length > 1 && (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {images.map((url, index) => (
@@ -293,7 +265,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                                 </ScrollView>
                             )}
 
-                            {/* Image Counter */}
                             <View className="absolute right-2 top-2 bg-black/60 px-2 py-1 rounded-full pointer-events-none">
                                 <Text className="text-white text-xs font-bold">
                                     {currentImageIndex + 1}/{images.length}
@@ -302,7 +273,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                         </View>
                     )}
 
-                    {/* Partner's Comment */}
                     {partnerProof.comment && (
                         <Card className="bg-secondary/20 mb-4">
                             <CardContent className="p-3 flex-row">
@@ -312,7 +282,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                         </Card>
                     )}
 
-                    {/* Action Buttons */}
                     <View className="flex-row gap-3">
                         <TouchableOpacity
                             onPress={handleApprove}
@@ -344,7 +313,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                 </View>
             )}
 
-            {/* Full Screen Image Modal */}
             <Modal
                 visible={isFullScreen}
                 transparent={true}
@@ -352,7 +320,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                 onRequestClose={handleCloseFullScreen}
             >
                 <View className="flex-1 bg-black">
-                    {/* Close Button */}
                     <TouchableOpacity
                         onPress={handleCloseFullScreen}
                         className="absolute top-12 right-4 z-50 bg-black/50 p-2 rounded-full"
@@ -360,7 +327,6 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
                         <Icon as={XCircleIcon} className="text-white size-8" />
                     </TouchableOpacity>
 
-                    {/* Page Counter */}
                     <View className="absolute top-12 left-4 z-50 bg-black/50 px-3 py-1 rounded-full">
                         <Text className="text-white font-bold">
                             {currentImageIndex + 1} / {images.length}
@@ -396,5 +362,4 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     );
 }
 
-// Export memoized component
 export const ProofReviewer = memo(ProofReviewerComponent);

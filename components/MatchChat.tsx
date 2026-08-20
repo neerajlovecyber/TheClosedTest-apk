@@ -2,28 +2,26 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { View, TouchableOpacity, Platform, Modal, Pressable, useWindowDimensions, TextInput, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { Id } from '@/convex/_generated/dataModel';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { SendIcon, ChevronDownIcon, FlagIcon } from 'lucide-react-native';
+import { useMatchMessages, useSendMessage, useMarkMessagesRead } from '@/lib/api-hooks';
 
 interface MatchChatProps {
     visible: boolean;
     onClose: () => void;
-    matchId: Id<"matches">;
+    matchId: string;
     partnerName: string;
     onReport?: () => void;
-    currentUserId?: Id<"users">;
+    currentUserId?: string;
 }
 
 export function MatchChat({ visible, onClose, matchId, partnerName, onReport, currentUserId }: MatchChatProps) {
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const insets = useSafeAreaInsets();
-    const messages = useQuery(api.matches.getMessages, visible ? { matchId } : "skip") || [];
-    const sendMessageMutation = useMutation(api.matches.sendMessage);
-    const markAsReadMutation = useMutation(api.matches.markMessagesAsRead);
+    const { data: messages = [] } = useMatchMessages(visible ? matchId : undefined);
+    const sendMessageMutation = useSendMessage();
+    const markAsReadMutation = useMarkMessagesRead();
     const [newMessage, setNewMessage] = useState('');
     const inputRef = useRef<TextInput>(null);
 
@@ -32,29 +30,27 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
     }, [messages]);
 
     useEffect(() => {
-        if (visible) {
-            markAsReadMutation({ matchId });
+        if (visible && matchId) {
+            markAsReadMutation.mutateAsync(matchId).catch(() => {});
         }
-    }, [visible, matchId, markAsReadMutation]);
-
+    }, [visible, matchId]);
 
     const handleSend = async () => {
         if (!newMessage.trim()) return;
         const text = newMessage;
         setNewMessage('');
         try {
-            await sendMessageMutation({
+            await sendMessageMutation.mutateAsync({
                 matchId,
                 content: text,
-                type: "text"
+                type: 'text',
             });
         } catch (error) {
-            console.error("Failed to send message:", error);
+            console.error('Failed to send message:', error);
         }
     };
 
     const renderMessage = ({ item }: { item: any }) => {
-        // Optimized: Derive isMe locally to avoid dependency on user doc fetch in backend
         const isMe = currentUserId ? item.senderId === currentUserId : item.isMe;
         return (
             <View className={`flex-row ${isMe ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
@@ -86,7 +82,6 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
                 className="flex-1"
             >
                 <View className="flex-1 justify-end">
-                    {/* Backdrop */}
                     <Pressable
                         className="absolute inset-0 bg-black/40"
                         onPress={onClose}
@@ -96,63 +91,52 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
                         style={{ height: SCREEN_HEIGHT * 0.75 }}
                         className="bg-background rounded-t-[32px] overflow-hidden shadow-2xl border-t border-border"
                     >
-                        {/* Custom Header Area */}
                         <View className="flex-row items-center justify-between px-6 py-4 border-b border-border bg-background">
-                            <View className="flex-row items-center">
-                                <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center mr-3">
-                                    <Text className="text-primary font-bold text-sm">{partnerName.charAt(0)}</Text>
-                                </View>
-                                <Text className="font-bold text-lg">{partnerName}</Text>
+                            <View>
+                                <Text className="text-xl font-bold text-foreground">{partnerName}</Text>
+                                <Text className="text-xs text-muted-foreground">Peer-testing chat</Text>
                             </View>
                             <View className="flex-row items-center gap-2">
                                 {onReport && (
-                                    <TouchableOpacity
-                                        onPress={onReport}
-                                        className="p-2 bg-red-50 dark:bg-red-900/20 rounded-full"
-                                    >
-                                        <Icon as={FlagIcon} className="text-red-600 dark:text-red-400 size-5" />
+                                    <TouchableOpacity onPress={onReport} className="p-2">
+                                        <Icon as={FlagIcon} className="text-destructive size-5" />
                                     </TouchableOpacity>
                                 )}
-                                <TouchableOpacity
-                                    onPress={onClose}
-                                    className="p-2 bg-secondary/50 rounded-full"
-                                >
-                                    <Icon as={ChevronDownIcon} className="text-muted-foreground size-5" />
+                                <TouchableOpacity onPress={onClose} className="p-2">
+                                    <Icon as={ChevronDownIcon} className="text-foreground size-6" />
                                 </TouchableOpacity>
                             </View>
                         </View>
 
-                        {/* Chat Messages */}
                         <FlatList
                             data={chatMessages}
-                            renderItem={renderMessage}
-                            keyExtractor={item => item._id}
                             inverted
+                            keyExtractor={(item) => item.id}
+                            renderItem={renderMessage}
+                            contentContainerStyle={{ paddingVertical: 16 }}
                             className="flex-1"
-                            contentContainerStyle={{ paddingVertical: 20 }}
                         />
 
-                        {/* Input Area */}
                         <View
-                            className="flex-row items-center px-4 pt-4 border-t border-border bg-background"
-                            style={{ paddingBottom: insets.bottom + 16 }}
+                            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+                            className="p-4 bg-background border-t border-border flex-row items-center gap-2"
                         >
                             <TextInput
                                 ref={inputRef}
-                                className="flex-1 bg-secondary rounded-2xl px-4 py-2.5 text-foreground max-h-32 text-sm"
-                                placeholder="Message..."
-                                placeholderTextColor="#9ca3af"
                                 value={newMessage}
                                 onChangeText={setNewMessage}
-                                multiline
-                                blurOnSubmit={false}
+                                placeholder="Type a message..."
+                                placeholderTextColor="#9ca3af"
+                                className="flex-1 bg-secondary text-foreground px-4 py-3 rounded-full text-base"
+                                returnKeyType="send"
+                                onSubmitEditing={handleSend}
                             />
                             <TouchableOpacity
                                 onPress={handleSend}
-                                className={`ml-3 w-10 h-10 rounded-full items-center justify-center ${newMessage.trim() ? 'bg-primary' : 'bg-muted/50'}`}
                                 disabled={!newMessage.trim()}
+                                className={`w-12 h-12 rounded-full items-center justify-center ${newMessage.trim() ? 'bg-primary' : 'bg-muted'}`}
                             >
-                                <Icon as={SendIcon} className={`${newMessage.trim() ? 'text-primary-foreground' : 'text-muted-foreground'} size-5`} />
+                                <Icon as={SendIcon} className="text-primary-foreground size-5" />
                             </TouchableOpacity>
                         </View>
                     </View>

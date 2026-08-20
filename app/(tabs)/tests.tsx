@@ -2,30 +2,22 @@ import React, { useMemo, useCallback, memo, useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { LegendList } from '@legendapp/list';
-import { AppCard } from '@/components/AppCard';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, TrophyIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react-native';
+import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@/components/ui/button';
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
+import { useCurrentUser, useMatches, MatchEntity } from '@/lib/api-hooks';
 
 // Memoized TaskCard component
 const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) => {
-    const isMyTaskDone = item.myProofStatus === "approved" || item.myProofStatus === "pending";
-    const isPartnerTaskDone = item.partnerProofStatus === "approved";
-
-    // Resolve storage URL if needed
+    const isMyTaskDone = item.myProofStatus === 'approved' || item.myProofStatus === 'pending';
+    const isPartnerTaskDone = item.partnerProofStatus === 'approved';
     const displayIconUrl = item.iconUrl || 'https://github.com/shadcn.png';
 
     return (
-        <TouchableOpacity
-            onPress={onPress}
-            activeOpacity={0.7}
-        >
+        <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
             <Card className={`mb-3 ${isMyTaskDone && isPartnerTaskDone ? 'opacity-80' : ''}`}>
                 <CardContent className="p-4">
                     {/* Header: App Name & Notifications */}
@@ -127,7 +119,6 @@ const getTimeUntilMidnightIST = () => {
 
     const diff = nextMidnight.getTime() - istTime.getTime();
 
-    // Create new Date object for display derivation
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
@@ -137,7 +128,9 @@ const getTimeUntilMidnightIST = () => {
 
 export default function TestsScreen() {
     const router = useRouter();
-    const { data: testingApps = [] } = useCachedConvexQuery(['activeTests'], api.matches.getMyActiveTests);
+    const { data: currentUser } = useCurrentUser();
+    const { data: activeMatches = [] } = useMatches('active');
+
     // Countdown timer state
     const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
 
@@ -150,18 +143,47 @@ export default function TestsScreen() {
         return () => clearInterval(interval);
     }, []);
 
+    const testingApps = useMemo(() => {
+        return activeMatches.map((m: MatchEntity) => {
+            const isUser1 = m.user1Id === currentUser?.id;
+            const partnerApp = isUser1 ? m.app2 : m.app1;
+            const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
+            const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
+
+            const myProofStatus = myLastProof?.status || 'not_uploaded';
+            const partnerProofStatus = partnerLastProof?.status || 'not_uploaded';
+            const isReviewPending = partnerLastProof?.status === 'pending';
+            const day = myLastProof?.day || 1;
+            const needsAttention = isReviewPending || myProofStatus === 'not_uploaded' || myProofStatus === 'rejected';
+
+            return {
+                id: m.id,
+                name: partnerApp?.title || 'Testing App',
+                owner: partnerApp?.user?.name || 'Partner',
+                day,
+                totalDays: 14,
+                iconUrl: partnerApp?.iconUrl,
+                myProofStatus,
+                partnerProofStatus,
+                isReviewPending,
+                needsAttention,
+                hasUnread: false,
+            };
+        });
+    }, [activeMatches, currentUser?.id]);
+
     // Memoize the split between pending and completed tasks
     const { pendingTasks, completedTasks } = useMemo(() => ({
-        pendingTasks: testingApps.filter((t: any) => t.needsAttention),
-        completedTasks: testingApps.filter((t: any) => !t.needsAttention)
+        pendingTasks: testingApps.filter((t) => t.needsAttention),
+        completedTasks: testingApps.filter((t) => !t.needsAttention),
     }), [testingApps]);
 
-    // Memoized navigation handler
+    // Navigation handler
     const handleTaskPress = useCallback((taskId: string) => {
         router.push(`/(tabs)/match/${taskId}` as any);
     }, [router]);
 
-    // Memoized render item for LegendList
+    // Render item for LegendList
     const renderTaskItem = useCallback(({ item }: { item: any }) => (
         <TaskCard
             item={item}
@@ -215,7 +237,7 @@ export default function TestsScreen() {
                 </View>
 
                 <View className="px-4 pt-1">
-                    {/* Pending Section - Only show if there are pending tasks */}
+                    {/* Pending Section */}
                     {pendingTasks.length > 0 && (
                         <View className="mb-6">
                             <View className="flex-row items-center gap-2 mb-3">
@@ -259,27 +281,21 @@ export default function TestsScreen() {
                         </View>
                     )}
 
-
-
-                    {/* Enhanced Empty State */}
+                    {/* Empty State */}
                     {testingApps.length === 0 && (
                         <View className="items-center justify-center pb-12 px-6">
-                            {/* Animated Icon Container */}
                             <View className="bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full p-8 mb-6">
                                 <Icon as={ClockIcon} className="size-20 text-primary" />
                             </View>
 
-                            {/* Title */}
                             <Text className="text-2xl font-extrabold text-foreground mb-3 text-center">
                                 Ready to Start Testing?
                             </Text>
 
-                            {/* Description */}
                             <Text className="text-muted-foreground text-center text-base mb-8 max-w-sm leading-relaxed">
                                 Browse the marketplace and request a swap to begin your 14-day testing journey!
                             </Text>
 
-                            {/* Benefits Cards */}
                             <View className="w-full gap-3 mb-8">
                                 <Card className="bg-blue-500/10 border-blue-500/30">
                                     <CardContent className="p-4 flex-row items-center gap-3">
@@ -306,9 +322,8 @@ export default function TestsScreen() {
                                 </Card>
                             </View>
 
-                            {/* CTA Button */}
                             <Button
-                                onPress={() => router.push('/(tabs)/marketplace')}
+                                onPress={() => router.push('/(tabs)/marketplace' as any)}
                                 className="w-full rounded-2xl h-14 shadow-lg shadow-primary/30"
                             >
                                 <Icon as={SearchIcon} className="text-primary-foreground size-5 mr-2" />

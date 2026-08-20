@@ -1,42 +1,25 @@
-
-import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react';
-import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useRef, useCallback, useMemo, memo } from 'react';
+import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { LegendList } from '@legendapp/list';
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import { Modal, Pressable, Linking } from 'react-native';
-import { SearchIcon, StarIcon, PlusIcon, HelpCircleIcon, RocketIcon, FlameIcon, CheckCircleIcon, UsersIcon } from 'lucide-react-native';
+import { SearchIcon, CheckCircleIcon, UsersIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
-import { BoostedAppsSection } from '@/components/BoostedAppsSection';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
 import { ReportDialog } from '@/components/ReportDialog';
 import { Alert } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
-
-// Loading placeholder component
-const ListLoadingPlaceholder = memo(() => (
-    <View className="items-center justify-center py-8">
-        <ActivityIndicator size="small" />
-        <Text className="text-muted-foreground text-sm mt-2">Loading apps...</Text>
-    </View>
-));
+import { useCurrentUser, useRecruitingApps, useMatches, MatchEntity, AppEntity } from '@/lib/api-hooks';
 
 export default function MarketplaceScreen() {
     const router = useRouter();
     const { width: windowWidth } = useWindowDimensions();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
-    const isFocused = useIsFocused();
 
-    // Reporting state
     const [showReportDialog, setShowReportDialog] = useState(false);
     const [reportApp, setReportApp] = useState<any>(null);
     const [showGroupModal, setShowGroupModal] = useState(false);
@@ -51,75 +34,28 @@ export default function MarketplaceScreen() {
         itemVisiblePercentThreshold: 50
     });
 
-    // Cached Queries
-    const { data: user } = useCachedConvexQuery(['currentUser'], api.users.getCurrentUser);
-    const { data: myApps = [] } = useCachedConvexQuery(['myApps'], api.apps.getMyApps); // Keep myApps active or maybe cached is fine
+    // API Queries
+    const { data: user } = useCurrentUser();
+    const { data: appsData, isLoading } = useRecruitingApps(searchQuery || undefined, 50, 0);
+    const { data: allMatches = [] } = useMatches('all');
 
-    // Only fetch marketplace data when screen is focused
-    const { data: recruitingApps } = useCachedConvexQuery(
-        ['marketplaceRecruiting'],
-        api.apps.getMarketplaceApps,
-        { status: 'recruiting' },
-        { enabled: isFocused }
-    );
-    const { data: filledApps } = useCachedConvexQuery(
-        ['marketplaceFilled'],
-        api.apps.getMarketplaceApps,
-        { status: 'filled' },
-        { enabled: isFocused }
-    );
-    const { data: myMatchStatuses = [] } = useCachedConvexQuery(
-        ['matchStatus'],
-        api.matches.getMyMatchStatuses,
-        undefined,
-        { enabled: isFocused }
-    );
-
-    const displayRecruiting = recruitingApps || [];
-    const displayFilled = filledApps || [];
+    const apps = appsData?.apps || [];
 
     const matchStatusMap = useMemo(() => {
-        const map = new Map();
-        for (const status of myMatchStatuses) {
-            map.set(status.appId, status.status);
+        const map = new Map<string, string>();
+        for (const m of allMatches) {
+            if (m.app1Id) map.set(m.app1Id, m.status);
+            if (m.app2Id) map.set(m.app2Id, m.status);
         }
         return map;
-    }, [myMatchStatuses]);
+    }, [allMatches]);
 
-    // Memoize expensive computations
-    const latestOpportunities = useMemo(() =>
-        displayRecruiting
-            .filter((app: any) => !app.isFilled)
-            .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
-            .slice(0, 16),
-        [displayRecruiting]
-    );
-
-    const sortedAllApps = useMemo(() => {
-        // Combine recruiting and filled apps, but exclude any that are completed
-        const allApps = [...displayRecruiting, ...displayFilled].filter(
-            (app: any) => app.status !== 'completed'
-        );
-        return allApps.sort((a: any, b: any) => {
-            // Priority 1: Status (Active first)
-            if (a.isFilled && !b.isFilled) return 1;
-            if (!a.isFilled && b.isFilled) return -1;
-
-            // Priority 2: Reputation (High to Low)
-            const repDiff = (b.reputation || 0) - (a.reputation || 0);
-            if (repDiff !== 0) return repDiff;
-
-            // Priority 3: Creation Date (Newest first)
-            return (b.createdAt || 0) - (a.createdAt || 0);
-        });
-    }, [displayRecruiting, displayFilled]);
-
-    const filteredAllApps = useMemo(() =>
-        sortedAllApps.filter((app: any) =>
-            app.title.toLowerCase().includes(searchQuery.toLowerCase())
-        ),
-        [sortedAllApps, searchQuery]
-    );
+    const latestOpportunities = useMemo(() => {
+        return apps
+            .filter((app: AppEntity) => app.status === 'recruiting' && app.currentTesters < app.requiredTesters)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 16);
+    }, [apps]);
 
     const groupedRecruiting = useMemo(() => {
         const chunked = [];
@@ -130,19 +66,12 @@ export default function MarketplaceScreen() {
         return chunked;
     }, [latestOpportunities]);
 
-    // Memoized callbacks for navigation
     const handleAppPress = useCallback((appId: string) => {
         router.push({ pathname: "/app-details/[id]", params: { id: appId, source: 'marketplace' } } as any);
     }, [router]);
 
-    const handleAddApp = useCallback(() => {
-        router.push('/add-app');
-    }, [router]);
-
     const handleReportApp = useCallback((app: any) => {
         setReportApp(app);
-
-        // Show alert to confirm they want to report (since long press might be accidental)
         Alert.alert(
             "Report App",
             `Do you want to report "${app.title}"?`,
@@ -156,52 +85,49 @@ export default function MarketplaceScreen() {
         );
     }, []);
 
-    // Memoized render functions for LegendList
-    const renderAppItem = useCallback(({ item }: { item: any }) => (
+    const renderAppItem = useCallback(({ item }: { item: AppEntity }) => (
         <AppCard
-            key={item._id}
-            item={item}
-            onPress={() => handleAppPress(item._id)}
+            key={item.id}
+            item={{
+                _id: item.id,
+                title: item.title,
+                iconUrl: item.iconUrl,
+                currentTesters: item.currentTesters,
+                requiredTesters: item.requiredTesters,
+                status: item.status,
+                reputation: item.user?.reputation,
+            }}
+            onPress={() => handleAppPress(item.id)}
             onReport={() => handleReportApp(item)}
-            matchStatus={matchStatusMap.get(item._id)}
+            matchStatus={matchStatusMap.get(item.id)}
         />
     ), [handleAppPress, matchStatusMap, handleReportApp]);
 
-    const keyExtractor = useCallback((item: any) => item._id, []);
+    const keyExtractor = useCallback((item: AppEntity) => item.id, []);
 
-    const handleOpenPlayStore = useCallback((app: any) => {
-        if (!app.packageName) return;
-
-        const marketUrl = `market://details?id=${app.packageName}`;
-        const webUrl = app.playStoreUrl || `https://play.google.com/store/apps/details?id=${app.packageName}`;
-
-        Linking.canOpenURL(marketUrl).then(supported => {
-            if (supported) {
-                Linking.openURL(marketUrl);
-            } else {
-                Linking.openURL(webUrl);
-            }
-        }).catch(() => {
-            Linking.openURL(webUrl);
-        });
-    }, []);
-
-    // Horizontal carousel render item
-    const renderGroupItem = useCallback(({ item: group }: { item: any[] }) => (
+    const renderGroupItem = useCallback(({ item: group }: { item: AppEntity[] }) => (
         <View style={{ width: windowWidth * 0.85 }} className="mr-4">
-            {group.map((app: any) => (
+            {group.map((app: AppEntity) => (
                 <AppCard
-                    key={app._id}
-                    item={app}
-                    onPress={() => handleAppPress(app._id)}
+                    key={app.id}
+                    item={{
+                        _id: app.id,
+                        title: app.title,
+                        iconUrl: app.iconUrl,
+                        currentTesters: app.currentTesters,
+                        requiredTesters: app.requiredTesters,
+                        status: app.status,
+                        reputation: app.user?.reputation,
+                    }}
+                    onPress={() => handleAppPress(app.id)}
                     onReport={() => handleReportApp(app)}
-                    matchStatus={matchStatusMap.get(app._id)}
+                    matchStatus={matchStatusMap.get(app.id)}
                 />
             ))}
         </View>
     ), [windowWidth, handleAppPress, matchStatusMap, handleReportApp]);
 
-    const groupKeyExtractor = useCallback((item: any[], index: number) => `group-${index}`, []);
+    const groupKeyExtractor = useCallback((item: AppEntity[], index: number) => `group-${index}`, []);
 
     return (
         <View className="flex-1 bg-background">
@@ -213,8 +139,7 @@ export default function MarketplaceScreen() {
                             <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
                         </View>
                         <View className="flex-row gap-2">
-                            {/* Google Group Status Icon */}
-                            {user?.isGroupMember && (
+                            {user?.googleGroupConfirmed && (
                                 <TouchableOpacity
                                     onPress={() => setShowGroupModal(true)}
                                     className="w-10 h-10 rounded-full bg-green-500/10 items-center justify-center border border-green-500/20"
@@ -224,7 +149,7 @@ export default function MarketplaceScreen() {
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity
-                                onPress={() => router.push('/help')}
+                                onPress={() => router.push('/help' as any)}
                                 className="w-10 h-10 rounded-full bg-orange-500/10 items-center justify-center border border-orange-500/20"
                                 activeOpacity={0.7}
                             >
@@ -233,8 +158,7 @@ export default function MarketplaceScreen() {
                         </View>
                     </View>
 
-                    {/* Show join prompt if not a member */}
-                    {user && !user.isGroupMember && <GoogleGroupWidget className="mb-0" />}
+                    {user && !user.googleGroupConfirmed && <GoogleGroupWidget className="mb-0" />}
 
                     {/* Search Bar */}
                     <View className="relative">
@@ -248,9 +172,6 @@ export default function MarketplaceScreen() {
                             onChangeText={setSearchQuery}
                         />
                     </View>
-
-                    {/* Boosted Apps Section - HIDDEN */}
-                    {/* {!searchQuery && <BoostedAppsSection />} */}
 
                     {/* Recruiting Now / Latest */}
                     {!searchQuery && (
@@ -273,7 +194,6 @@ export default function MarketplaceScreen() {
                                         recycleItems
                                         estimatedItemSize={windowWidth * 0.85}
                                     />
-                                    {/* Pagination Dots */}
                                     <View className="flex-row justify-center mt-2 gap-2">
                                         {groupedRecruiting.map((_, index) => (
                                             <View
@@ -285,18 +205,18 @@ export default function MarketplaceScreen() {
                                 </View>
                             ) : (
                                 <View className="items-center py-4">
-                                    <Text className="text-muted-foreground">No new apps.</Text>
+                                    <Text className="text-muted-foreground">No new apps available yet.</Text>
                                 </View>
                             )}
                         </View>
                     )}
 
-                    {/* All Apps - Using LegendList for performance */}
+                    {/* All Apps */}
                     <View>
                         <Text className="text-lg font-bold px-1 mb-3">{searchQuery ? 'Search Results' : 'All Apps'}</Text>
-                        {filteredAllApps.length > 0 ? (
+                        {apps.length > 0 ? (
                             <LegendList
-                                data={filteredAllApps}
+                                data={apps}
                                 keyExtractor={keyExtractor}
                                 renderItem={renderAppItem}
                                 recycleItems
@@ -305,17 +225,16 @@ export default function MarketplaceScreen() {
                             />
                         ) : (
                             <View className="items-center py-10">
-                                <Text className="text-muted-foreground">No apps found.</Text>
+                                {isLoading ? (
+                                    <ActivityIndicator size="small" />
+                                ) : (
+                                    <Text className="text-muted-foreground">No apps found.</Text>
+                                )}
                             </View>
                         )}
                     </View>
-
-
                 </View>
             </ScrollView>
-
-            {/* Floating Action Button - Boost Hub with Premium Animation - HIDDEN (AdMob Rejected) */}
-            {/* <AnimatedFAB onPress={() => router.push('/boost-hub')} /> */}
 
             {/* Google Group Modal */}
             <Modal
@@ -363,82 +282,11 @@ export default function MarketplaceScreen() {
                     visible={showReportDialog}
                     onClose={() => setShowReportDialog(false)}
                     reportType="app"
-                    targetId={reportApp._id}
-                    reportedAppId={reportApp._id}
+                    targetId={reportApp.id}
+                    reportedAppId={reportApp.id}
                     targetName={reportApp.title}
                 />
             )}
-        </View>
-    );
-}
-
-// Animated FAB Component with pulsing glow effect
-function AnimatedFAB({ onPress }: { onPress: () => void }) {
-    const scale = useSharedValue(1);
-    const glowOpacity = useSharedValue(0.3);
-
-    useEffect(() => {
-        // Pulsing scale animation
-        scale.value = withRepeat(
-            withSequence(
-                withTiming(1.05, { duration: 1000 }),
-                withTiming(1, { duration: 1000 })
-            ),
-            -1,
-            true
-        );
-
-        // Glow pulse animation
-        glowOpacity.value = withRepeat(
-            withSequence(
-                withTiming(0.6, { duration: 1000 }),
-                withTiming(0.2, { duration: 1000 })
-            ),
-            -1,
-            true
-        );
-    }, []);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
-
-    const glowStyle = useAnimatedStyle(() => ({
-        opacity: glowOpacity.value,
-    }));
-
-    return (
-        <View className="absolute bottom-6 right-6">
-            {/* Outer glow ring */}
-            <Animated.View
-                style={[glowStyle, {
-                    position: 'absolute',
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    backgroundColor: '#f97316',
-                    top: -8,
-                    left: -8,
-                }]}
-            />
-            {/* Main button */}
-            <Animated.View style={animatedStyle}>
-                <TouchableOpacity
-                    onPress={onPress}
-                    activeOpacity={0.8}
-                    className="w-16 h-16 rounded-full items-center justify-center"
-                    style={{
-                        backgroundColor: '#f97316',
-                        elevation: 12,
-                        shadowColor: '#f97316',
-                        shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 12,
-                    }}
-                >
-                    <Icon as={RocketIcon} className="text-white size-7" />
-                </TouchableOpacity>
-            </Animated.View>
         </View>
     );
 }

@@ -1,56 +1,28 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
+import { useRouter, Stack } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, BellIcon } from 'lucide-react-native';
 
 export default function DebugPushScreen() {
     const router = useRouter();
-    const currentUser = useQuery(api.users.getCurrentUser);
 
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-            <View className="px-6 py-4 flex-row items-center border-b border-border/50">
-                <TouchableOpacity onPress={() => router.back()} className="mr-4">
-                    <Icon as={ArrowLeftIcon} className="text-foreground size-6" />
+        <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
+            <Stack.Screen options={{ headerShown: false }} />
+
+            <View className="px-4 py-3 border-b border-border flex-row items-center gap-3">
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Icon as={ArrowLeftIcon} className="size-6 text-foreground" />
                 </TouchableOpacity>
-                <Text className="text-xl font-bold text-foreground">Debug Push Token</Text>
+                <Text className="text-xl font-bold text-foreground">Push Debugger</Text>
             </View>
 
-            <ScrollView className="flex-1 px-6 py-4">
-                <View className="bg-card p-4 rounded-xl border border-border">
-                    <Text className="text-sm font-bold mb-2">Current User Info:</Text>
-
-                    {currentUser ? (
-                        <>
-                            <Text className="text-xs text-muted-foreground mb-1">
-                                Name: {currentUser.name || 'N/A'}
-                            </Text>
-                            <Text className="text-xs text-muted-foreground mb-1">
-                                Email: {currentUser.email || 'N/A'}
-                            </Text>
-                            <Text className="text-xs text-muted-foreground mb-3">
-                                Has Push Token: {currentUser.pushToken ? 'YES' : 'NO'}
-                            </Text>
-
-                            {currentUser.pushToken && (
-                                <View className="bg-muted p-3 rounded-lg">
-                                    <Text className="text-xs font-bold mb-1">Push Token:</Text>
-                                    <Text className="text-[10px] text-foreground font-mono" selectable>
-                                        {currentUser.pushToken}
-                                    </Text>
-                                </View>
-                            )}
-                        </>
-                    ) : (
-                        <Text className="text-muted-foreground">Loading...</Text>
-                    )}
-                </View>
-            </ScrollView>
+            <View className="flex-1 items-center justify-center p-8">
+                <Icon as={BellIcon} className="text-primary size-8 mb-2" />
+                <Text className="text-lg font-bold text-foreground">Push Service Online</Text>
+            </View>
         </SafeAreaView>
     );
 }

@@ -6,8 +6,6 @@ import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useAuth, useUser } from '@clerk/clerk-expo';
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { LucideIcon } from 'lucide-react-native';
 import {
@@ -29,6 +27,7 @@ import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Linking, ScrollView, View, Share, TouchableOpacity } from 'react-native';
 import Constants from 'expo-constants';
+import { useCurrentUser, useMySupportChat } from '@/lib/api-hooks';
 
 interface SettingItemProps {
     icon: LucideIcon;
@@ -80,7 +79,7 @@ function SettingItem({ icon, label, subtitle, onPress, action, destructive, icon
 
 function UserProfile() {
     const { user } = useUser();
-    const convexUser = useQuery(api.users.getCurrentUser);
+    const { data: dbUser } = useCurrentUser();
 
     const { initials, imageSource, userName, email } = React.useMemo(() => {
         const userName = user?.fullName || user?.username || 'User';
@@ -114,7 +113,7 @@ function UserProfile() {
                         </View>
                         <Text className="text-muted-foreground font-medium mt-0.5">{email}</Text>
 
-                        {convexUser?.isGroupMember && (
+                        {dbUser?.googleGroupConfirmed && (
                             <View className="flex-row items-center mt-2">
                                 <View className="bg-green-500/10 px-3 py-1 rounded-full">
                                     <Text className="text-xs text-green-600 dark:text-green-400 font-bold">✓ Verified Member</Text>
@@ -128,18 +127,17 @@ function UserProfile() {
     );
 }
 
-
 export default function SettingsScreen() {
     const { signOut } = useAuth();
     const { user } = useUser();
     const { colorScheme, toggleColorScheme } = useColorScheme();
     const router = useRouter();
 
-    // Check for unread admin messages
-    const hasUnreadFromAdmin = useQuery(api.adminChats.hasUnreadFromAdmin) ?? false;
+    const { data: mySupportChat } = useMySupportChat();
+    const hasUnreadFromAdmin = mySupportChat?.hasUnreadUser ?? false;
 
     const ADMIN_EMAILS = ['neerajlovecyber@gmail.com', 'futureaistudio41@gmail.com'];
-    const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
+    const isAdmin = user?.emailAddresses.some((e) => ADMIN_EMAILS.includes(e.emailAddress));
 
     const handleShare = async () => {
         try {
@@ -172,7 +170,6 @@ export default function SettingsScreen() {
                 <UserProfile />
 
                 <View className="px-4 gap-6">
-
                     {/* Appearance Section */}
                     <View className="gap-3">
                         <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Appearance</Text>
@@ -203,14 +200,14 @@ export default function SettingsScreen() {
                                     icon={HelpCircleIcon}
                                     label="How It Works"
                                     subtitle="Learn how to use the app"
-                                    onPress={() => router.push('/help')}
+                                    onPress={() => router.push('/help' as any)}
                                     iconColor="bg-indigo-500"
                                 />
                                 <SettingItem
                                     icon={CheckCircleIcon}
                                     label="Play Store Setup Guide"
                                     subtitle="How to add Google Group to testers"
-                                    onPress={() => router.push('/playstore-guide')}
+                                    onPress={() => router.push('/playstore-guide' as any)}
                                     iconColor="bg-emerald-500"
                                 />
                                 <SettingItem
@@ -251,56 +248,46 @@ export default function SettingsScreen() {
                                     onPress={handleRate}
                                     iconColor="bg-amber-500"
                                 />
-                                <SettingItem
-                                    icon={InfoIcon}
-                                    label="About Us"
-                                    subtitle="Learn more about our mission"
-                                    onPress={() => router.push('/about-us')}
-                                    iconColor="bg-violet-500"
-                                />
-                                <SettingItem
-                                    icon={MessageSquareIcon}
-                                    label="Send Feedback"
-                                    subtitle="Report bugs or suggest features"
-                                    onPress={() => handleLink('https://theclosedtest.featurebase.app/')}
-                                    iconColor="bg-cyan-500"
-                                />
                             </CardContent>
                         </Card>
                     </View>
 
-                    {/* Legal Section */}
+                    {/* About Section */}
                     <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Legal</Text>
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">About</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
-                            <CardContent className="p-0 gap-0">
+                            <CardContent className="p-0 gap-0 divide-y divide-border/30">
                                 <SettingItem
                                     icon={ShieldIcon}
                                     label="Privacy Policy"
-                                    subtitle="How we handle your data"
-                                    onPress={() => router.push('/privacy-policy')}
-                                    iconColor="bg-green-500"
+                                    subtitle="Read our privacy policy"
+                                    onPress={() => handleLink('https://theclosedtest.neerajlovecyber.com/privacy')}
+                                    iconColor="bg-teal-500"
                                 />
+                                <SettingItem
+                                    icon={InfoIcon}
+                                    label="Terms of Service"
+                                    subtitle="Read our terms of service"
+                                    onPress={() => handleLink('https://theclosedtest.neerajlovecyber.com/terms')}
+                                    iconColor="bg-slate-500"
+                                />
+                                <View className="py-4 px-4 flex-row justify-between items-center">
+                                    <Text className="text-muted-foreground text-sm font-medium">Version</Text>
+                                    <Text className="text-muted-foreground text-sm font-bold">{Constants.expoConfig?.version || '1.1.0'}</Text>
+                                </View>
                             </CardContent>
                         </Card>
                     </View>
 
-                    {/* Sign Out Button */}
-                    <View className="pt-2">
-                        <Button
-                            variant="destructive"
-                            size="lg"
-                            className="w-full flex-row gap-3 rounded-2xl"
-                            onPress={() => signOut()}
-                        >
-                            <Icon as={LogOutIcon} className="text-white size-5" />
-                            <Text className="text-white text-lg font-semibold">Log Out</Text>
-                        </Button>
-                        <View className="items-center pt-6">
-                            <Text className="text-xs text-muted-foreground/60">The Closed Test • Version {Constants.expoConfig?.version || '1.0.0'}</Text>
-                        </View>
-                    </View>
-
+                    {/* Logout Button */}
+                    <Button
+                        variant="destructive"
+                        className="w-full flex-row items-center justify-center gap-2 h-14 rounded-2xl"
+                        onPress={() => signOut()}
+                    >
+                        <Icon as={LogOutIcon} className="text-destructive-foreground size-5" />
+                        <Text className="text-destructive-foreground font-bold text-base">Log Out</Text>
+                    </Button>
                 </View>
             </View>
         </ScrollView>

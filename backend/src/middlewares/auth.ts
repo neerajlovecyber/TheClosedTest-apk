@@ -7,6 +7,8 @@ import { db } from "../db"
 import { users } from "../db/schema"
 import type { AppBindings } from "../lib/types"
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function authMiddleware(c: Context<AppBindings>, next: Next) {
   const authHeader = c.req.header("Authorization")
   const customUserId = c.req.header("x-user-id")
@@ -25,9 +27,14 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
     })
   }
 
-  // Find user by id or tokenIdentifier
+  const isUuid = UUID_REGEX.test(identifier)
+
+  // Find user by id (if UUID) or tokenIdentifier (e.g. Clerk user_xxx or test token)
   const user = await db.query.users.findFirst({
-    where: (u, { or, eq }) => or(eq(u.id, identifier!), eq(u.tokenIdentifier, identifier!)),
+    where: (u, { or, eq }) =>
+      isUuid
+        ? or(eq(u.id, identifier!), eq(u.tokenIdentifier, identifier!))
+        : eq(u.tokenIdentifier, identifier!),
   })
 
   if (!user) {

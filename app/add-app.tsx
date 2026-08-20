@@ -1,25 +1,21 @@
-
 import React, { useState } from 'react';
 import { View, Platform, TouchableOpacity, ActivityIndicator, Image, Pressable, Share } from 'react-native';
 import { toast } from '@/lib/sonner';
 import { useRouter } from 'expo-router';
-import { useMutation, useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { useInvalidateQueries } from '@/hooks/useInvalidateQueries';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon, SendIcon, CopyIcon, CheckIcon, ShareIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, CheckCircleIcon, SendIcon, CopyIcon, CheckIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { R2_WORKER_URL } from "@/utils/r2-config";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useCreateApp, usePresignedUploadUrl, useCurrentUser } from '@/lib/api-hooks';
 
 const GOOGLE_GROUP_EMAIL = 'developers-community-official@googlegroups.com';
 
@@ -57,28 +53,20 @@ function CopyableEmail() {
 export default function AddAppScreen() {
     const router = useRouter();
 
-    const createApp = useMutation(api.apps.createApp);
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
-    const generateAppIconUploadUrl = useMutation(api.r2.generateAppIconUploadUrl);
-    const currentUser = useQuery(api.users.getCurrentUser);
-
-    // Cache invalidation
-    const { invalidateApps } = useInvalidateQueries();
+    const createAppMutation = useCreateApp();
+    const getPresignedUrlMutation = usePresignedUploadUrl();
+    const { data: currentUser } = useCurrentUser();
 
     const [title, setTitle] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
-    const [packageName, setPackageName] = useState(''); // Extracted from URL
+    const [packageName, setPackageName] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [instructions, setInstructions] = useState('');
     const [requiredTesters, setRequiredTesters] = useState('12');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasAddedEmail, setHasAddedEmail] = useState(false);
-
-    // Processed image URI to display/upload
     const [processedImageUri, setProcessedImageUri] = useState<string | null>(null);
 
-    const updateApp = useMutation(api.apps.updateApp);
-    // Auto-extract package name
     React.useEffect(() => {
         const match = playStoreUrl.match(/id=([a-zA-Z0-9_.]+)/);
         if (match && match[1]) {
@@ -87,12 +75,6 @@ export default function AddAppScreen() {
             setPackageName('');
         }
     }, [playStoreUrl]);
-
-    const syncAppCount = useMutation(api.users.syncAppCount);
-    React.useEffect(() => {
-        // Sync app count on mount to ensure accuracy
-        syncAppCount().then((count) => console.log("Synced app count:", count));
-    }, []);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -105,11 +87,7 @@ export default function AddAppScreen() {
         if (!result.canceled) {
             const uri = result.assets[0].uri;
             setSelectedImage(uri);
-            // Instant feedback: Show raw image immediately
             setProcessedImageUri(uri);
-
-            // Optimize in background
-            // We don't await this to prevent blocking the UI, but relying on state update
             optimizeImage(uri);
         }
     };
@@ -124,7 +102,6 @@ export default function AddAppScreen() {
             setProcessedImageUri(result.uri);
         } catch (error) {
             console.error("Optimization failed:", error);
-            // If optimization fails, we kept the original URI anyway
         }
     };
 
@@ -139,7 +116,7 @@ export default function AddAppScreen() {
             return;
         }
 
-        if (!currentUser?.isGroupMember) {
+        if (!currentUser?.googleGroupConfirmed) {
             toast.info('Requirement', { description: 'You must join the Google Group first.' });
             return;
         }
@@ -162,80 +139,54 @@ export default function AddAppScreen() {
 
         setIsSubmitting(true);
         try {
-            let storageId = null;
+            let finalIconUrl = "https://github.com/shadcn.png";
 
-            // 1. Create App first with placeholder or default
-            const appId = await createApp({
+            // Upload icon to Cloudflare R2
+            if (processedImageUri) {
+                const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
+                    filename: `app_${Date.now()}_icon.webp`,
+                    contentType: 'image/webp',
+                    folder: 'icons',
+                });
+
+                const FileSystem = require('expo-file-system/legacy');
+                const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+
+                await new Promise<void>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', uploadUrl, true);
+                    xhr.setRequestHeader('Content-Type', 'image/webp');
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error(`Upload failed: ${xhr.status}`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Upload failed'));
+
+                    const binaryString = atob(base64);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    xhr.send(bytes.buffer);
+                });
+
+                finalIconUrl = publicUrl;
+            }
+
+            // Create App in PostgreSQL database
+            await createAppMutation.mutateAsync({
                 title,
                 packageName: packageName || "com.unknown.package",
                 playStoreUrl,
-                iconUrl: "https://github.com/shadcn.png", // Default initially
-                storageId: undefined,
+                iconUrl: finalIconUrl,
                 instructions,
                 requiredTesters: testers,
             });
-
-            // 2. Upload Image if selected, using Convex R2 signed URL flow
-            if (processedImageUri) {
-                try {
-                    // Generate signed upload URL from Convex R2 with deterministic key
-                    const { key: r2Key, url: signedUrl } = await generateAppIconUploadUrl({
-                        appId: appId as string
-                    });
-
-                    // Read file as base64 and upload via XMLHttpRequest (works in React Native)
-                    const FileSystem = require('expo-file-system/legacy');
-                    const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
-                        encoding: FileSystem.EncodingType.Base64,
-                    });
-
-                    // Upload using XMLHttpRequest (React Native compatible)
-                    await new Promise<void>((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('PUT', signedUrl, true);
-                        xhr.setRequestHeader('Content-Type', 'image/webp');
-                        xhr.onload = () => {
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                resolve();
-                            } else {
-                                reject(new Error(`Upload failed: ${xhr.status}`));
-                            }
-                        };
-                        xhr.onerror = () => reject(new Error('Upload failed'));
-
-                        // Convert base64 to binary and send
-                        const binaryString = atob(base64);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-                        xhr.send(bytes.buffer);
-                    });
-
-                    // Build the public URL (using R2 worker for serving)
-
-
-                    const iconUrl = `${R2_WORKER_URL}/${r2Key}`;
-
-                    // 3. Update App with real icon URL
-                    await updateApp({
-                        appId: appId,
-                        iconUrl: iconUrl
-                    });
-
-                    console.log(`R2 Upload Success via Convex: ${iconUrl}`);
-                } catch (uploadError: any) {
-                    console.error("Upload failed but app created:", uploadError);
-                    toast.info("Warning", { description: "App created but icon upload failed: " + uploadError.message });
-                }
-            }
-
-            // To properly call updateApp, I need to add `const updateApp = useMutation(api.apps.updateApp);` at component top.
-            // I will return for now and fix imports in next step.
-
-
-            // Invalidate caches so new app appears immediately in home and marketplace
-            invalidateApps();
 
             toast.success('Success', { description: 'App added successfully!' });
             router.back();
@@ -269,7 +220,6 @@ export default function AddAppScreen() {
                 <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/50">
                     <CardContent className="p-4 gap-4">
                         <Text className="text-xl font-semibold leading-none tracking-tight text-amber-800 dark:text-amber-200">Prerequisites</Text>
-                        {/* 1. Google Group */}
                         <View>
                             <Text className="font-semibold mb-2 text-foreground">1. Join Community</Text>
                             <View className="gap-1.5">
@@ -293,14 +243,12 @@ export default function AddAppScreen() {
                             </View>
                         </View>
 
-                        {/* 2. Add Email */}
                         <View>
                             <Text className="font-semibold mb-2 text-foreground">2. Play Console Setup</Text>
                             <Text className="text-sm text-muted-foreground mb-3">
                                 ⚠️ Your app won't be visible to testers unless you add the group email below to your Closed Testing track in Google Play Console.
                             </Text>
 
-                            {/* Copy Email - HIGHLIGHTED */}
                             <View
                                 className="bg-white dark:bg-card p-3 rounded-xl mb-3 border border-primary/30"
                                 style={{ elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}
@@ -313,9 +261,8 @@ export default function AddAppScreen() {
                                 />
                             </View>
 
-                            {/* Detailed Guide Link - PROMINENT */}
                             <TouchableOpacity
-                                onPress={() => router.push('/playstore-guide')}
+                                onPress={() => router.push('/playstore-guide' as any)}
                                 className="flex-row items-center gap-3 bg-blue-600 p-2 rounded-2xl mb-4"
                                 style={{ elevation: 4, shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
                                 activeOpacity={0.8}
@@ -325,12 +272,9 @@ export default function AddAppScreen() {
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-white font-bold text-base">📖 View Step-by-Step Guide</Text>
-
                                 </View>
-
                             </TouchableOpacity>
 
-                            {/* Confirmation Checkbox - PROMINENT */}
                             <View className={`flex-row items-center gap-4 p-2 pl-5 rounded-2xl border-2 ${hasAddedEmail ? 'bg-green-500/10 border-green-500' : 'bg-orange-500/10 border-orange-400 animate-pulse'}`}>
                                 <Switch
                                     checked={hasAddedEmail}

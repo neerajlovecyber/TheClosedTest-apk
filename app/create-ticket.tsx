@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Platform } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { toast } from '@/lib/sonner';
 import { Icon } from '@/components/ui/icon';
 import { ArrowLeftIcon } from 'lucide-react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useMySupportChat, useSendSupportMessage } from '@/lib/api-hooks';
 
 export default function CreateTicketScreen() {
     const router = useRouter();
-    const createTicket = useMutation(api.tickets.createTicket);
+    const { data: myChat } = useMySupportChat();
+    const sendMessageMutation = useSendSupportMessage();
 
     const [subject, setSubject] = useState("");
     const [message, setMessage] = useState("");
@@ -25,15 +25,21 @@ export default function CreateTicketScreen() {
             return;
         }
 
+        if (!myChat?.id) {
+            toast.error("Support chat unavailable");
+            return;
+        }
+
         setSubmitting(true);
         try {
-            await createTicket({
-                subject: subject.trim(),
-                initialMessage: message.trim(),
-                priority,
+            const formattedMessage = `[${priority.toUpperCase()} PRIORITY] Subject: ${subject.trim()}\n\n${message.trim()}`;
+            await sendMessageMutation.mutateAsync({
+                chatId: myChat.id,
+                content: formattedMessage,
+                type: 'text',
             });
-            toast.success("Ticket created successfully");
-            router.back();
+            toast.success("Ticket message sent successfully");
+            router.replace('/admin-chat' as any);
         } catch (error: any) {
             toast.error("Failed to create ticket", { description: error.message });
         } finally {

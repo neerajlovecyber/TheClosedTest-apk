@@ -1,24 +1,21 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, TextInput, Modal, ScrollView, Platform } from 'react-native';
+import { View, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Text } from '@/components/ui/text';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { AlertCircleIcon, XIcon } from 'lucide-react-native';
-import { useMutation } from 'convex/react';
-import { api } from '@/convex/_generated/api';
+import { XIcon } from 'lucide-react-native';
 import { toast } from '@/lib/sonner';
-import { Id } from '@/convex/_generated/dataModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSubmitReport } from '@/lib/api-hooks';
 
 interface ReportDialogProps {
     visible: boolean;
     onClose: () => void;
     reportType: 'user' | 'app' | 'match';
     targetId: string;
-    matchId?: Id<"matches">;
-    reportedUserId?: Id<"users">;
-    reportedAppId?: Id<"apps">;
+    matchId?: string;
+    reportedUserId?: string;
+    reportedAppId?: string;
     targetName: string;
 }
 
@@ -37,7 +34,7 @@ export function ReportDialog({
     const [submitting, setSubmitting] = useState(false);
     const insets = useSafeAreaInsets();
 
-    const createReport = useMutation(api.reports.createReport);
+    const submitReportMutation = useSubmitReport();
 
     const reportTypes = [
         { value: "app_spam" as const, label: "Spam or Fake App", description: "App is fake, misleading, or spam" },
@@ -57,7 +54,7 @@ export function ReportDialog({
 
         setSubmitting(true);
         try {
-            await createReport({
+            await submitReportMutation.mutateAsync({
                 type: selectedType,
                 targetId,
                 matchId: matchId ?? undefined,

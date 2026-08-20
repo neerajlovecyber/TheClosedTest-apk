@@ -2,11 +2,9 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { FlaskConicalIcon, HomeIcon, SettingsIcon, StoreIcon, ShieldIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/clerk-expo';
-import { api } from '@/convex/_generated/api';
-import { useCachedConvexQuery } from '@/hooks/useCachedConvexQuery';
+import { useMatches, useNotifications } from '@/lib/api-hooks';
 
 export default function TabLayout() {
     const { user } = useUser();
@@ -14,19 +12,11 @@ export default function TabLayout() {
     const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
     const insets = useSafeAreaInsets();
 
-    // Optimized: Check if ANY tasks need attention (boolean, not count)
-    const { data: activeTests = [] } = useCachedConvexQuery(['activeTests'], api.matches.getMyActiveTests);
-    const hasPendingTasks = activeTests.some((t: any) => t.needsAttention);
+    const { data: activeMatches = [] } = useMatches('active');
+    const { data: notificationsData } = useNotifications();
 
-    // Optimized: Check if user has ANY unread from admin (boolean)
-    const { data: hasUnreadFromAdmin = false } = useCachedConvexQuery(['hasUnreadFromAdmin'], api.adminChats.hasUnreadFromAdmin);
-
-    // Optimized: Check if admin has ANY unread (boolean)
-    const { data: hasUnreadForAdmin = false } = useCachedConvexQuery(['hasUnreadForAdmin'], api.adminChats.hasUnreadForAdmin);
-
-    // Optimized: Check if there are ANY pending reports (boolean, not count)
-    const { data: hasPendingReports = false } = useCachedConvexQuery(['hasPendingReports'], api.reports.hasPendingReports);
-    const hasAdminNotifications = hasUnreadForAdmin || hasPendingReports;
+    const hasPendingTasks = activeMatches.length > 0;
+    const hasUnreadNotifications = (notificationsData?.unreadCount ?? 0) > 0;
 
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -85,7 +75,7 @@ export default function TabLayout() {
                         tabBarIcon: ({ color }) => (
                             <View style={{ position: 'relative' }}>
                                 <Icon as={SettingsIcon} color={color} className="size-6" />
-                                {hasUnreadFromAdmin && (
+                                {hasUnreadNotifications && (
                                     <View
                                         style={{ position: 'absolute', top: -4, right: -6, width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: 5 }}
                                     />
@@ -110,11 +100,6 @@ export default function TabLayout() {
                         tabBarIcon: ({ color }) => (
                             <View style={{ position: 'relative' }}>
                                 <Icon as={ShieldIcon} color={color} className="size-6" />
-                                {hasAdminNotifications && (
-                                    <View
-                                        style={{ position: 'absolute', top: -4, right: -6, width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: 5 }}
-                                    />
-                                )}
                             </View>
                         ),
                         headerShown: false,

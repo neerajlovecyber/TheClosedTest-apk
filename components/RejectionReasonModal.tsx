@@ -3,13 +3,11 @@ import { View, TouchableOpacity, TextInput, Modal, Pressable, KeyboardAvoidingVi
 import { Text } from 'react-native';
 import { Icon } from '@/components/ui/icon';
 import { XIcon, AlertTriangleIcon, SendIcon } from 'lucide-react-native';
-import { api } from '@/convex/_generated/api';
-import { Id } from '@/convex/_generated/dataModel';
-import { useSmartMutation } from '@/hooks/useSmartMutation';
+import { useReviewProof } from '@/lib/api-hooks';
 
 interface RejectionReasonModalProps {
     visible: boolean;
-    proofId: Id<"proofs"> | null;
+    proofId: string | null;
     onClose: () => void;
     onRejected?: () => void;
 }
@@ -26,7 +24,7 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const reviewProof = useSmartMutation(api.matches.reviewProof, ['matches']);
+    const reviewProofMutation = useReviewProof();
 
     const handleSubmit = async () => {
         if (reason.trim().length < 10) {
@@ -38,14 +36,13 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
 
         setIsSubmitting(true);
         try {
-            // Update status in DB
-            await reviewProof({
+            await reviewProofMutation.mutateAsync({
                 proofId,
+                matchId: '',
                 status: "rejected",
                 rejectionReason: reason.trim()
             });
             setReason('');
-            // cache invalidated automatically
             onClose();
             onRejected?.();
         } catch (error: any) {

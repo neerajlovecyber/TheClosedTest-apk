@@ -7,16 +7,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { CameraIcon, XIcon, PlusIcon, SendIcon, ImageIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useMutation, useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import { Id } from '@/convex/_generated/dataModel';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { R2_WORKER_URL } from "@/utils/r2-config";
+import { useCurrentUser, usePresignedUploadUrl, useSubmitProof } from '@/lib/api-hooks';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface ProofUploaderProps {
-    matchId: Id<"matches">;
+    matchId: string;
     currentDay: number;
     todayProof?: {
         status: string;
@@ -27,14 +24,14 @@ interface ProofUploaderProps {
         canEdit?: boolean;
     } | null;
     onUploadComplete?: () => void;
-    isCompleted?: boolean; // Match is completed (14-day testing finished)
+    isCompleted?: boolean;
 }
 
 function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete, isCompleted }: ProofUploaderProps) {
     const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
-    const user = useQuery(api.users.getCurrentUser);
+    const { data: user } = useCurrentUser();
 
     // Image viewer state
     const [viewerVisible, setViewerVisible] = useState(false);
@@ -47,8 +44,8 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         setViewerVisible(true);
     }, []);
 
-    const uploadProofMutation = useMutation(api.matches.uploadProof);
-    const generateProofUploadUrl = useMutation(api.r2.generateProofUploadUrl);
+    const submitProofMutation = useSubmitProof();
+    const getPresignedUrlMutation = usePresignedUploadUrl();
 
     const handlePickImages = useCallback(async () => {
         try {
@@ -63,7 +60,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                     uri: asset.uri,
                     mimeType: asset.mimeType,
                     width: asset.width,
-                    height: asset.height
+                    height: asset.height,
                 }));
 
                 if (selectedImages.length + newImages.length > 5) {
@@ -82,8 +79,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         setSelectedImages(images => images.filter((_, i) => i !== index));
     }, []);
 
-
-
     const handleUpload = useCallback(async () => {
         if (selectedImages.length === 0) {
             toast.error('Required', { description: 'Please select at least 1 image' });
@@ -98,47 +93,39 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         setIsUploading(true);
 
         try {
-            const uploaderId = user?._id || 'unknown';
             const FileSystem = require('expo-file-system/legacy');
 
-            // 1. Process images in PARALLEL (Resize & Compress)
+            // 1. Resize and compress to WebP
             const processedImages = await Promise.all(
                 selectedImages.map(async (image: { uri: string; width?: number }) => {
                     const actions: ImageManipulator.Action[] = [];
-
-                    // Only resize if width is greater than 1200 to prevent upscaling
                     if (image.width && image.width > 1200) {
                         actions.push({ resize: { width: 1200 } });
                     }
 
-                    const manipResult = await ImageManipulator.manipulateAsync(
+                    return await ImageManipulator.manipulateAsync(
                         image.uri,
                         actions,
-                        { compress: 0.6, format: ImageManipulator.SaveFormat.WEBP } // WebP + 0.6 Quality
+                        { compress: 0.7, format: ImageManipulator.SaveFormat.WEBP }
                     );
-                    return manipResult;
                 })
             );
 
-            // 2. Upload processed images in PARALLEL using Convex R2 signed URLs
+            // 2. Upload to Cloudflare R2 via presigned URLs
             const uploadPromises = processedImages.map(async (image, i: number) => {
-                // Get signed upload URL from Convex R2
-                const { key: r2Key, url: signedUrl } = await generateProofUploadUrl({
-                    matchId: matchId as string,
-                    uploaderId: uploaderId as string,
-                    day: currentDay,
-                    index: i,
+                const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
+                    filename: `proof_${matchId}_day${currentDay}_${i}_${Date.now()}.webp`,
+                    contentType: 'image/webp',
+                    folder: 'proofs',
                 });
 
-                // Read file as base64
                 const base64 = await FileSystem.readAsStringAsync(image.uri, {
                     encoding: FileSystem.EncodingType.Base64,
                 });
 
-                // Upload using XMLHttpRequest (React Native compatible)
                 await new Promise<void>((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
-                    xhr.open('PUT', signedUrl, true);
+                    xhr.open('PUT', uploadUrl, true);
                     xhr.setRequestHeader('Content-Type', 'image/webp');
                     xhr.onload = () => {
                         if (xhr.status >= 200 && xhr.status < 300) {
@@ -149,7 +136,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                     };
                     xhr.onerror = () => reject(new Error('Upload failed'));
 
-                    // Convert base64 to binary and send
                     const binaryString = atob(base64);
                     const bytes = new Uint8Array(binaryString.length);
                     for (let j = 0; j < binaryString.length; j++) {
@@ -158,20 +144,18 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                     xhr.send(bytes.buffer);
                 });
 
-                // Return the public URL for this image
-                return `${R2_WORKER_URL}/${r2Key}`;
+                return publicUrl;
             });
 
-            const r2Urls = await Promise.all(uploadPromises);
-            console.log('R2 Upload Success via Convex:', r2Urls);
+            const uploadedUrls = await Promise.all(uploadPromises);
 
-            // Submit proof with R2 URLs as storageIds
-            await uploadProofMutation({
+            // 3. Submit proof to backend API
+            await submitProofMutation.mutateAsync({
                 matchId,
-                storageIds: r2Urls,
                 day: currentDay,
-                type: "image",
-                comment: comment.trim() || undefined
+                type: 'image',
+                storageUrls: uploadedUrls,
+                comment: comment.trim() || undefined,
             });
 
             toast.success('Success', { description: 'Proof uploaded successfully!' });
@@ -184,9 +168,8 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         } finally {
             setIsUploading(false);
         }
-    }, [selectedImages, matchId, currentDay, comment, uploadProofMutation, generateProofUploadUrl, onUploadComplete, user]);
+    }, [selectedImages, matchId, currentDay, comment, submitProofMutation, getPresignedUrlMutation, onUploadComplete, user]);
 
-    // Memoized upload UI renderer
     const renderUploadUI = useCallback(() => {
         return (
             <View>
@@ -271,7 +254,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         );
     }, [selectedImages, comment, isUploading, currentDay, handlePickImages, removeImage, handleUpload]);
 
-    // Image viewer modal component - always rendered
+    // Image viewer modal
     const imageViewerModal = (
         <Modal
             visible={viewerVisible}
@@ -280,14 +263,12 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             onRequestClose={() => setViewerVisible(false)}
         >
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
-                {/* Image counter at top */}
                 <View style={{ paddingTop: 50, paddingBottom: 10, alignItems: 'center' }}>
                     <Text className="text-white text-center font-medium">
                         {viewerIndex + 1} / {viewerImages.length}
                     </Text>
                 </View>
 
-                {/* Horizontal swipe to navigate images */}
                 <ScrollView
                     horizontal
                     pagingEnabled
@@ -311,7 +292,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                     ))}
                 </ScrollView>
 
-                {/* Navigation indicators (Arrows) */}
                 {viewerImages.length > 1 && (
                     <View style={{ position: 'absolute', top: 0, bottom: 0, left: 10, justifyContent: 'center' }} pointerEvents="none">
                         {viewerIndex > 0 && (
@@ -331,7 +311,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                     </View>
                 )}
 
-                {/* Close button at bottom */}
                 <View style={{ paddingBottom: 40, paddingTop: 15, alignItems: 'center' }}>
                     <Pressable
                         onPress={() => setViewerVisible(false)}
@@ -344,9 +323,8 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         </Modal>
     );
 
-    // For completed matches, show read-only view with images
     if (isCompleted) {
-        if (todayProof && todayProof.status === "approved") {
+        if (todayProof && todayProof.status === 'approved') {
             return (
                 <>
                     <Card className="bg-green-500/10 border-green-500/30 mb-4">
@@ -358,7 +336,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                                     <Text className="text-muted-foreground text-xs">Proof approved</Text>
                                 </View>
                             </View>
-                            {/* Show proof images - clickable */}
                             {todayProof.urls && todayProof.urls.length > 0 && (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {todayProof.urls.map((url, i) => (
@@ -389,8 +366,8 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                             <View className="flex-1">
                                 <Text className="font-medium text-muted-foreground text-sm">Day {currentDay}</Text>
                                 <Text className="text-muted-foreground text-xs">
-                                    {todayProof?.status === "pending" ? "Pending review" :
-                                        todayProof?.status === "rejected" ? "Was rejected" : "Not uploaded"}
+                                    {todayProof?.status === 'pending' ? 'Pending review' :
+                                        todayProof?.status === 'rejected' ? 'Was rejected' : 'Not uploaded'}
                                 </Text>
                             </View>
                         </View>
@@ -401,9 +378,8 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         );
     }
 
-    // Show status for already submitted proof
     if (todayProof && todayProof.status) {
-        if (todayProof.status === "approved") {
+        if (todayProof.status === 'approved') {
             return (
                 <>
                     <Card className="bg-green-500/10 border-green-500/30 mb-4">
@@ -415,7 +391,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                                     <Text className="text-muted-foreground text-xs">Your proof has been approved</Text>
                                 </View>
                             </View>
-                            {/* Show proof images - clickable */}
                             {todayProof.urls && todayProof.urls.length > 0 && (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {todayProof.urls.map((url, i) => (
@@ -438,7 +413,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             );
         }
 
-        if (todayProof.status === "pending") {
+        if (todayProof.status === 'pending') {
             return (
                 <>
                     <Card className="bg-orange-500/10 border-orange-500/30 mb-4">
@@ -475,7 +450,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             );
         }
 
-        if (todayProof.status === "rejected") {
+        if (todayProof.status === 'rejected') {
             return (
                 <>
                     <View>
@@ -496,7 +471,6 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                                 )}
                             </CardContent>
                         </Card>
-                        {/* Show upload UI below */}
                         {renderUploadUI()}
                     </View>
                     {imageViewerModal}
@@ -513,5 +487,4 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     );
 }
 
-// Export memoized component
 export const ProofUploader = memo(ProofUploaderComponent);

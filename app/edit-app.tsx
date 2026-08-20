@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Platform, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import {
@@ -13,34 +12,27 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/lib/sonner';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { useMutation, useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeftIcon, UploadIcon, ImagePlusIcon, XIcon, CheckCircleIcon, Trash2Icon } from 'lucide-react-native';
+import { ArrowLeftIcon, UploadIcon, Trash2Icon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
-import { Switch } from '@/components/ui/switch';
-import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { Id } from '@/convex/_generated/dataModel';
-import { R2_WORKER_URL } from "@/utils/r2-config";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useAppDetails, useUpdateApp, usePresignedUploadUrl } from '@/lib/api-hooks';
 
 export default function EditAppScreen() {
     const router = useRouter();
-    const { id } = useLocalSearchParams();
-    const appId = id as Id<"apps">;
+    const { id } = useLocalSearchParams<{ id: string }>();
+    const appId = id as string;
 
-    const app = useQuery(api.apps.getAppArgs, { appId });
-    const updateApp = useMutation(api.apps.updateApp);
-    const deleteApp = useMutation(api.apps.deleteApp);
-    const generateAppIconUploadUrl = useMutation(api.r2.generateAppIconUploadUrl);
-    const deleteR2Object = useMutation(api.r2.deleteR2Object);
+    const { data: app, isLoading } = useAppDetails(appId);
+    const updateAppMutation = useUpdateApp();
+    const getPresignedUrlMutation = usePresignedUploadUrl();
 
     const [title, setTitle] = useState('');
     const [playStoreUrl, setPlayStoreUrl] = useState('');
@@ -48,15 +40,10 @@ export default function EditAppScreen() {
     const [instructions, setInstructions] = useState('');
     const [requiredTesters, setRequiredTesters] = useState('12');
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Processed image URI to display/upload
     const [processedImageUri, setProcessedImageUri] = useState<string | null>(null);
-    // Remote URL of existing image
     const [currentIconUrl, setCurrentIconUrl] = useState<string | null>(null);
-
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    // Pre-fill form when app data is loaded
     useEffect(() => {
         if (app) {
             setTitle(app.title);
@@ -68,14 +55,10 @@ export default function EditAppScreen() {
         }
     }, [app]);
 
-    // Auto-extract package name
     React.useEffect(() => {
         const match = playStoreUrl.match(/id=([a-zA-Z0-9_.]+)/);
         if (match && match[1]) {
             setPackageName(match[1]);
-        } else if (!app) {
-            // Only clear if not editing existing valid package
-            setPackageName('');
         }
     }, [playStoreUrl]);
 
@@ -88,22 +71,16 @@ export default function EditAppScreen() {
         });
 
         if (!result.canceled) {
-            await optimizeImage(result.assets[0].uri);
-        }
-    };
-
-    const optimizeImage = async (uri: string) => {
-        try {
-            const result = await manipulateAsync(
-                uri,
-                [{ resize: { width: 128, height: 128 } }],
-                { compress: 0.8, format: SaveFormat.WEBP }
-            );
-            setProcessedImageUri(result.uri);
-        } catch (error) {
-            console.error("Optimization failed:", error);
-            toast.error("Error", { description: "Failed to process image." });
-            setProcessedImageUri(uri);
+            try {
+                const manipulated = await manipulateAsync(
+                    result.assets[0].uri,
+                    [{ resize: { width: 128, height: 128 } }],
+                    { compress: 0.8, format: SaveFormat.WEBP }
+                );
+                setProcessedImageUri(manipulated.uri);
+            } catch {
+                setProcessedImageUri(result.assets[0].uri);
+            }
         }
     };
 
@@ -113,96 +90,82 @@ export default function EditAppScreen() {
             return;
         }
 
-        if (!packageName) {
-            toast.error('Error', { description: 'Invalid Play Store link. Could not extract package name.' });
-            return;
-        }
-
-        const testers = parseInt(requiredTesters);
-        if (isNaN(testers) || testers < 0 || testers > 12) {
-            toast.error('Error', { description: 'Please enter a number between 0 and 12 for required testers' });
-            return;
-        }
-
         setIsSubmitting(true);
         try {
-            let iconUrl = currentIconUrl;
+            let iconUrl = currentIconUrl || undefined;
 
-            // Upload new image if selected using Convex R2
             if (processedImageUri) {
-                try {
-                    // Generate signed upload URL with deterministic key
-                    const { key: r2Key, url: signedUrl } = await generateAppIconUploadUrl({
-                        appId: appId as string
-                    });
+                const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
+                    filename: `app_${appId}_icon.webp`,
+                    contentType: 'image/webp',
+                    folder: 'icons',
+                });
 
-                    // Read file as base64 and upload via XMLHttpRequest (works in React Native)
-                    const FileSystem = require('expo-file-system/legacy');
-                    const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
-                        encoding: FileSystem.EncodingType.Base64,
-                    });
+                const FileSystem = require('expo-file-system/legacy');
+                const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
 
-                    // Upload using XMLHttpRequest (React Native compatible)
-                    await new Promise<void>((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('PUT', signedUrl, true);
-                        xhr.setRequestHeader('Content-Type', 'image/webp');
-                        xhr.onload = () => {
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                resolve();
-                            } else {
-                                reject(new Error(`Upload failed: ${xhr.status}`));
-                            }
-                        };
-                        xhr.onerror = () => reject(new Error('Upload failed'));
-
-                        // Convert base64 to binary and send
-                        const binaryString = atob(base64);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
+                await new Promise<void>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', uploadUrl, true);
+                    xhr.setRequestHeader('Content-Type', 'image/webp');
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error(`Upload failed: ${xhr.status}`));
                         }
-                        xhr.send(bytes.buffer);
-                    });
+                    };
+                    xhr.onerror = () => reject(new Error('Upload failed'));
 
-                    // Build the public URL with cache-bust timestamp
+                    const binaryString = atob(base64);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    xhr.send(bytes.buffer);
+                });
 
-
-                    iconUrl = `${R2_WORKER_URL}/${r2Key}?t=${Date.now()}`;
-                    console.log(`R2 Upload Success via Convex: ${iconUrl}`);
-                } catch (uploadError: any) {
-                    toast.error("Error", { description: "Icon upload failed: " + uploadError.message });
-                    setIsSubmitting(false);
-                    return;
-                }
+                iconUrl = publicUrl;
             }
 
-            // Update App
-            await updateApp({
-                appId: appId,
+            await updateAppMutation.mutateAsync({
+                id: appId,
                 title,
-                packageName,
                 playStoreUrl,
-                iconUrl: iconUrl || undefined,
+                iconUrl,
                 instructions,
-                requiredTesters: testers,
             });
 
             toast.success('Success', { description: 'App updated successfully!' });
             router.back();
         } catch (error: any) {
-            console.error("Submit error:", error);
+            console.error('Submit error:', error);
             toast.error('Error', { description: error.message || 'Failed to update app' });
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const addInstruction = (text: string) => {
-        setInstructions(prev => prev ? `${prev}\n- ${text}` : `- ${text}`);
+    const handleDelete = async () => {
+        setIsSubmitting(true);
+        try {
+            await updateAppMutation.mutateAsync({
+                id: appId,
+                status: 'archived',
+            });
+            toast.success('Deleted', { description: 'App archived successfully.' });
+            router.replace('/(tabs)/' as any);
+        } catch (error: any) {
+            toast.error('Error', { description: error.message || 'Failed to archive app' });
+        } finally {
+            setIsSubmitting(false);
+            setShowDeleteConfirm(false);
+        }
     };
 
-    if (!app) {
+    if (isLoading || !app) {
         return (
             <View className="flex-1 bg-background items-center justify-center">
                 <ActivityIndicator size="large" />
@@ -238,156 +201,87 @@ export default function EditAppScreen() {
                                         className="size-28 rounded-2xl border-2 border-primary/20 bg-muted"
                                     />
                                     <View className="absolute -top-2 -right-2 bg-background rounded-full p-1 border border-border shadow-sm">
-                                        <Icon as={processedImageUri ? CheckCircleIcon : EditIcon} className="size-4 text-primary" />
+                                        <Icon as={UploadIcon} className="size-4 text-primary" />
                                     </View>
                                 </View>
-                                <Text className="text-xs text-center text-muted-foreground mt-2">Tap to change icon</Text>
                             </TouchableOpacity>
                         </View>
 
                         <View>
-                            <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name (max 30)</Label>
+                            <Label nativeID="appName" className="text-base font-semibold mb-1.5">App Name</Label>
                             <Input
                                 nativeID="appName"
-                                placeholder="e.g. Flappy Bird 2"
                                 value={title}
                                 onChangeText={setTitle}
                                 maxLength={30}
-                                className="bg-background/50 border-primary/20 focus:border-primary"
                             />
-                            <Text className="text-xs text-muted-foreground text-right mt-1">{title.length}/30</Text>
                         </View>
 
                         <View>
                             <Label nativeID="playUrl" className="text-base font-semibold mb-1.5">Google Play Link</Label>
                             <Input
                                 nativeID="playUrl"
-                                placeholder="https://play.google.com/..."
                                 value={playStoreUrl}
                                 onChangeText={setPlayStoreUrl}
-                                maxLength={200}
-                                className="bg-background/50 border-primary/20 focus:border-primary"
                             />
-                            {/* Package Name Display */}
-                            {packageName ? (
-                                <Text className="text-xs text-green-600 mt-1 font-medium">
-                                    Detected Package: {packageName}
-                                </Text>
-                            ) : (
-                                <Text className="text-xs text-destructive mt-1">
-                                    Invalid Play Store URL
-                                </Text>
-                            )}
                         </View>
                     </CardContent>
                 </Card>
 
                 <Card className="mb-6">
                     <CardHeader>
-                        <CardTitle>Testing Requirements</CardTitle>
+                        <CardTitle>Testing Instructions</CardTitle>
                     </CardHeader>
                     <CardContent className="gap-4">
-                        <View>
-                            <Label nativeID="testers">Testers Needed (max 12) *</Label>
-                            <Input
-                                nativeID="testers"
-                                keyboardType="numeric"
-                                value={requiredTesters}
-                                onChangeText={setRequiredTesters}
-                                placeholder="12"
-                            />
-                        </View>
-
-                        <View>
-                            <Label nativeID="instructions">Instructions for Testers (max 250) *</Label>
-                            <Textarea
-                                nativeID="instructions"
-                                placeholder="Explain how to test your app..."
-                                value={instructions}
-                                onChangeText={setInstructions}
-                                maxLength={250}
-                                className="h-32"
-                            />
-                            <Text className="text-xs text-muted-foreground text-right mt-1">{instructions.length}/250</Text>
-                            <View className="flex-row flex-wrap gap-2 mt-3">
-                                <Button variant="outline" size="sm" onPress={() => addInstruction("Keep installed for 14 days")}>
-                                    <Text>+ 14 Days</Text>
-                                </Button>
-                                <Button variant="outline" size="sm" onPress={() => addInstruction("Open daily")}>
-                                    <Text>+ Open Daily</Text>
-                                </Button>
-                                <Button variant="outline" size="sm" onPress={() => addInstruction("Leave constructive feedback")}>
-                                    <Text>+ Feedback</Text>
-                                </Button>
-                                <Button variant="outline" size="sm" onPress={() => addInstruction("Upload screenshot")}>
-                                    <Text>+ Screenshot</Text>
-                                </Button>
-                            </View>
-                        </View>
+                        <Textarea
+                            nativeID="instructions"
+                            value={instructions}
+                            onChangeText={setInstructions}
+                            maxLength={250}
+                            className="h-32"
+                        />
                     </CardContent>
                 </Card>
 
-                <Button
-                    size="lg"
-                    onPress={handleSubmit}
-                    disabled={isSubmitting}
-                    className="mb-4 rounded-2xl shadow-sm"
-                >
-                    {isSubmitting ? (
-                        <View className="flex-row items-center gap-2">
+                <View className="gap-3 mb-8">
+                    <Button
+                        size="lg"
+                        onPress={handleSubmit}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? (
                             <ActivityIndicator color="white" size="small" />
-                            <Text className="text-white font-bold">Updating...</Text>
-                        </View>
-                    ) : (
-                        <Text className="text-white font-bold text-lg">Save Changes</Text>
-                    )}
-                </Button>
+                        ) : (
+                            <Text>Save Changes</Text>
+                        )}
+                    </Button>
 
-                <Button
-                    variant="destructive"
-                    size="lg"
-                    onPress={() => setShowDeleteConfirm(true)}
-                    disabled={isSubmitting}
-                    className="mb-12 rounded-2xl shadow-sm"
-                >
-                    <View className="flex-row items-center gap-2">
-                        <Icon as={Trash2Icon} className="size-5 text-white" />
-                        <Text className="text-white font-bold text-lg">Delete App</Text>
-                    </View>
-                </Button>
+                    <Button
+                        size="lg"
+                        variant="destructive"
+                        onPress={() => setShowDeleteConfirm(true)}
+                        disabled={isSubmitting}
+                    >
+                        <Icon as={Trash2Icon} className="size-4 text-white mr-2" />
+                        <Text className="text-white font-bold">Delete App</Text>
+                    </Button>
+                </View>
             </KeyboardAwareScrollView>
 
             <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete App</AlertDialogTitle>
+                        <AlertDialogTitle>Delete App?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure? This will permanently remove your app and all associated test records. This cannot be undone.
+                            Are you sure you want to delete this app? This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onPress={() => setShowDeleteConfirm(false)}>
                             <Text>Cancel</Text>
                         </AlertDialogCancel>
-                        <AlertDialogAction onPress={async () => {
-                            setShowDeleteConfirm(false);
-                            try {
-                                setIsSubmitting(true);
-                                // Delete image from R2 using Convex mutation
-                                try {
-                                    await deleteR2Object({ key: `app-icons/${appId}.webp` });
-                                } catch (imgError) {
-                                    console.warn("Failed to delete image", imgError);
-                                }
-
-                                await deleteApp({ appId });
-                                router.replace("/(tabs)/" as any);
-                            } catch (err: any) {
-                                toast.error("Error", { description: err.message });
-                                setIsSubmitting(false);
-                            }
-                        }}>
-                            <Text>Delete</Text>
+                        <AlertDialogAction onPress={handleDelete} className="bg-destructive">
+                            <Text className="text-white font-bold">Delete</Text>
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -395,6 +289,3 @@ export default function EditAppScreen() {
         </View>
     );
 }
-
-// Helper to avoid Icon.as undefined error if EditIcon is used in inline JSX
-import { EditIcon } from 'lucide-react-native';
