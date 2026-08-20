@@ -5,6 +5,7 @@ import { jsonContent } from "stoker/openapi/helpers"
 
 import { db } from "../db"
 import { boostCycles, boostLeaderboard } from "../db/schema"
+import { memoryCache } from "../lib/cache"
 import { createRouter } from "../lib/create-app"
 
 const LeaderboardEntrySchema = z.object({
@@ -20,6 +21,13 @@ const LeaderboardEntrySchema = z.object({
     })
     .optional(),
 })
+
+type LeaderboardEntryType = z.infer<typeof LeaderboardEntrySchema>
+
+interface LeaderboardResponse {
+  leaderboard: LeaderboardEntryType[]
+  cycleEnd: string | Date | null
+}
 
 const router = createRouter()
 
@@ -46,6 +54,12 @@ router.openapi(
   }),
   async (c) => {
     const { limit } = c.req.valid("query")
+    const cacheKey = `leaderboard:${limit}`
+
+    const cached = memoryCache.get<LeaderboardResponse>(cacheKey)
+    if (cached) {
+      return c.json(cached, HttpStatusCodes.OK)
+    }
 
     const entries = await db.query.boostLeaderboard.findMany({
       orderBy: [desc(boostLeaderboard.boostScore)],
@@ -56,13 +70,14 @@ router.openapi(
       orderBy: [desc(boostCycles.cycleEnd)],
     })
 
-    return c.json(
-      {
-        leaderboard: entries,
-        cycleEnd: currentCycle?.cycleEnd || null,
-      },
-      HttpStatusCodes.OK,
-    )
+    const responseData: LeaderboardResponse = {
+      leaderboard: entries,
+      cycleEnd: currentCycle?.cycleEnd || null,
+    }
+
+    memoryCache.set(cacheKey, responseData, 10)
+
+    return c.json(responseData, HttpStatusCodes.OK)
   },
 )
 

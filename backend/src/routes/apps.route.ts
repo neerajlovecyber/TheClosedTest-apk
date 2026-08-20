@@ -6,6 +6,7 @@ import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
 import { appBans, apps, users } from "../db/schema"
+import { memoryCache } from "../lib/cache"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 
@@ -30,6 +31,8 @@ const AppSchema = z.object({
   updatedAt: z.string().or(z.date()),
 })
 
+type AppType = z.infer<typeof AppSchema>
+
 const CreateAppSchema = z.object({
   title: z.string().min(2),
   packageName: z.string().min(3),
@@ -49,7 +52,7 @@ const VoteSchema = z.object({
 
 const router = createRouter()
 
-// 1. List Public Recruiting Apps
+// 1. List Public Recruiting Apps (Cached for 5 seconds)
 router.openapi(
   createRoute({
     tags: ["Apps"],
@@ -75,6 +78,12 @@ router.openapi(
   }),
   async (c) => {
     const { search, limit, offset } = c.req.valid("query")
+    const cacheKey = `apps_list:${search || ""}:${limit}:${offset}`
+
+    const cached = memoryCache.get<{ apps: AppType[]; total: number }>(cacheKey)
+    if (cached) {
+      return c.json(cached, HttpStatusCodes.OK)
+    }
 
     const conditions = [
       eq(apps.status, "recruiting"),
@@ -97,13 +106,14 @@ router.openapi(
       offset,
     })
 
-    return c.json(
-      {
-        apps: items,
-        total: items.length,
-      },
-      HttpStatusCodes.OK,
-    )
+    const responseData = {
+      apps: items,
+      total: items.length,
+    }
+
+    memoryCache.set(cacheKey, responseData, 5)
+
+    return c.json(responseData, HttpStatusCodes.OK)
   },
 )
 
@@ -121,22 +131,23 @@ router.openapi(
   }),
   async (c) => {
     const userVar = c.get("user")!
-    const userApps = await db.query.apps.findMany({
+
+    const items = await db.query.apps.findMany({
       where: and(eq(apps.userId, userVar.id), not(eq(apps.status, "archived"))),
       orderBy: [desc(apps.createdAt)],
     })
 
-    return c.json(userApps, HttpStatusCodes.OK)
+    return c.json(items, HttpStatusCodes.OK)
   },
 )
 
-// 3. Submit New App
+// 3. Create / Submit a New App
 router.openapi(
   createRoute({
     tags: ["Apps"],
     method: "post",
     path: "/api/apps",
-    summary: "Submit New App for Closed Testing",
+    summary: "Submit New App for 14-Day Testing",
     middleware: [authMiddleware] as const,
     request: {
       body: jsonContentRequired(CreateAppSchema, "App Creation Payload"),
@@ -144,7 +155,7 @@ router.openapi(
     responses: {
       [HttpStatusCodes.CREATED]: jsonContent(AppSchema, "App created"),
       [HttpStatusCodes.BAD_REQUEST]: jsonContent(
-        createMessageObjectSchema("Validation Error or Limit Exceeded"),
+        createMessageObjectSchema("Limit reached or banned"),
         "Validation error",
       ),
     },
@@ -153,19 +164,19 @@ router.openapi(
     const userVar = c.get("user")!
     const body = c.req.valid("json")
 
-    // Check if package name is banned
+    // Check banned package names
     const isBanned = await db.query.appBans.findFirst({
       where: eq(appBans.packageName, body.packageName),
     })
 
     if (isBanned) {
       return c.json(
-        { message: `Package name "${body.packageName}" is banned: ${isBanned.reason}` },
+        { message: "This app package has been banned from testing." },
         HttpStatusCodes.BAD_REQUEST,
       )
     }
 
-    // Check user app slot limit
+    // Check user active apps limit (unlockedAppSlots)
     const user = await db.query.users.findFirst({
       where: eq(users.id, userVar.id),
     })
@@ -208,6 +219,9 @@ router.openapi(
       .update(users)
       .set({ appsCount: user.appsCount + 1 })
       .where(eq(users.id, user.id))
+
+    // Invalidate public feed cache
+    memoryCache.delete("apps_list:")
 
     return c.json(newApp, HttpStatusCodes.CREATED)
   },
@@ -287,6 +301,9 @@ router.openapi(
       .where(eq(apps.id, id))
       .returning()
 
+    // Invalidate public feed cache
+    memoryCache.delete("apps_list:")
+
     return c.json(updated, HttpStatusCodes.OK)
   },
 )
@@ -359,6 +376,9 @@ router.openapi(
         updatedAt: new Date(),
       })
       .where(eq(apps.id, id))
+
+    // Invalidate public feed cache
+    memoryCache.delete("apps_list:")
 
     return c.json({ message: "Vote recorded successfully" }, HttpStatusCodes.OK)
   },
