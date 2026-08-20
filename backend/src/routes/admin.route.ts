@@ -1,11 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, count, desc, eq } from "drizzle-orm"
+import { and, asc, count, desc, eq } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
 import {
+  adminChats,
+  adminMessages,
   analytics,
   appBans,
   apps,
@@ -71,6 +73,31 @@ const BanAppSchema = z.object({
   playStoreUrl: z.string().url(),
   title: z.string(),
   reason: z.string().min(3),
+})
+
+const AdminChatSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  adminId: z.string().nullable().optional(),
+  lastMessage: z.string(),
+  updatedAt: z.string().or(z.date()),
+  hasUnreadUser: z.boolean(),
+  hasUnreadAdmin: z.boolean(),
+})
+
+const AdminMessageSchema = z.object({
+  id: z.string(),
+  chatId: z.string(),
+  senderId: z.string(),
+  content: z.string(),
+  type: z.enum(["text", "image"]),
+  isAdmin: z.boolean(),
+  sentAt: z.string().or(z.date()),
+})
+
+const SendAdminMessageSchema = z.object({
+  content: z.string().min(1),
+  type: z.enum(["text", "image"]).default("text"),
 })
 
 const router = createRouter()
@@ -265,6 +292,165 @@ router.openapi(
       },
       HttpStatusCodes.OK,
     )
+  },
+)
+
+// 6. Get or Create My Support Chat (User)
+router.openapi(
+  createRoute({
+    tags: ["Support"],
+    method: "post",
+    path: "/api/support/my-chat",
+    summary: "Get or Create Support Chat",
+    middleware: [authMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(AdminChatSchema, "User support chat"),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+
+    const existingChat = await db.query.adminChats.findFirst({
+      where: eq(adminChats.userId, userVar.id),
+    })
+
+    if (existingChat) {
+      return c.json(existingChat, HttpStatusCodes.OK)
+    }
+
+    const [newChat] = await db
+      .insert(adminChats)
+      .values({
+        userId: userVar.id,
+        lastMessage: "",
+        hasUnreadUser: false,
+        hasUnreadAdmin: false,
+      })
+      .returning()
+
+    return c.json(newChat, HttpStatusCodes.OK)
+  },
+)
+
+// 7. Get Support Chat Messages
+router.openapi(
+  createRoute({
+    tags: ["Support"],
+    method: "get",
+    path: "/api/support/chats/:chatId",
+    summary: "Get Support Chat History",
+    middleware: [authMiddleware] as const,
+    request: {
+      params: z.object({ chatId: z.string() }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.object({
+          chat: AdminChatSchema,
+          messages: z.array(AdminMessageSchema),
+        }),
+        "Support chat history",
+      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(
+        createMessageObjectSchema("Chat not found"),
+        "Chat not found",
+      ),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(
+        createMessageObjectSchema("Forbidden"),
+        "Forbidden",
+      ),
+    },
+  }),
+  async (c) => {
+    const { chatId } = c.req.valid("param")
+    const userVar = c.get("user")!
+
+    const chat = await db.query.adminChats.findFirst({
+      where: eq(adminChats.id, chatId),
+    })
+
+    if (!chat) {
+      return c.json({ message: "Chat not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    if (chat.userId !== userVar.id && !userVar.isAdmin) {
+      return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    const messages = await db.query.adminMessages.findMany({
+      where: eq(adminMessages.chatId, chatId),
+      orderBy: [asc(adminMessages.sentAt)],
+    })
+
+    return c.json({ chat, messages }, HttpStatusCodes.OK)
+  },
+)
+
+// 8. Send Message in Support Chat
+router.openapi(
+  createRoute({
+    tags: ["Support"],
+    method: "post",
+    path: "/api/support/chats/:chatId/messages",
+    summary: "Send Message in Support Chat",
+    middleware: [authMiddleware] as const,
+    request: {
+      params: z.object({ chatId: z.string() }),
+      body: jsonContentRequired(SendAdminMessageSchema, "Support Message Payload"),
+    },
+    responses: {
+      [HttpStatusCodes.CREATED]: jsonContent(AdminMessageSchema, "Message sent"),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(
+        createMessageObjectSchema("Chat not found"),
+        "Chat not found",
+      ),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(
+        createMessageObjectSchema("Forbidden"),
+        "Forbidden",
+      ),
+    },
+  }),
+  async (c) => {
+    const { chatId } = c.req.valid("param")
+    const userVar = c.get("user")!
+    const body = c.req.valid("json")
+
+    const chat = await db.query.adminChats.findFirst({
+      where: eq(adminChats.id, chatId),
+    })
+
+    if (!chat) {
+      return c.json({ message: "Chat not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    const isAdmin = Boolean(userVar.isAdmin)
+    if (chat.userId !== userVar.id && !isAdmin) {
+      return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    const [newMessage] = await db
+      .insert(adminMessages)
+      .values({
+        chatId,
+        senderId: userVar.id,
+        content: body.content,
+        type: body.type,
+        isAdmin,
+      })
+      .returning()
+
+    await db
+      .update(adminChats)
+      .set({
+        lastMessage: body.content,
+        hasUnreadUser: isAdmin ? true : chat.hasUnreadUser,
+        hasUnreadAdmin: !isAdmin ? true : chat.hasUnreadAdmin,
+        adminId: isAdmin ? userVar.id : chat.adminId,
+        updatedAt: new Date(),
+      })
+      .where(eq(adminChats.id, chatId))
+
+    return c.json(newMessage, HttpStatusCodes.CREATED)
   },
 )
 
