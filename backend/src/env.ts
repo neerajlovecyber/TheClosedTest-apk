@@ -10,7 +10,9 @@ const EnvSchema = z.object({
     .string()
     .min(1)
     .default("postgresql://postgres:postgres@localhost:5432/closedtest"),
-  BETTER_AUTH_SECRET: z.string().default("dev-secret-change-me-in-production-123456"),
+  BETTER_AUTH_SECRET: z
+    .string()
+    .default("dev-secret-change-me-in-production-1234567890abcdef"),
   BETTER_AUTH_URL: z.string().default("http://localhost:9000"),
   EXPO_ACCESS_TOKEN: z.string().optional(),
   CLOUDFLARE_R2_ACCOUNT_ID: z.string().optional(),
@@ -29,6 +31,10 @@ function parseEnv(): Env {
     console.error("❌ Invalid environment variables:", parsed.error.flatten().fieldErrors)
     throw new Error("Invalid environment variables")
   }
+
+  // Ensure process.env has these values for libraries that inspect process.env directly
+  process.env.BETTER_AUTH_SECRET = parsed.data.BETTER_AUTH_SECRET
+  process.env.BETTER_AUTH_URL = parsed.data.BETTER_AUTH_URL
 
   return parsed.data
 }
