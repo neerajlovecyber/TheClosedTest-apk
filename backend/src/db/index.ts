@@ -1,9 +1,11 @@
-import { neon } from "@neondatabase/serverless"
-import { drizzle } from "drizzle-orm/neon-http"
+import { drizzle } from "drizzle-orm/postgres-js"
+import postgres from "postgres"
 
-if (process.env.DATABASE_URL === undefined) {
-  throw new Error("DATABASE_URL environment variable is not set")
-}
+import { env } from "../env"
+import * as schema from "./schema"
 
-const sql = neon(process.env.DATABASE_URL)
-export const db = drizzle({ client: sql })
+const client = postgres(env.DATABASE_URL, {
+  ssl: env.DATABASE_URL.includes("sslmode=require") ? "require" : undefined,
+})
+
+export const db = drizzle(client, { schema })
