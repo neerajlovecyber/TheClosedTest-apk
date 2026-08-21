@@ -13,7 +13,7 @@
 [![Cloudflare R2](https://img.shields.io/badge/Storage-Cloudflare_R2-F38020?logo=cloudflare&logoColor=white)](https://www.cloudflare.com/products/r2/)
 
 <p align="center">
-  <b>Connect with fellow Android developers to ethically test each other's apps and pass Google Play's 14-day 20-tester requirement together.</b>
+  <b>Connect with fellow Android developers to ethically test each other's apps and pass Google Play's 14-day 12-tester requirement together.</b>
 </p>
 
 </div>
@@ -22,7 +22,7 @@
 
 ## 🌟 Overview
 
-Google Play Console requires personal developer accounts to run a **14-day closed test with at least 20 continuous testers** before requesting production access. Finding genuine, daily testers is difficult for solo indie developers and small startups.
+Google Play Console requires personal developer accounts to run a **14-day closed test with at least 12 continuous testers** before requesting production access. Finding genuine, daily testers is difficult for solo indie developers and small startups.
 
 **TheClosedTest** solves this problem through an ethical, community-driven **peer testing exchange**:
 - 🤝 **Reciprocal Testing Swaps**: "I test your app for 14 days, you test mine."
