@@ -6,6 +6,7 @@ on:
       buildType:
         type: choice
         description: "Build type to run"
+        default: "all"
         options:
           - dev
           - prod
@@ -13,7 +14,6 @@ on:
 
 env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-  NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
   check-skip:
@@ -27,87 +27,64 @@ jobs:
     needs: check-skip
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
+      - name: 🔑 Check for EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::Missing EXPO_TOKEN secret! Please configure EXPO_TOKEN in your GitHub repository secrets."
+            exit 1
+          fi
+
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
-
-      - name: 🏗 Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          fetch-depth: 0
 
       - name: 🏗 Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: 📦 Setup bun cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb', '**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
       - name: 📦 Install dependencies
-        run: |
-          bun install
-          bun add -g eas-cli@latest
+        run: bun install
 
-      - name: 📱 Setup EAS build cache
-        uses: actions/cache@v3
+      - name: 📱 Setup EAS
+        uses: expo/expo-github-action@v9
         with:
-          path: ~/.eas-build-local
-          key: ${{ runner.os }}-eas-build-local-${{ hashFiles('**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-eas-build-local-
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: bun
+          eas-cache: true
 
-      - name: 🔄 Verify EAS CLI installation
-        run: |
-          echo "EAS CLI version:"
-          eas --version
-
-      - name: 📋 Fix package.json main entry
-        run: |
-          # Check if jq is installed, if not install it
-          if ! command -v jq &> /dev/null; then
-            echo "Installing jq..."
-            sudo apt-get update && sudo apt-get install -y jq
-          fi
-
-          # Fix the main entry in package.json
-          if [ -f ./package.json ]; then
-            # Create a backup
-            cp package.json package.json.bak
-            # Update the package.json
-            jq '.main = "node_modules/expo/AppEntry.js"' package.json > package.json.tmp && mv package.json.tmp package.json
-            echo "Updated package.json main entry"
-            cat package.json | grep "main"
-          else
-            echo "package.json not found"
-            exit 1
-          fi
-
-
-      - name: 📱 Build Development APK
+      - name: 📱 Build Development APK (EAS Cloud)
         if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'dev'
         run: |
-          # Build with increased memory limit
-          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile development --local --non-interactive --output=./app-dev.apk
+          eas build --platform android --profile development --non-interactive --wait --output=./app-dev.apk
         env:
           NODE_ENV: development
 
-      - name: 📱 Build Production AAB
+      - name: 📱 Build Production AAB (EAS Cloud)
         if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'prod'
         run: |
-          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile production --local --non-interactive --output=./app-prod.aab
+          eas build --platform android --profile production --non-interactive --wait --output=./app-prod.aab
         env:
           NODE_ENV: production
-
 
       - name: 🏷️ Generate build information
         id: build-info
@@ -125,17 +102,18 @@ jobs:
           fi
 
       - name: 📝 Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           name: "Release v${{ steps.build-info.outputs.version }}-${{ steps.build-info.outputs.build_number }}"
           tag_name: "v${{ steps.build-info.outputs.version }}-${{ steps.build-info.outputs.build_number }}"
           files: |
-            *.apk
-            *.aab
+            ./app-dev.apk
+            ./app-prod.aab
           body_path: changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 📦 Upload build artifacts to GitHub
         uses: actions/upload-artifact@v4
         with:
@@ -143,4 +121,5 @@ jobs:
           path: |
             ./app-dev.apk
             ./app-prod.aab
+          if-no-files-found: warn
           retention-days: 7
