@@ -23,7 +23,7 @@ const MessageSchema = z.object({
 const SendMessageSchema = z.object({
   content: z.string().min(1),
   type: z.enum(["text", "image", "video"]).default("text"),
-  storageUrl: z.string().url().optional(),
+  storageUrl: z.string().nullable().optional(),
 })
 
 const router = createRouter()

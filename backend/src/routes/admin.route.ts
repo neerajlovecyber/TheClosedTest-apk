@@ -60,7 +60,7 @@ const CreateReportSchema = z.object({
   reportedUserId: z.string().optional(),
   reportedAppId: z.string().optional(),
   description: z.string().min(5),
-  screenshots: z.array(z.string().url()).default([]),
+  screenshots: z.array(z.string()).default([]),
 })
 
 const BanUserSchema = z.object({

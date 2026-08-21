@@ -44,7 +44,7 @@ const UpdatePushTokenSchema = z.object({
 
 const UpdateProfileSchema = z.object({
   name: z.string().min(1).optional(),
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: z.string().nullable().optional(),
 })
 
 const router = createRouter()

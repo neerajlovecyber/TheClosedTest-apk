@@ -28,7 +28,7 @@ const SubmitProofSchema = z.object({
   matchId: z.string(),
   day: z.number().int().min(1).max(14),
   type: z.enum(["image", "video"]).default("image"),
-  storageUrls: z.array(z.string().url()).min(1),
+  storageUrls: z.array(z.string()).min(1),
   comment: z.string().optional(),
 })
 
