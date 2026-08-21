@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/text';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeftIcon, BoxIcon, RocketIcon, UsersIcon, MailIcon, HeartIcon, Code2Icon, LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
+import { Linking, ScrollView, View } from 'react-native';
 import Constants from 'expo-constants';
 import appConfig from '../app.json';
 
