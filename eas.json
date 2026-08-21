@@ -11,13 +11,6 @@
       "android": {
         "buildType": "apk"
       },
-      "cache": {
-        "key": "gradle-cache-v1",
-        "paths": [
-          "~/.gradle/caches",
-          "~/.gradle/wrapper"
-        ]
-      },
       "env": {
         "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
@@ -32,13 +25,6 @@
       "android": {
         "buildType": "apk"
       },
-      "cache": {
-        "key": "gradle-cache-v1",
-        "paths": [
-          "~/.gradle/caches",
-          "~/.gradle/wrapper"
-        ]
-      },
       "env": {
         "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
@@ -51,13 +37,6 @@
       "autoIncrement": true,
       "channel": "production",
       "resourceClass": "medium",
-      "cache": {
-        "key": "gradle-cache-v1",
-        "paths": [
-          "~/.gradle/caches",
-          "~/.gradle/wrapper"
-        ]
-      },
       "env": {
         "EAS_GRADLE_CACHE": "1",
         "APP_ENV": "production",
