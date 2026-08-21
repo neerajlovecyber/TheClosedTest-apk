@@ -33,12 +33,13 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "resourceClass": "medium",
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
         "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com",
-        "GRADLE_OPTS": "-Xmx4g -Xms2g -XX:MaxMetaspaceSize=3g -XX:MetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
+        "GRADLE_OPTS": "-Xmx6g -Xms2g -XX:MaxMetaspaceSize=3g -XX:MetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError"
       }
     }
   },
