@@ -553,12 +553,28 @@ router.openapi(
       return c.json({ message: "Chat not found" }, HttpStatusCodes.NOT_FOUND)
     }
 
+    const isAdmin = Boolean(userVar.isAdmin)
     const isOwner =
       chat.userId === userVar.id ||
       (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
 
-    if (!isOwner && !userVar.isAdmin) {
+    if (!isOwner && !isAdmin) {
       return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    // Mark as read when opened
+    if (isAdmin && chat.hasUnreadAdmin) {
+      await db
+        .update(adminChats)
+        .set({ hasUnreadAdmin: false })
+        .where(eq(adminChats.id, chatId))
+      chat.hasUnreadAdmin = false
+    } else if (!isAdmin && chat.hasUnreadUser) {
+      await db
+        .update(adminChats)
+        .set({ hasUnreadUser: false })
+        .where(eq(adminChats.id, chatId))
+      chat.hasUnreadUser = false
     }
 
     const messages = await db.query.adminMessages.findMany({
@@ -631,8 +647,8 @@ router.openapi(
       .update(adminChats)
       .set({
         lastMessage: body.content,
-        hasUnreadUser: isAdmin ? true : chat.hasUnreadUser,
-        hasUnreadAdmin: !isAdmin ? true : chat.hasUnreadAdmin,
+        hasUnreadUser: isAdmin ? true : false,
+        hasUnreadAdmin: isAdmin ? false : true,
         adminId: isAdmin ? userVar.id : chat.adminId,
         updatedAt: new Date(),
       })

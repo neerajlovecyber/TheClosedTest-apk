@@ -9,10 +9,12 @@ import { Icon } from '@/components/ui/icon';
 import { ArrowLeftIcon, SendIcon, ShieldIcon } from 'lucide-react-native';
 import { LinkableText } from '@/components/ui/LinkableText';
 import { api } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMySupportChat, useSupportChatDetails, useSendSupportMessage } from '@/lib/api-hooks';
 
 export default function AdminChatScreen() {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
     const { chatId, userName } = useLocalSearchParams<{ chatId?: string; userName?: string }>();
 
@@ -21,6 +23,14 @@ export default function AdminChatScreen() {
 
     const { data: chatData, isLoading } = useSupportChatDetails(effectiveChatId);
     const sendMessageMutation = useSendSupportMessage();
+
+    // Mark conversation read and refresh lists
+    useEffect(() => {
+        if (effectiveChatId) {
+            queryClient.invalidateQueries({ queryKey: ['adminSupportChats'] });
+            queryClient.invalidateQueries({ queryKey: ['mySupportChat'] });
+        }
+    }, [effectiveChatId, queryClient]);
 
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);

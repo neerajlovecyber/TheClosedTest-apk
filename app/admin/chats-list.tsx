@@ -1,26 +1,52 @@
 import React, { useState } from 'react';
-import { View, FlatList, TouchableOpacity, RefreshControl, Image, TextInput } from 'react-native';
+import { View, FlatList, TouchableOpacity, RefreshControl, Image, TextInput, SectionList } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, MessageSquareIcon, SearchIcon, ChevronRightIcon, UserIcon } from 'lucide-react-native';
-import { useAdminSupportChats } from '@/lib/api-hooks';
+import { ArrowLeftIcon, MessageSquareIcon, SearchIcon, ChevronRightIcon, UserIcon, ShieldIcon } from 'lucide-react-native';
+import { toast } from '@/lib/sonner';
+import { useAdminSupportChats, useAdminUsers, useGetOrCreateAdminUserChat } from '@/lib/api-hooks';
 
 export default function AdminChatsListScreen() {
     const router = useRouter();
-    const { data: chats, isLoading, refetch, isRefetching } = useAdminSupportChats();
+    const { data: chats, isLoading: isChatsLoading, refetch: refetchChats, isRefetching: isRefetchingChats } = useAdminSupportChats();
     const [searchQuery, setSearchQuery] = useState('');
+    const { data: searchedUsers, isLoading: isUsersLoading } = useAdminUsers(searchQuery);
+    const getOrCreateChat = useGetOrCreateAdminUserChat();
 
-    const filteredChats = (chats || []).filter((c) => {
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
+    const allChats = chats || [];
+    const query = searchQuery.trim().toLowerCase();
+
+    // Filter existing chats
+    const matchingChats = allChats.filter((c) => {
+        if (!query) return true;
         const name = c.user?.name?.toLowerCase() || '';
         const email = c.user?.email?.toLowerCase() || '';
         const lastMsg = c.lastMessage?.toLowerCase() || '';
-        return name.includes(q) || email.includes(q) || lastMsg.includes(q);
+        return name.includes(query) || email.includes(query) || lastMsg.includes(query);
     });
+
+    // Users without an active chat matching the search query
+    const chatUserIds = new Set(allChats.map((c) => c.userId));
+    const nonChatUsers = query
+        ? (searchedUsers || []).filter(
+            (u) => !chatUserIds.has(u.id) && (u.name?.toLowerCase().includes(query) || u.email?.toLowerCase().includes(query))
+        )
+        : [];
+
+    const handleOpenChat = async (targetUserId: string, userName?: string) => {
+        try {
+            const chat = await getOrCreateChat.mutateAsync(targetUserId);
+            router.push({
+                pathname: '/admin-chat',
+                params: { chatId: chat.id, userName },
+            } as any);
+        } catch (err: any) {
+            toast.error('Failed to open chat', { description: err.message || 'Could not start conversation' });
+        }
+    };
 
     const renderChatItem = ({ item }: { item: NonNullable<typeof chats>[0] }) => {
         const userName = item.user?.name || 'Developer';
@@ -91,6 +117,77 @@ export default function AdminChatsListScreen() {
         );
     };
 
+    const renderUserItem = ({ item }: { item: NonNullable<typeof searchedUsers>[0] }) => {
+        const userName = item.name || 'Developer';
+        const userEmail = item.email;
+        const avatarUrl = item.avatarUrl;
+
+        return (
+            <Card className="mb-3 border-border bg-card">
+                <CardContent className="p-4 flex-row items-center justify-between">
+                    <View className="flex-row items-center flex-1 mr-3">
+                        {avatarUrl ? (
+                            <Image
+                                source={{ uri: avatarUrl }}
+                                className="w-11 h-11 rounded-full bg-muted mr-3"
+                            />
+                        ) : (
+                            <View className="w-11 h-11 rounded-full bg-primary/10 items-center justify-center mr-3">
+                                <Icon as={UserIcon} className="text-primary size-5" />
+                            </View>
+                        )}
+
+                        <View className="flex-1">
+                            <View className="flex-row items-center gap-1.5">
+                                <Text className="font-bold text-foreground text-base" numberOfLines={1}>
+                                    {userName}
+                                </Text>
+                                {item.isAdmin && (
+                                    <View className="bg-purple-100 dark:bg-purple-950 px-1.5 py-0.5 rounded">
+                                        <Text className="text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase">
+                                            Admin
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                                {userEmail}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity
+                        onPress={() => handleOpenChat(item.id, userName)}
+                        disabled={getOrCreateChat.isPending}
+                        className="bg-primary px-3.5 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                    >
+                        <Icon as={MessageSquareIcon} className="size-3.5 text-primary-foreground" />
+                        <Text className="text-xs font-bold text-primary-foreground">
+                            {getOrCreateChat.isPending ? 'Opening...' : 'Message'}
+                        </Text>
+                    </TouchableOpacity>
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const sections = [
+        {
+            title: query ? 'Conversations' : 'Support Inbox',
+            data: matchingChats,
+            type: 'chat' as const,
+        },
+        ...(nonChatUsers.length > 0
+            ? [
+                {
+                    title: 'Other Registered Users',
+                    data: nonChatUsers,
+                    type: 'user' as const,
+                },
+            ]
+            : []),
+    ].filter((s) => s.data.length > 0);
+
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -103,12 +200,12 @@ export default function AdminChatsListScreen() {
                     </TouchableOpacity>
                     <View>
                         <Text className="text-xl font-black text-foreground tracking-tight">Support Inbox</Text>
-                        <Text className="text-xs text-muted-foreground">User help requests & conversations</Text>
+                        <Text className="text-xs text-muted-foreground">Find users & message directly</Text>
                     </View>
                 </View>
                 <View className="bg-primary/10 px-3 py-1 rounded-full">
                     <Text className="text-primary font-bold text-xs">
-                        {filteredChats.length} {filteredChats.length === 1 ? 'chat' : 'chats'}
+                        {allChats.length} {allChats.length === 1 ? 'chat' : 'chats'}
                     </Text>
                 </View>
             </View>
@@ -119,37 +216,54 @@ export default function AdminChatsListScreen() {
                     <Icon as={SearchIcon} className="text-muted-foreground size-4 mr-2" />
                     <TextInput
                         className="flex-1 text-foreground text-sm"
-                        placeholder="Search by name, email or message..."
+                        placeholder="Search by user email, name or message..."
                         placeholderTextColor="#888"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
                 </View>
             </View>
 
-            {/* Chats List */}
-            {isLoading ? (
+            {/* Content List */}
+            {isChatsLoading || (query && isUsersLoading) ? (
                 <View className="flex-1 items-center justify-center">
-                    <Text className="text-muted-foreground">Loading support conversations...</Text>
+                    <Text className="text-muted-foreground">Searching conversations & users...</Text>
                 </View>
-            ) : filteredChats.length === 0 ? (
+            ) : sections.length === 0 ? (
                 <View className="flex-1 items-center justify-center p-8">
                     <View className="w-16 h-16 bg-muted/50 rounded-full items-center justify-center mb-4">
                         <Icon as={MessageSquareIcon} className="text-muted-foreground size-8" />
                     </View>
-                    <Text className="text-lg font-bold text-foreground mb-1">No Support Chats Found</Text>
+                    <Text className="text-lg font-bold text-foreground mb-1">
+                        {query ? 'No Results Found' : 'No Support Chats'}
+                    </Text>
                     <Text className="text-sm text-muted-foreground text-center">
-                        {searchQuery ? 'No conversations match your search query.' : 'No users have started a support ticket yet.'}
+                        {query
+                            ? `No user or conversation found matching "${searchQuery}".`
+                            : 'No support conversations yet. Search any user by email above to start a chat.'}
                     </Text>
                 </View>
             ) : (
-                <FlatList
-                    data={filteredChats}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderChatItem}
+                <SectionList
+                    sections={sections as any}
+                    keyExtractor={(item: any) => item.id}
+                    renderSectionHeader={({ section }) => (
+                        <View className="px-4 py-2 bg-background/90">
+                            <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                {section.title}
+                            </Text>
+                        </View>
+                    )}
+                    renderItem={({ item, section }: { item: any; section: any }) =>
+                        section.type === 'chat'
+                            ? renderChatItem({ item })
+                            : renderUserItem({ item })
+                    }
                     contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
                     refreshControl={
-                        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+                        <RefreshControl refreshing={isRefetchingChats} onRefresh={refetchChats} />
                     }
                 />
             )}

@@ -62,9 +62,9 @@ export default function AdminDashboardScreen() {
                 </View>
 
                 {/* Quick Actions */}
-                <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Management & Support</Text>
+                <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Support Management</Text>
 
-                <Card className="border-border shadow-sm mb-3">
+                <Card className="border-border shadow-sm mb-4">
                     <TouchableOpacity
                         className="flex-row items-center justify-between p-4"
                         onPress={() => router.push('/admin/chats-list' as any)}
@@ -75,25 +75,7 @@ export default function AdminDashboardScreen() {
                             </View>
                             <View>
                                 <Text className="font-semibold text-foreground">Support Inbox</Text>
-                                <Text className="text-xs text-muted-foreground">Chat with users & resolve tickets</Text>
-                            </View>
-                        </View>
-                        <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
-                    </TouchableOpacity>
-                </Card>
-
-                <Card className="border-border shadow-sm mb-4">
-                    <TouchableOpacity
-                        className="flex-row items-center justify-between p-4"
-                        onPress={() => router.push('/admin/users-list' as any)}
-                    >
-                        <View className="flex-row items-center">
-                            <View className="bg-blue-500/10 p-2.5 rounded-xl mr-3">
-                                <Icon as={UsersIcon} className="text-blue-600 size-5" />
-                            </View>
-                            <View>
-                                <Text className="font-semibold text-foreground">User Directory</Text>
-                                <Text className="text-xs text-muted-foreground">Search by email, name or ID</Text>
+                                <Text className="text-xs text-muted-foreground">Find users, manage tickets & chat directly</Text>
                             </View>
                         </View>
                         <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />

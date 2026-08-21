@@ -601,6 +601,8 @@ export function useSendSupportMessage() {
     }) => api.post(`/api/support/chats/${chatId}/messages`, { content, type }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["supportChat", vars.chatId] })
+      queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] })
+      queryClient.invalidateQueries({ queryKey: ["mySupportChat"] })
     },
   })
 }
