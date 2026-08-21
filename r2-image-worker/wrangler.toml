@@ -1,9 +1,0 @@
-name = "r2-image-worker"
-main = "src/index.js"
-compatibility_date = "2024-01-04"
-
-[[r2_buckets]]
-binding = "MY_BUCKET"
-bucket_name = "theclosedtest"
-preview_bucket_name = "theclosedtest"
-
