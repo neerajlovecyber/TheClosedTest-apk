@@ -94,7 +94,12 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         setIsUploading(true);
 
         try {
-            const FileSystem = require('expo-file-system/legacy');
+            let FileSystem: any;
+            try {
+                FileSystem = require('expo-file-system/legacy');
+            } catch {
+                FileSystem = require('expo-file-system');
+            }
 
             // 1. Resize and compress to WebP
             const processedImages = await Promise.all(

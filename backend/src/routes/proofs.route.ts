@@ -70,11 +70,19 @@ router.openapi(
       where: eq(matches.id, body.matchId),
     })
 
-    if (!match || match.status !== "active") {
+    if (!match || (match.status !== "active" && match.status !== "pending")) {
       return c.json(
         { message: "Match is not active or does not exist" },
         HttpStatusCodes.BAD_REQUEST,
       )
+    }
+
+    // Auto-activate match if it was pending
+    if (match.status === "pending") {
+      await db
+        .update(matches)
+        .set({ status: "active", startDate: new Date() })
+        .where(eq(matches.id, match.id))
     }
 
     const isUser1 = match.user1Id === userVar.id
@@ -86,19 +94,44 @@ router.openapi(
 
     const partnerId = isUser1 ? match.user2Id : match.user1Id
 
-    // Insert proof
-    const [newProof] = await db
-      .insert(proofs)
-      .values({
-        matchId: match.id,
-        uploaderId: userVar.id,
-        day: body.day,
-        type: body.type,
-        storageUrls: body.storageUrls,
-        status: "pending",
-        comment: body.comment,
-      })
-      .returning()
+    // Upsert proof for this match, uploader, and day
+    const existingProof = await db.query.proofs.findFirst({
+      where: and(
+        eq(proofs.matchId, match.id),
+        eq(proofs.uploaderId, userVar.id),
+        eq(proofs.day, body.day),
+      ),
+    })
+
+    let newProof
+    if (existingProof) {
+      const [updated] = await db
+        .update(proofs)
+        .set({
+          storageUrls: body.storageUrls,
+          status: "pending",
+          comment: body.comment,
+          type: body.type,
+          submittedAt: new Date(),
+        })
+        .where(eq(proofs.id, existingProof.id))
+        .returning()
+      newProof = updated
+    } else {
+      const [inserted] = await db
+        .insert(proofs)
+        .values({
+          matchId: match.id,
+          uploaderId: userVar.id,
+          day: body.day,
+          type: body.type,
+          storageUrls: body.storageUrls,
+          status: "pending",
+          comment: body.comment,
+        })
+        .returning()
+      newProof = inserted
+    }
 
     const now = new Date()
     const proofSummary = {
