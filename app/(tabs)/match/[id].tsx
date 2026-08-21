@@ -197,7 +197,7 @@ export default function MatchDashboardScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
+        <View className="flex-1 bg-background">
             {/* Top Navigation Bar */}
             <View className="flex-row items-center justify-between px-4 py-3 border-b border-border bg-background">
                 <View className="flex-row items-center gap-2 flex-1">
@@ -472,6 +472,6 @@ export default function MatchDashboardScreen() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </SafeAreaView>
+        </View>
     );
 }
