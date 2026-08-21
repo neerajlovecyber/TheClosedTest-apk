@@ -5,15 +5,31 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, SearchIcon, UserIcon, ShieldIcon, FlameIcon, MessageSquareIcon } from 'lucide-react-native';
-import { useAdminUsers } from '@/lib/api-hooks';
+import { toast } from '@/lib/sonner';
+import { useAdminUsers, useGetOrCreateAdminUserChat } from '@/lib/api-hooks';
 
 export default function AdminUsersListScreen() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const { data: users, isLoading, refetch, isRefetching } = useAdminUsers(searchQuery);
+    const getOrCreateChat = useGetOrCreateAdminUserChat();
 
     const userList = users || [];
+
+    const handleOpenChat = async (targetUser: NonNullable<typeof users>[0]) => {
+        try {
+            const chat = await getOrCreateChat.mutateAsync(targetUser.id);
+            router.push({
+                pathname: '/admin-chat',
+                params: {
+                    chatId: chat.id,
+                    userName: targetUser.name || targetUser.email,
+                },
+            } as any);
+        } catch (err: any) {
+            toast.error('Failed to open chat', { description: err.message || 'Could not start chat' });
+        }
+    };
 
     const renderUserItem = ({ item }: { item: NonNullable<typeof users>[0] }) => {
         return (
@@ -76,16 +92,14 @@ export default function AdminUsersListScreen() {
                         </View>
 
                         <TouchableOpacity
-                            onPress={() =>
-                                router.push({
-                                    pathname: '/admin-chat',
-                                    params: { userName: item.name },
-                                } as any)
-                            }
-                            className="bg-secondary px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                            onPress={() => handleOpenChat(item)}
+                            disabled={getOrCreateChat.isPending}
+                            className="bg-primary px-3.5 py-1.5 rounded-lg flex-row items-center gap-1.5"
                         >
-                            <Icon as={MessageSquareIcon} className="size-3.5 text-foreground" />
-                            <Text className="text-xs font-bold text-foreground">Message</Text>
+                            <Icon as={MessageSquareIcon} className="size-3.5 text-primary-foreground" />
+                            <Text className="text-xs font-bold text-primary-foreground">
+                                {getOrCreateChat.isPending ? 'Opening...' : 'Message'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </CardContent>

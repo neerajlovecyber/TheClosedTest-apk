@@ -407,6 +407,68 @@ router.openapi(
   },
 )
 
+// 5d. Get or Create Support Chat for Specific User (Admin)
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "post",
+    path: "/api/admin/support/chats/user/:userId",
+    summary: "Get or Create Support Chat for a Specific User",
+    middleware: [adminAuthMiddleware] as const,
+    request: {
+      params: z.object({ userId: z.string() }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(AdminChatSchema, "Support chat details"),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(
+        createMessageObjectSchema("User not found"),
+        "User not found",
+      ),
+    },
+  }),
+  async (c) => {
+    const { userId: targetUserId } = c.req.valid("param")
+    const adminUser = c.get("user")!
+
+    // Verify target user exists
+    const targetUser = await db.query.users.findFirst({
+      where: (u, { or, eq }) =>
+        or(eq(u.id, targetUserId), eq(u.tokenIdentifier, targetUserId)),
+    })
+
+    if (!targetUser) {
+      return c.json({ message: "User not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    const existingChat = await db.query.adminChats.findFirst({
+      where: (chatTable, { or, eq }) =>
+        or(
+          eq(chatTable.userId, targetUser.id),
+          targetUser.tokenIdentifier
+            ? eq(chatTable.userId, targetUser.tokenIdentifier)
+            : eq(chatTable.userId, targetUser.id),
+        ),
+    })
+
+    if (existingChat) {
+      return c.json(existingChat, HttpStatusCodes.OK)
+    }
+
+    const [newChat] = await db
+      .insert(adminChats)
+      .values({
+        userId: targetUser.id,
+        adminId: adminUser.id,
+        lastMessage: "",
+        hasUnreadUser: false,
+        hasUnreadAdmin: false,
+      })
+      .returning()
+
+    return c.json(newChat, HttpStatusCodes.OK)
+  },
+)
+
 // 6. Get or Create My Support Chat (User)
 router.openapi(
   createRoute({

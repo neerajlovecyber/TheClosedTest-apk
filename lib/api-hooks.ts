@@ -529,7 +529,7 @@ export function useAdminUsers(search?: string) {
   return useQuery<
     {
       id: string
-      tokenIdentifier: string
+      tokenIdentifier?: string | null
       name: string
       email: string
       avatarUrl?: string | null
@@ -547,6 +547,23 @@ export function useAdminUsers(search?: string) {
       api.get("/api/admin/users", {
         params: { search: search?.trim() || undefined },
       }),
+  })
+}
+
+export function useGetOrCreateAdminUserChat() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (targetUserId: string) =>
+      api.post<{
+        id: string
+        userId: string
+        lastMessage: string
+        hasUnreadUser: boolean
+        hasUnreadAdmin: boolean
+      }>(`/api/admin/support/chats/user/${targetUserId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] })
+    },
   })
 }
 
