@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Platform } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { PendingRequestCard } from '@/components/PendingRequestCard';
+import { OpenSourceAnnouncementBanner } from '@/components/OpenSourceAnnouncementBanner';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -212,6 +213,9 @@ export default function HomeScreen() {
                         </Card>
                     </View>
                 </View>
+
+                {/* Open Source & Fresh Refresh Announcement Banner */}
+                <OpenSourceAnnouncementBanner />
 
                 {/* Attention Needed Section */}
                 <View className="px-6 pb-4">
