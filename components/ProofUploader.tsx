@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
-import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Modal, Dimensions, Pressable } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Modal, Dimensions, Pressable, Alert } from 'react-native';
 import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
@@ -33,6 +33,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const [isEditingProof, setIsEditingProof] = useState(false);
     const { data: user } = useCurrentUser();
 
     // Image viewer state
@@ -174,6 +175,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             toast.success('Success', { description: 'Proof uploaded successfully!' });
             setSelectedImages([]);
             setComment('');
+            setIsEditingProof(false);
             onUploadComplete?.();
         } catch (error: any) {
             console.error(error);
@@ -446,24 +448,53 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         }
 
         if (todayProof.status === 'pending') {
+            if (isEditingProof) {
+                return (
+                    <View className="mb-4">
+                        <View className="flex-row items-center justify-between mb-2">
+                            <Text className="text-sm font-bold text-foreground">Re-upload Proof for Day {currentDay}</Text>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setIsEditingProof(false);
+                                    setSelectedImages([]);
+                                }}
+                                className="px-2.5 py-1 bg-secondary rounded-lg"
+                            >
+                                <Text className="text-xs text-muted-foreground font-medium">Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {renderUploadUI()}
+                        {imageViewerModal}
+                    </View>
+                );
+            }
+
             return (
                 <>
-                    <Card className="bg-orange-500/10 border-orange-500/30 mb-4">
-                        <CardContent className="p-3">
-                            <View className="flex-row items-center mb-2">
-                                <Icon as={ClockIcon} className="text-orange-500 size-5 mr-2" />
-                                <Text className="font-bold text-orange-600 text-base">Waiting for Review</Text>
+                    <Card className="bg-blue-500/10 border-blue-500/30 mb-4">
+                        <CardContent className="p-4">
+                            <View className="flex-row items-center justify-between mb-2">
+                                <View className="flex-row items-center gap-2">
+                                    <View className="bg-blue-500/20 p-1.5 rounded-full">
+                                        <Icon as={CheckCircleIcon} className="text-blue-600 dark:text-blue-400 size-4" />
+                                    </View>
+                                    <Text className="font-bold text-foreground text-base">Day {currentDay} Uploaded</Text>
+                                </View>
+                                <View className="bg-orange-500/15 px-2.5 py-0.5 rounded-full border border-orange-500/30 flex-row items-center gap-1">
+                                    <Icon as={ClockIcon} className="text-orange-500 size-3" />
+                                    <Text className="text-[11px] font-bold text-orange-600 dark:text-orange-400">Waiting Review</Text>
+                                </View>
                             </View>
-                            <Text className="text-muted-foreground text-xs mb-2">
-                                Your Day {currentDay} proof is pending approval.
+                            <Text className="text-muted-foreground text-xs mb-3">
+                                Proof submitted successfully! Waiting for your partner to review and approve.
                             </Text>
                             {todayProof.urls && todayProof.urls.length > 0 && (
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
                                     {todayProof.urls.map((url, i) => (
                                         <Pressable key={i} onPress={() => openImageViewer(todayProof.urls!, i)}>
                                             <Image
                                                 source={{ uri: url }}
-                                                style={{ width: 64, height: 64, borderRadius: 6, marginRight: 6 }}
+                                                style={{ width: 72, height: 72, borderRadius: 8, marginRight: 8 }}
                                                 contentFit="cover"
                                                 cachePolicy="memory-disk"
                                                 transition={150}
@@ -473,8 +504,29 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                                 </ScrollView>
                             )}
                             {todayProof.comment && (
-                                <Text className="text-xs text-muted-foreground italic">"{todayProof.comment}"</Text>
+                                <View className="bg-secondary/40 p-2.5 rounded-lg mb-3">
+                                    <Text className="text-xs text-muted-foreground italic">"{todayProof.comment}"</Text>
+                                </View>
                             )}
+                            <TouchableOpacity
+                                onPress={() =>
+                                    Alert.alert(
+                                        'Change Screenshots?',
+                                        'Your current proof is pending review. Uploading new screenshots will replace it and reset its status.',
+                                        [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            {
+                                                text: 'Yes, Change',
+                                                style: 'destructive',
+                                                onPress: () => setIsEditingProof(true),
+                                            },
+                                        ],
+                                    )
+                                }
+                                className="py-2 px-3 bg-secondary/60 rounded-xl flex-row items-center justify-center border border-border/50 self-start"
+                            >
+                                <Text className="text-xs font-semibold text-foreground">Change Screenshots</Text>
+                            </TouchableOpacity>
                         </CardContent>
                     </Card>
                     {imageViewerModal}

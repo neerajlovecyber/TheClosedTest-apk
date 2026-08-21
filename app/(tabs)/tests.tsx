@@ -12,7 +12,7 @@ import { useCurrentUser, useMatches, MatchEntity } from '@/lib/api-hooks';
 // Memoized TaskCard component
 const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) => {
     const isMyTaskDone = item.myProofStatus === 'approved' || item.myProofStatus === 'pending';
-    const isPartnerTaskDone = item.partnerProofStatus === 'approved';
+    const isPartnerTaskDone = item.partnerProofStatus === 'approved' || item.partnerProofStatus === 'pending';
     const displayIconUrl = item.iconUrl || 'https://github.com/shadcn.png';
 
     return (
@@ -70,7 +70,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                                         'text-muted-foreground'
                                     }`}>
                                     {item.myProofStatus === 'approved' ? 'Done' :
-                                        item.myProofStatus === 'pending' ? 'Pending' : 'Required'}
+                                        item.myProofStatus === 'pending' ? 'Uploaded' : 'Required'}
                                 </Text>
                             </View>
                         </View>
@@ -154,17 +154,25 @@ export default function TestsScreen() {
             const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
             const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
-            const myProofStatus = myLastProof?.status || 'not_uploaded';
-            const partnerProofStatus = partnerLastProof?.status || 'not_uploaded';
-            const isReviewPending = partnerLastProof?.status === 'pending';
-            const day = myLastProof?.day || 1;
+            const currentDay = Math.max(1, myLastProof?.day || 1);
+            // If the lastProof is from a previous day, today's upload is not_uploaded
+            const today = currentDay;
+            const myProofDay = myLastProof?.day;
+            const myProofStatus = myProofDay === today
+                ? (myLastProof?.status || 'not_uploaded')
+                : 'not_uploaded';
+            const partnerProofDay = partnerLastProof?.day;
+            const partnerProofStatus = partnerProofDay === today
+                ? (partnerLastProof?.status || 'not_uploaded')
+                : 'not_uploaded';
+            const isReviewPending = partnerProofStatus === 'pending';
             const needsAttention = isReviewPending || myProofStatus === 'not_uploaded' || myProofStatus === 'rejected';
 
             return {
                 id: m.id,
                 name: partnerApp?.title || myApp?.title || 'Testing App',
                 owner: partnerApp?.user?.name || 'Partner',
-                day,
+                day: today,
                 totalDays: 14,
                 iconUrl: partnerApp?.iconUrl || myApp?.iconUrl,
                 myProofStatus,

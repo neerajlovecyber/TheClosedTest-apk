@@ -188,8 +188,8 @@ export default function MatchDashboardScreen() {
 
         return {
             day: dayNum,
-            myStatus: myP ? myP.status : (dayNum === currentDay ? 'pending' : 'not_started'),
-            partnerStatus: partnerP ? partnerP.status : (dayNum === currentDay ? 'pending' : 'not_started'),
+            myStatus: myP ? myP.status : (dayNum > currentDay ? 'future' : 'not_uploaded'),
+            partnerStatus: partnerP ? partnerP.status : (dayNum > currentDay ? 'future' : 'not_uploaded'),
             isToday: dayNum === currentDay,
         };
     });

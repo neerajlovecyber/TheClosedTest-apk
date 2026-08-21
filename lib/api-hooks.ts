@@ -443,7 +443,16 @@ export function useSubmitProof() {
       storageUrls: string[]
       comment?: string
     }) => api.post<ProofEntity>("/api/proofs", payload),
-    onSuccess: (_, vars) => {
+    onSuccess: (newProof, vars) => {
+      if (newProof) {
+        queryClient.setQueryData<ProofEntity[]>(["proofs", vars.matchId], (old = []) => {
+          const exists = old.some((p) => p.day === vars.day && p.uploaderId === newProof.uploaderId)
+          if (exists) {
+            return old.map((p) => (p.day === vars.day && p.uploaderId === newProof.uploaderId ? newProof : p))
+          }
+          return [...old, newProof]
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ["proofs", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["match", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["matches"] })
