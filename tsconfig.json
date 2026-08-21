@@ -4,10 +4,9 @@
     "target": "ESNext",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "strict": false,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "*"
+        "./*"
       ]
     },
     "jsx": "react-native",
