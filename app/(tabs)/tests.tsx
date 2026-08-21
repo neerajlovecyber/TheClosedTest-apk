@@ -196,44 +196,46 @@ export default function TestsScreen() {
         <View className="flex-1 bg-background">
             <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
                 {/* Header */}
-                <View className="px-6 py-4">
-                    <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
+                <View className="px-5 pt-4 pb-2">
+                    <Text className="text-2xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
                     {testingApps.length > 0 && (
-                        <Text className="text-sm text-muted-foreground font-medium mt-0.5">
+                        <Text className="text-xs text-muted-foreground font-medium mt-0.5">
                             {pendingTasks.length} pending • {completedTasks.length} completed today
                         </Text>
                     )}
                 </View>
 
-                {/* Daily Reset Countdown Card */}
-                <View className="px-4 mb-4">
-                    <Card className="border-orange-400/30 bg-orange-500/5">
-                        <CardContent className="p-3 py-2">
-                            <View className="flex-row items-center justify-between gap-2">
-                                <View className="flex-row items-center gap-2 flex-1">
-                                    <Icon as={ClockIcon} className="text-orange-500 size-5" />
-                                    <View>
-                                        <Text className="text-sm font-bold text-foreground">Time Until Reset</Text>
-                                        <Text className="text-xs text-muted-foreground" numberOfLines={1} adjustsFontSizeToFit>Resets at 12:00 AM IST</Text>
+                {/* Daily Reset Countdown Card - Only shown when active tasks exist */}
+                {testingApps.length > 0 && (
+                    <View className="px-4 mb-4">
+                        <Card className="border-orange-400/30 bg-orange-500/5">
+                            <CardContent className="p-3 py-2">
+                                <View className="flex-row items-center justify-between gap-2">
+                                    <View className="flex-row items-center gap-2 flex-1">
+                                        <Icon as={ClockIcon} className="text-orange-500 size-5" />
+                                        <View>
+                                            <Text className="text-sm font-bold text-foreground">Time Until Reset</Text>
+                                            <Text className="text-xs text-muted-foreground" numberOfLines={1} adjustsFontSizeToFit>Resets at 12:00 AM IST</Text>
+                                        </View>
+                                    </View>
+                                    <View className="flex-row items-center gap-2">
+                                        <View className="items-center border border-orange-200 dark:border-orange-800 bg-background px-3 py-2 rounded-lg min-w-[50px]">
+                                            <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.hours.toString().padStart(2, '0')}</Text>
+                                            <Text className="text-[10px] text-muted-foreground font-medium tracking-wide">HRS</Text>
+                                        </View>
+                                        <View className="pb-2">
+                                            <Text className="text-xl font-bold text-orange-400">:</Text>
+                                        </View>
+                                        <View className="items-center border border-orange-200 dark:border-orange-800 bg-background px-3 py-2 rounded-lg min-w-[50px]">
+                                            <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.minutes.toString().padStart(2, '0')}</Text>
+                                            <Text className="text-[10px] text-muted-foreground font-medium tracking-wide">MIN</Text>
+                                        </View>
                                     </View>
                                 </View>
-                                <View className="flex-row items-center gap-2">
-                                    <View className="items-center border border-orange-200 dark:border-orange-800 bg-background px-3 py-2 rounded-lg min-w-[50px]">
-                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.hours.toString().padStart(2, '0')}</Text>
-                                        <Text className="text-[10px] text-muted-foreground font-medium tracking-wide">HRS</Text>
-                                    </View>
-                                    <View className="pb-2">
-                                        <Text className="text-xl font-bold text-orange-400">:</Text>
-                                    </View>
-                                    <View className="items-center border border-orange-200 dark:border-orange-800 bg-background px-3 py-2 rounded-lg min-w-[50px]">
-                                        <Text className="text-2xl font-bold text-orange-500">{timeUntilReset.minutes.toString().padStart(2, '0')}</Text>
-                                        <Text className="text-[10px] text-muted-foreground font-medium tracking-wide">MIN</Text>
-                                    </View>
-                                </View>
-                            </View>
-                        </CardContent>
-                    </Card>
-                </View>
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
 
                 <View className="px-4 pt-1">
                     {/* Pending Section */}
@@ -278,53 +280,27 @@ export default function TestsScreen() {
                         </View>
                     )}
 
-                    {/* Empty State */}
+                    {/* Compact Modern Empty State */}
                     {testingApps.length === 0 && (
-                        <View className="items-center justify-center pb-12 px-6">
-                            <View className="bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full p-8 mb-6">
-                                <Icon as={ClockIcon} className="size-20 text-primary" />
+                        <View className="items-center justify-center pt-8 pb-10 px-4">
+                            <View className="w-16 h-16 rounded-2xl bg-primary/10 items-center justify-center mb-4">
+                                <Icon as={ClockIcon} className="size-8 text-primary" />
                             </View>
 
-                            <Text className="text-2xl font-extrabold text-foreground mb-3 text-center">
-                                Ready to Start Testing?
+                            <Text className="text-lg font-bold text-foreground mb-1 text-center">
+                                No Testing Tasks Today
                             </Text>
 
-                            <Text className="text-muted-foreground text-center text-base mb-8 max-w-sm leading-relaxed">
-                                Browse the marketplace and request a swap to begin your 14-day testing journey!
+                            <Text className="text-muted-foreground text-center text-xs mb-5 max-w-xs leading-relaxed">
+                                Browse the marketplace to find partner apps and start mutual 14-day closed testing.
                             </Text>
-
-                            <View className="w-full gap-3 mb-8">
-                                <Card className="bg-blue-500/10 border-blue-500/30">
-                                    <CardContent className="p-4 flex-row items-center gap-3">
-                                        <View className="bg-blue-500 rounded-full p-2">
-                                            <Icon as={CheckCircleIcon} className="size-5 text-white" />
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="font-bold text-blue-600 dark:text-blue-400">Get Real Feedback</Text>
-                                            <Text className="text-xs text-muted-foreground">Daily proof reviews from testers</Text>
-                                        </View>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="bg-green-500/10 border-green-500/30">
-                                    <CardContent className="p-4 flex-row items-center gap-3">
-                                        <View className="bg-green-500 rounded-full p-2">
-                                            <Icon as={StarIcon} className="size-5 text-white" />
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text className="font-bold text-green-600 dark:text-green-400">Build Reputation</Text>
-                                            <Text className="text-xs text-muted-foreground">Earn points for quality testing</Text>
-                                        </View>
-                                    </CardContent>
-                                </Card>
-                            </View>
 
                             <Button
                                 onPress={() => router.push('/(tabs)/marketplace' as any)}
-                                className="w-full rounded-2xl h-14 shadow-lg shadow-primary/30"
+                                className="w-full max-w-xs rounded-xl h-11 shadow-sm"
                             >
-                                <Icon as={SearchIcon} className="text-primary-foreground size-5 mr-2" />
-                                <Text className="text-primary-foreground font-bold text-base">Browse Marketplace</Text>
+                                <Icon as={SearchIcon} className="text-primary-foreground size-4 mr-2" />
+                                <Text className="text-primary-foreground font-bold text-sm">Browse Marketplace</Text>
                             </Button>
                         </View>
                     )}
