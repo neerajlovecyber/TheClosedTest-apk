@@ -39,9 +39,14 @@ export function SocialConnections() {
     return async () => {
       try {
         console.log("🔵 Starting Google OAuth flow...");
+        const redirectUrl = AuthSession.makeRedirectUri({
+          scheme: 'theclosedtest',
+        });
+
         // Start the authentication process by calling `startSSOFlow()`
         const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
           strategy,
+          redirectUrl,
         });
 
         console.log("🔵 OAuth flow returned:", {
@@ -54,7 +59,7 @@ export function SocialConnections() {
         // If sign in was successful, set the active session
         if (createdSessionId && setActive) {
           console.log("✅ OAuth Success: Session created directly");
-          setActive({ session: createdSessionId });
+          await setActive({ session: createdSessionId });
           return;
         }
 
