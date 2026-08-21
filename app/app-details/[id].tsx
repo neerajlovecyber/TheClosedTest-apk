@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Image, TouchableOpacity, Modal, Share, Platform, Linking as RNLinking } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Modal, Share, Platform, Linking as RNLinking } from 'react-native';
+import { Image } from 'expo-image';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -365,6 +366,43 @@ export default function AppDetailsScreen() {
                                 </View>
                                 <Text className="text-foreground leading-relaxed flex-1 text-base">
                                     {app.instructions || 'No specific testing instructions provided by the developer.'}
+                                </Text>
+                            </View>
+                        </CardContent>
+                    </Card>
+                </View>
+
+                {/* Developer Profile Section */}
+                <View className="px-4 mb-6 gap-3">
+                    <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Developer</Text>
+                    <Card className="border-border bg-card shadow-sm">
+                        <CardContent className="p-4 flex-row items-center gap-3">
+                            <Image
+                                source={{
+                                    uri: (isMine ? user?.avatarUrl : app.user?.avatarUrl)
+                                        || app.user?.avatarUrl
+                                        || user?.avatarUrl
+                                        || `https://ui-avatars.com/api/?name=${encodeURIComponent((isMine ? user?.name : app.user?.name) || 'Developer')}&background=random`
+                                }}
+                                style={{ width: 44, height: 44, borderRadius: 22 }}
+                                contentFit="cover"
+                                transition={200}
+                                className="w-11 h-11 rounded-full bg-muted border border-border"
+                            />
+                            <View className="flex-1">
+                                <View className="flex-row items-center gap-1.5">
+                                    <Text className="font-bold text-base text-foreground leading-tight" numberOfLines={1}>
+                                        {isMine ? (user?.name ? `${user.name} (You)` : 'You') : (app.user?.name || 'Community Developer')}
+                                    </Text>
+                                </View>
+                                <Text className="text-xs text-muted-foreground mt-0.5">
+                                    {isMine ? 'App Owner' : 'Peer Tester'}
+                                </Text>
+                            </View>
+                            <View className="items-end bg-primary/5 px-2.5 py-1.5 rounded-xl border border-primary/10">
+                                <Text className="text-[10px] text-muted-foreground font-bold uppercase">Reputation</Text>
+                                <Text className="text-sm font-extrabold text-primary">
+                                    ★ {(isMine ? user?.reputation : app.user?.reputation) ?? user?.reputation ?? 0}
                                 </Text>
                             </View>
                         </CardContent>
