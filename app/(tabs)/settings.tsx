@@ -5,6 +5,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import appConfig from '../../app.json';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { LucideIcon } from 'lucide-react-native';
@@ -139,6 +150,7 @@ export default function SettingsScreen() {
 
     const ADMIN_EMAILS = ['neerajlovecyber@gmail.com', 'futureaistudio41@gmail.com'];
     const isAdmin = user?.emailAddresses.some((e) => ADMIN_EMAILS.includes(e.emailAddress));
+    const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
     const handleShare = async () => {
         try {
@@ -160,22 +172,27 @@ export default function SettingsScreen() {
     };
 
     return (
-        <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 40 }}>
-            <View className="flex-1">
-                {/* Header */}
-                <View className="px-6 pt-4 pb-6">
-                    <Text className="text-3xl font-black text-foreground tracking-tight">Settings</Text>
-                    <Text className="text-muted-foreground font-medium mt-1">Manage your account & preferences</Text>
-                </View>
+        <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
+            {/* Header */}
+            <View className="px-6 py-4">
+                <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
+            </View>
 
+            <View className="flex-1 gap-4">
                 <UserProfile />
 
+                {/* Google Group Status Card */}
+                <View className="px-4">
+                    <GoogleGroupWidget />
+                </View>
+
+                {/* Settings Groups */}
                 <View className="px-4 gap-6">
                     {/* Appearance Section */}
                     <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Appearance</Text>
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Preferences</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
-                            <CardContent className="p-0 gap-0">
+                            <CardContent className="p-0 gap-0 divide-y divide-border/30">
                                 <SettingItem
                                     icon={colorScheme === 'dark' ? MoonIcon : SunIcon}
                                     label="Dark Mode"
@@ -288,7 +305,7 @@ export default function SettingsScreen() {
                                 />
                                 <View className="py-4 px-4 flex-row justify-between items-center">
                                     <Text className="text-muted-foreground text-sm font-medium">Version</Text>
-                                    <Text className="text-muted-foreground text-sm font-bold">{Constants.expoConfig?.version || '1.1.0'}</Text>
+                                    <Text className="text-muted-foreground text-sm font-bold">{appConfig.expo?.version || Constants.expoConfig?.version || '3.0.0'}</Text>
                                 </View>
                             </CardContent>
                         </Card>
@@ -298,13 +315,39 @@ export default function SettingsScreen() {
                     <Button
                         variant="destructive"
                         className="w-full flex-row items-center justify-center gap-2 h-14 rounded-2xl"
-                        onPress={() => signOut()}
+                        onPress={() => setShowLogoutConfirm(true)}
                     >
                         <Icon as={LogOutIcon} className="text-destructive-foreground size-5" />
                         <Text className="text-destructive-foreground font-bold text-base">Log Out</Text>
                     </Button>
                 </View>
             </View>
+
+            {/* Logout Confirmation Dialog */}
+            <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Log Out of Your Account?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to log out of The Closed Test? You can log back in at any time to resume your active test cycles.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setShowLogoutConfirm(false)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onPress={() => {
+                                setShowLogoutConfirm(false);
+                                signOut();
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            <Text className="text-white font-bold">Yes, Log Out</Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </ScrollView>
     );
 }

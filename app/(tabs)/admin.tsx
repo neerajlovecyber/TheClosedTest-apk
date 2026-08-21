@@ -1,23 +1,12 @@
-import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@/components/ui/icon';
-import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, Trash2Icon, AlertTriangleIcon } from 'lucide-react-native';
+import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { toast } from '@/lib/sonner';
-import { useAdminStats, useAdminCleanAllApps, useAdminCleanTestUsers } from '@/lib/api-hooks';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { useAdminStats } from '@/lib/api-hooks';
 
 export default function AdminDashboardScreen() {
     const router = useRouter();
@@ -25,41 +14,6 @@ export default function AdminDashboardScreen() {
     const totalUsersCount = stats?.totalUsers ?? 0;
     const activeMatchesCount = stats?.activeMatches ?? 0;
     const totalAppsCount = stats?.totalApps ?? 0;
-
-    const [showCleanConfirm, setShowCleanConfirm] = useState(false);
-    const [showCleanUsersConfirm, setShowCleanUsersConfirm] = useState(false);
-    const cleanAllAppsMutation = useAdminCleanAllApps();
-    const cleanTestUsersMutation = useAdminCleanTestUsers();
-
-    const handleCleanAllApps = async () => {
-        try {
-            const res = await cleanAllAppsMutation.mutateAsync();
-            toast.success('Marketplace Cleaned', {
-                description: `${res.deletedAppsCount} apps and associated test records removed.`,
-            });
-        } catch (error: any) {
-            toast.error('Clean failed', {
-                description: error.message || 'Could not clean apps.',
-            });
-        } finally {
-            setShowCleanConfirm(false);
-        }
-    };
-
-    const handleCleanTestUsers = async () => {
-        try {
-            const res = await cleanTestUsersMutation.mutateAsync();
-            toast.success('Test Users Cleaned', {
-                description: res.message || `${res.deletedUsersCount} test users removed.`,
-            });
-        } catch (error: any) {
-            toast.error('Clean failed', {
-                description: error.message || 'Could not clean test users.',
-            });
-        } finally {
-            setShowCleanUsersConfirm(false);
-        }
-    };
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -128,103 +82,29 @@ export default function AdminDashboardScreen() {
                     </TouchableOpacity>
                 </Card>
 
-                {/* Maintenance & Dangerous Actions */}
-                <Text className="text-xs font-bold text-red-500 uppercase tracking-wider mb-3 px-1">Danger Zone &amp; Reset</Text>
+                {/* System Maintenance & Dangerous Actions */}
+                <Text className="text-xs font-bold text-red-500 uppercase tracking-wider mb-3 px-1">System &amp; Maintenance</Text>
 
-                <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/40 shadow-sm mb-4">
+                <Card className="border-red-200 bg-red-50/40 dark:bg-red-950/10 dark:border-red-900/40 shadow-sm mb-4">
                     <TouchableOpacity
                         className="flex-row items-center justify-between p-4"
-                        onPress={() => setShowCleanConfirm(true)}
-                        disabled={cleanAllAppsMutation.isPending}
+                        onPress={() => router.push('/admin/danger-zone' as any)}
                     >
                         <View className="flex-row items-center flex-1 mr-2">
                             <View className="bg-red-500/10 p-2.5 rounded-xl mr-3">
-                                {cleanAllAppsMutation.isPending ? (
-                                    <ActivityIndicator size="small" color="#ef4444" />
-                                ) : (
-                                    <Icon as={Trash2Icon} className="text-red-500 size-5" />
-                                )}
+                                <Icon as={ShieldAlertIcon} className="text-red-500 size-5" />
                             </View>
                             <View className="flex-1">
-                                <Text className="font-semibold text-red-700 dark:text-red-400">Clean All Apps (Reset Marketplace)</Text>
+                                <Text className="font-semibold text-red-700 dark:text-red-400">Danger Zone &amp; Reset</Text>
                                 <Text className="text-xs text-red-600/80 dark:text-red-400/70">
-                                    Deletes all apps, matches &amp; testing logs for a fresh start
+                                    Clean test accounts, purge dummy users, and reset marketplace
                                 </Text>
                             </View>
                         </View>
                         <Icon as={ChevronRightIcon} className="text-red-400 size-5" />
                     </TouchableOpacity>
                 </Card>
-
-                <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/10 dark:border-orange-900/40 shadow-sm mb-4">
-                    <TouchableOpacity
-                        className="flex-row items-center justify-between p-4"
-                        onPress={() => setShowCleanUsersConfirm(true)}
-                        disabled={cleanTestUsersMutation.isPending}
-                    >
-                        <View className="flex-row items-center flex-1 mr-2">
-                            <View className="bg-orange-500/10 p-2.5 rounded-xl mr-3">
-                                {cleanTestUsersMutation.isPending ? (
-                                    <ActivityIndicator size="small" color="#f97316" />
-                                ) : (
-                                    <Icon as={Trash2Icon} className="text-orange-500 size-5" />
-                                )}
-                            </View>
-                            <View className="flex-1">
-                                <Text className="font-semibold text-orange-700 dark:text-orange-400">Clean Dummy Test Users</Text>
-                                <Text className="text-xs text-orange-600/80 dark:text-orange-400/70">
-                                    Removes QA &amp; stress test accounts while keeping your real admin/Google users
-                                </Text>
-                            </View>
-                        </View>
-                        <Icon as={ChevronRightIcon} className="text-orange-400 size-5" />
-                    </TouchableOpacity>
-                </Card>
             </ScrollView>
-
-            <AlertDialog open={showCleanConfirm} onOpenChange={setShowCleanConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Reset All Marketplace Apps?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will delete ALL apps, matches, and proof logs across the entire database. Real user accounts and reputations will be kept intact.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onPress={() => setShowCleanConfirm(false)}>
-                            <Text>Cancel</Text>
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onPress={handleCleanAllApps}
-                            className="bg-red-600 hover:bg-red-700"
-                        >
-                            <Text className="text-white font-bold">Yes, Delete All Apps</Text>
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={showCleanUsersConfirm} onOpenChange={setShowCleanUsersConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Clean Dummy Test Accounts?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will remove simulated stress-testing and dummy test users from the database. Real admin and verified Google accounts will NOT be touched.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onPress={() => setShowCleanUsersConfirm(false)}>
-                            <Text>Cancel</Text>
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onPress={handleCleanTestUsers}
-                            className="bg-orange-600 hover:bg-orange-700"
-                        >
-                            <Text className="text-white font-bold">Yes, Clean Test Users</Text>
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </SafeAreaView>
     );
 }

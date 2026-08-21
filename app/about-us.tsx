@@ -5,8 +5,8 @@ import { Text } from '@/components/ui/text';
 import { Stack, useRouter } from 'expo-router';
 import { ChevronLeftIcon, BoxIcon, RocketIcon, UsersIcon, MailIcon, HeartIcon, Code2Icon, LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
-import { Linking, ScrollView, View } from 'react-native';
 import Constants from 'expo-constants';
+import appConfig from '../app.json';
 
 interface SectionProps {
     icon: LucideIcon;
@@ -62,7 +62,7 @@ export default function AboutUsScreen() {
                         </View>
                         <View className="items-center gap-1">
                             <Text className="text-3xl font-black tracking-tight text-foreground">The Closed Test</Text>
-                            <Text className="text-muted-foreground font-medium">Version {Constants.expoConfig?.version || '1.0.0'}</Text>
+                            <Text className="text-muted-foreground font-medium">Version {appConfig.expo?.version || Constants.expoConfig?.version || '3.0.0'}</Text>
                         </View>
                     </View>
 
