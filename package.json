@@ -12,7 +12,7 @@
   "dependencies": {
     "@clerk/clerk-expo": "2.16.1",
     "@codsod/react-native-chat": "^1.0.14",
-    "@legendapp/list": "^2.0.19",
+    "@legendapp/list": "^3.3.7",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/native": "^7.0.0",
     "@rn-primitives/accordion": "^1.2.0",

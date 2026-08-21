@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, memo } from 'react';
 import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
-import { LegendList } from '@legendapp/list';
+import { LegendList } from '@legendapp/list/react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
