@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, ScrollView, TouchableOpacity, Platform, useWindowDimensions, Pressable, Linking, Share } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, ScrollView, RefreshControl, TouchableOpacity, Platform, useWindowDimensions, Pressable, Linking, Share } from 'react-native';
 import { toast } from '@/lib/sonner';
 import {
     AlertDialog,
@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { MessageSquareIcon, CalendarCheckIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ClockIcon, ArrowLeftIcon, ArrowRightLeftIcon, CheckIcon, XIcon, FlagIcon } from 'lucide-react-native';
+import { MessageSquareIcon, CalendarCheckIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ClockIcon, ArrowLeftIcon, ArrowRightLeftIcon, CheckIcon, XIcon, FlagIcon, RotateCwIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Button } from '@/components/ui/button';
@@ -56,11 +56,29 @@ export default function MatchDashboardScreen() {
     const { data: currentUser } = useCurrentUser();
     const currentUserId = currentUser?.id;
 
-    const { data: match, isLoading: isLoadingMatch } = useMatch(matchId);
-    const { data: allProofs = [] } = useMatchProofs(matchId);
-    const { data: messages = [] } = useMatchMessages(matchId);
+    const { data: match, isLoading: isLoadingMatch, refetch: refetchMatch, isFetching: isFetchingMatch } = useMatch(matchId);
+    const { data: apiProofs, refetch: refetchProofs, isFetching: isFetchingProofs } = useMatchProofs(matchId);
+    const { data: messages = [], refetch: refetchMessages } = useMatchMessages(matchId);
     const rejectMatchMutation = useRejectMatch();
     const acceptMatchMutation = useAcceptMatch();
+
+    const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+    const handleRefresh = useCallback(async () => {
+        setIsManualRefreshing(true);
+        try {
+            await Promise.all([
+                refetchMatch(),
+                refetchProofs(),
+                refetchMessages(),
+            ]);
+            toast.success('Refreshed', { description: 'Latest proofs and status updated.' });
+        } catch (e: any) {
+            toast.error('Refresh Failed', { description: e.message });
+        } finally {
+            setIsManualRefreshing(false);
+        }
+    }, [refetchMatch, refetchProofs, refetchMessages]);
 
     const [chatVisible, setChatVisible] = useState(false);
     const [reportDialogVisible, setReportDialogVisible] = useState(false);
@@ -99,6 +117,13 @@ export default function MatchDashboardScreen() {
         setSelectedDay(day);
     };
 
+    // Use embedded match.proofs instantly if available, avoiding network waterfall delay
+    const allProofs: ProofEntity[] = useMemo(() => {
+        if (apiProofs && apiProofs.length > 0) return apiProofs;
+        if (match?.proofs && match.proofs.length > 0) return match.proofs;
+        return apiProofs || [];
+    }, [apiProofs, match?.proofs]);
+
     if (isLoadingMatch || !match) {
         return (
             <View className="flex-1 bg-background items-center justify-center">
@@ -111,12 +136,28 @@ export default function MatchDashboardScreen() {
     const partnerApp = isUser1 ? match.app2 : match.app1;
     const myApp = isUser1 ? match.app1 : match.app2;
 
-    const myProofs = allProofs.filter((p: ProofEntity) => p.uploaderId === currentUserId);
-    const partnerProofs = allProofs.filter((p: ProofEntity) => p.uploaderId !== currentUserId);
+    const partnerUserId = isUser1 ? match.user2Id : match.user1Id;
+    const myUserId = isUser1 ? match.user1Id : match.user2Id;
 
-    const currentDay = Math.min(14, Math.max(1, (isUser1 ? match.user1LastProof?.day : match.user2LastProof?.day) || 1));
+    const myProofs = allProofs.filter((p: ProofEntity) => p.uploaderId === myUserId);
+    const partnerProofs = allProofs.filter((p: ProofEntity) => p.uploaderId === partnerUserId);
+
+    const myLastProof = isUser1 ? match.user1LastProof : match.user2LastProof;
+    const partnerLastProof = isUser1 ? match.user2LastProof : match.user1LastProof;
+
+    // Check if there is a pending partner proof that needs user's review
+    const pendingPartnerProof = partnerProofs.find((p: ProofEntity) => p.status === 'pending');
+
+    const defaultDay = pendingPartnerProof
+        ? pendingPartnerProof.day
+        : (partnerLastProof?.status === 'pending' && partnerLastProof.day)
+            ? partnerLastProof.day
+            : Math.min(14, Math.max(1, myLastProof?.day || 1, partnerLastProof?.day || 1));
+
+    const currentDay = defaultDay;
     const effectiveDay = selectedDay ?? currentDay;
     const isCompleted = match.status === 'completed';
+    const isCancelled = match.status === 'cancelled' || match.status === 'rejected' || match.status === 'archived';
 
     const handleRejectPress = (proofId: string) => {
         setProofToReject(proofId);
@@ -124,10 +165,10 @@ export default function MatchDashboardScreen() {
     };
 
     const selectedDayMyProof = allProofs.find(
-        (p: ProofEntity) => p.day === effectiveDay && p.uploaderId === currentUserId,
+        (p: ProofEntity) => p.day === effectiveDay && p.uploaderId === myUserId,
     );
     const selectedDayPartnerProof = allProofs.find(
-        (p: ProofEntity) => p.day === effectiveDay && p.uploaderId !== currentUserId,
+        (p: ProofEntity) => p.day === effectiveDay && p.uploaderId === partnerUserId,
     );
 
     const handleLeaveMatch = () => {
@@ -210,18 +251,32 @@ export default function MatchDashboardScreen() {
                     </TouchableOpacity>
                     <View className="flex-1">
                         <Text className="text-lg font-bold text-foreground" numberOfLines={1}>Testing Dashboard</Text>
-                        <Text className="text-xs text-muted-foreground font-medium" numberOfLines={1}>Day {currentDay} of 14</Text>
+                        <Text className="text-xs text-muted-foreground font-medium" numberOfLines={1}>
+                            {isCancelled ? 'Match Ended' : isCompleted ? 'Completed' : `Day ${currentDay} of 14`}
+                        </Text>
                     </View>
                 </View>
 
-                {/* Report Partner Button */}
-                <TouchableOpacity
-                    onPress={() => setReportDialogVisible(true)}
-                    activeOpacity={0.7}
-                    className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
-                >
-                    <Icon as={FlagIcon} className="size-4 text-muted-foreground" />
-                </TouchableOpacity>
+                <View className="flex-row items-center gap-2">
+                    {/* Reload / Refresh Button */}
+                    <TouchableOpacity
+                        onPress={handleRefresh}
+                        disabled={isManualRefreshing || isFetchingMatch || isFetchingProofs}
+                        activeOpacity={0.7}
+                        className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
+                    >
+                        <Icon as={RotateCwIcon} className="size-4 text-foreground" />
+                    </TouchableOpacity>
+
+                    {/* Report Partner Button */}
+                    <TouchableOpacity
+                        onPress={() => setReportDialogVisible(true)}
+                        activeOpacity={0.7}
+                        className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
+                    >
+                        <Icon as={FlagIcon} className="size-4 text-muted-foreground" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView
@@ -229,6 +284,12 @@ export default function MatchDashboardScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: isWeb ? 40 : 60 }}
                 style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isManualRefreshing || isFetchingMatch || isFetchingProofs}
+                        onRefresh={handleRefresh}
+                    />
+                }
             >
                 {/* Header Section */}
                 <View className="px-4 pt-4 pb-2">
@@ -316,6 +377,40 @@ export default function MatchDashboardScreen() {
                     </View>
                 )}
 
+                {/* Cancelled Banner if Match Ended */}
+                {isCancelled && (
+                    <View className="px-4 mb-4">
+                        <Card className="bg-red-500/10 border-red-500/30">
+                            <CardContent className="p-5 items-center">
+                                <View className="w-12 h-12 rounded-full bg-red-500/20 items-center justify-center mb-3">
+                                    <Icon as={XCircleIcon} className="size-6 text-red-500" />
+                                </View>
+                                <Text className="text-xl font-bold text-red-600 dark:text-red-400 text-center">
+                                    Testing Match Ended
+                                </Text>
+                                <Text className="text-sm text-muted-foreground text-center mt-1 mb-4">
+                                    This testing swap was cancelled or left. Daily screenshot uploads and proof reviews are no longer active for this app.
+                                </Text>
+                                <View className="flex-row gap-3 w-full">
+                                    <Button
+                                        variant="outline"
+                                        onPress={() => router.replace('/(tabs)/tests' as any)}
+                                        className="flex-1"
+                                    >
+                                        <Text className="text-foreground font-semibold text-xs">My Tasks</Text>
+                                    </Button>
+                                    <Button
+                                        onPress={() => router.replace('/(tabs)/marketplace' as any)}
+                                        className="flex-1"
+                                    >
+                                        <Text className="text-primary-foreground font-semibold text-xs">Browse Marketplace</Text>
+                                    </Button>
+                                </View>
+                            </CardContent>
+                        </Card>
+                    </View>
+                )}
+
                 {/* Progress Tracker (Horizontal Scroll View) */}
                 <View className="mb-4">
                     <ProgressGrid
@@ -333,7 +428,7 @@ export default function MatchDashboardScreen() {
                 </View>
 
                 {/* Day View */}
-                {!isCompleted && (
+                {!isCompleted && !isCancelled && (
                     <View className="px-4">
                         <View className="flex-row items-center justify-between mb-2">
                             <View className="flex-row items-center gap-2">
@@ -403,7 +498,7 @@ export default function MatchDashboardScreen() {
                     </View>
                 )}
 
-                {!isCompleted && (
+                {!isCompleted && !isCancelled && (
                     <View className="px-4 mt-2">
                         <TouchableOpacity
                             onPress={handleLeaveMatch}
@@ -417,7 +512,8 @@ export default function MatchDashboardScreen() {
             </ScrollView>
 
             {/* Chat Floating Action Button with Live Red Dot Indicator */}
-            <View className="absolute bottom-6 right-6 z-50">
+            {!isCancelled && (
+                <View className="absolute bottom-6 right-6 z-50">
                 <TouchableOpacity
                     onPress={() => setChatVisible(true)}
                     className="relative w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/30 p-0"
@@ -429,6 +525,7 @@ export default function MatchDashboardScreen() {
                     )}
                 </TouchableOpacity>
             </View>
+            )}
 
             <MatchChat
                 visible={chatVisible}

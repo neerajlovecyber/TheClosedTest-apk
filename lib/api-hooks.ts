@@ -337,6 +337,7 @@ export function useMatch(id?: string) {
     queryKey: ["match", id],
     queryFn: () => api.get<MatchEntity>(`/api/matches/${id}`),
     enabled: Boolean(id),
+    refetchInterval: 1000 * 10,
   })
 }
 
@@ -430,6 +431,7 @@ export function useMatchProofs(matchId?: string) {
     queryKey: ["proofs", matchId],
     queryFn: () => api.get<ProofEntity[]>(`/api/proofs/match/${matchId}`),
     enabled: Boolean(matchId),
+    refetchInterval: 1000 * 10,
   })
 }
 

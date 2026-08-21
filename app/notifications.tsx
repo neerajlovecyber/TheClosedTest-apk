@@ -83,6 +83,8 @@ export default function NotificationsScreen() {
                 return <Icon as={AlertCircleIcon} className="text-orange-500" />;
             case 'message':
                 return <Icon as={MessageSquareIcon} className="text-purple-500" />;
+            case 'match_cancelled':
+                return <Icon as={AlertCircleIcon} className="text-red-500" />;
             default:
                 return <Icon as={BellIcon} className="text-gray-500" />;
         }

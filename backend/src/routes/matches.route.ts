@@ -472,6 +472,31 @@ router.openapi(
       .where(eq(matches.id, id))
       .returning()
 
+    const partnerId = match.user1Id === userVar.id ? match.user2Id : match.user1Id
+    Promise.all([
+      db.insert(notifications).values({
+        userId: partnerId,
+        type: "match_cancelled",
+        title: "Testing Ended",
+        body: `${userVar.name || "Your partner"} has left or cancelled the testing match.`,
+        data: { matchId: match.id },
+      }),
+      db.query.users
+        .findFirst({
+          where: eq(users.id, partnerId),
+        })
+        .then((partnerUser) => {
+          if (partnerUser?.pushToken) {
+            sendExpoPushNotification({
+              to: partnerUser.pushToken,
+              title: "Testing Ended",
+              body: `${userVar.name || "Your partner"} has left or cancelled the testing match.`,
+              data: { matchId: match.id },
+            }).catch(() => {})
+          }
+        }),
+    ]).catch(() => {})
+
     return c.json(updated, HttpStatusCodes.OK)
   },
 )

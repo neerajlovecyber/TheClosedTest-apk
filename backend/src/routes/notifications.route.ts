@@ -12,7 +12,7 @@ import { authMiddleware } from "../middlewares/auth"
 const NotificationSchema = z.object({
   id: z.string(),
   userId: z.string(),
-  type: z.enum(["request", "acceptance", "reminder", "proof_update", "message"]),
+  type: z.enum(["request", "acceptance", "reminder", "proof_update", "message", "match_cancelled"]),
   title: z.string(),
   body: z.string(),
   data: z.any(),
