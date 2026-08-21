@@ -5,6 +5,7 @@ import * as HttpStatusCodes from "stoker/http-status-codes"
 
 import { db } from "../db"
 import { users } from "../db/schema"
+import { isUserAdmin } from "../lib/constants"
 import type { AppBindings } from "../lib/types"
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -82,12 +83,14 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
     })
   }
 
+  const isAdminUser = isUserAdmin(user.email, user.isAdmin)
+
   c.set("user", {
     id: user.id,
     tokenIdentifier: user.tokenIdentifier,
     email: user.email,
     name: user.name,
-    isAdmin: user.isAdmin,
+    isAdmin: isAdminUser,
   })
 
   await next()

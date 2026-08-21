@@ -6,6 +6,7 @@ import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
 import { dailyActivity, users } from "../db/schema"
+import { isUserAdmin } from "../lib/constants"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 
@@ -74,6 +75,8 @@ router.openapi(
         or(eq(u.tokenIdentifier, body.tokenIdentifier), eq(u.email, body.email)),
     })
 
+    const isUserAdminRole = isUserAdmin(body.email, existingUser?.isAdmin)
+
     if (existingUser) {
       const [updated] = await db
         .update(users)
@@ -82,6 +85,7 @@ router.openapi(
           email: body.email,
           tokenIdentifier: body.tokenIdentifier,
           avatarUrl: avatar,
+          isAdmin: isUserAdminRole,
           updatedAt: new Date(),
         })
         .where(eq(users.id, existingUser.id))
@@ -97,6 +101,7 @@ router.openapi(
         name: body.name,
         email: body.email,
         avatarUrl: avatar,
+        isAdmin: isUserAdminRole,
         reputation: 100,
         appsCount: 0,
         isGroupMember: false,
