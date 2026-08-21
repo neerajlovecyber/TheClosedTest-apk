@@ -219,13 +219,12 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
                     return (
                         <Pressable
                             key={dayItem.day}
-                            onPress={() => !isFuture && onDayPress?.(dayItem.day)}
-                            disabled={isFuture}
-                            style={{ width: 85 }} // Fixed width for scrollable list
+                            onPress={() => onDayPress?.(dayItem.day)}
+                            style={{ width: 85 }}
                             className={`p-2 mr-2 rounded-xl border-2 aspect-[0.85] justify-between items-center ${isSelected ? 'border-primary bg-primary/10' :
                                 isToday ? 'border-primary/50 bg-primary/5' :
                                     'border-border bg-card'
-                                } ${isFuture ? 'opacity-50' : 'active:opacity-70'}`}
+                                } ${isFuture ? 'opacity-70' : 'active:opacity-70'}`}
                         >
                             <View className={`px-2 py-0.5 rounded-md mb-2 ${isSelected ? 'bg-primary' : isToday ? 'bg-primary/70' : 'bg-secondary'}`}>
                                 <Text className={`text-xs font-bold ${isSelected || isToday ? 'text-primary-foreground' : 'text-muted-foreground'}`}>

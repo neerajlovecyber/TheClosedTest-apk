@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { CameraIcon, XIcon, PlusIcon, SendIcon, ImageIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react-native';
+import { CameraIcon, XIcon, PlusIcon, SendIcon, ImageIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, LockIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCurrentUser, usePresignedUploadUrl, useSubmitProof } from '@/lib/api-hooks';
@@ -26,9 +26,10 @@ interface ProofUploaderProps {
     } | null;
     onUploadComplete?: () => void;
     isCompleted?: boolean;
+    isFuture?: boolean;
 }
 
-function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete, isCompleted }: ProofUploaderProps) {
+function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete, isCompleted, isFuture }: ProofUploaderProps) {
     const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
@@ -334,6 +335,25 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             </View>
         </Modal>
     );
+
+    if (isFuture) {
+        return (
+            <>
+                <Card className="bg-secondary/20 border-border/50 mb-4">
+                    <CardContent className="p-5 items-center justify-center py-6">
+                        <View className="w-12 h-12 rounded-full bg-secondary items-center justify-center mb-3">
+                            <Icon as={LockIcon} className="size-6 text-muted-foreground" />
+                        </View>
+                        <Text className="font-bold text-foreground text-base">Day {currentDay} is Locked</Text>
+                        <Text className="text-muted-foreground text-xs text-center mt-1">
+                            This testing day will unlock automatically on Day {currentDay}.
+                        </Text>
+                    </CardContent>
+                </Card>
+                {imageViewerModal}
+            </>
+        );
+    }
 
     if (isCompleted) {
         if (todayProof && todayProof.status === 'approved') {

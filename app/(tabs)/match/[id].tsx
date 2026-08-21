@@ -198,7 +198,7 @@ export default function MatchDashboardScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
-            {/* Top Navigation Bar with Chat & Unread Indicator */}
+            {/* Top Navigation Bar */}
             <View className="flex-row items-center justify-between px-4 py-3 border-b border-border bg-background">
                 <View className="flex-row items-center gap-2 flex-1">
                     <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full active:bg-secondary">
@@ -210,28 +210,14 @@ export default function MatchDashboardScreen() {
                     </View>
                 </View>
 
-                <View className="flex-row items-center gap-2">
-                    {/* Chat Button with Live Unread Indicator */}
-                    <TouchableOpacity
-                        onPress={() => setChatVisible(true)}
-                        activeOpacity={0.7}
-                        className="relative p-2.5 rounded-full bg-secondary/80 border border-border flex-row items-center justify-center"
-                    >
-                        <Icon as={MessageSquareIcon} className="size-5 text-foreground" />
-                        {hasUnreadChat && (
-                            <View className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-background shadow-sm" />
-                        )}
-                    </TouchableOpacity>
-
-                    {/* Report Partner Button */}
-                    <TouchableOpacity
-                        onPress={() => setReportDialogVisible(true)}
-                        activeOpacity={0.7}
-                        className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
-                    >
-                        <Icon as={FlagIcon} className="size-4 text-muted-foreground" />
-                    </TouchableOpacity>
-                </View>
+                {/* Report Partner Button */}
+                <TouchableOpacity
+                    onPress={() => setReportDialogVisible(true)}
+                    activeOpacity={0.7}
+                    className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
+                >
+                    <Icon as={FlagIcon} className="size-4 text-muted-foreground" />
+                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -318,7 +304,7 @@ export default function MatchDashboardScreen() {
                                             {isUser1 ? match.user2ApprovedCount : match.user1ApprovedCount}
                                         </Text>
                                         <Text className="text-xs text-blue-600/80 font-medium">out of 14</Text>
-                                        <Text className="text-sm text-muted-foreground mt-1 font-semibold">Partner's Proofs</Text>
+                                        <Text className="text-sm text-muted-foreground mt-1 font-semibold">Partner Proofs</Text>
                                     </View>
                                 </View>
                             </CardContent>
@@ -326,18 +312,21 @@ export default function MatchDashboardScreen() {
                     </View>
                 )}
 
-                {/* Progress Grid */}
-                {!isCompleted && (
-                    <View className="mb-3">
-                        <ProgressGrid
-                            days={daysProgress as any}
-                            currentDay={currentDay}
-                            summary={summary as any}
-                            onDayPress={handleDayPress}
-                            selectedDay={effectiveDay}
-                        />
-                    </View>
-                )}
+                {/* Progress Tracker (Horizontal Scroll View) */}
+                <View className="mb-4">
+                    <ProgressGrid
+                        days={daysProgress.map(d => ({
+                            ...d,
+                            isFuture: d.day > currentDay,
+                            myProof: myProofs.find(p => p.day === d.day),
+                            partnerProof: partnerProofs.find(p => p.day === d.day),
+                        }))}
+                        currentDay={currentDay}
+                        summary={summary}
+                        onDayPress={handleDayPress}
+                        selectedDay={effectiveDay}
+                    />
+                </View>
 
                 {/* Day View */}
                 {!isCompleted && (
@@ -369,11 +358,11 @@ export default function MatchDashboardScreen() {
                                     <Text className={`font-bold ${effectiveDay <= 1 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>←</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    onPress={() => effectiveDay < currentDay && setSelectedDay(effectiveDay + 1)}
-                                    className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay >= currentDay ? 'bg-muted/30' : 'bg-primary'}`}
-                                    disabled={effectiveDay >= currentDay}
+                                    onPress={() => effectiveDay < 14 && setSelectedDay(effectiveDay + 1)}
+                                    className={`w-8 h-8 rounded-full items-center justify-center ${effectiveDay >= 14 ? 'bg-muted/30' : 'bg-primary'}`}
+                                    disabled={effectiveDay >= 14}
                                 >
-                                    <Text className={`font-bold ${effectiveDay >= currentDay ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
+                                    <Text className={`font-bold ${effectiveDay >= 14 ? 'text-muted-foreground/30' : 'text-primary-foreground'}`}>→</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -389,6 +378,7 @@ export default function MatchDashboardScreen() {
                                 rejectionReason: selectedDayMyProof.rejectionReason || undefined,
                             } : null}
                             isCompleted={isCompleted}
+                            isFuture={effectiveDay > currentDay}
                         />
 
                         <View className="h-px bg-border my-2" />
@@ -422,14 +412,17 @@ export default function MatchDashboardScreen() {
                 )}
             </ScrollView>
 
-            {/* Chat Floating Action Button */}
+            {/* Chat Floating Action Button with Live Red Dot Indicator */}
             <View className="absolute bottom-6 right-6 z-50">
                 <TouchableOpacity
                     onPress={() => setChatVisible(true)}
-                    className="w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/30 p-0"
+                    className="relative w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/30 p-0"
                     activeOpacity={0.8}
                 >
                     <Icon as={MessageSquareIcon} className="text-primary-foreground size-6" />
+                    {hasUnreadChat && (
+                        <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-background shadow-sm" />
+                    )}
                 </TouchableOpacity>
             </View>
 
