@@ -5,9 +5,10 @@
 ### *The Open-Source Community Platform for Google Play 14-Day Closed Testing*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![React Native](https://img.shields.io/badge/React_Native-0.76-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
-[![Expo](https://img.shields.io/badge/Expo_SDK-52-000020?logo=expo&logoColor=white)](https://expo.dev/)
-[![Hono](https://img.shields.io/badge/Hono-Framework-E36002?logo=hono&logoColor=white)](https://hono.dev/)
+[![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo_SDK-57-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Hono](https://img.shields.io/badge/Hono-v4-E36002?logo=hono&logoColor=white)](https://hono.dev/)
 [![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-PostgreSQL-C5F74F?logo=postgresql&logoColor=black)](https://orm.drizzle.team/)
 [![Bun](https://img.shields.io/badge/Bun-1.1+-fbf0df?logo=bun&logoColor=black)](https://bun.sh/)
 [![Cloudflare R2](https://img.shields.io/badge/Storage-Cloudflare_R2-F38020?logo=cloudflare&logoColor=white)](https://www.cloudflare.com/products/r2/)
@@ -62,8 +63,8 @@ TheClosedTest-apk/
 ```
 
 ### Frontend Mobile App
-- **Framework**: [Expo SDK 52](https://expo.dev/) + [React Native 0.76](https://reactnative.dev/)
-- **Routing**: [Expo Router v4](https://docs.expo.dev/router/introduction/) (File-based navigation)
+- **Framework**: [Expo SDK 57](https://expo.dev/) + [React Native 0.86](https://reactnative.dev/) (React 19)
+- **Routing**: [Expo Router v57](https://docs.expo.dev/router/introduction/) (File-based navigation)
 - **Styling**: [NativeWind v4](https://www.nativewind.dev/) (Tailwind CSS for React Native)
 - **State Management & Caching**: [TanStack React Query v5](https://tanstack.com/query/latest)
 - **Authentication**: [Clerk Expo SDK](https://clerk.com/)
