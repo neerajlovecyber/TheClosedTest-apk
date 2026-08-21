@@ -279,6 +279,7 @@ export function useUpdateApp() {
       queryClient.invalidateQueries({ queryKey: ["apps"] })
       queryClient.invalidateQueries({ queryKey: ["myApps"] })
       queryClient.invalidateQueries({ queryKey: ["app", vars.id] })
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
     },
   })
 }
@@ -298,14 +299,21 @@ export function useVoteApp() {
 // ---------------------------------------------------------------------------
 // 3. Matchmaking & Peer-Testing Flow Hooks
 // ---------------------------------------------------------------------------
-export function useMatches(status?: "all" | "pending" | "active" | "completed") {
+
+export function useRecruitingMatches() {
   return useQuery<MatchEntity[]>({
-    queryKey: ["matches", status || "all"],
+    queryKey: ["matches", "recruiting"],
+    queryFn: () => api.get<MatchEntity[]>("/api/matches/recruiting"),
+  })
+}
+
+export function useMatches(status?: string) {
+  return useQuery<MatchEntity[]>({
+    queryKey: ["matches", { status }],
     queryFn: () =>
       api.get<MatchEntity[]>("/api/matches", {
-        params: status && status !== "all" ? { status } : undefined,
+        params: { status },
       }),
-    refetchInterval: 1000 * 15, // Polling interval for live match updates
   })
 }
 
@@ -314,18 +322,15 @@ export function useMatch(id?: string) {
     queryKey: ["match", id],
     queryFn: () => api.get<MatchEntity>(`/api/matches/${id}`),
     enabled: Boolean(id),
-    refetchInterval: 1000 * 10,
   })
 }
 
 export function useRequestMatch() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { myAppId: string; targetAppId: string }) =>
-      api.post<MatchEntity>("/api/matches/request", payload),
+    mutationFn: (targetAppId: string) => api.post<MatchEntity>("/api/matches/request", { targetAppId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["matches"] })
-      queryClient.invalidateQueries({ queryKey: ["myApps"] })
     },
   })
 }
@@ -353,14 +358,13 @@ export function useRejectMatch() {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Proof Upload & Review Hooks
+// 4. Daily Proof Submission & Review Hooks
 // ---------------------------------------------------------------------------
 export function useMatchProofs(matchId?: string) {
   return useQuery<ProofEntity[]>({
     queryKey: ["proofs", matchId],
-    queryFn: () => api.get<ProofEntity[]>(`/api/proofs/match/${matchId}`),
+    queryFn: () => api.get<ProofEntity[]>(`/api/proofs/${matchId}`),
     enabled: Boolean(matchId),
-    refetchInterval: 1000 * 15,
   })
 }
 
@@ -399,6 +403,7 @@ export function useReviewProof() {
       queryClient.invalidateQueries({ queryKey: ["proofs", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["match", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["matches"] })
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
     },
   })
 }

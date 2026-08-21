@@ -11,10 +11,13 @@ export async function runDailyStreakMaintenance() {
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
 
   try {
-    // Reset streak to 0 for users who did not check in yesterday or today
+    // Reset streak to 0 and deduct -2 reputation penalty for users who missed check in
     await db
       .update(users)
-      .set({ streak: 0 })
+      .set({
+        streak: 0,
+        reputation: sql`GREATEST(0, ${users.reputation} - 2)`,
+      })
       .where(
         and(
           sql`${users.lastCheckInDate} != ${today}`,

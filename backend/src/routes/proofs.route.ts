@@ -294,8 +294,13 @@ router.openapi(
       updatedAt: now,
     }
 
-    // If approved, update approved count and check for match completion
+    // If approved, update approved count and check for match completion; reward uploader +1 reputation
     if (status === "approved") {
+      await db
+        .update(users)
+        .set({ reputation: sql`${users.reputation} + 1` })
+        .where(eq(users.id, proof.uploaderId))
+
       const user1Approved = isUser1Uploader
         ? match.user1ApprovedCount + 1
         : match.user1ApprovedCount
@@ -317,6 +322,12 @@ router.openapi(
           .set({ reputation: sql`${users.reputation} + 20` })
           .where(or(eq(users.id, match.user1Id), eq(users.id, match.user2Id)))
       }
+    } else if (status === "rejected") {
+      // Deduct 5 reputation for rejected proof (clamped at minimum 0)
+      await db
+        .update(users)
+        .set({ reputation: sql`GREATEST(0, ${users.reputation} - 5)` })
+        .where(eq(users.id, proof.uploaderId))
     }
 
     await db

@@ -333,6 +333,14 @@ router.openapi(
       .where(eq(apps.id, id))
       .returning()
 
+    // If app status changed to completed, reward +20 reputation to the owner
+    if (body.status === "completed" && existing.status !== "completed") {
+      await db
+        .update(users)
+        .set({ reputation: sql`${users.reputation} + 20` })
+        .where(eq(users.id, userVar.id))
+    }
+
     // Invalidate public feed cache
     memoryCache.delete("apps_list:")
 

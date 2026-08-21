@@ -241,6 +241,13 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.status).toBe("approved")
+
+    // Verify Alice (user1) reputation incremented to 101
+    const aliceRes = await app.request("/api/users/me", {
+      headers: { Authorization: `Bearer ${user1TokenId}` },
+    })
+    const aliceData = await aliceRes.json()
+    expect(aliceData.reputation).toBe(101)
   })
 
   // -------------------------------------------------------------------------
