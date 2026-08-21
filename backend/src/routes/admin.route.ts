@@ -321,6 +321,89 @@ router.openapi(
   },
 )
 
+// 4b. Clean Simulated Test Users
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "post",
+    path: "/api/admin/users/clean-test-users",
+    summary: "Clean Simulated & Dummy Test Users",
+    middleware: [adminAuthMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.object({
+          message: z.string(),
+          deletedUsersCount: z.number(),
+        }),
+        "Test users cleanup results",
+      ),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+    const ADMIN_EMAILS = [
+      "neerajlovecyber@gmail.com",
+      "futureaistudio41@gmail.com",
+      "theneerajsec@gmail.com",
+    ]
+
+    const allUsers = await db.query.users.findMany()
+    const testUsersToDelete = allUsers.filter((u) => {
+      if (u.id === userVar.id || u.isAdmin) return false
+      const emailLower = (u.email || "").toLowerCase()
+      const tokenLower = (u.tokenIdentifier || "").toLowerCase()
+      const nameLower = (u.name || "").toLowerCase()
+
+      if (ADMIN_EMAILS.some((adminEmail) => emailLower.includes(adminEmail.toLowerCase()))) {
+        return false
+      }
+
+      return (
+        emailLower.includes("test") ||
+        emailLower.includes("stress") ||
+        emailLower.includes("dummy") ||
+        emailLower.includes("example.com") ||
+        tokenLower.includes("test") ||
+        tokenLower.includes("stress") ||
+        nameLower.includes("test user") ||
+        nameLower.includes("tester #")
+      )
+    })
+
+    if (testUsersToDelete.length === 0) {
+      return c.json(
+        { message: "No test users found to delete.", deletedUsersCount: 0 },
+        HttpStatusCodes.OK,
+      )
+    }
+
+    for (const testUser of testUsersToDelete) {
+      await db.delete(proofs).where(eq(proofs.uploaderId, testUser.id))
+      await db.delete(messages).where(eq(messages.senderId, testUser.id))
+      await db
+        .delete(reports)
+        .where(or(eq(reports.reporterId, testUser.id), eq(reports.targetId, testUser.id)))
+      await db
+        .delete(matches)
+        .where(or(eq(matches.user1Id, testUser.id), eq(matches.user2Id, testUser.id)))
+      await db.delete(apps).where(eq(apps.userId, testUser.id))
+      await db.delete(adminMessages).where(eq(adminMessages.senderId, testUser.id))
+      await db.delete(adminChats).where(eq(adminChats.userId, testUser.id))
+      await db.delete(userWarnings).where(eq(userWarnings.userId, testUser.id))
+      await db.delete(userBans).where(eq(userBans.userId, testUser.id))
+      await db.delete(users).where(eq(users.id, testUser.id))
+    }
+
+    return c.json(
+      {
+        message: `Successfully deleted ${testUsersToDelete.length} dummy test users.`,
+        deletedUsersCount: testUsersToDelete.length,
+      },
+      HttpStatusCodes.OK,
+    )
+  },
+)
+
 // 5. Admin Dashboard Overview Stats
 router.openapi(
   createRoute({

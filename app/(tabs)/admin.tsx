@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui/icon';
 import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, Trash2Icon, AlertTriangleIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { toast } from '@/lib/sonner';
-import { useAdminStats, useAdminCleanAllApps } from '@/lib/api-hooks';
+import { useAdminStats, useAdminCleanAllApps, useAdminCleanTestUsers } from '@/lib/api-hooks';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,7 +27,9 @@ export default function AdminDashboardScreen() {
     const totalAppsCount = stats?.totalApps ?? 0;
 
     const [showCleanConfirm, setShowCleanConfirm] = useState(false);
+    const [showCleanUsersConfirm, setShowCleanUsersConfirm] = useState(false);
     const cleanAllAppsMutation = useAdminCleanAllApps();
+    const cleanTestUsersMutation = useAdminCleanTestUsers();
 
     const handleCleanAllApps = async () => {
         try {
@@ -41,6 +43,21 @@ export default function AdminDashboardScreen() {
             });
         } finally {
             setShowCleanConfirm(false);
+        }
+    };
+
+    const handleCleanTestUsers = async () => {
+        try {
+            const res = await cleanTestUsersMutation.mutateAsync();
+            toast.success('Test Users Cleaned', {
+                description: res.message || `${res.deletedUsersCount} test users removed.`,
+            });
+        } catch (error: any) {
+            toast.error('Clean failed', {
+                description: error.message || 'Could not clean test users.',
+            });
+        } finally {
+            setShowCleanUsersConfirm(false);
         }
     };
 
@@ -138,6 +155,31 @@ export default function AdminDashboardScreen() {
                         <Icon as={ChevronRightIcon} className="text-red-400 size-5" />
                     </TouchableOpacity>
                 </Card>
+
+                <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/10 dark:border-orange-900/40 shadow-sm mb-4">
+                    <TouchableOpacity
+                        className="flex-row items-center justify-between p-4"
+                        onPress={() => setShowCleanUsersConfirm(true)}
+                        disabled={cleanTestUsersMutation.isPending}
+                    >
+                        <View className="flex-row items-center flex-1 mr-2">
+                            <View className="bg-orange-500/10 p-2.5 rounded-xl mr-3">
+                                {cleanTestUsersMutation.isPending ? (
+                                    <ActivityIndicator size="small" color="#f97316" />
+                                ) : (
+                                    <Icon as={Trash2Icon} className="text-orange-500 size-5" />
+                                )}
+                            </View>
+                            <View className="flex-1">
+                                <Text className="font-semibold text-orange-700 dark:text-orange-400">Clean Dummy Test Users</Text>
+                                <Text className="text-xs text-orange-600/80 dark:text-orange-400/70">
+                                    Removes QA &amp; stress test accounts while keeping your real admin/Google users
+                                </Text>
+                            </View>
+                        </View>
+                        <Icon as={ChevronRightIcon} className="text-orange-400 size-5" />
+                    </TouchableOpacity>
+                </Card>
             </ScrollView>
 
             <AlertDialog open={showCleanConfirm} onOpenChange={setShowCleanConfirm}>
@@ -157,6 +199,28 @@ export default function AdminDashboardScreen() {
                             className="bg-red-600 hover:bg-red-700"
                         >
                             <Text className="text-white font-bold">Yes, Delete All Apps</Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showCleanUsersConfirm} onOpenChange={setShowCleanUsersConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Clean Dummy Test Accounts?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will remove simulated stress-testing and dummy test users from the database. Real admin and verified Google accounts will NOT be touched.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setShowCleanUsersConfirm(false)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onPress={handleCleanTestUsers}
+                            className="bg-orange-600 hover:bg-orange-700"
+                        >
+                            <Text className="text-white font-bold">Yes, Clean Test Users</Text>
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

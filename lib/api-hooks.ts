@@ -641,6 +641,19 @@ export function useAdminCleanAllApps() {
   })
 }
 
+export function useAdminCleanTestUsers() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ message: string; deletedUsersCount: number }>("/api/admin/users/clean-test-users", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] })
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] })
+      queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] })
+    },
+  })
+}
+
 export function useAdminStats() {
   return useQuery<{
     totalUsers: number
