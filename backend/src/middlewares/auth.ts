@@ -16,7 +16,23 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
   let identifier: string | undefined
 
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    identifier = authHeader.replace("Bearer ", "").trim()
+    const rawToken = authHeader.replace("Bearer ", "").trim()
+    if (rawToken.startsWith("ey") && rawToken.includes(".")) {
+      try {
+        const parts = rawToken.split(".")
+        if (parts.length >= 2) {
+          const payloadJson = Buffer.from(parts[1], "base64").toString("utf8")
+          const decoded = JSON.parse(payloadJson)
+          identifier = decoded.sub || rawToken
+        } else {
+          identifier = rawToken
+        }
+      } catch {
+        identifier = rawToken
+      }
+    } else {
+      identifier = rawToken
+    }
   } else if (customUserId) {
     identifier = customUserId.trim()
   }
@@ -34,7 +50,7 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
     where: (u, { or, eq }) =>
       isUuid
         ? or(eq(u.id, identifier!), eq(u.tokenIdentifier, identifier!))
-        : eq(u.tokenIdentifier, identifier!),
+        : or(eq(u.tokenIdentifier, identifier!), eq(u.id, identifier!)),
   })
 
   if (!user) {

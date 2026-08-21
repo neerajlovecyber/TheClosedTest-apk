@@ -11,18 +11,27 @@ export function useStoreUserEffect() {
 
   useEffect(() => {
     // Wire up Clerk auth token generator for all backend requests
-    setAuthTokenGetter(() => getToken());
-  }, [getToken]);
+    setAuthTokenGetter(async () => {
+      const token = await getToken();
+      return token || user?.id || null;
+    });
+  }, [getToken, user?.id]);
 
   useEffect(() => {
     if (!user) return;
 
     async function createUser() {
       try {
+        const email =
+          user.primaryEmailAddress?.emailAddress ||
+          user.emailAddresses?.[0]?.emailAddress ||
+          `${user.id}@theclosedtest.app`;
+
         const synced = await syncUser.mutateAsync({
-          name: user?.fullName || user?.firstName || "Developer",
-          email: user?.primaryEmailAddress?.emailAddress || "",
-          avatarUrl: user?.imageUrl,
+          tokenIdentifier: user.id,
+          name: user.fullName || user.firstName || user.username || "Developer",
+          email: email,
+          avatarUrl: user.imageUrl || undefined,
         });
         setUserId(synced.id);
       } catch (e) {

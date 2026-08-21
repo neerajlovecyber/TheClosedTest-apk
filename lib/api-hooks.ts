@@ -150,6 +150,7 @@ export function useSyncUser() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (userData: {
+      tokenIdentifier: string
       name?: string
       email?: string
       avatarUrl?: string

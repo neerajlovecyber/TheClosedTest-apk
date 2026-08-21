@@ -30,10 +30,10 @@ const UserResponseSchema = z.object({
 })
 
 const SyncUserSchema = z.object({
-  tokenIdentifier: z.string(),
-  name: z.string(),
-  email: z.string().email(),
-  avatarUrl: z.string().optional(),
+  tokenIdentifier: z.string().min(1),
+  name: z.string().default("Developer"),
+  email: z.string().min(1),
+  avatarUrl: z.string().nullable().optional(),
 })
 
 const UpdatePushTokenSchema = z.object({

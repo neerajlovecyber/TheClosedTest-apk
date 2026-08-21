@@ -65,6 +65,10 @@ export async function apiFetch<T = unknown>(
       const errorJson = await res.json()
       if (errorJson?.message) {
         errorMessage = errorJson.message
+      } else if (errorJson?.error) {
+        errorMessage = typeof errorJson.error === "string" ? errorJson.error : JSON.stringify(errorJson.error)
+      } else if (errorJson?.issues) {
+        errorMessage = errorJson.issues.map((i: any) => `${i.path?.join(".")}: ${i.message}`).join(", ")
       }
     } catch {
       // ignore
