@@ -75,14 +75,30 @@ jobs:
       - name: 📱 Build Development APK (EAS Cloud)
         if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'dev'
         run: |
-          eas build --platform android --profile development --non-interactive --wait --output=./app-dev.apk
+          BUILD_JSON=$(eas build --platform android --profile development --non-interactive --wait --json)
+          BUILD_URL=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then .[0].artifacts.buildUrl else .artifacts.buildUrl end')
+          if [ -n "$BUILD_URL" ] && [ "$BUILD_URL" != "null" ]; then
+            echo "Downloading Development APK from $BUILD_URL..."
+            curl -L -o ./app-dev.apk "$BUILD_URL"
+          else
+            echo "::error::Could not extract buildUrl from EAS response: $BUILD_JSON"
+            exit 1
+          fi
         env:
           NODE_ENV: development
 
       - name: 📱 Build Production AAB (EAS Cloud)
         if: github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'prod'
         run: |
-          eas build --platform android --profile production --non-interactive --wait --output=./app-prod.aab
+          BUILD_JSON=$(eas build --platform android --profile production --non-interactive --wait --json)
+          BUILD_URL=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then .[0].artifacts.buildUrl else .artifacts.buildUrl end')
+          if [ -n "$BUILD_URL" ] && [ "$BUILD_URL" != "null" ]; then
+            echo "Downloading Production AAB from $BUILD_URL..."
+            curl -L -o ./app-prod.aab "$BUILD_URL"
+          else
+            echo "::error::Could not extract buildUrl from EAS response: $BUILD_JSON"
+            exit 1
+          fi
         env:
           NODE_ENV: production
 
