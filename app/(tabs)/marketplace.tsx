@@ -95,7 +95,8 @@ export default function MarketplaceScreen() {
                 currentTesters: item.currentTesters,
                 requiredTesters: item.requiredTesters,
                 status: item.status,
-                reputation: item.user?.reputation,
+                ownerName: item.user?.name || item.user?.email?.split('@')[0] || 'Community Developer',
+                reputation: item.user?.reputation ?? 100,
             }}
             onPress={() => handleAppPress(item.id)}
             onReport={() => handleReportApp(item)}
@@ -117,7 +118,8 @@ export default function MarketplaceScreen() {
                         currentTesters: app.currentTesters,
                         requiredTesters: app.requiredTesters,
                         status: app.status,
-                        reputation: app.user?.reputation,
+                        ownerName: app.user?.name || app.user?.email?.split('@')[0] || 'Community Developer',
+                        reputation: app.user?.reputation ?? 100,
                     }}
                     onPress={() => handleAppPress(app.id)}
                     onReport={() => handleReportApp(app)}

@@ -29,6 +29,16 @@ const AppSchema = z.object({
   voters: z.array(z.string()),
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
+  user: z
+    .object({
+      id: z.string(),
+      name: z.string().nullable().optional(),
+      email: z.string().nullable().optional(),
+      avatarUrl: z.string().nullable().optional(),
+      reputation: z.number().optional(),
+    })
+    .nullable()
+    .optional(),
 })
 
 type AppType = z.infer<typeof AppSchema>
@@ -72,7 +82,7 @@ router.openapi(
           apps: z.array(AppSchema),
           total: z.number(),
         }),
-        "List of recruiting apps",
+        "Public recruiting apps feed",
       ),
     },
   }),
@@ -99,12 +109,28 @@ router.openapi(
       )
     }
 
-    const items = await db.query.apps.findMany({
-      where: and(...conditions),
-      orderBy: [desc(apps.positiveVotes), desc(apps.createdAt)],
-      limit,
-      offset,
-    })
+    const rawItems = await db
+      .select({
+        app: apps,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatarUrl: users.avatarUrl,
+          reputation: users.reputation,
+        },
+      })
+      .from(apps)
+      .leftJoin(users, eq(apps.userId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(apps.positiveVotes), desc(apps.createdAt))
+      .limit(limit)
+      .offset(offset)
+
+    const items = rawItems.map((r) => ({
+      ...r.app,
+      user: r.user,
+    }))
 
     const responseData = {
       apps: items,
