@@ -25,7 +25,7 @@ export const queryClient = new QueryClient({
  */
 export const persister = createAsyncStoragePersister({
     storage: AsyncStorage,
-    key: 'CONVEX_QUERY_CACHE',
+    key: 'APP_QUERY_CACHE',
     throttleTime: 1000, // Save to storage at most once per second
 });
 

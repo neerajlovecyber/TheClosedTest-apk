@@ -215,14 +215,13 @@ export default function MarketplaceScreen() {
                     <View>
                         <Text className="text-lg font-bold px-1 mb-3">{searchQuery ? 'Search Results' : 'All Apps'}</Text>
                         {apps.length > 0 ? (
-                            <LegendList
-                                data={apps}
-                                keyExtractor={keyExtractor}
-                                renderItem={renderAppItem}
-                                recycleItems
-                                estimatedItemSize={120}
-                                scrollEnabled={false}
-                            />
+                            <View className="gap-0">
+                                {apps.map((item: AppEntity) => (
+                                    <React.Fragment key={keyExtractor(item)}>
+                                        {renderAppItem({ item })}
+                                    </React.Fragment>
+                                ))}
+                            </View>
                         ) : (
                             <View className="items-center py-10">
                                 {isLoading ? (

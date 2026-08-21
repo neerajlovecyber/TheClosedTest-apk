@@ -1,7 +1,6 @@
 import React, { useMemo, useCallback, memo, useState, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { LegendList } from '@legendapp/list/react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -248,14 +247,13 @@ export default function TestsScreen() {
                                 </View>
                             </View>
 
-                            <LegendList
-                                data={pendingTasks}
-                                keyExtractor={keyExtractor}
-                                renderItem={renderTaskItem}
-                                recycleItems
-                                estimatedItemSize={140}
-                                scrollEnabled={false}
-                            />
+                            <View className="gap-0">
+                                {pendingTasks.map((item) => (
+                                    <React.Fragment key={keyExtractor(item)}>
+                                        {renderTaskItem({ item })}
+                                    </React.Fragment>
+                                ))}
+                            </View>
                         </View>
                     )}
 
@@ -270,14 +268,13 @@ export default function TestsScreen() {
                                 </View>
                             </View>
 
-                            <LegendList
-                                data={completedTasks}
-                                keyExtractor={keyExtractor}
-                                renderItem={renderTaskItem}
-                                recycleItems
-                                estimatedItemSize={140}
-                                scrollEnabled={false}
-                            />
+                            <View className="gap-0">
+                                {completedTasks.map((item) => (
+                                    <React.Fragment key={keyExtractor(item)}>
+                                        {renderTaskItem({ item })}
+                                    </React.Fragment>
+                                ))}
+                            </View>
                         </View>
                     )}
 
