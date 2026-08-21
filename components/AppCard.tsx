@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { View, Image, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -54,14 +55,22 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
     const isFlagged = (item.flagCount || 0) > 0 || isHidden;
     const [imageError, setImageError] = React.useState(false);
     const DEFAULT_ICON = 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=160&auto=format&fit=crop&q=80';
+    
+    React.useEffect(() => {
+        setImageError(false);
+    }, [item.iconUrl]);
+
     const displayIconUrl = !imageError && item.iconUrl ? item.iconUrl : DEFAULT_ICON;
 
     const Content = (
         <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-2 border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>
             <Image
+                key={displayIconUrl}
                 source={{ uri: displayIconUrl }}
                 onError={() => setImageError(true)}
+                style={{ width: 80, height: 80, borderRadius: 12 }}
                 className="w-20 h-20 rounded-xl bg-muted border border-border"
+                contentFit="cover"
             />
             <View className="flex-1 justify-between py-0.5">
                 {/* Header Row: Title & Badge */}

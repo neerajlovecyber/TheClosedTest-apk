@@ -9,6 +9,7 @@ import { CameraIcon, XIcon, PlusIcon, SendIcon, ImageIcon, AlertCircleIcon, Chec
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCurrentUser, usePresignedUploadUrl, useSubmitProof } from '@/lib/api-hooks';
+import { uploadImageToR2 } from '@/utils/image-uploader';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -111,40 +112,46 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                 })
             );
 
-            // 2. Upload to Cloudflare R2 via presigned URLs
+            // 2. Upload to Cloudflare R2
             const uploadPromises = processedImages.map(async (image, i: number) => {
-                const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
-                    filename: `proof_${matchId}_day${currentDay}_${i}_${Date.now()}.webp`,
-                    contentType: 'image/webp',
-                    folder: 'proofs',
-                });
+                const customFilename = `proof_${matchId}_day${currentDay}_${i}_${Date.now()}.webp`;
+                try {
+                    return await uploadImageToR2(image.uri, "proofs", customFilename);
+                } catch (r2Err) {
+                    console.warn("Direct R2 upload failed, trying presigned URL:", r2Err);
+                    const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
+                        filename: customFilename,
+                        contentType: 'image/webp',
+                        folder: 'proofs',
+                    });
 
-                const base64 = await FileSystem.readAsStringAsync(image.uri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
+                    const base64 = await FileSystem.readAsStringAsync(image.uri, {
+                        encoding: FileSystem.EncodingType.Base64,
+                    });
 
-                await new Promise<void>((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('PUT', uploadUrl, true);
-                    xhr.setRequestHeader('Content-Type', 'image/webp');
-                    xhr.onload = () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            resolve();
-                        } else {
-                            reject(new Error(`Upload failed: ${xhr.status}`));
+                    await new Promise<void>((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('PUT', uploadUrl, true);
+                        xhr.setRequestHeader('Content-Type', 'image/webp');
+                        xhr.onload = () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Upload failed: ${xhr.status}`));
+                            }
+                        };
+                        xhr.onerror = () => reject(new Error('Upload failed'));
+
+                        const binaryString = atob(base64);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let j = 0; j < binaryString.length; j++) {
+                            bytes[j] = binaryString.charCodeAt(j);
                         }
-                    };
-                    xhr.onerror = () => reject(new Error('Upload failed'));
+                        xhr.send(bytes.buffer);
+                    });
 
-                    const binaryString = atob(base64);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let j = 0; j < binaryString.length; j++) {
-                        bytes[j] = binaryString.charCodeAt(j);
-                    }
-                    xhr.send(bytes.buffer);
-                });
-
-                return publicUrl;
+                    return publicUrl;
+                }
             });
 
             const uploadedUrls = await Promise.all(uploadPromises);

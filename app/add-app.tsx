@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useCreateApp, usePresignedUploadUrl, useCurrentUser } from '@/lib/api-hooks';
+import { uploadImageToR2 } from '@/utils/image-uploader';
 
 const GOOGLE_GROUP_EMAIL = 'developers-community-official@googlegroups.com';
 
@@ -140,43 +141,52 @@ export default function AddAppScreen() {
 
         setIsSubmitting(true);
         try {
-            let finalIconUrl = "https://github.com/shadcn.png";
+            let finalIconUrl = "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=160&auto=format&fit=crop&q=80";
 
             // Upload icon to Cloudflare R2
             if (processedImageUri) {
-                const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
-                    filename: `app_${Date.now()}_icon.webp`,
-                    contentType: 'image/webp',
-                    folder: 'icons',
-                });
+                try {
+                    finalIconUrl = await uploadImageToR2(processedImageUri, "icons");
+                } catch (r2Err) {
+                    console.warn("Direct R2 upload failed, trying presigned URL:", r2Err);
+                    try {
+                        const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
+                            filename: `app_${Date.now()}_icon.webp`,
+                            contentType: 'image/webp',
+                            folder: 'icons',
+                        });
 
-                const FileSystem = require('expo-file-system/legacy');
-                const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
+                        const FileSystem = require('expo-file-system/legacy');
+                        const base64 = await FileSystem.readAsStringAsync(processedImageUri, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
 
-                await new Promise<void>((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('PUT', uploadUrl, true);
-                    xhr.setRequestHeader('Content-Type', 'image/webp');
-                    xhr.onload = () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            resolve();
-                        } else {
-                            reject(new Error(`Upload failed: ${xhr.status}`));
-                        }
-                    };
-                    xhr.onerror = () => reject(new Error('Upload failed'));
+                        await new Promise<void>((resolve, reject) => {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('PUT', uploadUrl, true);
+                            xhr.setRequestHeader('Content-Type', 'image/webp');
+                            xhr.onload = () => {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    resolve();
+                                } else {
+                                    reject(new Error(`Upload failed: ${xhr.status}`));
+                                }
+                            };
+                            xhr.onerror = () => reject(new Error('Upload failed'));
 
-                    const binaryString = atob(base64);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
+                            const binaryString = atob(base64);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            xhr.send(bytes.buffer);
+                        });
+
+                        finalIconUrl = publicUrl;
+                    } catch (presignedErr) {
+                        console.error("Presigned upload failed too:", presignedErr);
                     }
-                    xhr.send(bytes.buffer);
-                });
-
-                finalIconUrl = publicUrl;
+                }
             }
 
             // Create App in PostgreSQL database

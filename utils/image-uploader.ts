@@ -8,7 +8,13 @@ export async function uploadImageToR2(
     customFilename?: string
 ): Promise<string> {
     try {
-        const FileSystem = require('expo-file-system');
+        let FileSystem: any;
+        try {
+            FileSystem = require('expo-file-system/legacy');
+        } catch {
+            FileSystem = require('expo-file-system');
+        }
+
         const name = customFilename || `${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
         const filename = `${pathPrefix}/${name}`;
         const uploadUrl = `${R2_PUBLIC_URL}/${filename}`;
