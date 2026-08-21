@@ -139,7 +139,7 @@ export default function MarketplaceScreen() {
                             <Text className="text-sm text-muted-foreground font-medium mt-0.5">Find apps, swap tests, get published.</Text>
                         </View>
                         <View className="flex-row gap-2">
-                            {user?.googleGroupConfirmed && (
+                            {(user?.isGroupMember || user?.googleGroupConfirmed) && (
                                 <TouchableOpacity
                                     onPress={() => setShowGroupModal(true)}
                                     className="w-10 h-10 rounded-full bg-green-500/10 items-center justify-center border border-green-500/20"
@@ -158,7 +158,7 @@ export default function MarketplaceScreen() {
                         </View>
                     </View>
 
-                    {user && !user.googleGroupConfirmed && <GoogleGroupWidget className="mb-0" />}
+                    {user && !user.isGroupMember && !user.googleGroupConfirmed && <GoogleGroupWidget className="mb-0" />}
 
                     {/* Search Bar */}
                     <View className="relative">

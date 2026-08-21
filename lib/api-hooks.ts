@@ -18,6 +18,7 @@ export interface UserProfile {
   reputation: number
   appsCount: number
   isAdmin: boolean
+  isGroupMember: boolean
   streak: number
   bestStreak: number
   lastCheckInDate?: string | null
@@ -112,6 +113,8 @@ export interface NotificationEntity {
   createdAt: string
 }
 
+export type User = UserProfile
+
 export interface LeaderboardEntry {
   id: string
   userId: string
@@ -137,7 +140,16 @@ export function useCurrentUser() {
     queryKey: ["currentUser"],
     queryFn: async () => {
       try {
-        return await api.get<UserProfile>("/api/users/me")
+        const u = await api.get<UserProfile>("/api/users/me")
+        if (u) {
+          const isMember = Boolean((u as any).isGroupMember || u.googleGroupConfirmed)
+          return {
+            ...u,
+            isGroupMember: isMember,
+            googleGroupConfirmed: isMember,
+          }
+        }
+        return null
       } catch {
         return null
       }

@@ -20,6 +20,7 @@ const UserResponseSchema = z.object({
   appsCount: z.number(),
   pushToken: z.string().nullable().optional(),
   isGroupMember: z.boolean(),
+  googleGroupConfirmed: z.boolean().optional(),
   isAdmin: z.boolean(),
   streak: z.number(),
   bestStreak: z.number(),
@@ -140,7 +141,10 @@ router.openapi(
       return c.json({ message: "User not found" }, HttpStatusCodes.NOT_FOUND)
     }
 
-    return c.json(user, HttpStatusCodes.OK)
+    return c.json(
+      { ...user, googleGroupConfirmed: user.isGroupMember },
+      HttpStatusCodes.OK,
+    )
   },
 )
 

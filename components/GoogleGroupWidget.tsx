@@ -25,11 +25,10 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
     const confirmMembership = useConfirmGroup();
 
     const [hasClickedLink, setHasClickedLink] = React.useState(false);
+    const [showJoinConfirm, setShowJoinConfirm] = React.useState(false);
     const appState = React.useRef(AppState.currentState);
 
-    const [showJoinConfirm, setShowJoinConfirm] = React.useState(false);
-
-    const isGroupMember = user?.googleGroupConfirmed;
+    const isGroupMember = Boolean(user?.isGroupMember || user?.googleGroupConfirmed);
 
     const handleJoinGroup = () => {
         setHasClickedLink(true);

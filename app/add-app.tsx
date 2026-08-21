@@ -116,7 +116,8 @@ export default function AddAppScreen() {
             return;
         }
 
-        if (!currentUser?.googleGroupConfirmed) {
+        const isMember = Boolean(currentUser?.isGroupMember || currentUser?.googleGroupConfirmed);
+        if (!isMember) {
             toast.info('Requirement', { description: 'You must join the Google Group first.' });
             return;
         }

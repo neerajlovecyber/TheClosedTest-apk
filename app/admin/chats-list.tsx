@@ -3,7 +3,7 @@ import { View, FlatList, TouchableOpacity, RefreshControl, Image, TextInput, Sec
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
 import { ArrowLeftIcon, MessageSquareIcon, SearchIcon, ChevronRightIcon, UserIcon, ShieldIcon } from 'lucide-react-native';
 import { toast } from '@/lib/sonner';
@@ -15,6 +15,13 @@ export default function AdminChatsListScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const { data: searchedUsers, isLoading: isUsersLoading } = useAdminUsers(searchQuery);
     const getOrCreateChat = useGetOrCreateAdminUserChat();
+
+    // Auto-refresh when navigating back to inbox
+    useFocusEffect(
+        React.useCallback(() => {
+            refetchChats();
+        }, [refetchChats])
+    );
 
     const allChats = chats || [];
     const query = searchQuery.trim().toLowerCase();

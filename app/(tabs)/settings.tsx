@@ -113,7 +113,7 @@ function UserProfile() {
                         </View>
                         <Text className="text-muted-foreground font-medium mt-0.5">{email}</Text>
 
-                        {dbUser?.googleGroupConfirmed && (
+                        {(dbUser?.isGroupMember || dbUser?.googleGroupConfirmed) && (
                             <View className="flex-row items-center mt-2">
                                 <View className="bg-green-500/10 px-3 py-1 rounded-full">
                                     <Text className="text-xs text-green-600 dark:text-green-400 font-bold">✓ Verified Member</Text>
