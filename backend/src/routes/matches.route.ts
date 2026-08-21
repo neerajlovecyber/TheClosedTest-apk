@@ -252,6 +252,7 @@ router.openapi(
 
     return c.json(
       {
+        ...match,
         match,
         app1: match.app1,
         app2: match.app2,

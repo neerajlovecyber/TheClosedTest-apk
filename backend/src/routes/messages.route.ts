@@ -17,6 +17,7 @@ const MessageSchema = z.object({
   content: z.string(),
   type: z.enum(["text", "image", "video"]),
   storageUrl: z.string().nullable().optional(),
+  sender: z.any().optional(),
   sentAt: z.string().or(z.date()),
 })
 
@@ -66,6 +67,9 @@ router.openapi(
 
     const items = await db.query.messages.findMany({
       where: eq(messages.matchId, matchId),
+      with: {
+        sender: true,
+      },
       orderBy: [asc(messages.sentAt)],
       limit,
       offset,

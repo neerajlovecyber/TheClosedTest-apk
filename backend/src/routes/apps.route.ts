@@ -160,6 +160,9 @@ router.openapi(
 
     const items = await db.query.apps.findMany({
       where: and(eq(apps.userId, userVar.id), not(eq(apps.status, "archived"))),
+      with: {
+        user: true,
+      },
       orderBy: [desc(apps.createdAt)],
     })
 
@@ -275,6 +278,9 @@ router.openapi(
     const { id } = c.req.valid("param")
     const app = await db.query.apps.findFirst({
       where: eq(apps.id, id),
+      with: {
+        user: true,
+      },
     })
 
     if (!app) {
