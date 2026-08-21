@@ -406,7 +406,7 @@ export function useMatchMessages(matchId?: string, limit = 50, offset = 0) {
         params: { limit, offset },
       }),
     enabled: Boolean(matchId),
-    refetchInterval: 1000 * 4, // 4-second chat polling
+    refetchInterval: 1000 * 2, // 2-second live chat polling
   })
 }
 
@@ -424,7 +424,40 @@ export function useSendMessage() {
       type?: "text" | "image" | "video"
       storageUrl?: string
     }) => api.post<MessageEntity>(`/api/messages/${matchId}`, { content, type, storageUrl }),
-    onSuccess: (_, vars) => {
+
+    onMutate: async (newMessage) => {
+      // 1. Cancel ongoing refetches
+      await queryClient.cancelQueries({ queryKey: ["messages", newMessage.matchId] })
+
+      // 2. Snapshot previous messages
+      const previousMessages = queryClient.getQueryData<MessageEntity[]>(["messages", newMessage.matchId]) || []
+
+      // 3. Optimistically add message to UI immediately (0ms latency)
+      const optimisticMessage: MessageEntity = {
+        id: `temp-${Date.now()}`,
+        matchId: newMessage.matchId,
+        senderId: "me",
+        content: newMessage.content,
+        type: newMessage.type || "text",
+        storageUrl: newMessage.storageUrl,
+        sentAt: new Date().toISOString(),
+      }
+
+      queryClient.setQueryData<MessageEntity[]>(["messages", newMessage.matchId], (old = []) => [
+        ...old,
+        optimisticMessage,
+      ])
+
+      return { previousMessages, matchId: newMessage.matchId }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousMessages) {
+        queryClient.setQueryData(["messages", context.matchId], context.previousMessages)
+      }
+    },
+
+    onSettled: (_data, _error, vars) => {
       queryClient.invalidateQueries({ queryKey: ["messages", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["matches"] })
     },
@@ -432,8 +465,13 @@ export function useSendMessage() {
 }
 
 export function useMarkMessagesRead() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (matchId: string) => api.post(`/api/messages/${matchId}/read`),
+    onSuccess: (_, matchId) => {
+      queryClient.invalidateQueries({ queryKey: ["messages", matchId] })
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+    },
   })
 }
 
@@ -625,7 +663,38 @@ export function useSendSupportMessage() {
       content: string
       type?: "text" | "image"
     }) => api.post(`/api/support/chats/${chatId}/messages`, { content, type }),
-    onSuccess: (_, vars) => {
+
+    onMutate: async (newMessage) => {
+      await queryClient.cancelQueries({ queryKey: ["supportChat", newMessage.chatId] })
+      const previousData = queryClient.getQueryData<any>(["supportChat", newMessage.chatId])
+
+      if (previousData) {
+        const optimisticMsg = {
+          id: `temp-${Date.now()}`,
+          chatId: newMessage.chatId,
+          senderId: "me",
+          content: newMessage.content,
+          type: newMessage.type || "text",
+          isAdmin: false,
+          sentAt: new Date().toISOString(),
+        }
+
+        queryClient.setQueryData(["supportChat", newMessage.chatId], {
+          ...previousData,
+          messages: [...(previousData.messages || []), optimisticMsg],
+        })
+      }
+
+      return { previousData, chatId: newMessage.chatId }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(["supportChat", context.chatId], context.previousData)
+      }
+    },
+
+    onSettled: (_data, _error, vars) => {
       queryClient.invalidateQueries({ queryKey: ["supportChat", vars.chatId] })
       queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] })
       queryClient.invalidateQueries({ queryKey: ["mySupportChat"] })

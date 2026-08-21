@@ -51,7 +51,7 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
     };
 
     const renderMessage = ({ item }: { item: any }) => {
-        const isMe = currentUserId ? item.senderId === currentUserId : item.isMe;
+        const isMe = currentUserId ? (item.senderId === currentUserId || item.senderId === 'me') : (item.isMe || item.senderId === 'me');
         return (
             <View className={`flex-row ${isMe ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
                 <View
