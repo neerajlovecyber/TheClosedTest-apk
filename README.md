@@ -81,15 +81,12 @@ TheClosedTest-apk/
 
 ## 📡 Live API & Interactive Documentation
 
-The backend includes built-in interactive OpenAPI & Scalar API reference documentation:
+The backend includes interactive Scalar API documentation and a public health check probe:
 
 | Resource | URL | Description |
 | :--- | :--- | :--- |
-| **Interactive API Playground (Scalar UI)** | [**`/reference`**](https://p01--tester--7tlh8kl746cq.code.run/reference) | Visual API explorer to inspect and test all endpoints |
-| **OpenAPI 3.0 Specification** | [**`/doc`**](https://p01--tester--7tlh8kl746cq.code.run/doc) | Raw OpenAPI JSON specification |
-| **Health Check** | [**`/`**](https://p01--tester--7tlh8kl746cq.code.run/) | Live server status & health probe |
-| **Public Leaderboard** | [**`/api/leaderboard`**](https://p01--tester--7tlh8kl746cq.code.run/api/leaderboard) | Top testers, streaks, and reputation standings |
-| **Marketplace Apps** | [**`/api/apps`**](https://p01--tester--7tlh8kl746cq.code.run/api/apps) | Live list of Android apps open for testing |
+| **Interactive API Playground (Scalar UI)** | [**`/reference`**](https://p01--tester--7tlh8kl746cq.code.run/reference) | Interactive OpenAPI explorer to inspect and test all backend endpoints |
+| **Health Check Probe** | [**`/`**](https://p01--tester--7tlh8kl746cq.code.run/) | Live server status & health check |
 
 ---
 
