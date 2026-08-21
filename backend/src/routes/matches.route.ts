@@ -5,7 +5,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
-import { apps, matches, notifications, users } from "../db/schema"
+import { apps, matches, notifications, proofs, users } from "../db/schema"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 import { sendExpoPushNotification } from "../services/expo-push"
@@ -188,11 +188,38 @@ router.openapi(
         app2: true,
         user1: true,
         user2: true,
+        proofs: {
+          orderBy: [desc(proofs.day), desc(proofs.submittedAt)],
+        },
       },
       orderBy: [desc(matches.lastActivity)],
     })
 
-    return c.json(items, HttpStatusCodes.OK)
+    const enrichedItems = items.map((m) => {
+      const matchProofs = m.proofs || []
+      const user1LatestProof = matchProofs.find((p) => p.uploaderId === m.user1Id)
+      const user2LatestProof = matchProofs.find((p) => p.uploaderId === m.user2Id)
+
+      return {
+        ...m,
+        user1LastProof: user1LatestProof
+          ? {
+              day: user1LatestProof.day,
+              status: user1LatestProof.status,
+              updatedAt: String(user1LatestProof.submittedAt),
+            }
+          : m.user1LastProof,
+        user2LastProof: user2LatestProof
+          ? {
+              day: user2LatestProof.day,
+              status: user2LatestProof.status,
+              updatedAt: String(user2LatestProof.submittedAt),
+            }
+          : m.user2LastProof,
+      }
+    })
+
+    return c.json(enrichedItems, HttpStatusCodes.OK)
   },
 )
 
@@ -209,12 +236,12 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(
-        z.object({
-          match: MatchSchema,
-          app1: z.any(),
-          app2: z.any(),
-          user1: z.any(),
-          user2: z.any(),
+        MatchSchema.extend({
+          match: z.any().optional(),
+          app1: z.any().optional(),
+          app2: z.any().optional(),
+          user1: z.any().optional(),
+          user2: z.any().optional(),
         }),
         "Match details with app and user info",
       ),
@@ -239,6 +266,9 @@ router.openapi(
         app2: true,
         user1: true,
         user2: true,
+        proofs: {
+          orderBy: [desc(proofs.day), desc(proofs.submittedAt)],
+        },
       },
     })
 
@@ -250,10 +280,32 @@ router.openapi(
       return c.json({ message: "Forbidden: Not part of this match" }, HttpStatusCodes.FORBIDDEN)
     }
 
+    const matchProofs = match.proofs || []
+    const user1LatestProof = matchProofs.find((p) => p.uploaderId === match.user1Id)
+    const user2LatestProof = matchProofs.find((p) => p.uploaderId === match.user2Id)
+
+    const enrichedMatch = {
+      ...match,
+      user1LastProof: user1LatestProof
+        ? {
+            day: user1LatestProof.day,
+            status: user1LatestProof.status,
+            updatedAt: String(user1LatestProof.submittedAt),
+          }
+        : match.user1LastProof,
+      user2LastProof: user2LatestProof
+        ? {
+            day: user2LatestProof.day,
+            status: user2LatestProof.status,
+            updatedAt: String(user2LatestProof.submittedAt),
+          }
+        : match.user2LastProof,
+    }
+
     return c.json(
       {
-        ...match,
-        match,
+        ...enrichedMatch,
+        match: enrichedMatch,
         app1: match.app1,
         app2: match.app2,
         user1: match.user1,
