@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { SendIcon, ChevronDownIcon, FlagIcon } from 'lucide-react-native';
+import { SendIcon, ChevronDownIcon, FlagIcon, CheckIcon, CheckCheckIcon } from 'lucide-react-native';
 import { useMatchMessages, useSendMessage, useMarkMessagesRead } from '@/lib/api-hooks';
 
 interface MatchChatProps {
@@ -14,9 +14,10 @@ interface MatchChatProps {
     partnerName: string;
     onReport?: () => void;
     currentUserId?: string;
+    partnerLastRead?: string | Date | null;
 }
 
-export function MatchChat({ visible, onClose, matchId, partnerName, onReport, currentUserId }: MatchChatProps) {
+export function MatchChat({ visible, onClose, matchId, partnerName, onReport, currentUserId, partnerLastRead }: MatchChatProps) {
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const { data: messages = [] } = useMatchMessages(visible ? matchId : undefined);
@@ -52,6 +53,10 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
 
     const renderMessage = ({ item }: { item: any }) => {
         const isMe = currentUserId ? (item.senderId === currentUserId || item.senderId === 'me') : (item.isMe || item.senderId === 'me');
+        const isSeen = Boolean(
+            partnerLastRead && new Date(partnerLastRead).getTime() >= new Date(item.sentAt).getTime()
+        );
+
         return (
             <View className={`flex-row ${isMe ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
                 <View
@@ -61,9 +66,17 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
                     <Text className={`${isMe ? 'text-primary-foreground font-medium' : 'text-foreground'}`}>
                         {item.content}
                     </Text>
-                    <Text className={`text-[10px] mt-1 ${isMe ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground'}`}>
-                        {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
+                    <View className={`flex-row items-center gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <Text className={`text-[10px] ${isMe ? 'text-primary-foreground/75' : 'text-muted-foreground'}`}>
+                            {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                        {isMe && (
+                            <Icon
+                                as={isSeen ? CheckCheckIcon : CheckIcon}
+                                className={`size-3.5 ${isSeen ? 'text-sky-300' : 'text-primary-foreground/60'}`}
+                            />
+                        )}
+                    </View>
                 </View>
             </View>
         );

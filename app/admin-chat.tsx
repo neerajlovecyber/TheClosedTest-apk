@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { toast } from '@/lib/sonner';
 import { Icon } from '@/components/ui/icon';
-import { ArrowLeftIcon, SendIcon, ShieldIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, SendIcon, ShieldIcon, CheckIcon, CheckCheckIcon } from 'lucide-react-native';
 import { LinkableText } from '@/components/ui/LinkableText';
 import { api } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,6 +38,7 @@ export default function AdminChatScreen() {
     const flatListRef = useRef<FlatList>(null);
 
     const messages = chatData?.messages || [];
+    const chatInfo = chatData?.chat;
 
     const handleSend = async () => {
         if (!newMessage.trim()) return;
@@ -74,6 +75,7 @@ export default function AdminChatScreen() {
             : (!item.isAdmin || (currentUser?.id && item.senderId === currentUser.id) || (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier));
 
         const showSupportBadge = item.isAdmin && !currentUser?.isAdmin;
+        const isSeen = currentUser?.isAdmin ? !chatInfo?.hasUnreadUser : !chatInfo?.hasUnreadAdmin;
 
         return (
             <View className={`flex-row ${isMyMessage ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
@@ -91,9 +93,17 @@ export default function AdminChatScreen() {
                         text={item.content}
                         className={`${isMyMessage ? 'text-primary-foreground font-medium' : 'text-foreground'}`}
                     />
-                    <Text className={`text-[10px] mt-1 ${isMyMessage ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground'}`}>
-                        {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
+                    <View className={`flex-row items-center gap-1 mt-1 ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
+                        <Text className={`text-[10px] ${isMyMessage ? 'text-primary-foreground/75' : 'text-muted-foreground'}`}>
+                            {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                        {isMyMessage && (
+                            <Icon
+                                as={isSeen ? CheckCheckIcon : CheckIcon}
+                                className={`size-3.5 ${isSeen ? 'text-sky-300' : 'text-primary-foreground/60'}`}
+                            />
+                        )}
+                    </View>
                 </View>
             </View>
         );

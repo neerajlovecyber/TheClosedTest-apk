@@ -533,6 +533,7 @@ export default function MatchDashboardScreen() {
                 matchId={matchId}
                 partnerName={partner?.name || 'Partner'}
                 currentUserId={currentUserId}
+                partnerLastRead={isUser1 ? match.lastRead2 : match.lastRead1}
                 onReport={() => {
                     setChatVisible(false);
                     setReportDialogVisible(true);
