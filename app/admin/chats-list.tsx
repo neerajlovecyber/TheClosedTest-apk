@@ -23,7 +23,7 @@ export default function AdminChatsListScreen() {
         }, [refetchChats])
     );
 
-    const allChats = chats || [];
+    const allChats = (chats || []).filter((c) => Boolean(c.lastMessage && c.lastMessage.trim().length > 0));
     const query = searchQuery.trim().toLowerCase();
 
     // Filter existing chats

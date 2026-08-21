@@ -468,6 +468,8 @@ router.openapi(
   }),
   async (c) => {
     const chats = await db.query.adminChats.findMany({
+      where: (chatTable, { and, ne, isNotNull }) =>
+        and(ne(chatTable.lastMessage, ""), isNotNull(chatTable.lastMessage)),
       orderBy: [desc(adminChats.updatedAt)],
       with: {
         user: {
