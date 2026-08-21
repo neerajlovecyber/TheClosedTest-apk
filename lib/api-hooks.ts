@@ -328,6 +328,7 @@ export function useMatches(status?: string) {
       api.get<MatchEntity[]>("/api/matches", {
         params: { status },
       }),
+    refetchInterval: 1000 * 15,
   })
 }
 
@@ -365,19 +366,28 @@ export function useAcceptMatch() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (matchId: string) => api.post<MatchEntity>(`/api/matches/${matchId}/accept`),
-    onMutate: async (matchId: string) => {
-      await queryClient.cancelQueries({ queryKey: ["matches"] })
-      const previousMatches = queryClient.getQueryData<MatchEntity[]>(["matches"])
+    onSuccess: (acceptedMatch, matchId) => {
+      queryClient.invalidateQueries({ queryKey: ["matches"] })
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] })
+      queryClient.invalidateQueries({ queryKey: ["myApps"] })
+      queryClient.invalidateQueries({ queryKey: ["apps"] })
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
 
-      queryClient.setQueriesData<MatchEntity[]>({ queryKey: ["matches"] }, (old = []) =>
-        old.map((m) => (m.id === matchId ? { ...m, status: "active" as const } : m)),
-      )
-
-      return { previousMatches }
-    },
-    onError: (_err, _matchId, context) => {
-      if (context?.previousMatches) {
-        queryClient.setQueryData(["matches"], context.previousMatches)
+      if (acceptedMatch) {
+        queryClient.setQueryData<MatchEntity[]>(
+          ["matches", { status: "active" }],
+          (old = []) => {
+            const exists = old.some((m) => m.id === matchId)
+            if (exists) {
+              return old.map((m) => (m.id === matchId ? { ...m, ...acceptedMatch, status: "active" as const } : m))
+            }
+            return [acceptedMatch, ...old]
+          },
+        )
+        queryClient.setQueryData<MatchEntity[]>(
+          ["matches", { status: "pending" }],
+          (old = []) => old.filter((m) => m.id !== matchId),
+        )
       }
     },
     onSettled: (_, _err, matchId) => {
@@ -393,20 +403,17 @@ export function useRejectMatch() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (matchId: string) => api.post<MatchEntity>(`/api/matches/${matchId}/reject`),
-    onMutate: async (matchId: string) => {
-      await queryClient.cancelQueries({ queryKey: ["matches"] })
-      const previousMatches = queryClient.getQueryData<MatchEntity[]>(["matches"])
-
-      queryClient.setQueriesData<MatchEntity[]>({ queryKey: ["matches"] }, (old = []) =>
-        old.filter((m) => m.id !== matchId),
+    onSuccess: (_, matchId) => {
+      queryClient.setQueryData<MatchEntity[]>(
+        ["matches", { status: "pending" }],
+        (old = []) => old.filter((m) => m.id !== matchId),
       )
-
-      return { previousMatches }
-    },
-    onError: (_err, _matchId, context) => {
-      if (context?.previousMatches) {
-        queryClient.setQueryData(["matches"], context.previousMatches)
-      }
+      queryClient.setQueryData<MatchEntity[]>(
+        ["matches", { status: "active" }],
+        (old = []) => old.filter((m) => m.id !== matchId),
+      )
+      queryClient.invalidateQueries({ queryKey: ["matches"] })
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] })
     },
     onSettled: (_, _err, matchId) => {
       queryClient.invalidateQueries({ queryKey: ["matches"] })

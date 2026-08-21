@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, memo, useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -128,7 +128,11 @@ const getTimeUntilMidnightIST = () => {
 export default function TestsScreen() {
     const router = useRouter();
     const { data: currentUser } = useCurrentUser();
-    const { data: activeMatches = [] } = useMatches('active');
+    const { data: activeMatches = [], refetch, isFetching } = useMatches('active');
+
+    const onRefresh = useCallback(async () => {
+        await refetch();
+    }, [refetch]);
 
     // Countdown timer state
     const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
@@ -146,6 +150,7 @@ export default function TestsScreen() {
         return activeMatches.map((m: MatchEntity) => {
             const isUser1 = m.user1Id === currentUser?.id;
             const partnerApp = isUser1 ? m.app2 : m.app1;
+            const myApp = isUser1 ? m.app1 : m.app2;
             const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
             const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
@@ -157,11 +162,11 @@ export default function TestsScreen() {
 
             return {
                 id: m.id,
-                name: partnerApp?.title || 'Testing App',
+                name: partnerApp?.title || myApp?.title || 'Testing App',
                 owner: partnerApp?.user?.name || 'Partner',
                 day,
                 totalDays: 14,
-                iconUrl: partnerApp?.iconUrl,
+                iconUrl: partnerApp?.iconUrl || myApp?.iconUrl,
                 myProofStatus,
                 partnerProofStatus,
                 isReviewPending,
@@ -194,7 +199,11 @@ export default function TestsScreen() {
 
     return (
         <View className="flex-1 bg-background">
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView
+                className="flex-1"
+                contentContainerStyle={{ paddingBottom: 100 }}
+                refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
+            >
                 {/* Header */}
                 <View className="px-6 py-4">
                     <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
