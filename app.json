@@ -25,7 +25,6 @@
         "backgroundColor": "#3B82F6"
       },
       "package": "com.theneerajsec.theclosedtest",
-      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize"
     },
