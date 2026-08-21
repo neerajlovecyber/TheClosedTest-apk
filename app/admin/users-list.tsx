@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
+import { ArrowLeftIcon, SearchIcon, UserIcon, ShieldIcon, FlameIcon, MessageSquareIcon } from 'lucide-react-native';
 import { toast } from '@/lib/sonner';
 import { useAdminUsers, useGetOrCreateAdminUserChat } from '@/lib/api-hooks';
 
