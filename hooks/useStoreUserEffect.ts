@@ -1,6 +1,6 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useEffect, useState } from "react";
-import { setAuthTokenGetter } from "@/lib/api";
+import { setAuthTokenGetter, setCurrentUserId } from "@/lib/api";
 import { useSyncUser } from "@/lib/api-hooks";
 
 export function useStoreUserEffect() {
@@ -10,6 +10,7 @@ export function useStoreUserEffect() {
   const syncUser = useSyncUser();
 
   useEffect(() => {
+    setCurrentUserId(user?.id || null);
     // Wire up Clerk auth token generator for all backend requests
     setAuthTokenGetter(async () => {
       const token = await getToken();

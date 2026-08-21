@@ -46,12 +46,35 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
   const isUuid = UUID_REGEX.test(identifier)
 
   // Find user by id (if UUID) or tokenIdentifier (e.g. Clerk user_xxx or test token)
-  const user = await db.query.users.findFirst({
+  let user = await db.query.users.findFirst({
     where: (u, { or, eq }) =>
       isUuid
         ? or(eq(u.id, identifier!), eq(u.tokenIdentifier, identifier!))
-        : or(eq(u.tokenIdentifier, identifier!), eq(u.id, identifier!)),
+        : eq(u.tokenIdentifier, identifier!),
   })
+
+  if (!user && !isUuid) {
+    // Auto-create user on the fly for Clerk authenticated sessions
+    try {
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          tokenIdentifier: identifier,
+          name: "Developer",
+          email: `${identifier}@theclosedtest.app`,
+          avatarUrl: `https://ui-avatars.com/api/?name=Developer&background=random`,
+          reputation: 100,
+          appsCount: 0,
+          isGroupMember: false,
+          streak: 0,
+          bestStreak: 0,
+        })
+        .returning()
+      user = newUser
+    } catch {
+      // ignore
+    }
+  }
 
   if (!user) {
     throw new HTTPException(HttpStatusCodes.UNAUTHORIZED, {
@@ -61,6 +84,7 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
 
   c.set("user", {
     id: user.id,
+    tokenIdentifier: user.tokenIdentifier,
     email: user.email,
     name: user.name,
     isAdmin: user.isAdmin,

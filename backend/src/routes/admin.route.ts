@@ -311,7 +311,13 @@ router.openapi(
     const userVar = c.get("user")!
 
     const existingChat = await db.query.adminChats.findFirst({
-      where: eq(adminChats.userId, userVar.id),
+      where: (chatTable, { or, eq }) =>
+        or(
+          eq(chatTable.userId, userVar.id),
+          userVar.tokenIdentifier
+            ? eq(chatTable.userId, userVar.tokenIdentifier)
+            : eq(chatTable.userId, userVar.id),
+        ),
     })
 
     if (existingChat) {
@@ -373,7 +379,11 @@ router.openapi(
       return c.json({ message: "Chat not found" }, HttpStatusCodes.NOT_FOUND)
     }
 
-    if (chat.userId !== userVar.id && !userVar.isAdmin) {
+    const isOwner =
+      chat.userId === userVar.id ||
+      (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
+
+    if (!isOwner && !userVar.isAdmin) {
       return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
     }
 
@@ -424,7 +434,11 @@ router.openapi(
     }
 
     const isAdmin = Boolean(userVar.isAdmin)
-    if (chat.userId !== userVar.id && !isAdmin) {
+    const isOwner =
+      chat.userId === userVar.id ||
+      (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
+
+    if (!isOwner && !isAdmin) {
       return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
     }
 

@@ -8,6 +8,7 @@ import { toast } from '@/lib/sonner';
 import { Icon } from '@/components/ui/icon';
 import { ArrowLeftIcon, SendIcon, ShieldIcon } from 'lucide-react-native';
 import { LinkableText } from '@/components/ui/LinkableText';
+import { api } from '@/lib/api';
 import { useMySupportChat, useSupportChatDetails, useSendSupportMessage } from '@/lib/api-hooks';
 
 export default function AdminChatScreen() {
@@ -28,18 +29,29 @@ export default function AdminChatScreen() {
     const messages = chatData?.messages || [];
 
     const handleSend = async () => {
-        if (!newMessage.trim() || !effectiveChatId) return;
+        if (!newMessage.trim()) return;
 
         setSending(true);
         try {
+            let targetChatId = effectiveChatId;
+            if (!targetChatId) {
+                const created = await api.post<{ id: string }>('/api/support/my-chat');
+                targetChatId = created?.id;
+            }
+
+            if (!targetChatId) {
+                toast.error('Support chat unavailable. Please try again.');
+                return;
+            }
+
             await sendMessageMutation.mutateAsync({
-                chatId: effectiveChatId,
+                chatId: targetChatId,
                 content: newMessage.trim(),
                 type: 'text',
             });
             setNewMessage('');
         } catch (error: any) {
-            toast.error('Failed to send', { description: error.message });
+            toast.error('Failed to send', { description: error.message || 'Could not send message' });
         } finally {
             setSending(false);
         }

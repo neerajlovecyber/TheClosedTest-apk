@@ -6,6 +6,7 @@ export interface AppBindings {
     logger: PinoLogger
     user?: {
       id: string
+      tokenIdentifier?: string | null
       email: string
       name?: string
       isAdmin?: boolean

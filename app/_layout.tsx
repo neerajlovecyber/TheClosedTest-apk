@@ -95,19 +95,19 @@ function InitialLayout() {
   const router = useRouter();
 
   // Sync user with backend
-  useStoreUserEffect();
+  const syncedUserId = useStoreUserEffect();
 
   /* eslint-disable react-hooks/exhaustive-deps */
   const { expoPushToken, notificationResponse } = usePushNotifications();
   const updatePushToken = useUpdatePushToken();
 
   React.useEffect(() => {
-    if (expoPushToken && isSignedIn) {
+    if (expoPushToken && isSignedIn && syncedUserId) {
       updatePushToken.mutateAsync(expoPushToken).catch((e) =>
         console.error('Failed to save push token:', e),
       );
     }
-  }, [expoPushToken, isSignedIn]);
+  }, [expoPushToken, isSignedIn, syncedUserId]);
 
   React.useEffect(() => {
     if (!isLoaded) return;

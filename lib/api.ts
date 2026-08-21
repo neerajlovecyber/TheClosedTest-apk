@@ -7,9 +7,14 @@ const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run"
 
 let authTokenGetter: (() => Promise<string | null>) | null = null
+let currentUserId: string | null = null
 
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   authTokenGetter = getter
+}
+
+export function setCurrentUserId(userId: string | null) {
+  currentUserId = userId
 }
 
 export interface ApiFetchOptions extends RequestInit {
@@ -40,6 +45,10 @@ export async function apiFetch<T = unknown>(
   const headers = new Headers(customHeaders || {})
   if (!headers.has("Content-Type") && !(fetchOptions.body instanceof FormData)) {
     headers.set("Content-Type", "application/json")
+  }
+
+  if (currentUserId && !headers.has("x-user-id")) {
+    headers.set("x-user-id", currentUserId)
   }
 
   // Inject Clerk Bearer Token if available
