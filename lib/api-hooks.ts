@@ -369,6 +369,7 @@ export function useSubmitProof() {
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["proofs", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["match", vars.matchId] })
+      queryClient.invalidateQueries({ queryKey: ["matches"] })
     },
   })
 }
@@ -389,6 +390,7 @@ export function useReviewProof() {
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["proofs", vars.matchId] })
       queryClient.invalidateQueries({ queryKey: ["match", vars.matchId] })
+      queryClient.invalidateQueries({ queryKey: ["matches"] })
     },
   })
 }

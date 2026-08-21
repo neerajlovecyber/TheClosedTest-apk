@@ -282,6 +282,18 @@ router.openapi(
       .where(eq(proofs.id, id))
       .returning()
 
+    const proofSummary = {
+      day: proof.day,
+      status,
+      updatedAt: now.toISOString(),
+    }
+
+    const updateFields: any = {
+      ...(isUser1Uploader ? { user1LastProof: proofSummary } : { user2LastProof: proofSummary }),
+      lastActivity: now,
+      updatedAt: now,
+    }
+
     // If approved, update approved count and check for match completion
     if (status === "approved") {
       const user1Approved = isUser1Uploader
@@ -293,17 +305,10 @@ router.openapi(
 
       const bothCompleted = user1Approved >= 14 && user2Approved >= 14
 
-      await db
-        .update(matches)
-        .set({
-          user1ApprovedCount: user1Approved,
-          user2ApprovedCount: user2Approved,
-          status: bothCompleted ? "completed" : match.status,
-          completedAt: bothCompleted ? now : match.completedAt,
-          lastActivity: now,
-          updatedAt: now,
-        })
-        .where(eq(matches.id, match.id))
+      updateFields.user1ApprovedCount = user1Approved
+      updateFields.user2ApprovedCount = user2Approved
+      updateFields.status = bothCompleted ? "completed" : match.status
+      updateFields.completedAt = bothCompleted ? now : match.completedAt
 
       // If completed, boost reputation of both testers
       if (bothCompleted) {
@@ -313,6 +318,11 @@ router.openapi(
           .where(or(eq(users.id, match.user1Id), eq(users.id, match.user2Id)))
       }
     }
+
+    await db
+      .update(matches)
+      .set(updateFields)
+      .where(eq(matches.id, match.id))
 
     // Notify uploader of review result
     await db.insert(notifications).values({
