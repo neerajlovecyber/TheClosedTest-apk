@@ -1,10 +1,11 @@
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { FlaskConicalIcon, HomeIcon, SettingsIcon, StoreIcon, ShieldIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/clerk-expo';
-import { useMatches, useNotifications } from '@/lib/api-hooks';
+import { useCurrentUser, useMatches } from '@/lib/api-hooks';
 
 export default function TabLayout() {
     const { user } = useUser();
@@ -12,11 +13,25 @@ export default function TabLayout() {
     const isAdmin = user?.emailAddresses.some(e => ADMIN_EMAILS.includes(e.emailAddress));
     const insets = useSafeAreaInsets();
 
+    const { data: currentUser } = useCurrentUser();
     const { data: activeMatches = [] } = useMatches('active');
-    const { data: notificationsData } = useNotifications();
 
-    const hasPendingTasks = activeMatches.length > 0;
-    const hasUnreadNotifications = (notificationsData?.unreadCount ?? 0) > 0;
+    // Only show red badge on Tests if there is an actual task pending action
+    const hasPendingTasks = React.useMemo(() => {
+        if (!currentUser?.id) return false;
+        return activeMatches.some((m) => {
+            const isUser1 = m.user1Id === currentUser.id;
+            const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
+            const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
+
+            // 1. Partner uploaded a proof that you need to review
+            const needsReview = partnerLastProof?.status === 'pending';
+            // 2. You haven't uploaded today's proof or your proof was rejected
+            const needsUpload = !myLastProof || (myLastProof.status as string) === 'rejected';
+
+            return needsReview || needsUpload;
+        });
+    }, [activeMatches, currentUser?.id]);
 
     return (
         <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -72,16 +87,7 @@ export default function TabLayout() {
                     name="settings"
                     options={{
                         title: 'Settings',
-                        tabBarIcon: ({ color }) => (
-                            <View style={{ position: 'relative' }}>
-                                <Icon as={SettingsIcon} color={color} className="size-6" />
-                                {hasUnreadNotifications && (
-                                    <View
-                                        style={{ position: 'absolute', top: -4, right: -6, width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: 5 }}
-                                    />
-                                )}
-                            </View>
-                        ),
+                        tabBarIcon: ({ color }) => <Icon as={SettingsIcon} color={color} className="size-6" />,
                     }}
                 />
                 <Tabs.Screen
