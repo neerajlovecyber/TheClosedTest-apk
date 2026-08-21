@@ -19,6 +19,7 @@
         ]
       },
       "env": {
+        "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
         "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com"
@@ -39,6 +40,7 @@
         ]
       },
       "env": {
+        "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
         "CLERK_FRONTEND_API_URL": "clerk.theclosedtest.neerajlovecyber.com",
@@ -57,6 +59,7 @@
         ]
       },
       "env": {
+        "EAS_GRADLE_CACHE": "1",
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
