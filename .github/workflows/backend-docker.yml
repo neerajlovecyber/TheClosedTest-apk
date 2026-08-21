@@ -1,19 +1,8 @@
-name: Build & Push Backend Docker Image
+name: Build & Push Backend Docker Image (Disabled - Northflank handles builds)
 
+# Automatic CI triggers disabled because Northflank builds and deploys the backend directly.
+# To run manually, use GitHub Actions UI -> Run workflow.
 on:
-  push:
-    branches:
-      - master
-      - main
-      - hono
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-docker.yml"
-    tags:
-      - "v*.*.*"
-  pull_request:
-    paths:
-      - "backend/**"
   workflow_dispatch:
 
 env:
