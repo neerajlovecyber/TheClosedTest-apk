@@ -155,15 +155,27 @@ export default function TestsScreen() {
             const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
             const currentDay = Math.max(1, myLastProof?.day || 1);
-            // If the lastProof is from a previous day, today's upload is not_uploaded
-            const today = currentDay;
-            const myProofDay = myLastProof?.day;
-            const myProofStatus = myProofDay === today
-                ? (myLastProof?.status || 'not_uploaded')
+
+            // Helper: was this proof submitted today (IST)?
+            const isToday = (updatedAt?: string) => {
+                if (!updatedAt) return false;
+                const now = new Date();
+                const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+                const istNow = new Date(utcTime + 5.5 * 3600000);
+                const proof = new Date(updatedAt);
+                const proofIst = new Date(proof.getTime() + proof.getTimezoneOffset() * 60000 + 5.5 * 3600000);
+                return (
+                    istNow.getFullYear() === proofIst.getFullYear() &&
+                    istNow.getMonth() === proofIst.getMonth() &&
+                    istNow.getDate() === proofIst.getDate()
+                );
+            };
+
+            const myProofStatus = (myLastProof && isToday(myLastProof.updatedAt))
+                ? myLastProof.status
                 : 'not_uploaded';
-            const partnerProofDay = partnerLastProof?.day;
-            const partnerProofStatus = partnerProofDay === today
-                ? (partnerLastProof?.status || 'not_uploaded')
+            const partnerProofStatus = (partnerLastProof && isToday(partnerLastProof.updatedAt))
+                ? partnerLastProof.status
                 : 'not_uploaded';
             const isReviewPending = partnerProofStatus === 'pending';
             const needsAttention = isReviewPending || myProofStatus === 'not_uploaded' || myProofStatus === 'rejected';
@@ -172,7 +184,7 @@ export default function TestsScreen() {
                 id: m.id,
                 name: partnerApp?.title || myApp?.title || 'Testing App',
                 owner: partnerApp?.user?.name || 'Partner',
-                day: today,
+                day: currentDay,
                 totalDays: 14,
                 iconUrl: partnerApp?.iconUrl || myApp?.iconUrl,
                 myProofStatus,
