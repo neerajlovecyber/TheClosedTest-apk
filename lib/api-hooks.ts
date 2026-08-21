@@ -501,6 +501,30 @@ export function useMySupportChat() {
   })
 }
 
+export function useAdminSupportChats() {
+  return useQuery<
+    {
+      id: string
+      userId: string
+      adminId?: string | null
+      lastMessage: string
+      updatedAt: string
+      hasUnreadUser: boolean
+      hasUnreadAdmin: boolean
+      user?: {
+        id: string
+        name: string
+        email: string
+        avatarUrl?: string | null
+      } | null
+    }[]
+  >({
+    queryKey: ["adminSupportChats"],
+    queryFn: () => api.get("/api/admin/support/chats"),
+    refetchInterval: 1000 * 5,
+  })
+}
+
 export function useSupportChatDetails(chatId?: string) {
   return useQuery<{
     chat: { id: string; userId: string; lastMessage: string }

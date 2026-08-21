@@ -67,7 +67,7 @@ export default function AdminDashboardScreen() {
                 <Card className="border-border shadow-sm mb-4">
                     <TouchableOpacity
                         className="flex-row items-center justify-between p-4"
-                        onPress={() => router.push('/admin-chat' as any)}
+                        onPress={() => router.push('/admin/chats-list' as any)}
                     >
                         <View className="flex-row items-center">
                             <View className="bg-purple-500/10 p-2.5 rounded-xl mr-3">

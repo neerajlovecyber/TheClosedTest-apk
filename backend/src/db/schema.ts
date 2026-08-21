@@ -622,3 +622,26 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [users.id],
   }),
 }))
+
+export const adminChatsRelations = relations(adminChats, ({ one, many }) => ({
+  user: one(users, {
+    fields: [adminChats.userId],
+    references: [users.id],
+  }),
+  admin: one(users, {
+    fields: [adminChats.adminId],
+    references: [users.id],
+  }),
+  messages: many(adminMessages),
+}))
+
+export const adminMessagesRelations = relations(adminMessages, ({ one }) => ({
+  chat: one(adminChats, {
+    fields: [adminMessages.chatId],
+    references: [adminChats.id],
+  }),
+  sender: one(users, {
+    fields: [adminMessages.senderId],
+    references: [users.id],
+  }),
+}))

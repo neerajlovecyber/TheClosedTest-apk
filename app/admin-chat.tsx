@@ -14,7 +14,7 @@ import { useMySupportChat, useSupportChatDetails, useSendSupportMessage } from '
 export default function AdminChatScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { chatId } = useLocalSearchParams<{ chatId?: string }>();
+    const { chatId, userName } = useLocalSearchParams<{ chatId?: string; userName?: string }>();
 
     const { data: myChat } = useMySupportChat();
     const effectiveChatId = chatId || myChat?.id;
@@ -91,8 +91,12 @@ export default function AdminChatScreen() {
                         <Icon as={ArrowLeftIcon} className="text-foreground size-6" />
                     </TouchableOpacity>
                     <View>
-                        <Text className="text-lg font-bold text-foreground">Official Support</Text>
-                        <Text className="text-xs text-muted-foreground">Direct chat with admins</Text>
+                        <Text className="text-lg font-bold text-foreground">
+                            {userName ? `Support: ${userName}` : 'Official Support'}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground">
+                            {userName ? 'User Support Ticket' : 'Direct chat with admins'}
+                        </Text>
                     </View>
                 </View>
             </View>

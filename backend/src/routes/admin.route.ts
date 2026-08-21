@@ -85,6 +85,25 @@ const AdminChatSchema = z.object({
   hasUnreadAdmin: z.boolean(),
 })
 
+const AdminChatWithUserSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  adminId: z.string().nullable().optional(),
+  lastMessage: z.string(),
+  updatedAt: z.string().or(z.date()),
+  hasUnreadUser: z.boolean(),
+  hasUnreadAdmin: z.boolean(),
+  user: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string(),
+      avatarUrl: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+})
+
 const AdminMessageSchema = z.object({
   id: z.string(),
   chatId: z.string(),
@@ -292,6 +311,40 @@ router.openapi(
       },
       HttpStatusCodes.OK,
     )
+  },
+)
+
+// 5b. Get All Support Chats (Admin)
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "get",
+    path: "/api/admin/support/chats",
+    summary: "List All User Support Conversations",
+    middleware: [adminAuthMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.array(AdminChatWithUserSchema),
+        "List of all support chats",
+      ),
+    },
+  }),
+  async (c) => {
+    const chats = await db.query.adminChats.findMany({
+      orderBy: [desc(adminChats.updatedAt)],
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    })
+
+    return c.json(chats, HttpStatusCodes.OK)
   },
 )
 
