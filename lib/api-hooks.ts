@@ -428,7 +428,7 @@ export function useRejectMatch() {
 export function useMatchProofs(matchId?: string) {
   return useQuery<ProofEntity[]>({
     queryKey: ["proofs", matchId],
-    queryFn: () => api.get<ProofEntity[]>(`/api/proofs/${matchId}`),
+    queryFn: () => api.get<ProofEntity[]>(`/api/proofs/match/${matchId}`),
     enabled: Boolean(matchId),
   })
 }

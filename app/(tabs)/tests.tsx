@@ -171,12 +171,18 @@ export default function TestsScreen() {
                 );
             };
 
-            const myProofStatus = (myLastProof && isToday(myLastProof.updatedAt))
-                ? myLastProof.status
-                : 'not_uploaded';
-            const partnerProofStatus = (partnerLastProof && isToday(partnerLastProof.updatedAt))
-                ? partnerLastProof.status
-                : 'not_uploaded';
+            const myProofStatus = (() => {
+                if (!myLastProof) return 'not_uploaded';
+                // Approved proofs always show regardless of date
+                if (myLastProof.status === 'approved') return 'approved';
+                // For pending/rejected, only count if submitted today (IST)
+                return isToday(myLastProof.updatedAt) ? myLastProof.status : 'not_uploaded';
+            })();
+            const partnerProofStatus = (() => {
+                if (!partnerLastProof) return 'not_uploaded';
+                if (partnerLastProof.status === 'approved') return 'approved';
+                return isToday(partnerLastProof.updatedAt) ? partnerLastProof.status : 'not_uploaded';
+            })();
             const isReviewPending = partnerProofStatus === 'pending';
             const needsAttention = isReviewPending || myProofStatus === 'not_uploaded' || myProofStatus === 'rejected';
 
