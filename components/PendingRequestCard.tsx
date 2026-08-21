@@ -13,14 +13,38 @@ interface PendingRequestCardProps {
             name?: string;
             avatarUrl?: string;
         };
+        user1?: {
+            name?: string;
+            email?: string;
+            avatarUrl?: string;
+        };
         offeredApp?: {
             _id?: string;
+            id?: string;
+            title?: string;
+            currentTesters?: number;
+            requiredTesters?: number;
+            status?: string;
+        };
+        app1?: {
+            _id?: string;
+            id?: string;
             title?: string;
             currentTesters?: number;
             requiredTesters?: number;
             status?: string;
         };
         myApp?: {
+            _id?: string;
+            id?: string;
+            title?: string;
+            currentTesters?: number;
+            requiredTesters?: number;
+            status?: string;
+        };
+        app2?: {
+            _id?: string;
+            id?: string;
             title?: string;
             currentTesters?: number;
             requiredTesters?: number;
@@ -33,7 +57,13 @@ interface PendingRequestCardProps {
 }
 
 export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: PendingRequestCardProps) {
-    const { requestor, offeredApp, myApp } = request;
+    const requestor = request.requestor || {
+        name: request.user1?.name || request.user1?.email?.split('@')[0] || 'Community Developer',
+        avatarUrl: request.user1?.avatarUrl,
+    };
+    const offeredApp = request.offeredApp || request.app1;
+    const myApp = request.myApp || request.app2;
+    const offeredAppId = offeredApp?._id || offeredApp?.id;
 
     return (
         <Card className="border-border bg-card shadow-sm mb-0 w-[300px] mr-3">
@@ -46,7 +76,7 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                     />
                     <View className="flex-1">
                         <Text className="font-bold text-sm text-foreground leading-tight" numberOfLines={1}>
-                            {requestor?.name || 'Unknown User'}
+                            {requestor?.name || 'Community Developer'}
                         </Text>
                         <Text className="text-[10px] text-muted-foreground">Wants to swap tests</Text>
                     </View>
@@ -59,11 +89,11 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                         <View className="flex-1">
                             <Text className="text-[9px] uppercase text-muted-foreground font-bold mb-0.5">They Offer</Text>
                             <TouchableOpacity
-                                onPress={() => onAppPress && offeredApp?._id && onAppPress(offeredApp._id)}
+                                onPress={() => onAppPress && offeredAppId && onAppPress(offeredAppId)}
                                 activeOpacity={0.7}
                             >
                                 <Text className="font-semibold text-xs text-primary underline" numberOfLines={1}>
-                                    {offeredApp?.title || 'Unknown App'}
+                                    {offeredApp?.title || 'Partner App'}
                                 </Text>
                             </TouchableOpacity>
                             {offeredApp && (

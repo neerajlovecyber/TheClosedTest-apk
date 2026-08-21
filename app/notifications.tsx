@@ -33,7 +33,7 @@ export default function NotificationsScreen() {
                 await markAsRead.mutateAsync(notification.id);
             }
 
-            if (notification.type === 'match_request') {
+            if (notification.type === 'match_request' || notification.type === 'request') {
                 router.push('/(tabs)');
                 return;
             }

@@ -277,9 +277,10 @@ export default function HomeScreen() {
                                     key={req.id}
                                     request={{
                                         _id: req.id,
-                                        app1: req.app1 ? { ...req.app1, _id: req.app1.id } : undefined,
-                                        app2: req.app2 ? { ...req.app2, _id: req.app2.id } : undefined,
-                                    } as any}
+                                        user1: req.user1,
+                                        app1: req.app1,
+                                        app2: req.app2,
+                                    }}
                                     onAccept={() => handleAccept(req.id)}
                                     onReject={() => handleReject(req.id)}
                                     onAppPress={(appId) => router.push(`/app-details/${appId}`)}

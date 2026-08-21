@@ -138,7 +138,7 @@ function InitialLayout() {
       const data = notificationResponse.notification.request.content.data as Record<string, unknown> | undefined;
       console.log('Handling notification navigation:', data);
 
-      if (data?.type === 'request') {
+      if (data?.type === 'request' || data?.type === 'match_request') {
         router.push('/(tabs)');
       } else if (data?.matchId) {
         if (data.type === 'message') {

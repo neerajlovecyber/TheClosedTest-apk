@@ -26,6 +26,10 @@ const MatchSchema = z.object({
   user2ApprovedCount: z.number(),
   user1LastProof: z.any().optional(),
   user2LastProof: z.any().optional(),
+  app1: z.any().optional(),
+  app2: z.any().optional(),
+  user1: z.any().optional(),
+  user2: z.any().optional(),
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
 })
@@ -179,6 +183,12 @@ router.openapi(
 
     const items = await db.query.matches.findMany({
       where: and(...conditions),
+      with: {
+        app1: true,
+        app2: true,
+        user1: true,
+        user2: true,
+      },
       orderBy: [desc(matches.lastActivity)],
     })
 
