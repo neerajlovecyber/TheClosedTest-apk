@@ -41,6 +41,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { useStoreUserEffect } from '@/hooks/useStoreUserEffect';
 import { useUpdatePushToken } from '@/lib/api-hooks';
+import { vexo, identifyDevice } from 'vexo-analytics';
+
+const VEXO_API_KEY = process.env.EXPO_PUBLIC_VEXO_API_KEY || '4beaa20e-2695-4263-aa86-5ddaf7ff29ee';
+if (VEXO_API_KEY) {
+  vexo(VEXO_API_KEY);
+}
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -113,6 +119,9 @@ function InitialLayout() {
       updatePushToken.mutateAsync(expoPushToken).catch((e) =>
         console.error('Failed to save push token:', e),
       );
+    }
+    if (syncedUserId) {
+      identifyDevice(syncedUserId);
     }
   }, [expoPushToken, isSignedIn, syncedUserId]);
 
