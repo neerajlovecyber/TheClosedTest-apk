@@ -11,6 +11,13 @@
       "android": {
         "buildType": "apk"
       },
+      "cache": {
+        "key": "gradle-cache-v1",
+        "paths": [
+          "~/.gradle/caches",
+          "~/.gradle/wrapper"
+        ]
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA",
@@ -20,8 +27,16 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "resourceClass": "medium",
       "android": {
         "buildType": "apk"
+      },
+      "cache": {
+        "key": "gradle-cache-v1",
+        "paths": [
+          "~/.gradle/caches",
+          "~/.gradle/wrapper"
+        ]
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
@@ -34,6 +49,13 @@
       "autoIncrement": true,
       "channel": "production",
       "resourceClass": "medium",
+      "cache": {
+        "key": "gradle-cache-v1",
+        "paths": [
+          "~/.gradle/caches",
+          "~/.gradle/wrapper"
+        ]
+      },
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://p01--tester--7tlh8kl746cq.code.run",
