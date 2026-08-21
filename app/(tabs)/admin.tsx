@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui/icon';
 import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, Trash2Icon, AlertTriangleIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { toast } from '@/lib/sonner';
-import { useLeaderboard, useAdminCleanAllApps } from '@/lib/api-hooks';
+import { useAdminStats, useAdminCleanAllApps } from '@/lib/api-hooks';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,9 +21,10 @@ import {
 
 export default function AdminDashboardScreen() {
     const router = useRouter();
-    const { data: leaderboardData } = useLeaderboard(100);
-    const leaderboard = leaderboardData?.leaderboard || [];
-    const activeUsersCount = leaderboard.length;
+    const { data: stats } = useAdminStats();
+    const totalUsersCount = stats?.totalUsers ?? 0;
+    const activeMatchesCount = stats?.activeMatches ?? 0;
+    const totalAppsCount = stats?.totalApps ?? 0;
 
     const [showCleanConfirm, setShowCleanConfirm] = useState(false);
     const cleanAllAppsMutation = useAdminCleanAllApps();
@@ -65,8 +66,8 @@ export default function AdminDashboardScreen() {
                                 </View>
                             </View>
                             <View>
-                                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{activeUsersCount}</Text>
-                                <Text className="text-xs text-muted-foreground font-medium mt-1">Active Users</Text>
+                                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{totalUsersCount}</Text>
+                                <Text className="text-xs text-muted-foreground font-medium mt-1">Total Users</Text>
                             </View>
                         </CardContent>
                     </Card>
@@ -78,12 +79,12 @@ export default function AdminDashboardScreen() {
                                     <Icon as={UserPlusIcon} className="text-emerald-500 size-5" />
                                 </View>
                                 <View className="bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                                    <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">OK</Text>
+                                    <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">Active</Text>
                                 </View>
                             </View>
                             <View>
-                                <Text className="text-3xl font-extrabold text-foreground tracking-tight">Active</Text>
-                                <Text className="text-xs text-muted-foreground font-medium mt-1">Postgres DB</Text>
+                                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{activeMatchesCount}</Text>
+                                <Text className="text-xs text-muted-foreground font-medium mt-1">Active Tests ({totalAppsCount} Apps)</Text>
                             </View>
                         </CardContent>
                     </Card>

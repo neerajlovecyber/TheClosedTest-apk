@@ -641,6 +641,20 @@ export function useAdminCleanAllApps() {
   })
 }
 
+export function useAdminStats() {
+  return useQuery<{
+    totalUsers: number
+    totalApps: number
+    activeMatches: number
+    totalProofs: number
+    pendingReports: number
+  }>({
+    queryKey: ["adminStats"],
+    queryFn: () => api.get("/api/admin/stats"),
+    refetchInterval: 1000 * 15,
+  })
+}
+
 export function useSupportChatDetails(chatId?: string) {
   return useQuery<{
     chat: { id: string; userId: string; lastMessage: string }
