@@ -58,6 +58,7 @@ export default function MatchDashboardScreen() {
 
     const { data: match, isLoading: isLoadingMatch } = useMatch(matchId);
     const { data: allProofs = [] } = useMatchProofs(matchId);
+    const { data: messages = [] } = useMatchMessages(matchId);
     const rejectMatchMutation = useRejectMatch();
     const acceptMatchMutation = useAcceptMatch();
 
@@ -83,6 +84,17 @@ export default function MatchDashboardScreen() {
         return () => clearInterval(interval);
     }, []);
 
+    const isUser1 = match?.user1Id === currentUserId;
+    const myLastRead = isUser1 ? match?.lastRead1 : match?.lastRead2;
+
+    const hasUnreadChat = useMemo(() => {
+        if (!currentUserId || messages.length === 0) return false;
+        const lastMsg = messages[messages.length - 1];
+        if (!lastMsg || lastMsg.senderId === currentUserId || lastMsg.senderId === 'me') return false;
+        if (!myLastRead) return true;
+        return new Date(lastMsg.sentAt).getTime() > new Date(myLastRead).getTime();
+    }, [messages, currentUserId, myLastRead]);
+
     const handleDayPress = (day: number) => {
         setSelectedDay(day);
     };
@@ -95,7 +107,6 @@ export default function MatchDashboardScreen() {
         );
     }
 
-    const isUser1 = match.user1Id === currentUserId;
     const partner = isUser1 ? match.user2 : match.user1;
     const partnerApp = isUser1 ? match.app2 : match.app1;
     const myApp = isUser1 ? match.app1 : match.app2;
@@ -182,16 +193,6 @@ export default function MatchDashboardScreen() {
             isToday: dayNum === currentDay,
         };
     });
-
-    const { data: messages = [] } = useMatchMessages(matchId);
-    const myLastRead = isUser1 ? match.lastRead1 : match.lastRead2;
-    const hasUnreadChat = useMemo(() => {
-        if (!currentUserId || messages.length === 0) return false;
-        const lastMsg = messages[messages.length - 1];
-        if (!lastMsg || lastMsg.senderId === currentUserId || lastMsg.senderId === 'me') return false;
-        if (!myLastRead) return true;
-        return new Date(lastMsg.sentAt).getTime() > new Date(myLastRead).getTime();
-    }, [messages, currentUserId, myLastRead]);
 
     const summary = {
         myApproved: isUser1 ? match.user1ApprovedCount : match.user2ApprovedCount,

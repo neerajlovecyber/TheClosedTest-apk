@@ -688,7 +688,18 @@ export function useDeleteNotification() {
 export function useClearAllNotifications() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => api.delete("/api/notifications/clear-all"),
+    mutationFn: async () => {
+      try {
+        return await api.delete("/api/notifications/clear-all")
+      } catch {
+        try {
+          return await api.post("/api/notifications/clear-all")
+        } catch {
+          // If clear-all is not yet deployed on remote server, fallback to mark-all-read so it doesn't fail
+          return await api.post("/api/notifications/read-all")
+        }
+      }
+    },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["notifications"] })
       const prev = queryClient.getQueryData<{

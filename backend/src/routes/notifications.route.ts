@@ -151,6 +151,31 @@ router.openapi(
   },
 )
 
+router.openapi(
+  createRoute({
+    tags: ["Notifications"],
+    method: "post",
+    path: "/api/notifications/clear-all",
+    summary: "Delete All Notifications for User (POST Alias)",
+    middleware: [authMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        createMessageObjectSchema("All notifications deleted"),
+        "All notifications deleted",
+      ),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+
+    await db
+      .delete(notifications)
+      .where(eq(notifications.userId, userVar.id))
+
+    return c.json({ message: "All notifications deleted" }, HttpStatusCodes.OK)
+  },
+)
+
 // 5. Delete Single Notification
 router.openapi(
   createRoute({
