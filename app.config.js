@@ -1,14 +1,4 @@
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
-
 export default ({ config }) => {
-    const envPath = path.resolve(process.cwd(), '.env.production');
-
-    if (fs.existsSync(envPath)) {
-        dotenv.config({ path: envPath, override: true });
-    }
-
     return {
         ...config,
         extra: {
@@ -19,3 +9,4 @@ export default ({ config }) => {
         },
     };
 };
+
