@@ -3,10 +3,11 @@
   "main": "index.js",
   "version": "3.0.0",
   "scripts": {
-    "start": "expo start -c",
-    "android": "expo start -c --android",
-    "ios": "expo start -c --ios",
-    "web": "expo start -c --web",
+    "start": "expo start",
+    "start:clear": "expo start -c",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
     "clean": "rm -rf .expo node_modules"
   },
   "dependencies": {

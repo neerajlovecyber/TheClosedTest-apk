@@ -17,6 +17,7 @@ const NotificationSchema = z.object({
   body: z.string(),
   data: z.any(),
   read: z.boolean(),
+  isRead: z.boolean().optional(),
   createdAt: z.string().or(z.date()),
 })
 
@@ -49,11 +50,16 @@ router.openapi(
       limit: 50,
     })
 
-    const unreadCount = items.filter((n) => !n.read).length
+    const formatted = items.map((n) => ({
+      ...n,
+      isRead: n.read,
+    }))
+
+    const unreadCount = formatted.filter((n) => !n.read).length
 
     return c.json(
       {
-        notifications: items,
+        notifications: formatted,
         unreadCount,
       },
       HttpStatusCodes.OK,
@@ -116,6 +122,62 @@ router.openapi(
       .where(eq(notifications.userId, userVar.id))
 
     return c.json({ message: "All notifications marked as read" }, HttpStatusCodes.OK)
+  },
+)
+
+// 4. Delete All Notifications (Clear Inbox)
+router.openapi(
+  createRoute({
+    tags: ["Notifications"],
+    method: "delete",
+    path: "/api/notifications/clear-all",
+    summary: "Delete All Notifications for User",
+    middleware: [authMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        createMessageObjectSchema("All notifications deleted"),
+        "All notifications deleted",
+      ),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+
+    await db
+      .delete(notifications)
+      .where(eq(notifications.userId, userVar.id))
+
+    return c.json({ message: "All notifications deleted" }, HttpStatusCodes.OK)
+  },
+)
+
+// 5. Delete Single Notification
+router.openapi(
+  createRoute({
+    tags: ["Notifications"],
+    method: "delete",
+    path: "/api/notifications/:id",
+    summary: "Delete Notification",
+    middleware: [authMiddleware] as const,
+    request: {
+      params: z.object({ id: z.string() }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        createMessageObjectSchema("Notification deleted"),
+        "Notification deleted",
+      ),
+    },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param")
+    const userVar = c.get("user")!
+
+    await db
+      .delete(notifications)
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userVar.id)))
+
+    return c.json({ message: "Notification deleted" }, HttpStatusCodes.OK)
   },
 )
 
