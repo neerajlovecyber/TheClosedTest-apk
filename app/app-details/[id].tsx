@@ -299,7 +299,7 @@ export default function AppDetailsScreen() {
                         <CardContent className="p-0">
                             <View className="p-5 flex-row items-start gap-4">
                                 <Image
-                                    source={{ uri: app.iconUrl || 'https://github.com/shadcn.png' }}
+                                    source={{ uri: app.iconUrl || 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=160&auto=format&fit=crop&q=80' }}
                                     className="w-20 h-20 rounded-2xl bg-background"
                                 />
                                 <View className="flex-1 gap-1">

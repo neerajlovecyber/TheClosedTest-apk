@@ -52,14 +52,15 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
     // Show warning if flagged multiple times or visibility is hidden
     const isHidden = item.visibility?.status === 'hidden';
     const isFlagged = (item.flagCount || 0) > 0 || isHidden;
-
-    // Resolve storage URL if needed
-    const displayIconUrl = item.iconUrl || 'https://github.com/shadcn.png';
+    const [imageError, setImageError] = React.useState(false);
+    const DEFAULT_ICON = 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=160&auto=format&fit=crop&q=80';
+    const displayIconUrl = !imageError && item.iconUrl ? item.iconUrl : DEFAULT_ICON;
 
     const Content = (
         <Card className={`mb-3 p-1.5 flex-row gap-2 ${isFlagged ? 'border-2 border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10' : ''}`}>
             <Image
                 source={{ uri: displayIconUrl }}
+                onError={() => setImageError(true)}
                 className="w-20 h-20 rounded-xl bg-muted border border-border"
             />
             <View className="flex-1 justify-between py-0.5">
