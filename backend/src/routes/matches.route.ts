@@ -5,7 +5,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
-import { apps, matches, notifications, proofs, users } from "../db/schema"
+import { apps, matches, messages, notifications, proofs, users } from "../db/schema"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 import { sendExpoPushNotification } from "../services/expo-push"
@@ -191,6 +191,10 @@ router.openapi(
         proofs: {
           orderBy: [desc(proofs.day), desc(proofs.submittedAt)],
         },
+        messages: {
+          orderBy: [desc(messages.sentAt)],
+          limit: 1,
+        },
       },
       orderBy: [desc(matches.lastActivity)],
     })
@@ -199,9 +203,19 @@ router.openapi(
       const matchProofs = m.proofs || []
       const user1LatestProof = matchProofs.find((p) => p.uploaderId === m.user1Id)
       const user2LatestProof = matchProofs.find((p) => p.uploaderId === m.user2Id)
+      const latestMsg = m.messages?.[0]
+      const hasUnreadMessages = Boolean(latestMsg && latestMsg.senderId !== userVar.id)
 
       return {
         ...m,
+        hasUnreadMessages,
+        latestMessage: latestMsg
+          ? {
+              content: latestMsg.content,
+              sentAt: String(latestMsg.sentAt),
+              senderId: latestMsg.senderId,
+            }
+          : null,
         user1LastProof: user1LatestProof
           ? {
               day: user1LatestProof.day,

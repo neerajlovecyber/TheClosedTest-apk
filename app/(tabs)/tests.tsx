@@ -166,7 +166,7 @@ export default function TestsScreen() {
                 partnerProofStatus,
                 isReviewPending,
                 needsAttention,
-                hasUnread: false,
+                hasUnread: Boolean(m.hasUnreadMessages),
             };
         });
     }, [activeMatches, currentUser?.id]);

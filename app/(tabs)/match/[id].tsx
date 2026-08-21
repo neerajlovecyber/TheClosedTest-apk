@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { MessageSquareIcon, CalendarCheckIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ClockIcon, ArrowLeftIcon, ArrowRightLeftIcon, CheckIcon, XIcon } from 'lucide-react-native';
+import { MessageSquareIcon, CalendarCheckIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, TrophyIcon, XCircleIcon, CheckCircle2Icon, ClockIcon, ArrowLeftIcon, ArrowRightLeftIcon, CheckIcon, XIcon, FlagIcon } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import { ProgressGrid } from '@/components/ProgressGrid';
 import { RejectionReasonModal } from '@/components/RejectionReasonModal';
 import { MatchChat } from '@/components/MatchChat';
 import { ReportDialog } from '@/components/ReportDialog';
-import { useMatch, useMatchProofs, useCurrentUser, useRejectMatch, useAcceptMatch, ProofEntity } from '@/lib/api-hooks';
+import { useMatch, useMatchProofs, useCurrentUser, useRejectMatch, useAcceptMatch, useMatchMessages, ProofEntity } from '@/lib/api-hooks';
 
 const isWeb = Platform.OS === 'web';
 
@@ -183,6 +183,13 @@ export default function MatchDashboardScreen() {
         };
     });
 
+    const { data: messages = [] } = useMatchMessages(matchId);
+    const hasUnreadChat = useMemo(() => {
+        if (!currentUserId || messages.length === 0) return false;
+        const lastMsg = messages[messages.length - 1];
+        return lastMsg && (lastMsg.senderId !== currentUserId && lastMsg.senderId !== 'me');
+    }, [messages, currentUserId]);
+
     const summary = {
         myApproved: isUser1 ? match.user1ApprovedCount : match.user2ApprovedCount,
         partnerApproved: isUser1 ? match.user2ApprovedCount : match.user1ApprovedCount,
@@ -190,7 +197,43 @@ export default function MatchDashboardScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['left', 'right']}>
+        <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
+            {/* Top Navigation Bar with Chat & Unread Indicator */}
+            <View className="flex-row items-center justify-between px-4 py-3 border-b border-border bg-background">
+                <View className="flex-row items-center gap-2 flex-1">
+                    <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full active:bg-secondary">
+                        <Icon as={ArrowLeftIcon} className="size-6 text-foreground" />
+                    </TouchableOpacity>
+                    <View className="flex-1">
+                        <Text className="text-lg font-bold text-foreground" numberOfLines={1}>Testing Dashboard</Text>
+                        <Text className="text-xs text-muted-foreground font-medium" numberOfLines={1}>Day {currentDay} of 14</Text>
+                    </View>
+                </View>
+
+                <View className="flex-row items-center gap-2">
+                    {/* Chat Button with Live Unread Indicator */}
+                    <TouchableOpacity
+                        onPress={() => setChatVisible(true)}
+                        activeOpacity={0.7}
+                        className="relative p-2.5 rounded-full bg-secondary/80 border border-border flex-row items-center justify-center"
+                    >
+                        <Icon as={MessageSquareIcon} className="size-5 text-foreground" />
+                        {hasUnreadChat && (
+                            <View className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-background shadow-sm" />
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Report Partner Button */}
+                    <TouchableOpacity
+                        onPress={() => setReportDialogVisible(true)}
+                        activeOpacity={0.7}
+                        className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
+                    >
+                        <Icon as={FlagIcon} className="size-4 text-muted-foreground" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
             <ScrollView
                 className="flex-1"
                 showsVerticalScrollIndicator={false}

@@ -70,6 +70,12 @@ export interface MatchEntity {
   user2ApprovedCount: number
   user1LastProof?: MatchSummaryProof | null
   user2LastProof?: MatchSummaryProof | null
+  hasUnreadMessages?: boolean
+  latestMessage?: {
+    content: string
+    sentAt: string
+    senderId: string
+  } | null
   lastActivity: string
   createdAt: string
   app1?: AppEntity
