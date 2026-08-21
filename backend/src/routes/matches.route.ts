@@ -65,11 +65,24 @@ router.openapi(
   async (c) => {
     const userVar = c.get("user")!
     const body = c.req.valid("json")
-    const app1Id = body.myAppId || body.app1Id
+    let app1Id = body.myAppId || body.app1Id
     const targetAppId = body.targetAppId || body.app2Id
 
-    if (!app1Id || !targetAppId) {
-      return c.json({ message: "Both myAppId and targetAppId are required" }, HttpStatusCodes.BAD_REQUEST)
+    if (!targetAppId) {
+      return c.json({ message: "Target app ID is required" }, HttpStatusCodes.BAD_REQUEST)
+    }
+
+    if (!app1Id) {
+      const userApp = await db.query.apps.findFirst({
+        where: eq(apps.userId, userVar.id),
+      })
+      if (!userApp) {
+        return c.json(
+          { message: "You must add at least one app before requesting a swap" },
+          HttpStatusCodes.BAD_REQUEST,
+        )
+      }
+      app1Id = userApp.id
     }
 
     // Verify user owns app1

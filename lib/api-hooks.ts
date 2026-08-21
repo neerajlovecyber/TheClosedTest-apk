@@ -341,7 +341,19 @@ export function useMatch(id?: string) {
 export function useRequestMatch() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (targetAppId: string) => api.post<MatchEntity>("/api/matches/request", { targetAppId }),
+    mutationFn: (
+      payload:
+        | string
+        | {
+            myAppId?: string
+            targetAppId?: string
+            app1Id?: string
+            app2Id?: string
+          },
+    ) => {
+      const body = typeof payload === "string" ? { targetAppId: payload } : payload
+      return api.post<MatchEntity>("/api/matches/request", body)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["matches"] })
     },
