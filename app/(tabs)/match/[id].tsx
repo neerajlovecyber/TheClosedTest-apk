@@ -184,11 +184,14 @@ export default function MatchDashboardScreen() {
     });
 
     const { data: messages = [] } = useMatchMessages(matchId);
+    const myLastRead = isUser1 ? match.lastRead1 : match.lastRead2;
     const hasUnreadChat = useMemo(() => {
         if (!currentUserId || messages.length === 0) return false;
         const lastMsg = messages[messages.length - 1];
-        return lastMsg && (lastMsg.senderId !== currentUserId && lastMsg.senderId !== 'me');
-    }, [messages, currentUserId]);
+        if (!lastMsg || lastMsg.senderId === currentUserId || lastMsg.senderId === 'me') return false;
+        if (!myLastRead) return true;
+        return new Date(lastMsg.sentAt).getTime() > new Date(myLastRead).getTime();
+    }, [messages, currentUserId, myLastRead]);
 
     const summary = {
         myApproved: isUser1 ? match.user1ApprovedCount : match.user2ApprovedCount,

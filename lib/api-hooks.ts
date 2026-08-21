@@ -70,6 +70,8 @@ export interface MatchEntity {
   user2ApprovedCount: number
   user1LastProof?: MatchSummaryProof | null
   user2LastProof?: MatchSummaryProof | null
+  lastRead1?: string | null
+  lastRead2?: string | null
   hasUnreadMessages?: boolean
   latestMessage?: {
     content: string
@@ -476,6 +478,8 @@ export function useMarkMessagesRead() {
     mutationFn: (matchId: string) => api.post(`/api/messages/${matchId}/read`),
     onSuccess: (_, matchId) => {
       queryClient.invalidateQueries({ queryKey: ["messages", matchId] })
+      queryClient.invalidateQueries({ queryKey: ["matches"] })
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] })
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
     },
   })

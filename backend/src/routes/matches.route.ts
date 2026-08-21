@@ -204,7 +204,14 @@ router.openapi(
       const user1LatestProof = matchProofs.find((p) => p.uploaderId === m.user1Id)
       const user2LatestProof = matchProofs.find((p) => p.uploaderId === m.user2Id)
       const latestMsg = m.messages?.[0]
-      const hasUnreadMessages = Boolean(latestMsg && latestMsg.senderId !== userVar.id)
+      const isUser1 = m.user1Id === userVar.id
+      const myLastRead = isUser1 ? m.lastRead1 : m.lastRead2
+
+      const hasUnreadMessages = Boolean(
+        latestMsg &&
+        latestMsg.senderId !== userVar.id &&
+        (!myLastRead || new Date(latestMsg.sentAt).getTime() > new Date(myLastRead).getTime()),
+      )
 
       return {
         ...m,
