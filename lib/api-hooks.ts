@@ -212,6 +212,19 @@ export function useConfirmGroup() {
   })
 }
 
+export function useUnlockSlots() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<UserProfile>("/api/users/unlock-slots", {}),
+    onSuccess: (user) => {
+      queryClient.setQueryData(["currentUser"], user)
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
+      queryClient.invalidateQueries({ queryKey: ["myApps"] })
+      queryClient.invalidateQueries({ queryKey: ["apps"] })
+    },
+  })
+}
+
 // ---------------------------------------------------------------------------
 // 2. Apps Feed & Management Hooks
 // ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@ import {
     useCheckIn,
     useAcceptMatch,
     useRejectMatch,
+    useUnlockSlots,
     MatchEntity,
 } from '@/lib/api-hooks';
 
@@ -39,6 +40,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [requestToReject, setRequestToReject] = useState<string | null>(null);
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+    const [isUnlockSlotsDialogOpen, setIsUnlockSlotsDialogOpen] = useState(false);
     const [unlocking, setUnlocking] = useState(false);
     const attentionScrollRef = React.useRef<ScrollView>(null);
 
@@ -55,12 +57,30 @@ export default function HomeScreen() {
     const checkIn = useCheckIn();
     const acceptMatch = useAcceptMatch();
     const rejectMatch = useRejectMatch();
+    const unlockSlots = useUnlockSlots();
 
     // Derived user data
     const userName = user?.firstName || 'Tester';
     const reputation = currentUser?.reputation ?? 100;
     const streak = currentUser?.streak ?? 0;
     const unlockedSlots = currentUser?.unlockedAppSlots ?? 1;
+
+    const handleConfirmUnlockSlots = async () => {
+        try {
+            setUnlocking(true);
+            await unlockSlots.mutateAsync();
+            setIsUnlockSlotsDialogOpen(false);
+            toast.success('All 3 Slots Unlocked! 🎉', {
+                description: 'You now have access to all 3 app testing slots for free!',
+            });
+        } catch (err: any) {
+            toast.error('Failed to unlock slots', {
+                description: err?.message || 'Please try again later',
+            });
+        } finally {
+            setUnlocking(false);
+        }
+    };
 
     // Check-in trigger once per calendar day
     React.useEffect(() => {
@@ -296,6 +316,37 @@ export default function HomeScreen() {
 
                 {/* My Apps Overview */}
                 <View className="px-6 pb-20">
+                    {/* Free 3 Slots 1-Week Event Promo Banner */}
+                    {unlockedSlots < 3 && (
+                        <TouchableOpacity
+                            className="mb-4 p-3 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex-row items-center justify-between"
+                            onPress={() => setIsUnlockSlotsDialogOpen(true)}
+                            activeOpacity={0.8}
+                        >
+                            <View className="flex-row items-center gap-3 flex-1 mr-2">
+                                <View className="w-10 h-10 rounded-full bg-orange-500/20 items-center justify-center">
+                                    <Text className="text-xl">🎁</Text>
+                                </View>
+                                <View className="flex-1">
+                                    <View className="flex-row items-center gap-1.5 mb-0.5">
+                                        <Text className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider bg-orange-500/20 px-1.5 py-0.5 rounded">
+                                            1-Week Free Event
+                                        </Text>
+                                    </View>
+                                    <Text className="text-sm font-bold text-foreground">
+                                        Unlock All 3 App Slots Free!
+                                    </Text>
+                                    <Text className="text-xs text-muted-foreground">
+                                        Tap to claim all 3 slots in 2 clicks.
+                                    </Text>
+                                </View>
+                            </View>
+                            <View className="bg-orange-500 px-3.5 py-2 rounded-xl">
+                                <Text className="text-white text-xs font-bold">Claim Free</Text>
+                            </View>
+                        </TouchableOpacity>
+                    )}
+
                     <View className="flex-row justify-between items-center mb-4">
                         <Text className="text-xl font-bold">My Apps ({myApps.length}/3)</Text>
                         {myApps.length < unlockedSlots && (
@@ -337,7 +388,8 @@ export default function HomeScreen() {
                                 return;
                             }
 
-                            toast.info('Unlock Slot', { description: 'Complete 14-day tests to unlock additional app slots!' });
+                            // 1st click: open unlock dialog
+                            setIsUnlockSlotsDialogOpen(true);
                         };
 
                         return (
@@ -354,10 +406,10 @@ export default function HomeScreen() {
 
                                     <View className="flex-1 justify-center py-0.5">
                                         <Text className={`font-semibold text-sm mb-1 ${isLocked ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'}`}>
-                                            {isLocked ? 'Locked Slot' : (myApps.length === 0 && index === 0 ? 'Add Your First App' : 'Add Another App')}
+                                            {isLocked ? 'Locked Slot (Tap to Unlock Free)' : (myApps.length === 0 && index === 0 ? 'Add Your First App' : 'Add Another App')}
                                         </Text>
                                         <Text className="text-muted-foreground/60 text-xs mb-2">
-                                            Slot {slotNumber} of 3
+                                            {isLocked ? '1-Week Event: Free 3 Slots' : `Slot ${slotNumber} of 3`}
                                         </Text>
                                     </View>
                                 </Card>
@@ -366,6 +418,31 @@ export default function HomeScreen() {
                     })}
                 </View>
             </ScrollView>
+
+            <AlertDialog open={isUnlockSlotsDialogOpen} onOpenChange={setIsUnlockSlotsDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>🎉 Unlock All 3 App Slots for Free!</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Special 1-Week Event for All Developers! Get instant access to all 3 app testing slots at zero cost so you can test and recruit for multiple apps simultaneously.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setIsUnlockSlotsDialogOpen(false)}>
+                            <Text className="font-bold text-foreground">Maybe Later</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onPress={handleConfirmUnlockSlots}
+                            className="bg-orange-500"
+                            disabled={unlocking}
+                        >
+                            <Text className="text-white font-bold">
+                                {unlocking ? 'Unlocking...' : 'Claim All 3 Slots (Free)'}
+                            </Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <AlertDialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
                 <AlertDialogContent>

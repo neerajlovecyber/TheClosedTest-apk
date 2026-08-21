@@ -198,7 +198,7 @@ export default function HelpScreen() {
                         </View>
                         <View>
                             <Text className="font-bold text-foreground mb-1">How do I unlock more app slots?</Text>
-                            <Text className="text-sm text-muted-foreground">You get 1 free slot. Watch a short ad to unlock additional slots (up to 3 total).</Text>
+                            <Text className="text-sm text-muted-foreground">All developers can unlock all 3 app slots for free in 2 clicks on the Home tab (up to 3 total active apps)!</Text>
                         </View>
                     </CardContent>
                 </Card>

@@ -69,6 +69,7 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
           isGroupMember: false,
           streak: 0,
           bestStreak: 0,
+          unlockedAppSlots: 3,
         })
         .returning()
       user = newUser

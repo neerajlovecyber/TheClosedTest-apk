@@ -108,6 +108,7 @@ router.openapi(
         isGroupMember: false,
         streak: 0,
         bestStreak: 0,
+        unlockedAppSlots: 3,
       })
       .returning()
 
@@ -324,6 +325,35 @@ router.openapi(
       .set({
         ...(body.name ? { name: body.name } : {}),
         ...(body.avatarUrl ? { avatarUrl: body.avatarUrl } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userVar.id))
+      .returning()
+
+    return c.json(updated, HttpStatusCodes.OK)
+  },
+)
+
+// 7. Unlock App Slots (Free 3 Slots Promotion)
+router.openapi(
+  createRoute({
+    tags: ["Users"],
+    method: "post",
+    path: "/api/users/unlock-slots",
+    summary: "Unlock All 3 App Slots Free",
+    description: "Special event promo allowing users to unlock all 3 slots for free",
+    middleware: [authMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(UserResponseSchema, "Updated user profile with 3 slots"),
+    },
+  }),
+  async (c) => {
+    const userVar = c.get("user")!
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        unlockedAppSlots: 3,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userVar.id))
