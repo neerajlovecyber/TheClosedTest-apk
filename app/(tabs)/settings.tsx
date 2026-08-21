@@ -1,9 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import {
     AlertDialog,
@@ -30,14 +28,14 @@ import {
     ShieldIcon,
     StarIcon,
     SunIcon,
-    SparklesIcon,
     HelpCircleIcon,
     SendIcon,
+    UsersIcon,
     Code2Icon,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
-import { Linking, ScrollView, View, Share, TouchableOpacity } from 'react-native';
+import { Linking, ScrollView, View, Share, TouchableOpacity, Modal, Pressable } from 'react-native';
 import Constants from 'expo-constants';
 import { useCurrentUser, useMySupportChat } from '@/lib/api-hooks';
 
@@ -89,7 +87,7 @@ function SettingItem({ icon, label, subtitle, onPress, action, destructive, icon
     );
 }
 
-function UserProfile() {
+function UserProfile({ onOpenGroupModal }: { onOpenGroupModal: () => void }) {
     const { user } = useUser();
     const { data: dbUser } = useCurrentUser();
 
@@ -106,6 +104,8 @@ function UserProfile() {
         const imageSource = user?.imageUrl ? { uri: user.imageUrl } : undefined;
         return { initials, imageSource, userName, email };
     }, [user]);
+
+    const isMember = Boolean(dbUser?.isGroupMember || dbUser?.googleGroupConfirmed);
 
     return (
         <Card className="mx-4 mb-4 border-0 overflow-hidden">
@@ -125,12 +125,26 @@ function UserProfile() {
                         </View>
                         <Text className="text-muted-foreground font-medium mt-0.5">{email}</Text>
 
-                        {(dbUser?.isGroupMember || dbUser?.googleGroupConfirmed) && (
-                            <View className="flex-row items-center mt-2">
-                                <View className="bg-green-500/10 px-3 py-1 rounded-full">
+                        {isMember ? (
+                            <TouchableOpacity
+                                onPress={onOpenGroupModal}
+                                activeOpacity={0.7}
+                                className="flex-row items-center mt-2 self-start"
+                            >
+                                <View className="bg-green-500/10 px-3 py-1 rounded-full flex-row items-center gap-1.5 border border-green-500/20">
                                     <Text className="text-xs text-green-600 dark:text-green-400 font-bold">✓ Verified Member</Text>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity
+                                onPress={onOpenGroupModal}
+                                activeOpacity={0.7}
+                                className="flex-row items-center mt-2 self-start"
+                            >
+                                <View className="bg-amber-500/10 px-3 py-1 rounded-full flex-row items-center gap-1.5 border border-amber-500/20">
+                                    <Text className="text-xs text-amber-600 dark:text-amber-400 font-bold">Join Google Group</Text>
+                                </View>
+                            </TouchableOpacity>
                         )}
                     </View>
                 </View>
@@ -148,9 +162,8 @@ export default function SettingsScreen() {
     const { data: mySupportChat } = useMySupportChat();
     const hasUnreadFromAdmin = mySupportChat?.hasUnreadUser ?? false;
 
-    const ADMIN_EMAILS = ['neerajlovecyber@gmail.com', 'futureaistudio41@gmail.com'];
-    const isAdmin = user?.emailAddresses.some((e) => ADMIN_EMAILS.includes(e.emailAddress));
     const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+    const [showGroupModal, setShowGroupModal] = React.useState(false);
 
     const handleShare = async () => {
         try {
@@ -174,44 +187,63 @@ export default function SettingsScreen() {
     return (
         <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
             {/* Header */}
-            <View className="px-6 py-4">
+            <View className="px-6 py-4 flex-row items-center justify-between">
                 <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
+                <TouchableOpacity
+                    onPress={toggleColorScheme}
+                    className="p-2.5 rounded-full bg-secondary/50 border border-border/60 active:bg-secondary"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel="Toggle Dark Mode"
+                >
+                    <Icon as={colorScheme === 'dark' ? SunIcon : MoonIcon} className="size-5 text-foreground" />
+                </TouchableOpacity>
             </View>
 
             <View className="flex-1 gap-4">
-                <UserProfile />
-
-                {/* Google Group Status Card */}
-                <View className="px-4">
-                    <GoogleGroupWidget />
-                </View>
+                <UserProfile onOpenGroupModal={() => setShowGroupModal(true)} />
 
                 {/* Settings Groups */}
                 <View className="px-4 gap-6">
-                    {/* Appearance Section */}
+                    {/* Community Section */}
                     <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Preferences</Text>
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Community</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
                             <CardContent className="p-0 gap-0 divide-y divide-border/30">
                                 <SettingItem
-                                    icon={colorScheme === 'dark' ? MoonIcon : SunIcon}
-                                    label="Dark Mode"
-                                    subtitle={colorScheme === 'dark' ? 'Currently using dark theme' : 'Currently using light theme'}
-                                    onPress={toggleColorScheme}
-                                    action={
-                                        <Switch
-                                            checked={colorScheme === 'dark'}
-                                            onCheckedChange={toggleColorScheme}
-                                        />
-                                    }
+                                    icon={SendIcon}
+                                    label="Telegram Community"
+                                    subtitle="Join our developer community"
+                                    onPress={() => handleLink('https://t.me/developers_community_official/1')}
+                                    iconColor="bg-sky-500"
+                                />
+                                <SettingItem
+                                    icon={Code2Icon}
+                                    label="Open Source on GitHub"
+                                    subtitle="Star & explore the source code"
+                                    onPress={() => handleLink('https://github.com/neerajlovecyber/TheClosedTest-apk')}
+                                    iconColor="bg-zinc-800 dark:bg-zinc-700"
+                                />
+                                <SettingItem
+                                    icon={Share2Icon}
+                                    label="Share App"
+                                    subtitle="Invite other developers"
+                                    onPress={handleShare}
+                                    iconColor="bg-blue-500"
+                                />
+                                <SettingItem
+                                    icon={StarIcon}
+                                    label="Rate Us"
+                                    subtitle="Leave a review on Google Play"
+                                    onPress={handleRate}
+                                    iconColor="bg-amber-500"
                                 />
                             </CardContent>
                         </Card>
                     </View>
 
-                    {/* Help Section */}
+                    {/* Help & Support Section */}
                     <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Help</Text>
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Help & Support</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
                             <CardContent className="p-0 gap-0 divide-y divide-border/30">
                                 <SettingItem
@@ -229,13 +261,6 @@ export default function SettingsScreen() {
                                     iconColor="bg-emerald-500"
                                 />
                                 <SettingItem
-                                    icon={SendIcon}
-                                    label="Telegram Community"
-                                    subtitle="Join our developer community"
-                                    onPress={() => handleLink('https://t.me/developers_community_official/1')}
-                                    iconColor="bg-sky-500"
-                                />
-                                <SettingItem
                                     icon={MessageSquareIcon}
                                     label="Contact Support"
                                     subtitle="Get help with issues"
@@ -247,62 +272,33 @@ export default function SettingsScreen() {
                         </Card>
                     </View>
 
-                    {/* Support Section */}
+                    {/* Legal Section */}
                     <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Support Us</Text>
+                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Legal</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
                             <CardContent className="p-0 gap-0 divide-y divide-border/30">
-                                <SettingItem
-                                    icon={Share2Icon}
-                                    label="Share App"
-                                    subtitle="Help others discover us"
-                                    onPress={handleShare}
-                                    iconColor="bg-blue-500"
-                                />
-                                <SettingItem
-                                    icon={StarIcon}
-                                    label="Rate Us"
-                                    subtitle="Leave a review on Play Store"
-                                    onPress={handleRate}
-                                    iconColor="bg-amber-500"
-                                />
-                            </CardContent>
-                        </Card>
-                    </View>
-
-                    {/* About Section */}
-                    <View className="gap-3">
-                        <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">About</Text>
-                        <Card className="overflow-hidden p-0 gap-0 border-0">
-                            <CardContent className="p-0 gap-0 divide-y divide-border/30">
-                                <SettingItem
-                                    icon={Code2Icon}
-                                    label="Open Source on GitHub"
-                                    subtitle="neerajlovecyber/TheClosedTest-apk"
-                                    onPress={() => handleLink('https://github.com/neerajlovecyber/TheClosedTest-apk')}
-                                    iconColor="bg-zinc-800"
-                                />
-                                <SettingItem
-                                    icon={InfoIcon}
-                                    label="About The Closed Test"
-                                    subtitle="Our mission and community"
-                                    onPress={() => router.push('/about-us' as any)}
-                                    iconColor="bg-blue-500"
-                                />
                                 <SettingItem
                                     icon={ShieldIcon}
                                     label="Privacy Policy"
-                                    subtitle="Read our privacy policy"
-                                    onPress={() => handleLink('https://theclosedtest.neerajlovecyber.com/privacy')}
+                                    subtitle="How we protect your data"
+                                    onPress={() => router.push('/privacy-policy' as any)}
                                     iconColor="bg-teal-500"
                                 />
                                 <SettingItem
                                     icon={InfoIcon}
                                     label="Terms of Service"
-                                    subtitle="Read our terms of service"
-                                    onPress={() => handleLink('https://theclosedtest.neerajlovecyber.com/terms')}
+                                    subtitle="Rules and guidelines"
+                                    onPress={() => router.push('/terms-of-service' as any)}
                                     iconColor="bg-slate-500"
                                 />
+                            </CardContent>
+                        </Card>
+                    </View>
+
+                    {/* App Version */}
+                    <View className="gap-3">
+                        <Card className="overflow-hidden p-0 gap-0 border-0 bg-transparent">
+                            <CardContent className="p-0">
                                 <View className="py-4 px-4 flex-row justify-between items-center">
                                     <Text className="text-muted-foreground text-sm font-medium">Version</Text>
                                     <Text className="text-muted-foreground text-sm font-bold">{appConfig.expo?.version || Constants.expoConfig?.version || '3.0.0'}</Text>
@@ -322,6 +318,46 @@ export default function SettingsScreen() {
                     </Button>
                 </View>
             </View>
+
+            {/* Google Group Bottom Sheet Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showGroupModal}
+                onRequestClose={() => setShowGroupModal(false)}
+            >
+                <Pressable
+                    className="flex-1 justify-end bg-black/50"
+                    onPress={() => setShowGroupModal(false)}
+                >
+                    <Pressable className="bg-background rounded-t-3xl p-6">
+                        <View className="flex-row items-center gap-3 mb-4">
+                            <View className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full">
+                                <Icon as={UsersIcon} className="size-6 text-green-600 dark:text-green-400" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-xl font-bold text-foreground">Google Group</Text>
+                                <Text className="text-sm text-muted-foreground">Community Member</Text>
+                            </View>
+                        </View>
+
+                        <Text className="text-muted-foreground mb-4">
+                            You're a verified member of our developer community Google Group.
+                        </Text>
+
+                        <Button
+                            size="lg"
+                            className="bg-green-600 dark:bg-green-600"
+                            onPress={() => {
+                                Linking.openURL("https://groups.google.com/g/developers-community-official");
+                                setShowGroupModal(false);
+                            }}
+                        >
+                            <Text className="text-white font-bold">Open Google Group</Text>
+                        </Button>
+                    </Pressable>
+                </Pressable>
+            </Modal>
 
             {/* Logout Confirmation Dialog */}
             <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
