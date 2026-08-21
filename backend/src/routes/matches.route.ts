@@ -31,8 +31,10 @@ const MatchSchema = z.object({
 })
 
 const RequestMatchSchema = z.object({
-  app1Id: z.string(), // My app
-  targetAppId: z.string(), // Partner's app I want to test
+  app1Id: z.string().optional(),
+  myAppId: z.string().optional(),
+  targetAppId: z.string().optional(),
+  app2Id: z.string().optional(),
 })
 
 const router = createRouter()
@@ -58,7 +60,13 @@ router.openapi(
   }),
   async (c) => {
     const userVar = c.get("user")!
-    const { app1Id, targetAppId } = c.req.valid("json")
+    const body = c.req.valid("json")
+    const app1Id = body.myAppId || body.app1Id
+    const targetAppId = body.targetAppId || body.app2Id
+
+    if (!app1Id || !targetAppId) {
+      return c.json({ message: "Both myAppId and targetAppId are required" }, HttpStatusCodes.BAD_REQUEST)
+    }
 
     // Verify user owns app1
     const app1 = await db.query.apps.findFirst({
