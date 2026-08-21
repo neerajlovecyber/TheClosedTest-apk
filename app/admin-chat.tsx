@@ -10,7 +10,7 @@ import { ArrowLeftIcon, SendIcon, ShieldIcon } from 'lucide-react-native';
 import { LinkableText } from '@/components/ui/LinkableText';
 import { api } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMySupportChat, useSupportChatDetails, useSendSupportMessage } from '@/lib/api-hooks';
+import { useCurrentUser, useMySupportChat, useSupportChatDetails, useSendSupportMessage } from '@/lib/api-hooks';
 
 export default function AdminChatScreen() {
     const router = useRouter();
@@ -18,6 +18,7 @@ export default function AdminChatScreen() {
     const insets = useSafeAreaInsets();
     const { chatId, userName } = useLocalSearchParams<{ chatId?: string; userName?: string }>();
 
+    const { data: currentUser } = useCurrentUser();
     const { data: myChat } = useMySupportChat();
     const effectiveChatId = chatId || myChat?.id;
 
@@ -68,21 +69,29 @@ export default function AdminChatScreen() {
     };
 
     const renderMessage = ({ item }: { item: any }) => {
-        const isFromAdmin = item.isAdmin;
+        const isMyMessage = currentUser?.isAdmin
+            ? (item.isAdmin || (currentUser?.id && item.senderId === currentUser.id) || (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier))
+            : (!item.isAdmin || (currentUser?.id && item.senderId === currentUser.id) || (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier));
+
+        const showSupportBadge = item.isAdmin && !currentUser?.isAdmin;
+
         return (
-            <View className={`flex-row ${!isFromAdmin ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
+            <View className={`flex-row ${isMyMessage ? 'justify-end' : 'justify-start'} mb-3 px-4`}>
                 <View
                     style={{ maxWidth: '80%' }}
-                    className={`px-4 py-2.5 rounded-2xl ${!isFromAdmin ? 'bg-primary rounded-tr-none' : 'bg-secondary rounded-tl-none border border-border/50'}`}
+                    className={`px-4 py-2.5 rounded-2xl ${isMyMessage ? 'bg-primary rounded-tr-none' : 'bg-secondary rounded-tl-none border border-border/50'}`}
                 >
-                    {isFromAdmin && (
+                    {showSupportBadge && (
                         <View className="flex-row items-center gap-1 mb-1">
                             <Icon as={ShieldIcon} className="text-primary size-3" />
                             <Text className="text-[10px] font-bold text-primary">Support Team</Text>
                         </View>
                     )}
-                    <LinkableText text={item.content} className={`${!isFromAdmin ? 'text-primary-foreground font-medium' : 'text-foreground'}`} />
-                    <Text className={`text-[10px] mt-1 ${!isFromAdmin ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground'}`}>
+                    <LinkableText
+                        text={item.content}
+                        className={`${isMyMessage ? 'text-primary-foreground font-medium' : 'text-foreground'}`}
+                    />
+                    <Text className={`text-[10px] mt-1 ${isMyMessage ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground'}`}>
                         {new Date(item.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                 </View>
