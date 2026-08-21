@@ -1,19 +1,47 @@
-import React from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@/components/ui/icon';
-import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, UsersIcon } from 'lucide-react-native';
+import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, Trash2Icon, AlertTriangleIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useLeaderboard } from '@/lib/api-hooks';
+import { toast } from '@/lib/sonner';
+import { useLeaderboard, useAdminCleanAllApps } from '@/lib/api-hooks';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function AdminDashboardScreen() {
     const router = useRouter();
     const { data: leaderboardData } = useLeaderboard(100);
     const leaderboard = leaderboardData?.leaderboard || [];
-
     const activeUsersCount = leaderboard.length;
+
+    const [showCleanConfirm, setShowCleanConfirm] = useState(false);
+    const cleanAllAppsMutation = useAdminCleanAllApps();
+
+    const handleCleanAllApps = async () => {
+        try {
+            const res = await cleanAllAppsMutation.mutateAsync();
+            toast.success('Marketplace Cleaned', {
+                description: `${res.deletedAppsCount} apps and associated test records removed.`,
+            });
+        } catch (error: any) {
+            toast.error('Clean failed', {
+                description: error.message || 'Could not clean apps.',
+            });
+        } finally {
+            setShowCleanConfirm(false);
+        }
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -38,7 +66,7 @@ export default function AdminDashboardScreen() {
                             </View>
                             <View>
                                 <Text className="text-3xl font-extrabold text-foreground tracking-tight">{activeUsersCount}</Text>
-                                <Text className="text-xs text-muted-foreground font-medium mt-1">Total Testers</Text>
+                                <Text className="text-xs text-muted-foreground font-medium mt-1">Active Users</Text>
                             </View>
                         </CardContent>
                     </Card>
@@ -75,13 +103,63 @@ export default function AdminDashboardScreen() {
                             </View>
                             <View>
                                 <Text className="font-semibold text-foreground">Support Inbox</Text>
-                                <Text className="text-xs text-muted-foreground">Find users, manage tickets & chat directly</Text>
+                                <Text className="text-xs text-muted-foreground">Find users, manage tickets &amp; chat directly</Text>
                             </View>
                         </View>
                         <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
                     </TouchableOpacity>
                 </Card>
+
+                {/* Maintenance & Dangerous Actions */}
+                <Text className="text-xs font-bold text-red-500 uppercase tracking-wider mb-3 px-1">Danger Zone &amp; Reset</Text>
+
+                <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/40 shadow-sm mb-4">
+                    <TouchableOpacity
+                        className="flex-row items-center justify-between p-4"
+                        onPress={() => setShowCleanConfirm(true)}
+                        disabled={cleanAllAppsMutation.isPending}
+                    >
+                        <View className="flex-row items-center flex-1 mr-2">
+                            <View className="bg-red-500/10 p-2.5 rounded-xl mr-3">
+                                {cleanAllAppsMutation.isPending ? (
+                                    <ActivityIndicator size="small" color="#ef4444" />
+                                ) : (
+                                    <Icon as={Trash2Icon} className="text-red-500 size-5" />
+                                )}
+                            </View>
+                            <View className="flex-1">
+                                <Text className="font-semibold text-red-700 dark:text-red-400">Clean All Apps (Reset Marketplace)</Text>
+                                <Text className="text-xs text-red-600/80 dark:text-red-400/70">
+                                    Deletes all apps, matches &amp; testing logs for a fresh start
+                                </Text>
+                            </View>
+                        </View>
+                        <Icon as={ChevronRightIcon} className="text-red-400 size-5" />
+                    </TouchableOpacity>
+                </Card>
             </ScrollView>
+
+            <AlertDialog open={showCleanConfirm} onOpenChange={setShowCleanConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Reset All Marketplace Apps?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will delete ALL apps, matches, and proof logs across the entire database. Real user accounts and reputations will be kept intact.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onPress={() => setShowCleanConfirm(false)}>
+                            <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onPress={handleCleanAllApps}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            <Text className="text-white font-bold">Yes, Delete All Apps</Text>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </SafeAreaView>
     );
 }

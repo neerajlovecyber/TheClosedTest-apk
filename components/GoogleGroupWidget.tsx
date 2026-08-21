@@ -71,8 +71,14 @@ export function GoogleGroupWidget({ className }: { className?: string }) {
     const renderContent = () => {
         if (isGroupMember) {
             return (
-                <View className={cn("flex-row items-center justify-center px-2 py-1.5 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-900/50 rounded-md", className)}>
-                    <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-4" />
+                <View className={cn("flex-row items-center gap-3 bg-green-500/10 border border-green-500/30 p-3 rounded-xl", className)}>
+                    <View className="bg-green-500/20 p-2 rounded-lg items-center justify-center">
+                        <Icon as={CheckCircleIcon} className="text-green-600 dark:text-green-400 size-5" />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-green-700 dark:text-green-400 font-bold text-sm">Google Group Joined</Text>
+                        <Text className="text-green-600/80 dark:text-green-400/80 text-xs">Verified community member</Text>
+                    </View>
                 </View>
             );
         }

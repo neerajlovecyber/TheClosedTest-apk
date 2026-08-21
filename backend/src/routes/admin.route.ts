@@ -12,6 +12,7 @@ import {
   appBans,
   apps,
   matches,
+  messages,
   proofs,
   reports,
   userBans,
@@ -279,6 +280,44 @@ router.openapi(
       .where(eq(apps.packageName, body.packageName))
 
     return c.json({ message: "App package banned successfully" }, HttpStatusCodes.OK)
+  },
+)
+
+// 4.1. Clean / Reset All Apps (Admin Only)
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "post",
+    path: "/api/admin/apps/clean-all",
+    summary: "Delete All Apps and Matches (Reset Marketplace)",
+    middleware: [adminAuthMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.object({
+          message: z.string(),
+          deletedAppsCount: z.number(),
+        }),
+        "Cleanup results",
+      ),
+    },
+  }),
+  async (c) => {
+    // Delete in cascade order to satisfy foreign keys
+    await db.delete(proofs)
+    await db.delete(messages)
+    await db.delete(reports)
+    await db.delete(matches)
+    await db.delete(appBans)
+    const deleted = await db.delete(apps).returning()
+    await db.update(users).set({ appsCount: 0 })
+
+    return c.json(
+      {
+        message: "All apps, matches, and testing records have been cleanly deleted.",
+        deletedAppsCount: deleted.length,
+      },
+      HttpStatusCodes.OK,
+    )
   },
 )
 

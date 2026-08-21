@@ -569,12 +569,24 @@ export function useGetOrCreateAdminUserChat() {
       api.post<{
         id: string
         userId: string
+        adminId?: string | null
         lastMessage: string
-        hasUnreadUser: boolean
-        hasUnreadAdmin: boolean
-      }>(`/api/admin/support/chats/user/${targetUserId}`),
+      }>(`/api/admin/support/chats/user/${targetUserId}`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] })
+    },
+  })
+}
+
+export function useAdminCleanAllApps() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ message: string; deletedAppsCount: number }>("/api/admin/apps/clean-all", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["apps"] })
+      queryClient.invalidateQueries({ queryKey: ["myApps"] })
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] })
     },
   })
 }
