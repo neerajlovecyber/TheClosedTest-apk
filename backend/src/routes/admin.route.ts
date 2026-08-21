@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, asc, count, desc, eq } from "drizzle-orm"
+import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
@@ -102,6 +102,21 @@ const AdminChatWithUserSchema = z.object({
     })
     .nullable()
     .optional(),
+})
+
+const AdminUserListItemSchema = z.object({
+  id: z.string(),
+  tokenIdentifier: z.string().nullable().optional(),
+  name: z.string(),
+  email: z.string(),
+  avatarUrl: z.string().nullable().optional(),
+  reputation: z.number(),
+  appsCount: z.number(),
+  isAdmin: z.boolean(),
+  isGroupMember: z.boolean(),
+  streak: z.number(),
+  bestStreak: z.number(),
+  createdAt: z.string().or(z.date()),
 })
 
 const AdminMessageSchema = z.object({
@@ -345,6 +360,50 @@ router.openapi(
     })
 
     return c.json(chats, HttpStatusCodes.OK)
+  },
+)
+
+// 5c. List and Search All Users (Admin)
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "get",
+    path: "/api/admin/users",
+    summary: "List and Search All Users",
+    middleware: [adminAuthMiddleware] as const,
+    request: {
+      query: z.object({
+        search: z.string().optional(),
+        limit: z.coerce.number().optional().default(50),
+      }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.array(AdminUserListItemSchema),
+        "List of platform users",
+      ),
+    },
+  }),
+  async (c) => {
+    const { search, limit = 50 } = c.req.valid("query")
+
+    let condition = undefined
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`
+      condition = or(
+        ilike(users.name, term),
+        ilike(users.email, term),
+        ilike(users.tokenIdentifier, term),
+      )
+    }
+
+    const userList = await db.query.users.findMany({
+      where: condition,
+      orderBy: [desc(users.createdAt)],
+      limit: Math.min(limit, 100),
+    })
+
+    return c.json(userList, HttpStatusCodes.OK)
   },
 )
 

@@ -525,6 +525,31 @@ export function useAdminSupportChats() {
   })
 }
 
+export function useAdminUsers(search?: string) {
+  return useQuery<
+    {
+      id: string
+      tokenIdentifier: string
+      name: string
+      email: string
+      avatarUrl?: string | null
+      reputation: number
+      appsCount: number
+      isAdmin: boolean
+      isGroupMember: boolean
+      streak: number
+      bestStreak: number
+      createdAt: string
+    }[]
+  >({
+    queryKey: ["adminUsers", search],
+    queryFn: () =>
+      api.get("/api/admin/users", {
+        params: { search: search?.trim() || undefined },
+      }),
+  })
+}
+
 export function useSupportChatDetails(chatId?: string) {
   return useQuery<{
     chat: { id: string; userId: string; lastMessage: string }
