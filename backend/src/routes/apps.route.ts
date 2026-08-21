@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, desc, eq, ilike, not, or, sql } from "drizzle-orm"
+import { and, desc, eq, ilike, inArray, not, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
-import { appBans, apps, users } from "../db/schema"
+import { appBans, apps, matches, users } from "../db/schema"
 import { memoryCache } from "../lib/cache"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
@@ -59,6 +59,45 @@ const UpdateAppSchema = CreateAppSchema.partial().extend({
 const VoteSchema = z.object({
   type: z.enum(["positive", "negative"]),
 })
+
+async function enrichAppsWithTesterCounts<T extends { id: string }>(appItems: T[]): Promise<T[]> {
+  if (appItems.length === 0) return []
+  const appIds = appItems.map((a) => a.id)
+
+  const activeMatches = await db.query.matches.findMany({
+    where: and(
+      or(
+        inArray(matches.app1Id, appIds),
+        inArray(matches.app2Id, appIds),
+      ),
+      eq(matches.status, "active"),
+    ),
+    columns: {
+      app1Id: true,
+      app2Id: true,
+    },
+  })
+
+  const countMap = new Map<string, number>()
+  for (const m of activeMatches) {
+    if (m.app1Id && appIds.includes(m.app1Id)) {
+      countMap.set(m.app1Id, (countMap.get(m.app1Id) || 0) + 1)
+    }
+    if (m.app2Id && appIds.includes(m.app2Id)) {
+      countMap.set(m.app2Id, (countMap.get(m.app2Id) || 0) + 1)
+    }
+  }
+
+  return appItems.map((item) => ({
+    ...item,
+    currentTesters: countMap.get(item.id) || 0,
+  }))
+}
+
+async function enrichAppWithTesterCount<T extends { id: string }>(app: T): Promise<T> {
+  const [enriched] = await enrichAppsWithTesterCounts([app])
+  return enriched || app
+}
 
 const router = createRouter()
 
@@ -132,9 +171,11 @@ router.openapi(
       user: r.user,
     }))
 
+    const enrichedItems = await enrichAppsWithTesterCounts(items)
+
     const responseData = {
-      apps: items,
-      total: items.length,
+      apps: enrichedItems,
+      total: enrichedItems.length,
     }
 
     memoryCache.set(cacheKey, responseData, 5)
@@ -166,7 +207,9 @@ router.openapi(
       orderBy: [desc(apps.createdAt)],
     })
 
-    return c.json(items, HttpStatusCodes.OK)
+    const enrichedItems = await enrichAppsWithTesterCounts(items)
+
+    return c.json(enrichedItems, HttpStatusCodes.OK)
   },
 )
 
@@ -287,7 +330,9 @@ router.openapi(
       return c.json({ message: "App not found" }, HttpStatusCodes.NOT_FOUND)
     }
 
-    return c.json(app, HttpStatusCodes.OK)
+    const enrichedApp = await enrichAppWithTesterCount(app)
+
+    return c.json(enrichedApp, HttpStatusCodes.OK)
   },
 )
 

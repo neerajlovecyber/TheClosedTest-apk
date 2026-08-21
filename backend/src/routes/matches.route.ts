@@ -401,12 +401,8 @@ router.openapi(
       .where(eq(matches.id, id))
       .returning()
 
-    // Concurrently update apps, create notification, and fire push alert in background
+    // Concurrently create notification and fire push alert in background
     Promise.all([
-      db
-        .update(apps)
-        .set({ currentTesters: sql`${apps.currentTesters} + 1` })
-        .where(or(eq(apps.id, match.app1Id), eq(apps.id, match.app2Id))),
       db.insert(notifications).values({
         userId: match.user1Id,
         type: "acceptance",

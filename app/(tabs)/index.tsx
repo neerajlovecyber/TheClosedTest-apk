@@ -101,6 +101,21 @@ export default function HomeScreen() {
 
     // Format active matches into task objects
     const dueTasks = React.useMemo(() => {
+        // Helper: was this proof submitted today (IST)?
+        const isProofToday = (updatedAt?: string) => {
+            if (!updatedAt) return false;
+            const now = new Date();
+            const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+            const istNow = new Date(utcTime + 5.5 * 3600000);
+            const proof = new Date(updatedAt);
+            const proofIst = new Date(proof.getTime() + proof.getTimezoneOffset() * 60000 + 5.5 * 3600000);
+            return (
+                istNow.getFullYear() === proofIst.getFullYear() &&
+                istNow.getMonth() === proofIst.getMonth() &&
+                istNow.getDate() === proofIst.getDate()
+            );
+        };
+
         return activeMatches
             .map((m: MatchEntity) => {
                 const isUser1 = m.user1Id === currentUser?.id;
@@ -108,9 +123,17 @@ export default function HomeScreen() {
                 const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
                 const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
-                const myProofStatus = myLastProof?.status || 'not_uploaded';
-                const partnerProofStatus = partnerLastProof?.status || 'not_uploaded';
-                const isReviewPending = partnerLastProof?.status === 'pending';
+                const myProofStatus = (() => {
+                    if (!myLastProof) return 'not_uploaded';
+                    if (myLastProof.status === 'approved') return 'approved';
+                    return isProofToday(myLastProof.updatedAt) ? myLastProof.status : 'not_uploaded';
+                })();
+                const partnerProofStatus = (() => {
+                    if (!partnerLastProof) return 'not_uploaded';
+                    if (partnerLastProof.status === 'approved') return 'approved';
+                    return isProofToday(partnerLastProof.updatedAt) ? partnerLastProof.status : 'not_uploaded';
+                })();
+                const isReviewPending = partnerProofStatus === 'pending';
 
                 const day = myLastProof?.day || 1;
 
