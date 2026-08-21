@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { Stack, useRouter } from 'expo-router';
-import { ChevronLeftIcon, BoxIcon, RocketIcon, UsersIcon, MailIcon, HeartIcon, LucideIcon } from 'lucide-react-native';
+import { ChevronLeftIcon, BoxIcon, RocketIcon, UsersIcon, MailIcon, HeartIcon, Code2Icon, LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import Constants from 'expo-constants';
@@ -87,6 +87,21 @@ export default function AboutUsScreen() {
                         <Text className="text-foreground/80 leading-7">
                             We understand the challenges developers face when trying to meet Google Play's closed testing requirements. That's why we built a community-driven solution that makes it easy to find reliable testers.
                         </Text>
+                    </Section>
+
+                    <Section icon={Code2Icon} title="Open Source Project" iconColor="bg-zinc-800">
+                        <Text className="text-foreground/80 leading-7">
+                            The Closed Test is 100% open source. Check out our GitHub repository to explore the codebase, report issues, or contribute to new features.
+                        </Text>
+                        <Button
+                            size="lg"
+                            variant="outline"
+                            className="rounded-2xl flex-row gap-2 mt-2"
+                            onPress={() => handleLink('https://github.com/neerajlovecyber/TheClosedTest-apk')}
+                        >
+                            <Icon as={Code2Icon} className="size-5 text-foreground" />
+                            <Text className="text-foreground font-semibold">View on GitHub</Text>
+                        </Button>
                     </Section>
 
                     <Section icon={MailIcon} title="Contact Us" iconColor="bg-cyan-500">

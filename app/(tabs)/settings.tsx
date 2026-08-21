@@ -22,6 +22,7 @@ import {
     SparklesIcon,
     HelpCircleIcon,
     SendIcon,
+    Code2Icon,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
@@ -257,6 +258,20 @@ export default function SettingsScreen() {
                         <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">About</Text>
                         <Card className="overflow-hidden p-0 gap-0 border-0">
                             <CardContent className="p-0 gap-0 divide-y divide-border/30">
+                                <SettingItem
+                                    icon={Code2Icon}
+                                    label="Open Source on GitHub"
+                                    subtitle="neerajlovecyber/TheClosedTest-apk"
+                                    onPress={() => handleLink('https://github.com/neerajlovecyber/TheClosedTest-apk')}
+                                    iconColor="bg-zinc-800"
+                                />
+                                <SettingItem
+                                    icon={InfoIcon}
+                                    label="About The Closed Test"
+                                    subtitle="Our mission and community"
+                                    onPress={() => router.push('/about-us' as any)}
+                                    iconColor="bg-blue-500"
+                                />
                                 <SettingItem
                                     icon={ShieldIcon}
                                     label="Privacy Policy"
