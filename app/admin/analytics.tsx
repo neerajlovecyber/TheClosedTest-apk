@@ -9,7 +9,8 @@ import { useLeaderboard } from '@/lib/api-hooks';
 
 export default function AdminAnalyticsScreen() {
     const router = useRouter();
-    const { data: leaderboard = [] } = useLeaderboard(50);
+    const { data: leaderboardData } = useLeaderboard(50);
+    const leaderboard = leaderboardData?.leaderboard || [];
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>

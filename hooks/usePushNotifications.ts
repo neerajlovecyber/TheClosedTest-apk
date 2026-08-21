@@ -17,8 +17,8 @@ export function usePushNotifications() {
     const [expoPushToken, setExpoPushToken] = useState<string | undefined>(undefined);
     const [notification, setNotification] = useState<Notifications.Notification | undefined>(undefined);
     const [notificationResponse, setNotificationResponse] = useState<Notifications.NotificationResponse | undefined>(undefined);
-    const notificationListener = useRef<Notifications.Subscription>();
-    const responseListener = useRef<Notifications.Subscription>();
+    const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
+    const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
 
     async function registerForPushNotificationsAsync() {
         let token;

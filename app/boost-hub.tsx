@@ -19,7 +19,8 @@ import { useLeaderboard, useCurrentUser } from '@/lib/api-hooks';
 export default function BoostHubScreen() {
     const router = useRouter();
     const { data: user } = useCurrentUser();
-    const { data: leaderboard = [], isLoading } = useLeaderboard(20);
+    const { data: leaderboardData, isLoading } = useLeaderboard(20);
+    const leaderboard = leaderboardData?.leaderboard || [];
 
     return (
         <View className="flex-1 bg-background">

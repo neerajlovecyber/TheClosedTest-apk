@@ -10,7 +10,8 @@ import { useLeaderboard } from '@/lib/api-hooks';
 
 export default function AdminDashboardScreen() {
     const router = useRouter();
-    const { data: leaderboard = [] } = useLeaderboard(100);
+    const { data: leaderboardData } = useLeaderboard(100);
+    const leaderboard = leaderboardData?.leaderboard || [];
 
     const activeUsersCount = leaderboard.length;
 

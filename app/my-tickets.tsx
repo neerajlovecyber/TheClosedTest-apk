@@ -44,7 +44,7 @@ export default function MyTicketsScreen() {
                                     <View className="flex-row justify-between items-start mb-2">
                                         <View className="px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30">
                                             <Text className="text-xs font-bold text-blue-700 dark:text-blue-400">
-                                                {myChat?.status?.toUpperCase() || 'ACTIVE SUPPORT'}
+                                                {(myChat as any)?.status?.toUpperCase() || 'ACTIVE SUPPORT'}
                                             </Text>
                                         </View>
                                         <Text className="text-xs text-muted-foreground">

@@ -8,7 +8,8 @@ import { useLeaderboard } from '@/lib/api-hooks';
 
 export default function AdminUsersListScreen() {
     const router = useRouter();
-    const { data: users = [] } = useLeaderboard(100);
+    const { data: leaderboardData } = useLeaderboard(100);
+    const users = leaderboardData?.leaderboard || [];
 
     return (
         <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right', 'bottom']}>

@@ -4,19 +4,21 @@ import { Text } from '@/components/ui/text';
 
 interface LinkableTextProps {
     text: string;
+    className?: string;
     textClassName?: string;
     linkClassName?: string;
     style?: TextStyle;
 }
 
-export function LinkableText({ text, textClassName = "", linkClassName = "text-blue-500 underline", style }: LinkableTextProps) {
+export function LinkableText({ text, className, textClassName = "", linkClassName = "text-blue-500 underline", style }: LinkableTextProps) {
+    const computedTextClassName = className || textClassName;
     // Regex to find URLs
     const urlRegex = /(https?:\/\/[^\s]+)/g;
 
     const parts = text.split(urlRegex);
 
     return (
-        <Text className={textClassName} style={style}>
+        <Text className={computedTextClassName} style={style}>
             {parts.map((part, index) => {
                 if (part.match(urlRegex)) {
                     return (

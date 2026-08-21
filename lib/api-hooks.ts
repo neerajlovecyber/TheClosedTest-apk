@@ -115,12 +115,17 @@ export interface NotificationEntity {
 export interface LeaderboardEntry {
   id: string
   userId: string
+  name?: string
+  avatarUrl?: string | null
+  reputation?: number
+  completedMatchesCount?: number
   appId?: string | null
   boostScore: number
   user?: {
     name: string
     avatarUrl?: string | null
     reputation: number
+    completedMatchesCount?: number
   }
 }
 
