@@ -39,14 +39,9 @@ export function SocialConnections() {
     return async () => {
       try {
         console.log("🔵 Starting Google OAuth flow...");
-        const redirectUrl = AuthSession.makeRedirectUri({
-          scheme: 'theclosedtest',
-        });
-
         // Start the authentication process by calling `startSSOFlow()`
         const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
           strategy,
-          redirectUrl,
         });
 
         console.log("🔵 OAuth flow returned:", {

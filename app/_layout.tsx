@@ -1,6 +1,13 @@
 import '@/global.css'; // This must be first
 import { Text, TextInput, Linking } from 'react-native';
 
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
+
 // Disable system font scaling
 if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
 (Text as any).defaultProps.allowFontScaling = false;
