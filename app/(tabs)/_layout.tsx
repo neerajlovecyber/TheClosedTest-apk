@@ -95,7 +95,6 @@ export default function TabLayout() {
                     options={{
                         href: null,
                         headerShown: false,
-                        tabBarStyle: { display: 'flex' }
                     }}
                 />
                 <Tabs.Screen
