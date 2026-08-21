@@ -352,9 +352,26 @@ export function useAcceptMatch() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (matchId: string) => api.post<MatchEntity>(`/api/matches/${matchId}/accept`),
-    onSuccess: (_, matchId) => {
+    onMutate: async (matchId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] })
+      const previousMatches = queryClient.getQueryData<MatchEntity[]>(["matches"])
+
+      queryClient.setQueriesData<MatchEntity[]>({ queryKey: ["matches"] }, (old = []) =>
+        old.map((m) => (m.id === matchId ? { ...m, status: "active" as const } : m)),
+      )
+
+      return { previousMatches }
+    },
+    onError: (_err, _matchId, context) => {
+      if (context?.previousMatches) {
+        queryClient.setQueryData(["matches"], context.previousMatches)
+      }
+    },
+    onSettled: (_, _err, matchId) => {
       queryClient.invalidateQueries({ queryKey: ["matches"] })
       queryClient.invalidateQueries({ queryKey: ["match", matchId] })
+      queryClient.invalidateQueries({ queryKey: ["myApps"] })
+      queryClient.invalidateQueries({ queryKey: ["apps"] })
     },
   })
 }
@@ -363,7 +380,22 @@ export function useRejectMatch() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (matchId: string) => api.post<MatchEntity>(`/api/matches/${matchId}/reject`),
-    onSuccess: (_, matchId) => {
+    onMutate: async (matchId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] })
+      const previousMatches = queryClient.getQueryData<MatchEntity[]>(["matches"])
+
+      queryClient.setQueriesData<MatchEntity[]>({ queryKey: ["matches"] }, (old = []) =>
+        old.filter((m) => m.id !== matchId),
+      )
+
+      return { previousMatches }
+    },
+    onError: (_err, _matchId, context) => {
+      if (context?.previousMatches) {
+        queryClient.setQueryData(["matches"], context.previousMatches)
+      }
+    },
+    onSettled: (_, _err, matchId) => {
       queryClient.invalidateQueries({ queryKey: ["matches"] })
       queryClient.invalidateQueries({ queryKey: ["match", matchId] })
     },

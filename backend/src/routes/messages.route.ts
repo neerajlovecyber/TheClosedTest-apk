@@ -136,19 +136,24 @@ router.openapi(
       })
       .where(eq(matches.id, matchId))
 
-    // Send push notification to partner
-    const partner = await db.query.users.findFirst({
-      where: eq(users.id, partnerId),
-    })
-
-    if (partner?.pushToken) {
-      await sendExpoPushNotification({
-        to: partner.pushToken,
-        title: `Message from ${userVar.name || "Testing Partner"} 💬`,
-        body: body.type === "text" ? body.content : "Sent an attachment",
-        data: { matchId, messageId: newMessage.id },
+    // Send push notification to partner in background
+    db.query.users
+      .findFirst({
+        where: eq(users.id, partnerId),
       })
-    }
+      .then((partner) => {
+        if (partner?.pushToken) {
+          sendExpoPushNotification({
+            to: partner.pushToken,
+            title: `Message from ${userVar.name || "Testing Partner"} 💬`,
+            body: body.type === "text" ? body.content : "Sent an attachment",
+            data: { matchId, messageId: newMessage.id },
+          }).catch(() => {})
+        }
+      })
+      .catch((err) => {
+        console.error("Message push error:", err)
+      })
 
     return c.json(newMessage, HttpStatusCodes.CREATED)
   },

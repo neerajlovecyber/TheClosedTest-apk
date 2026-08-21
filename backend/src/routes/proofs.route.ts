@@ -159,18 +159,24 @@ router.openapi(
       data: { matchId: match.id, proofId: newProof.id, day: body.day },
     })
 
-    const partner = await db.query.users.findFirst({
-      where: eq(users.id, partnerId),
-    })
-
-    if (partner?.pushToken) {
-      await sendExpoPushNotification({
-        to: partner.pushToken,
-        title: `Day ${body.day} Proof Uploaded! 📸`,
-        body: `${userVar.name || "Your partner"} uploaded proof for Day ${body.day}. Review it now!`,
-        data: { matchId: match.id, proofId: newProof.id },
+    // Send push notification in background
+    db.query.users
+      .findFirst({
+        where: eq(users.id, partnerId),
       })
-    }
+      .then((partner) => {
+        if (partner?.pushToken) {
+          sendExpoPushNotification({
+            to: partner.pushToken,
+            title: `Day ${body.day} Proof Uploaded! 📸`,
+            body: `${userVar.name || "Your partner"} uploaded proof for Day ${body.day}. Review it now!`,
+            data: { matchId: match.id, proofId: newProof.id },
+          }).catch(() => {})
+        }
+      })
+      .catch((err) => {
+        console.error("Proof push error:", err)
+      })
 
     return c.json(newProof, HttpStatusCodes.CREATED)
   },

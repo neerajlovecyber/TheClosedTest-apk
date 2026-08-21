@@ -134,19 +134,24 @@ router.openapi(
       data: { matchId: newMatch.id, app1Id: app1.id, app2Id: app2.id },
     })
 
-    // Fetch target user's push token to send push alert
-    const targetUser = await db.query.users.findFirst({
-      where: eq(users.id, app2.userId),
-    })
-
-    if (targetUser?.pushToken) {
-      await sendExpoPushNotification({
-        to: targetUser.pushToken,
-        title: "New Testing Request! 🚀",
-        body: `${userVar.name || "A developer"} requested a peer test with ${app2.title}!`,
-        data: { matchId: newMatch.id },
+    // Fetch target user's push token to send push alert in background
+    db.query.users
+      .findFirst({
+        where: eq(users.id, app2.userId),
       })
-    }
+      .then((targetUser) => {
+        if (targetUser?.pushToken) {
+          sendExpoPushNotification({
+            to: targetUser.pushToken,
+            title: "New Testing Request! 🚀",
+            body: `${userVar.name || "A developer"} requested a peer test with ${app2.title}!`,
+            data: { matchId: newMatch.id },
+          }).catch(() => {})
+        }
+      })
+      .catch((err) => {
+        console.error("Match request push error:", err)
+      })
 
     return c.json(newMatch, HttpStatusCodes.CREATED)
   },
@@ -383,33 +388,36 @@ router.openapi(
       .where(eq(matches.id, id))
       .returning()
 
-    // Increment currentTesters on both apps
-    await db
-      .update(apps)
-      .set({ currentTesters: sql`${apps.currentTesters} + 1` })
-      .where(or(eq(apps.id, match.app1Id), eq(apps.id, match.app2Id)))
-
-    // Notify requester
-    await db.insert(notifications).values({
-      userId: match.user1Id,
-      type: "acceptance",
-      title: "Match Accepted! 🎉",
-      body: "Your testing exchange was accepted! Day 1 testing starts today.",
-      data: { matchId: match.id },
-    })
-
-    const requester = await db.query.users.findFirst({
-      where: eq(users.id, match.user1Id),
-    })
-
-    if (requester?.pushToken) {
-      await sendExpoPushNotification({
-        to: requester.pushToken,
+    // Concurrently update apps, create notification, and fire push alert in background
+    Promise.all([
+      db
+        .update(apps)
+        .set({ currentTesters: sql`${apps.currentTesters} + 1` })
+        .where(or(eq(apps.id, match.app1Id), eq(apps.id, match.app2Id))),
+      db.insert(notifications).values({
+        userId: match.user1Id,
+        type: "acceptance",
         title: "Match Accepted! 🎉",
-        body: "Your peer testing partner accepted! Day 1 testing has started.",
+        body: "Your testing exchange was accepted! Day 1 testing starts today.",
         data: { matchId: match.id },
-      })
-    }
+      }),
+      db.query.users
+        .findFirst({
+          where: eq(users.id, match.user1Id),
+        })
+        .then((requester) => {
+          if (requester?.pushToken) {
+            sendExpoPushNotification({
+              to: requester.pushToken,
+              title: "Match Accepted! 🎉",
+              body: "Your peer testing partner accepted! Day 1 testing has started.",
+              data: { matchId: match.id },
+            }).catch(() => {})
+          }
+        }),
+    ]).catch((err) => {
+      console.error("Async accept side-effects error:", err)
+    })
 
     return c.json(updated, HttpStatusCodes.OK)
   },
