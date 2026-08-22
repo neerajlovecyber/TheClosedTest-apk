@@ -16,7 +16,7 @@ import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import { ReportDialog } from '@/components/ReportDialog';
 import { Alert } from 'react-native';
-import { useCurrentUser, useRecruitingApps, useMatches, AppEntity } from '@/lib/api-hooks';
+import { useCurrentUser, useRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from '@/lib/api-hooks';
 
 export default function MarketplaceScreen() {
     const router = useRouter();
@@ -52,6 +52,13 @@ export default function MarketplaceScreen() {
         0,
     );
     const { data: allMatches = [], refetch: refetchMatches } = useMatches('all');
+
+    // Instant refresh when switching to Marketplace tab
+    useRefreshOnFocus(
+        useCallback(async () => {
+            await Promise.all([refetch(), refetchMatches()]);
+        }, [refetch, refetchMatches])
+    );
 
     const apps = appsData?.apps || [];
 

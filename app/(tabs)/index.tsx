@@ -31,6 +31,7 @@ import {
     useAcceptMatch,
     useRejectMatch,
     useUnlockSlots,
+    useRefreshOnFocus,
     MatchEntity,
 } from '@/lib/api-hooks';
 import { getMatchCurrentDay } from '@/lib/date-utils';
@@ -51,6 +52,18 @@ export default function HomeScreen() {
     const { data: activeMatches = [], refetch: refetchActive } = useMatches('active');
     const { data: pendingMatches = [], refetch: refetchPending } = useMatches('pending');
     const { data: notificationsData, refetch: refetchNotifications } = useNotifications();
+
+    // Instant refresh when navigating or switching to Home tab
+    useRefreshOnFocus(
+        React.useCallback(async () => {
+            await Promise.all([
+                refetchPending(),
+                refetchActive(),
+                refetchNotifications(),
+                refetchMyApps(),
+            ]);
+        }, [refetchPending, refetchActive, refetchNotifications, refetchMyApps])
+    );
 
     const unreadCount = notificationsData?.unreadCount ?? 0;
 

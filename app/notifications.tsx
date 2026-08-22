@@ -18,6 +18,7 @@ import {
     useMarkNotificationRead,
     useMarkAllNotificationsRead,
     useClearAllNotifications,
+    useRefreshOnFocus,
     NotificationEntity,
 } from '@/lib/api-hooks';
 
@@ -27,6 +28,13 @@ export default function NotificationsScreen() {
     const markAllAsRead = useMarkAllNotificationsRead();
     const markAsRead = useMarkNotificationRead();
     const clearAllNotifications = useClearAllNotifications();
+
+    // Instant refresh when opening notifications
+    useRefreshOnFocus(
+        React.useCallback(async () => {
+            await refetch();
+        }, [refetch])
+    );
 
     const notifications = notificationsData?.notifications || [];
     const unreadCount = notificationsData?.unreadCount ?? 0;

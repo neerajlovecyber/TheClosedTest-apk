@@ -3,8 +3,28 @@
  * Typed data hooks replacing Convex useQuery & useMutation across mobile screens.
  */
 
+import { useCallback, useRef } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useFocusEffect } from "expo-router"
 import { api } from "./api"
+
+/**
+ * Centralized Hook for React Native / Expo Router Screen Focus Refetching.
+ * Automatically triggers background refetch whenever user navigates or switches tabs.
+ */
+export function useRefreshOnFocus<T>(refetch: () => Promise<T>) {
+  const firstTimeRef = useRef(true)
+
+  useFocusEffect(
+    useCallback(() => {
+      if (firstTimeRef.current) {
+        firstTimeRef.current = false
+        return
+      }
+      refetch()
+    }, [refetch]),
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Types

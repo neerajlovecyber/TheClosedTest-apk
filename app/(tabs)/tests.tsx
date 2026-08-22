@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui/icon';
 import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@/components/ui/button';
-import { useCurrentUser, useMatches, MatchEntity } from '@/lib/api-hooks';
+import { useCurrentUser, useMatches, useRefreshOnFocus, MatchEntity } from '@/lib/api-hooks';
 import { getTimeUntilMidnightIST, getMatchCurrentDay } from '@/lib/date-utils';
 
 // Memoized TaskCard component
@@ -119,6 +119,13 @@ export default function TestsScreen() {
     const router = useRouter();
     const { data: currentUser } = useCurrentUser();
     const { data: activeMatches = [], refetch, isFetching } = useMatches('active');
+
+    // Instant refresh when navigating or switching to Tests tab
+    useRefreshOnFocus(
+        useCallback(async () => {
+            await refetch();
+        }, [refetch])
+    );
 
     const onRefresh = useCallback(async () => {
         await refetch();
