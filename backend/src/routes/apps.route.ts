@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, desc, eq, ilike, inArray, not, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, ilike, inArray, not, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
@@ -162,7 +162,11 @@ router.openapi(
       .from(apps)
       .leftJoin(users, eq(apps.userId, users.id))
       .where(and(...conditions))
-      .orderBy(desc(apps.positiveVotes), desc(apps.createdAt))
+      .orderBy(
+        asc(sql`CASE WHEN apps.status = 'filled' THEN 1 ELSE 0 END`),
+        desc(users.reputation),
+        desc(apps.createdAt),
+      )
       .limit(limit)
       .offset(offset)
 

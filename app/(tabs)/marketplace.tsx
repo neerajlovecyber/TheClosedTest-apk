@@ -1,18 +1,22 @@
-import React, { useState, useRef, useCallback, useMemo, memo } from 'react';
-import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { LegendList } from '@legendapp/list/react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import { Modal, Pressable, Linking } from 'react-native';
-import { SearchIcon, CheckCircleIcon, UsersIcon } from 'lucide-react-native';
+import {
+    SearchIcon,
+    CheckCircleIcon,
+    UsersIcon,
+} from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import { ReportDialog } from '@/components/ReportDialog';
 import { Alert } from 'react-native';
-import { useCurrentUser, useRecruitingApps, useMatches, MatchEntity, AppEntity } from '@/lib/api-hooks';
+import { useCurrentUser, useRecruitingApps, useMatches, AppEntity } from '@/lib/api-hooks';
 
 export default function MarketplaceScreen() {
     const router = useRouter();
@@ -31,15 +35,23 @@ export default function MarketplaceScreen() {
     });
 
     const viewabilityConfig = useRef({
-        itemVisiblePercentThreshold: 50
+        itemVisiblePercentThreshold: 50,
     });
 
     // API Queries
     const { data: user } = useCurrentUser();
-    const { data: appsData, isLoading } = useRecruitingApps(searchQuery || undefined, 50, 0);
-    const { data: allMatches = [] } = useMatches('all');
+    const { data: appsData, isLoading, refetch, isFetching } = useRecruitingApps(
+        searchQuery || undefined,
+        50,
+        0,
+    );
+    const { data: allMatches = [], refetch: refetchMatches } = useMatches('all');
 
     const apps = appsData?.apps || [];
+
+    const onRefresh = useCallback(async () => {
+        await Promise.all([refetch(), refetchMatches()]);
+    }, [refetch, refetchMatches]);
 
     const matchStatusMap = useMemo(() => {
         const map = new Map<string, string>();
@@ -50,12 +62,17 @@ export default function MarketplaceScreen() {
         return map;
     }, [allMatches]);
 
+    // 1. Latest Opportunities: strictly sorted by latest (newest createdAt first)
     const latestOpportunities = useMemo(() => {
         return apps
-            .filter((app: AppEntity) => app.status === 'recruiting' && app.currentTesters < app.requiredTesters)
+            .filter((app: AppEntity) => {
+                const isOpen = app.status === 'recruiting' && app.currentTesters < app.requiredTesters;
+                const isNotMine = !user?.id || app.userId !== user.id;
+                return isOpen && isNotMine;
+            })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .slice(0, 16);
-    }, [apps]);
+    }, [apps, user?.id]);
 
     const groupedRecruiting = useMemo(() => {
         const chunked = [];
@@ -65,6 +82,22 @@ export default function MarketplaceScreen() {
         }
         return chunked;
     }, [latestOpportunities]);
+
+    // 2. All Apps: strictly sorted by highest developer reputation first
+    const allAppsSortedByReputation = useMemo(() => {
+        return [...apps].sort((a, b) => {
+            // Ensure apps with status 'filled' appear at the end
+            if (a.status === 'filled' && b.status !== 'filled') return 1;
+            if (b.status === 'filled' && a.status !== 'filled') return -1;
+            const repA = a.user?.reputation ?? 100;
+            const repB = b.user?.reputation ?? 100;
+            if (repB !== repA) {
+                return repB - repA; // Highest reputation first
+            }
+            // Tie breaker: newest created first
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+    }, [apps]);
 
     const handleAppPress = useCallback((appId: string) => {
         router.push({ pathname: "/app-details/[id]", params: { id: appId, source: 'marketplace' } } as any);
@@ -79,9 +112,9 @@ export default function MarketplaceScreen() {
                 { text: "Cancel", style: "cancel" },
                 {
                     text: "Report",
-                    onPress: () => setShowReportDialog(true)
-                }
-            ]
+                    onPress: () => setShowReportDialog(true),
+                },
+            ],
         );
     }, []);
 
@@ -133,7 +166,11 @@ export default function MarketplaceScreen() {
 
     return (
         <View className="flex-1 bg-background">
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
+            >
                 <View className="gap-3">
                     <View className="mb-0 flex-row justify-between items-start">
                         <View>
@@ -175,10 +212,10 @@ export default function MarketplaceScreen() {
                         />
                     </View>
 
-                    {/* Recruiting Now / Latest */}
+                    {/* Latest Opportunities Carousel: Sorted by Latest */}
                     {!searchQuery && (
-                        <View>
-                            <Text className="text-lg font-bold px-1 mb-3">Latest Opportunities</Text>
+                        <View className="mt-1">
+                            <Text className="text-lg font-bold px-1 mb-2">Latest Opportunities</Text>
                             {groupedRecruiting.length > 0 ? (
                                 <View>
                                     <LegendList
@@ -213,12 +250,20 @@ export default function MarketplaceScreen() {
                         </View>
                     )}
 
-                    {/* All Apps */}
-                    <View>
-                        <Text className="text-lg font-bold px-1 mb-3">{searchQuery ? 'Search Results' : 'All Apps'}</Text>
-                        {apps.length > 0 ? (
+                    {/* All Apps List: Sorted by Highest Reputation */}
+                    <View className="mt-1">
+                        <View className="flex-row justify-between items-center px-1 mb-3">
+                            <Text className="text-lg font-bold">
+                                {searchQuery ? 'Search Results' : 'All Apps'}
+                            </Text>
+                            <Text className="text-xs text-muted-foreground font-medium">
+                                {allAppsSortedByReputation.length} {allAppsSortedByReputation.length === 1 ? 'app' : 'apps'}
+                            </Text>
+                        </View>
+
+                        {allAppsSortedByReputation.length > 0 ? (
                             <View className="gap-0">
-                                {apps.map((item: AppEntity) => (
+                                {allAppsSortedByReputation.map((item: AppEntity) => (
                                     <React.Fragment key={keyExtractor(item)}>
                                         {renderAppItem({ item })}
                                     </React.Fragment>

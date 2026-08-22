@@ -230,7 +230,7 @@ export function useUnlockSlots() {
 // ---------------------------------------------------------------------------
 // 2. Apps Feed & Management Hooks
 // ---------------------------------------------------------------------------
-export function useRecruitingApps(search?: string, limit = 20, offset = 0) {
+export function useRecruitingApps(search?: string, limit = 50, offset = 0) {
   return useQuery<{ apps: AppEntity[]; total: number }>({
     queryKey: ["apps", { search, limit, offset }],
     queryFn: () =>
