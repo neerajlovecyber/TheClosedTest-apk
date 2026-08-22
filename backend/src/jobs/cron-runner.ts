@@ -281,28 +281,29 @@ export async function runExpiredBansCleanup() {
 }
 
 export async function runOldMatchesCleanup() {
-  console.log("⏰ Running 90-day completed/cancelled match archival...")
+  console.log("⏰ Running 60-day completed/cancelled match archival...")
 
   try {
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
     const result = await db
       .update(matches)
       .set({ status: "archived", updatedAt: new Date() })
       .where(
         and(
           or(eq(matches.status, "completed"), eq(matches.status, "cancelled")),
-          lt(matches.updatedAt, ninetyDaysAgo),
+          lt(matches.updatedAt, sixtyDaysAgo),
         ),
       )
       .returning({ id: matches.id })
 
     if (result.length > 0) {
-      console.log(`📦 Archived ${result.length} old matches (>90 days old)`)
+      console.log(`📦 Archived ${result.length} old matches (>60 days old)`)
     }
   } catch (error) {
     console.error("❌ Failed to archive old matches:", error)
   }
 }
+
 
 export async function runDailyTestingReminders() {
   console.log("⏰ Sending daily testing reminders to active testers...")
@@ -363,7 +364,7 @@ export function startBackgroundJobs() {
     12 * 60 * 60 * 1000,
   )
 
-  // Run DB cleanups (notifications >7d, old matches >90d) every 24 hours
+  // Run DB cleanups (notifications >7d, old matches >60d) every 24 hours
   setInterval(
     () => {
       runNotificationCleanup()
@@ -371,6 +372,7 @@ export function startBackgroundJobs() {
     },
     24 * 60 * 60 * 1000,
   )
+
 
   // Trigger initial checks on boot
   runMatchProgressionAndCleanup()

@@ -552,8 +552,8 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     await db.delete(userBans).where(eq(userBans.id, activeBan.id))
   })
 
-  it("30. runOldMatchesCleanup archives matches completed/cancelled >90 days ago", async () => {
-    const hundredDaysAgo = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
+  it("30. runOldMatchesCleanup archives matches completed/cancelled >60 days ago", async () => {
+    const seventyDaysAgo = new Date(Date.now() - 70 * 24 * 60 * 60 * 1000)
 
     const [oldMatch] = await db
       .insert(matches)
@@ -563,7 +563,7 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
         user1Id,
         user2Id,
         status: "completed",
-        updatedAt: hundredDaysAgo,
+        updatedAt: seventyDaysAgo,
       })
       .returning()
 
@@ -575,6 +575,7 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     // Cleanup
     await db.delete(matches).where(eq(matches.id, oldMatch.id))
   })
+
 
   it("31. runDailyTestingReminders executes cleanly", async () => {
     let err = null
