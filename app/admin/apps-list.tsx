@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, FlatList, TouchableOpacity, RefreshControl, Image, TextInput, ActivityIndicator } from 'react-native';
+import { View, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +15,11 @@ import {
     ExternalLinkIcon,
     ShieldAlertIcon,
     SparklesIcon,
+    StarIcon,
+    UsersIcon,
+    UserIcon,
 } from 'lucide-react-native';
+import { Image } from 'expo-image';
 import { toast } from '@/lib/sonner';
 import { useAdminApps, useAdminDeleteApp, useAdminCleanDuplicates, AppEntity } from '@/lib/api-hooks';
 import { Button } from '@/components/ui/button';
@@ -94,113 +98,96 @@ export default function AdminAppsListScreen() {
     };
 
     const renderAppItem = ({ item }: { item: AppEntity & { isDuplicate?: boolean } }) => {
-        const ownerName = item.user?.name || item.user?.email?.split('@')[0] || 'Unknown';
+        const ownerName = item.user?.name || item.user?.email?.split('@')[0] || 'Developer';
         const ownerEmail = item.user?.email || 'No email';
         const rep = item.user?.reputation ?? 100;
-        const isFilled = item.status === 'filled';
-        const isRecruiting = item.status === 'recruiting';
+        const DEFAULT_ICON = 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=160&auto=format&fit=crop&q=80';
+
+        const handleCardPress = () => {
+            router.push({ pathname: '/app-details/[id]', params: { id: item.id } } as any);
+        };
 
         return (
-            <Card className={`mb-3 border-border shadow-sm overflow-hidden ${item.isDuplicate ? 'border-amber-400 dark:border-amber-500/50 bg-amber-500/5' : 'bg-card'}`}>
-                <CardContent className="p-4">
-                    {/* Header Row: Icon + Title + Status */}
-                    <View className="flex-row items-start justify-between gap-3">
-                        <View className="flex-row items-center gap-3 flex-1">
-                            {item.iconUrl ? (
-                                <Image
-                                    source={{ uri: item.iconUrl }}
-                                    className="w-12 h-12 rounded-xl bg-muted"
-                                />
-                            ) : (
-                                <View className="w-12 h-12 rounded-xl bg-primary/10 items-center justify-center">
-                                    <Icon as={LayersIcon} className="size-6 text-primary" />
-                                </View>
-                            )}
+            <Card className={`rounded-2xl border shadow-sm overflow-hidden ${item.isDuplicate ? 'border-amber-400 dark:border-amber-500/50 bg-amber-500/5' : 'border-border bg-card'}`}>
+                <TouchableOpacity
+                    onPress={handleCardPress}
+                    activeOpacity={0.7}
+                    className="p-4"
+                >
+                    {/* Top Row: App Icon + App Info */}
+                    <View className="flex-row items-center gap-3">
+                        {/* App Icon */}
+                        <Image
+                            source={{ uri: item.iconUrl || DEFAULT_ICON }}
+                            style={{ width: 56, height: 56, borderRadius: 14 }}
+                            className="bg-muted border border-border/60"
+                            contentFit="cover"
+                        />
 
-                            <View className="flex-1">
-                                <View className="flex-row items-center gap-1.5 flex-wrap">
+                        {/* Title, Package, User Info */}
+                        <View className="flex-1 justify-center">
+                            {/* Title & Reputation Badge */}
+                            <View className="flex-row items-center justify-between gap-2">
+                                <View className="flex-1 flex-row items-center gap-1.5">
                                     <Text className="font-bold text-foreground text-base" numberOfLines={1}>
                                         {item.title}
                                     </Text>
                                     {item.isDuplicate && (
-                                        <View className="bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700/50">
-                                            <Text className="text-[10px] font-extrabold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
-                                                Duplicate Package
+                                        <View className="bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                            <Text className="text-[9px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                                                Duplicate
                                             </Text>
                                         </View>
                                     )}
                                 </View>
-                                <Text className="text-xs text-muted-foreground font-mono mt-0.5" numberOfLines={1}>
-                                    {item.packageName}
+
+                                {/* Reputation Score Badge */}
+                                <View className="flex-row items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/25">
+                                    <Icon as={StarIcon} className="size-3 text-amber-500 fill-amber-500" />
+                                    <Text className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                                        {rep}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Clean Package Name */}
+                            <Text className="text-xs text-muted-foreground font-mono mt-0.5" numberOfLines={1}>
+                                {item.packageName}
+                            </Text>
+
+                            {/* Developer Info */}
+                            <View className="mt-1 flex-row items-center gap-1.5">
+                                <Icon as={UserIcon} className="size-3 text-muted-foreground" />
+                                <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
+                                    {ownerName}
+                                </Text>
+                                <Text className="text-[11px] text-muted-foreground font-normal shrink" numberOfLines={1}>
+                                    • {ownerEmail}
                                 </Text>
                             </View>
                         </View>
-
-                        {/* Status Badge */}
-                        <View
-                            className={`px-2.5 py-1 rounded-full ${
-                                isRecruiting
-                                    ? 'bg-blue-100 dark:bg-blue-900/30'
-                                    : isFilled
-                                    ? 'bg-purple-100 dark:bg-purple-900/30'
-                                    : 'bg-muted'
-                            }`}
-                        >
-                            <Text
-                                className={`text-[10px] font-bold uppercase tracking-wider ${
-                                    isRecruiting
-                                        ? 'text-blue-700 dark:text-blue-400'
-                                        : isFilled
-                                        ? 'text-purple-700 dark:text-purple-400'
-                                        : 'text-muted-foreground'
-                                }`}
-                            >
-                                {item.status}
-                            </Text>
-                        </View>
                     </View>
 
-                    {/* Developer Info & Testers Info */}
-                    <View className="mt-3 pt-3 border-t border-border flex-row items-center justify-between text-xs">
-                        <View className="flex-1 mr-2">
-                            <Text className="text-xs text-foreground font-semibold" numberOfLines={1}>
-                                Dev: {ownerName} <Text className="text-muted-foreground font-normal">({ownerEmail})</Text>
-                            </Text>
-                            <Text className="text-[11px] text-muted-foreground mt-0.5">
-                                Rep: <Text className="font-bold text-foreground">{rep}</Text> • Created: {new Date(item.createdAt).toLocaleDateString()}
-                            </Text>
-                        </View>
-
-                        <View className="items-end">
-                            <Text className="text-xs font-bold text-foreground">
-                                {item.currentTesters}/{item.requiredTesters} Testers
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Actions Row */}
-                    <View className="mt-3 pt-2.5 border-t border-border/50 flex-row justify-end items-center gap-2">
-                        <TouchableOpacity
-                            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary"
-                            onPress={() => router.push({ pathname: '/app-details/[id]', params: { id: item.id } } as any)}
-                        >
-                            <Icon as={ExternalLinkIcon} className="size-3.5 text-secondary-foreground" />
-                            <Text className="text-xs font-semibold text-secondary-foreground">View Details</Text>
-                        </TouchableOpacity>
+                    {/* Bottom Row: Date on Left + Delete Button on Right (No separator line) */}
+                    <View className="mt-3 flex-row items-center justify-between">
+                        <Text className="text-[11px] text-muted-foreground font-medium">
+                            Added {new Date(item.createdAt).toLocaleDateString()}
+                        </Text>
 
                         <TouchableOpacity
-                            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 dark:bg-red-600 active:opacity-80"
-                            onPress={() => {
+                            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 dark:bg-red-600 active:opacity-80 shadow-sm"
+                            onPress={(e) => {
+                                e.stopPropagation();
                                 setBanPackageOnDelete(false);
                                 setSelectedApp(item);
                             }}
                             activeOpacity={0.7}
                         >
-                            <Icon as={Trash2Icon} className="size-3.5 text-white" />
-                            <Text className="text-xs font-bold text-white">Delete App</Text>
+                            <Icon as={Trash2Icon} className="size-3 text-white" />
+                            <Text className="text-xs font-bold text-white">Delete</Text>
                         </TouchableOpacity>
                     </View>
-                </CardContent>
+                </TouchableOpacity>
             </Card>
         );
     };
@@ -317,7 +304,8 @@ export default function AdminAppsListScreen() {
                     data={filteredApps}
                     keyExtractor={(item) => item.id}
                     renderItem={renderAppItem}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                    ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 60 }}
                     refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
                     ListEmptyComponent={
                         <View className="items-center justify-center py-16">
