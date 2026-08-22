@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test"
+import { eq } from "drizzle-orm"
 
 import app from "../app"
 import { db } from "../db"
-import { apps, matches, proofs, users } from "../db/schema"
-import { runDailyStreakMaintenance, runMatchProgressionAndCleanup } from "../jobs/cron-runner"
+import { apps, matches, notifications, proofs, users } from "../db/schema"
+import { runDailyStreakMaintenance, runMatchProgressionAndCleanup, runNotificationCleanup } from "../jobs/cron-runner"
 
 describe("Security, Edge Cases & Extended Business Logic Suite", () => {
   const normalUser1Token = `test-clerk-${crypto.randomUUID()}`
@@ -369,4 +370,140 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     }
     expect(err).toBeNull()
   })
+
+  it("25. runNotificationCleanup executes cleanly", async () => {
+    let err = null
+    try {
+      await runNotificationCleanup()
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeNull()
+  })
+
+  it("26. Match active for only 1 day with no proofs is NOT cancelled or penalized by cron", async () => {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+    // Create a 1-day old active match with NO proofs
+    const [recentMatch] = await db
+      .insert(matches)
+      .values({
+        app1Id,
+        app2Id,
+        user1Id,
+        user2Id,
+        status: "active",
+        startDate: oneDayAgo,
+      })
+      .returning()
+
+    const u2Before = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, user2Id) })
+    const initialRep = u2Before?.reputation ?? 100
+
+    // Run cron
+    await runMatchProgressionAndCleanup()
+
+    // Verify match is still ACTIVE and reputation is unchanged
+    const matchCheck = await db.query.matches.findFirst({ where: (m, { eq }) => eq(m.id, recentMatch.id) })
+    expect(matchCheck?.status).toBe("active")
+
+    const u2After = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, user2Id) })
+    expect(u2After?.reputation).toBe(initialRep)
+
+    // Cleanup test match
+    await db.delete(matches).where(eq(matches.id, recentMatch.id))
+  })
+
+  it("27. Match active for 4 days with user2 inactive IS cancelled and user2 is penalized -10", async () => {
+    const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+    // Create a 4-day old active match
+    const [abandonedMatch] = await db
+      .insert(matches)
+      .values({
+        app1Id,
+        app2Id,
+        user1Id,
+        user2Id,
+        status: "active",
+        startDate: fourDaysAgo,
+      })
+      .returning()
+
+    // User 1 submitted a proof 1 day ago (active)
+    await db.insert(proofs).values({
+      matchId: abandonedMatch.id,
+      uploaderId: user1Id,
+      day: 1,
+      type: "image",
+      storageUrls: ["https://example.com/p1.png"],
+      status: "approved",
+      submittedAt: oneDayAgo,
+    })
+
+    // User 2 never submitted or last proof was 4 days ago (inactive)
+    const u1Before = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, user1Id) })
+    const u2Before = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, user2Id) })
+    const u1Rep = u1Before?.reputation ?? 100
+    const u2Rep = u2Before?.reputation ?? 100
+
+    // Run cron
+    await runMatchProgressionAndCleanup()
+
+    // Verify match was cancelled
+    const matchCheck = await db.query.matches.findFirst({ where: (m, { eq }) => eq(m.id, abandonedMatch.id) })
+    expect(matchCheck?.status).toBe("cancelled")
+
+    // Verify user1 was NOT penalized, user2 was penalized -10
+    const u1After = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, user1Id) })
+    const u2After = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, user2Id) })
+    expect(u1After?.reputation).toBe(u1Rep)
+    expect(u2After?.reputation).toBe(Math.max(0, u2Rep - 10))
+
+    // Cleanup
+    await db.delete(proofs).where(eq(proofs.matchId, abandonedMatch.id))
+    await db.delete(matches).where(eq(matches.id, abandonedMatch.id))
+  })
+
+  it("28. runNotificationCleanup deletes >7 day notifications but keeps <=7 day notifications", async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+
+    const [oldNotif] = await db
+      .insert(notifications)
+      .values({
+        userId: user1Id,
+        type: "reminder",
+        title: "Old Notification",
+        body: "8 days old",
+        createdAt: eightDaysAgo,
+      })
+      .returning()
+
+    const [recentNotif] = await db
+      .insert(notifications)
+      .values({
+        userId: user1Id,
+        type: "reminder",
+        title: "Recent Notification",
+        body: "2 days old",
+        createdAt: twoDaysAgo,
+      })
+      .returning()
+
+    // Run cleanup cron
+    await runNotificationCleanup()
+
+    const oldCheck = await db.query.notifications.findFirst({ where: (n, { eq }) => eq(n.id, oldNotif.id) })
+    const recentCheck = await db.query.notifications.findFirst({ where: (n, { eq }) => eq(n.id, recentNotif.id) })
+
+    expect(oldCheck).toBeUndefined()
+    expect(recentCheck).toBeDefined()
+
+    // Cleanup recent
+    await db.delete(notifications).where(eq(notifications.id, recentNotif.id))
+  })
 })
+
+
