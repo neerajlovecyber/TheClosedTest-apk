@@ -4,7 +4,7 @@
 
 ### *The Open-Source Community Platform for Google Play 14-Day Closed Testing*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: Source-Available](https://img.shields.io/badge/License-Source--Available-blue.svg)](./LICENSE)
 [![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo_SDK-57-000020?logo=expo&logoColor=white)](https://expo.dev/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -193,23 +193,22 @@ TheClosedTest strictly adheres to Google Play policies:
 ---
 
 ## 🤝 Contributing
+Contributions, bug reports, and pull requests are warmly welcomed! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on setting up your local development environment and our code contribution process.
 
-Contributions are welcome and appreciated!
+---
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m "Add amazing feature"`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 🔒 Security
+If you discover a potential vulnerability, please review our [Security Policy](SECURITY.md) to report it responsibly.
 
 ---
 
 ## 📄 License
+This project is licensed under the **Source-Available Community License** — see the [LICENSE](LICENSE) file for terms and restrictions.
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+*You are permitted to view the source code, build and test locally, and submit contributions/PRs. Sublicensing, re-branding, publishing clones/forks to app stores (Google Play / App Store), or running a competing hosted service is strictly prohibited.*
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by the Android Developer Community.</sub>
+  <sub>Built with ❤️ for the Android Indie Developer Community.</sub>
 </div>

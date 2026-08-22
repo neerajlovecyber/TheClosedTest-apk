@@ -1,0 +1,21 @@
+# Source-Available Community License
+
+Copyright (c) 2025-2026 TheClosedTest Contributors. All rights reserved.
+
+## 1. Grant of License
+Subject to the terms and restrictions of this License, you are granted a non-exclusive, worldwide, royalty-free license to:
+- View, inspect, and evaluate the source code.
+- Run, build, and test the software locally on your own devices for personal, non-commercial, or evaluation purposes.
+- Make modifications, fix bugs, and create improvements for the sole purpose of submitting contributions (such as Pull Requests or patches) back to the official TheClosedTest project repository.
+
+## 2. Restrictions and Prohibitions
+You may NOT:
+- **No Competitive or Commercial Distribution**: You may not publish, distribute, sublicense, sell, rent, or lease the software or any derivative work, clone, fork, or modification thereof to the Google Play Store, Apple App Store, F-Droid, or any other app store, marketplace, or distribution channel.
+- **No Hosted Services**: You may not use the software (or any modified version) to operate a public, commercial, or competing peer-testing exchange, closed-testing matchmaking service, or SaaS platform.
+- **No Trademark or Brand Use**: This license does not grant permission to use the trade names, trademarks, service marks, logos, or product names of TheClosedTest without prior written authorization.
+
+## 3. Contributions
+By submitting a Pull Request, issue, or patch to this repository, you agree that your contribution is provided under the terms of this license and may be incorporated into the official project.
+
+## 4. Disclaimer of Warranty
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
