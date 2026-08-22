@@ -3,6 +3,14 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - 'backend/**'
+      - '.github/**'
+      - '.gitignore'
+      - '.eslintrc*'
+      - 'prettier*'
 
 jobs:
   update:
