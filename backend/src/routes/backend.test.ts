@@ -333,26 +333,51 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
   afterAll(async () => {
     try {
       const { db } = await import("../db")
-      const { users, apps, matches, proofs, messages, notifications, dailyActivity, adminChats, adminMessages } = await import("../db/schema")
+      const { users, apps, matches, proofs, messages, notifications, dailyActivity, adminChats, adminMessages } =
+        await import("../db/schema")
       const { eq, or, inArray } = await import("drizzle-orm")
 
       if (matchId) {
-        await db.delete(proofs).where(eq(proofs.matchId, matchId)).catch(() => {})
-        await db.delete(messages).where(eq(messages.matchId, matchId)).catch(() => {})
-        await db.delete(matches).where(eq(matches.id, matchId)).catch(() => {})
+        await db
+          .delete(proofs)
+          .where(eq(proofs.matchId, matchId))
+          .catch(() => {})
+        await db
+          .delete(messages)
+          .where(eq(messages.matchId, matchId))
+          .catch(() => {})
+        await db
+          .delete(matches)
+          .where(eq(matches.id, matchId))
+          .catch(() => {})
       }
 
       const testAppIds = [app1Id, app2Id].filter(Boolean)
       if (testAppIds.length > 0) {
-        await db.delete(apps).where(inArray(apps.id, testAppIds)).catch(() => {})
+        await db
+          .delete(apps)
+          .where(inArray(apps.id, testAppIds))
+          .catch(() => {})
       }
 
       const testUserIds = [user1Id, user2Id].filter(Boolean)
       if (testUserIds.length > 0) {
-        await db.delete(dailyActivity).where(inArray(dailyActivity.userId, testUserIds)).catch(() => {})
-        await db.delete(notifications).where(inArray(notifications.userId, testUserIds)).catch(() => {})
-        await db.delete(adminChats).where(inArray(adminChats.userId, testUserIds)).catch(() => {})
-        await db.delete(users).where(inArray(users.id, testUserIds)).catch(() => {})
+        await db
+          .delete(dailyActivity)
+          .where(inArray(dailyActivity.userId, testUserIds))
+          .catch(() => {})
+        await db
+          .delete(notifications)
+          .where(inArray(notifications.userId, testUserIds))
+          .catch(() => {})
+        await db
+          .delete(adminChats)
+          .where(inArray(adminChats.userId, testUserIds))
+          .catch(() => {})
+        await db
+          .delete(users)
+          .where(inArray(users.id, testUserIds))
+          .catch(() => {})
       }
     } catch {
       // ignore cleanup errors

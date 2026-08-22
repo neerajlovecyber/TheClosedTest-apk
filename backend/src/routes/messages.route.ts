@@ -46,10 +46,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(z.array(MessageSchema), "Chat messages"),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {
@@ -93,10 +90,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.CREATED]: jsonContent(MessageSchema, "Message sent"),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {
@@ -171,14 +165,8 @@ router.openapi(
       params: z.object({ matchId: z.string() }),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Chat marked as read"),
-        "Marked as read",
-      ),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Chat marked as read"), "Marked as read"),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {
@@ -198,7 +186,7 @@ router.openapi(
 
     await db
       .update(matches)
-      .set((isUser1 ? { lastRead1: now } : { lastRead2: now }))
+      .set(isUser1 ? { lastRead1: now } : { lastRead2: now })
       .where(eq(matches.id, matchId))
 
     return c.json({ message: "Chat marked as read" }, HttpStatusCodes.OK)

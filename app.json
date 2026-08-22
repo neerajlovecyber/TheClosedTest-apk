@@ -13,9 +13,7 @@
     "updates": {
       "url": "https://u.expo.dev/5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
     },
@@ -55,9 +53,7 @@
             "newArchEnabled": true,
             "enableShrinking": false,
             "enableProguardInReleaseBuilds": false,
-            "reactNativeArchitectures": [
-              "arm64-v8a"
-            ],
+            "reactNativeArchitectures": ["arm64-v8a"],
             "extraProguardRules": "-dontwarn **\n-keep class com.google.android.gms.ads.** { *; }\n-keep class coil3.** { *; }",
             "packagingOptions": {
               "pickFirst": ["**/libc++_shared.so"]

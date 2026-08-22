@@ -4,13 +4,13 @@ on:
     branches:
       - master
     paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'backend/**'
-      - '.github/**'
-      - '.gitignore'
-      - '.eslintrc*'
-      - 'prettier*'
+      - "**.md"
+      - "LICENSE"
+      - "backend/**"
+      - ".github/**"
+      - ".gitignore"
+      - ".eslintrc*"
+      - "prettier*"
 
 jobs:
   update:
@@ -40,7 +40,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-  
 
       - name: Setup EAS
         uses: expo/expo-github-action@v9

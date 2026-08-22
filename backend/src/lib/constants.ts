@@ -1,7 +1,4 @@
-export const ADMIN_EMAILS = [
-  "neerajlovecyber@gmail.com",
-  "futureaistudio41@gmail.com",
-].map((e) => e.toLowerCase())
+export const ADMIN_EMAILS = ["neerajlovecyber@gmail.com", "futureaistudio41@gmail.com"].map((e) => e.toLowerCase())
 
 export function isUserAdmin(email?: string | null, isDbAdmin?: boolean): boolean {
   if (isDbAdmin) return true

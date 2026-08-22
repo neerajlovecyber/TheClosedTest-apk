@@ -84,8 +84,7 @@ router.openapi(
       // Prevent hijacking if email is already taken by another account
       if (body.email && body.email.toLowerCase() !== existingUser.email.toLowerCase()) {
         const emailConflict = await db.query.users.findFirst({
-          where: (u, { and, eq, not }) =>
-            and(eq(u.email, body.email.toLowerCase()), not(eq(u.id, existingUser.id))),
+          where: (u, { and, eq, not }) => and(eq(u.email, body.email.toLowerCase()), not(eq(u.id, existingUser.id))),
         })
         if (emailConflict) {
           return c.json(
@@ -114,10 +113,7 @@ router.openapi(
         .from(apps)
         .where(and(eq(apps.userId, existingUser.id), not(eq(apps.status, "archived"))))
 
-      return c.json(
-        { ...updated, appsCount: activeApps?.count ?? 0 },
-        HttpStatusCodes.OK,
-      )
+      return c.json({ ...updated, appsCount: activeApps?.count ?? 0 }, HttpStatusCodes.OK)
     }
 
     const isUserAdminRole = isUserAdmin(body.email || authUser.email, false)
@@ -152,10 +148,7 @@ router.openapi(
     middleware: [authMiddleware] as const,
     responses: {
       [HttpStatusCodes.OK]: jsonContent(UserResponseSchema, "Current user details"),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("User not found"),
-        "User not found",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("User not found"), "User not found"),
     },
   }),
   async (c) => {
@@ -202,10 +195,7 @@ router.openapi(
         }),
         "Check-in result",
       ),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("User not found"),
-        "User not found",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("User not found"), "User not found"),
     },
   }),
   async (c) => {
@@ -290,20 +280,14 @@ router.openapi(
       body: jsonContentRequired(UpdatePushTokenSchema, "Push token payload"),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Push token updated"),
-        "Push token updated",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Push token updated"), "Push token updated"),
     },
   }),
   async (c) => {
     const userVar = c.get("user")!
     const body = c.req.valid("json")
 
-    await db
-      .update(users)
-      .set({ pushToken: body.pushToken, updatedAt: new Date() })
-      .where(eq(users.id, userVar.id))
+    await db.update(users).set({ pushToken: body.pushToken, updatedAt: new Date() }).where(eq(users.id, userVar.id))
 
     return c.json({ message: "Push token updated successfully" }, HttpStatusCodes.OK)
   },
@@ -318,19 +302,13 @@ router.openapi(
     summary: "Confirm Google Group Membership",
     middleware: [authMiddleware] as const,
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Google Group confirmed"),
-        "Google Group confirmed",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Google Group confirmed"), "Google Group confirmed"),
     },
   }),
   async (c) => {
     const userVar = c.get("user")!
 
-    await db
-      .update(users)
-      .set({ isGroupMember: true, updatedAt: new Date() })
-      .where(eq(users.id, userVar.id))
+    await db.update(users).set({ isGroupMember: true, updatedAt: new Date() }).where(eq(users.id, userVar.id))
 
     return c.json({ message: "Google Group membership confirmed" }, HttpStatusCodes.OK)
   },

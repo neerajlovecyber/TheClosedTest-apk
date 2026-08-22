@@ -15,8 +15,7 @@ export async function sendExpoPushNotification(
 ): Promise<{ success: boolean; error?: string }> {
   const recipients = Array.isArray(payload.to) ? payload.to : [payload.to]
   const validTokens = recipients.filter(
-    (token) =>
-      token && (token.startsWith("ExponentPushToken[") || token.startsWith("ExpoPushToken[")),
+    (token) => token && (token.startsWith("ExponentPushToken[") || token.startsWith("ExpoPushToken[")),
   )
 
   if (validTokens.length === 0) {

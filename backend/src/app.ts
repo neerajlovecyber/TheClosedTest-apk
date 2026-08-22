@@ -18,11 +18,7 @@ const app = createApp()
 configureOpenAPI(app)
 
 // Auth Routes (Better Auth)
-app.on(
-  ["POST", "GET"],
-  "/api/auth/*",
-  async (c) => await auth.handler(c.req.raw),
-)
+app.on(["POST", "GET"], "/api/auth/*", async (c) => await auth.handler(c.req.raw))
 
 const appWithRoutes = app
   .route("/", indexRoute)

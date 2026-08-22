@@ -3,99 +3,94 @@
  * Connects React Native / Expo to the Northflank Hono + PostgreSQL Backend.
  */
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run"
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run";
 
-let authTokenGetter: (() => Promise<string | null>) | null = null
-let currentUserId: string | null = null
+let authTokenGetter: (() => Promise<string | null>) | null = null;
+let currentUserId: string | null = null;
 
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
-  authTokenGetter = getter
+  authTokenGetter = getter;
 }
 
 export function setCurrentUserId(userId: string | null) {
-  currentUserId = userId
+  currentUserId = userId;
 }
 
 export interface ApiFetchOptions extends RequestInit {
-  params?: Record<string, string | number | boolean | undefined>
+  params?: Record<string, string | number | boolean | undefined>;
 }
 
-export async function apiFetch<T = unknown>(
-  path: string,
-  options: ApiFetchOptions = {},
-): Promise<T> {
-  const { params, headers: customHeaders, ...fetchOptions } = options
+export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+  const { params, headers: customHeaders, ...fetchOptions } = options;
 
   // Build Query String if params are provided
-  let url = `${API_BASE_URL}${path}`
+  let url = `${API_BASE_URL}${path}`;
   if (params) {
-    const searchParams = new URLSearchParams()
+    const searchParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
-        searchParams.append(key, String(value))
+        searchParams.append(key, String(value));
       }
     }
-    const queryString = searchParams.toString()
+    const queryString = searchParams.toString();
     if (queryString) {
-      url += (url.includes("?") ? "&" : "?") + queryString
+      url += (url.includes("?") ? "&" : "?") + queryString;
     }
   }
 
-  const headers = new Headers(customHeaders || {})
+  const headers = new Headers(customHeaders || {});
   if (!headers.has("Content-Type") && !(fetchOptions.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json")
+    headers.set("Content-Type", "application/json");
   }
 
   if (currentUserId && !headers.has("x-user-id")) {
-    headers.set("x-user-id", currentUserId)
+    headers.set("x-user-id", currentUserId);
   }
 
   // Inject Clerk Bearer Token if available
   if (authTokenGetter) {
     try {
-      const token = await authTokenGetter()
+      const token = await authTokenGetter();
       if (token && !headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${token}`)
+        headers.set("Authorization", `Bearer ${token}`);
       }
     } catch (e) {
-      console.warn("Failed to retrieve auth token for request:", e)
+      console.warn("Failed to retrieve auth token for request:", e);
     }
   }
 
   const res = await fetch(url, {
     ...fetchOptions,
     headers,
-  })
+  });
 
   if (!res.ok) {
-    let errorMessage = `API Error ${res.status}: ${res.statusText}`
+    let errorMessage = `API Error ${res.status}: ${res.statusText}`;
     try {
-      const errorJson = await res.json()
+      const errorJson = await res.json();
       if (errorJson?.message) {
-        errorMessage = errorJson.message
+        errorMessage = errorJson.message;
       } else if (errorJson?.error) {
-        errorMessage = typeof errorJson.error === "string" ? errorJson.error : JSON.stringify(errorJson.error)
+        errorMessage = typeof errorJson.error === "string" ? errorJson.error : JSON.stringify(errorJson.error);
       } else if (errorJson?.issues) {
-        errorMessage = errorJson.issues.map((i: any) => `${i.path?.join(".")}: ${i.message}`).join(", ")
+        errorMessage = errorJson.issues.map((i: any) => `${i.path?.join(".")}: ${i.message}`).join(", ");
       }
     } catch {
       // ignore
     }
-    throw new Error(errorMessage)
+    throw new Error(errorMessage);
   }
 
   // Handle empty 204 or non-json responses
   if (res.status === 204) {
-    return {} as T
+    return {} as T;
   }
 
-  return (await res.json()) as T
+  return (await res.json()) as T;
 }
 
 export const api = {
-  get: <T>(path: string, options?: ApiFetchOptions) =>
-    apiFetch<T>(path, { ...options, method: "GET" }),
+  get: <T>(path: string, options?: ApiFetchOptions) => apiFetch<T>(path, { ...options, method: "GET" }),
   post: <T>(path: string, body?: unknown, options?: ApiFetchOptions) =>
     apiFetch<T>(path, {
       ...options,
@@ -108,6 +103,5 @@ export const api = {
       method: "PATCH",
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  delete: <T>(path: string, options?: ApiFetchOptions) =>
-    apiFetch<T>(path, { ...options, method: "DELETE" }),
-}
+  delete: <T>(path: string, options?: ApiFetchOptions) => apiFetch<T>(path, { ...options, method: "DELETE" }),
+};

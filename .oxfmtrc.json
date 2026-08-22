@@ -1,0 +1,8 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/refs/heads/main/npm/oxfmt/configuration_schema.json",
+  "printWidth": 160,
+  "lineWidth": 160,
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2
+}

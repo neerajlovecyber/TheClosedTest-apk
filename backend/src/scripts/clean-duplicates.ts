@@ -16,7 +16,7 @@ async function main() {
 
   console.log(`📊 Found ${allAppsList.length} total active app records.`)
 
-  const seenPackages = new Map<string, typeof allAppsList[0]>()
+  const seenPackages = new Map<string, (typeof allAppsList)[0]>()
   const duplicateApps: typeof allAppsList = []
 
   for (const appItem of allAppsList) {
@@ -48,10 +48,7 @@ async function main() {
 
   console.log("🧹 Cleaning test matches, messages, and proofs for duplicates...")
   const duplicateMatches = await db.query.matches.findMany({
-    where: or(
-      inArray(matches.app1Id, duplicateAppIds),
-      inArray(matches.app2Id, duplicateAppIds),
-    ),
+    where: or(inArray(matches.app1Id, duplicateAppIds), inArray(matches.app2Id, duplicateAppIds)),
     columns: { id: true },
   })
 

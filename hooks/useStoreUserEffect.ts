@@ -23,10 +23,7 @@ export function useStoreUserEffect() {
 
     async function createUser() {
       try {
-        const email =
-          user.primaryEmailAddress?.emailAddress ||
-          user.emailAddresses?.[0]?.emailAddress ||
-          `${user.id}@theclosedtest.app`;
+        const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || `${user.id}@theclosedtest.app`;
 
         const synced = await syncUser.mutateAsync({
           tokenIdentifier: user.id,

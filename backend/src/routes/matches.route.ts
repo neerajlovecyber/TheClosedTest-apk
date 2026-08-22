@@ -56,10 +56,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.CREATED]: jsonContent(MatchSchema, "Match requested"),
-      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
-        createMessageObjectSchema("Validation Error"),
-        "Validation error",
-      ),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(createMessageObjectSchema("Validation Error"), "Validation error"),
     },
   }),
   async (c) => {
@@ -121,7 +118,9 @@ router.openapi(
 
     if (existing) {
       return c.json(
-        { message: "A match request or active test already exists between these apps" },
+        {
+          message: "A match request or active test already exists between these apps",
+        },
         HttpStatusCodes.BAD_REQUEST,
       )
     }
@@ -192,9 +191,7 @@ router.openapi(
     const userVar = c.get("user")!
     const { status } = c.req.valid("query")
 
-    const conditions = [
-      or(eq(matches.user1Id, userVar.id), eq(matches.user2Id, userVar.id)),
-    ]
+    const conditions = [or(eq(matches.user1Id, userVar.id), eq(matches.user2Id, userVar.id))]
 
     if (status !== "all") {
       conditions.push(eq(matches.status, status))
@@ -285,14 +282,8 @@ router.openapi(
         }),
         "Match details with app and user info",
       ),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("Match not found"),
-        "Match not found",
-      ),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("Match not found"), "Match not found"),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {
@@ -369,10 +360,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(MatchSchema, "Match accepted"),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Cannot accept"),
-        "Cannot accept",
-      ),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Cannot accept"), "Cannot accept"),
     },
   }),
   async (c) => {
@@ -384,10 +372,7 @@ router.openapi(
     })
 
     if (!match || match.user2Id !== userVar.id || match.status !== "pending") {
-      return c.json(
-        { message: "Forbidden: Only target user can accept a pending match" },
-        HttpStatusCodes.FORBIDDEN,
-      )
+      return c.json({ message: "Forbidden: Only target user can accept a pending match" }, HttpStatusCodes.FORBIDDEN)
     }
 
     const now = new Date()
@@ -446,10 +431,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(MatchSchema, "Match rejected or cancelled"),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {

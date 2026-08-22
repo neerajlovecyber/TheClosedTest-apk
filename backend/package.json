@@ -2,8 +2,19 @@
   "name": "theclosedtest-backend",
   "version": "3.0.0",
   "description": "High-performance REST API backend for TheClosedTest built with Hono, Drizzle ORM, and Bun",
-  "main": "dist/index.js",
+  "keywords": [
+    "Bun",
+    "Drizzle",
+    "Hono",
+    "OpenAPI",
+    "PostgreSQL",
+    "TheClosedTest",
+    "Typescript"
+  ],
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "TheClosedTest Contributors",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
@@ -23,17 +34,6 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": [
-    "TheClosedTest",
-    "Typescript",
-    "Bun",
-    "Hono",
-    "Drizzle",
-    "PostgreSQL",
-    "OpenAPI"
-  ],
-  "author": "TheClosedTest Contributors",
-  "license": "SEE LICENSE IN ../LICENSE",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1114.0",
     "@aws-sdk/s3-request-presigner": "^3.1114.0",
@@ -64,7 +64,10 @@
     "vitest": "^4.1.11"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["oxlint --fix", "oxfmt"]
+    "*.{js,jsx,ts,tsx}": [
+      "oxlint --fix",
+      "oxfmt"
+    ]
   },
   "volta": {
     "node": "24.12.0"

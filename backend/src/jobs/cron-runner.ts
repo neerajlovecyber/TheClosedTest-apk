@@ -73,12 +73,7 @@ export async function runMatchProgressionAndCleanup() {
         status: "cancelled",
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(matches.status, "pending"),
-          lt(matches.createdAt, sevenDaysAgo),
-        ),
-      )
+      .where(and(eq(matches.status, "pending"), lt(matches.createdAt, sevenDaysAgo)))
   } catch (error) {
     console.error("❌ Failed match progression check:", error)
   }
@@ -155,15 +150,21 @@ export function startBackgroundJobs() {
   console.log("🚀 Starting background cron timers...")
 
   // Run boost cycle check every hour
-  setInterval(() => {
-    runBoostCycleMaintenance()
-  }, 60 * 60 * 1000)
+  setInterval(
+    () => {
+      runBoostCycleMaintenance()
+    },
+    60 * 60 * 1000,
+  )
 
   // Run daily streak & match progression maintenance every 4 hours
-  setInterval(() => {
-    runDailyStreakMaintenance()
-    runMatchProgressionAndCleanup()
-  }, 4 * 60 * 60 * 1000)
+  setInterval(
+    () => {
+      runDailyStreakMaintenance()
+      runMatchProgressionAndCleanup()
+    },
+    4 * 60 * 60 * 1000,
+  )
 
   // Trigger initial checks on boot
   runBoostCycleMaintenance()

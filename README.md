@@ -2,7 +2,7 @@
 
 # 📱 TheClosedTest
 
-### *The Open-Source Community Platform for Google Play 14-Day Closed Testing*
+### _The Open-Source Community Platform for Google Play 14-Day Closed Testing_
 
 [![License: Source-Available](https://img.shields.io/badge/License-Source--Available-blue.svg)](./LICENSE)
 [![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
@@ -26,6 +26,7 @@
 Google Play Console requires personal developer accounts to run a **14-day closed test with at least 12 continuous testers** before requesting production access. Finding genuine, daily testers is difficult for solo indie developers and small startups.
 
 **TheClosedTest** solves this problem through an ethical, community-driven **peer testing exchange**:
+
 - 🤝 **Reciprocal Testing Swaps**: "I test your app for 14 days, you test mine."
 - 📸 **Daily Proof Verification**: Upload screenshot proofs daily to verify genuine testing engagement.
 - 💬 **In-Match Developer Chat**: Real-time communication and direct feedback sharing between testing partners.
@@ -63,6 +64,7 @@ TheClosedTest-apk/
 ```
 
 ### Frontend Mobile App
+
 - **Framework**: [Expo SDK 57](https://expo.dev/) + [React Native 0.86](https://reactnative.dev/) (React 19)
 - **Routing**: [Expo Router v57](https://docs.expo.dev/router/introduction/) (File-based navigation)
 - **Styling**: [NativeWind v4](https://www.nativewind.dev/) (Tailwind CSS for React Native)
@@ -70,6 +72,7 @@ TheClosedTest-apk/
 - **Authentication**: [Clerk Expo SDK](https://clerk.com/)
 
 ### Backend REST API
+
 - **Runtime**: [Bun](https://bun.sh/)
 - **Framework**: [Hono v4](https://hono.dev/) with `@hono/zod-openapi` & Swagger Documentation
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (Neon / Supabase / Self-hosted)
@@ -83,16 +86,17 @@ TheClosedTest-apk/
 
 The backend includes interactive Scalar API documentation and a public health check probe:
 
-| Resource | URL | Description |
-| :--- | :--- | :--- |
+| Resource                                   | URL                                                                      | Description                                                            |
+| :----------------------------------------- | :----------------------------------------------------------------------- | :--------------------------------------------------------------------- |
 | **Interactive API Playground (Scalar UI)** | [**`/reference`**](https://p01--tester--7tlh8kl746cq.code.run/reference) | Interactive OpenAPI explorer to inspect and test all backend endpoints |
-| **Health Check Probe** | [**`/`**](https://p01--tester--7tlh8kl746cq.code.run/) | Live server status & health check |
+| **Health Check Probe**                     | [**`/`**](https://p01--tester--7tlh8kl746cq.code.run/)                   | Live server status & health check                                      |
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - [Bun](https://bun.sh/) (v1.1+) or Node.js (v20+)
 - [PostgreSQL](https://www.postgresql.org/) database (local instance or cloud database like Neon)
 - [Expo Go](https://expo.dev/go) on your Android device or an Android Studio emulator
@@ -100,6 +104,7 @@ The backend includes interactive Scalar API documentation and a public health ch
 ---
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/neerajlovecyber/TheClosedTest-apk.git
 cd TheClosedTest-apk
@@ -108,6 +113,7 @@ cd TheClosedTest-apk
 ---
 
 ### 2. Backend Setup
+
 ```bash
 cd backend
 
@@ -119,6 +125,7 @@ cp .env.example .env
 ```
 
 Configure your `backend/.env`:
+
 ```env
 PORT=3000
 NODE_ENV=development
@@ -133,6 +140,7 @@ R2_PUBLIC_DOMAIN=https://your-r2-worker.workers.dev
 ```
 
 Run database migrations & start the API server:
+
 ```bash
 # Push database schema
 bun run db:push
@@ -146,6 +154,7 @@ bun run dev
 ---
 
 ### 3. Mobile Frontend Setup
+
 ```bash
 # From the project root
 bun install
@@ -155,6 +164,7 @@ cp .env.example .env
 ```
 
 Configure your root `.env`:
+
 ```env
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 EXPO_PUBLIC_API_URL=http://<YOUR_LOCAL_IP>:3000
@@ -162,6 +172,7 @@ EXPO_PUBLIC_R2_WORKER_URL=https://your-r2-worker.workers.dev
 ```
 
 Start the Expo development server:
+
 ```bash
 bun start
 ```
@@ -186,6 +197,7 @@ bun test
 ## 🛡️ Policy Compliance & Ethics
 
 TheClosedTest strictly adheres to Google Play policies:
+
 - ❌ **No Automated Bots**: No bot farms, automated scripts, or artificial installs.
 - ❌ **No Paid Reviews**: Users are not compensated with real money for positive reviews.
 - ✅ **Genuine Peer Testing**: Real developers testing real applications, providing constructive bug reports and stability feedback.
@@ -193,19 +205,22 @@ TheClosedTest strictly adheres to Google Play policies:
 ---
 
 ## 🤝 Contributing
+
 Contributions, bug reports, and pull requests are warmly welcomed! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on setting up your local development environment and our code contribution process.
 
 ---
 
 ## 🔒 Security
+
 If you discover a potential vulnerability, please review our [Security Policy](SECURITY.md) to report it responsibly.
 
 ---
 
 ## 📄 License
+
 This project is licensed under the **Source-Available Community License** — see the [LICENSE](LICENSE) file for terms and restrictions.
 
-*You are permitted to view the source code, build and test locally, and submit contributions/PRs. Sublicensing, re-branding, publishing clones/forks to app stores (Google Play / App Store), or running a competing hosted service is strictly prohibited.*
+_You are permitted to view the source code, build and test locally, and submit contributions/PRs. Sublicensing, re-branding, publishing clones/forks to app stores (Google Play / App Store), or running a competing hosted service is strictly prohibited._
 
 ---
 

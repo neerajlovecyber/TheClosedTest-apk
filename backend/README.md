@@ -20,19 +20,23 @@ High-performance, type-safe REST API powering **TheClosedTest** mobile client an
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
+
 - Install [Bun](https://bun.sh/): `curl -fsSL https://bun.sh/install | bash` (or via PowerShell on Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`)
 
 ### 2. Install Dependencies
+
 ```bash
 bun install
 ```
 
 ### 3. Configure Environment Variables
+
 ```bash
 cp .env.example .env
 ```
 
 Set the following variables in your `.env`:
+
 ```env
 PORT=9000
 NODE_ENV=development
@@ -46,6 +50,7 @@ R2_BUCKET_NAME=theclosedtest-proofs
 ```
 
 ### 4. Database Migrations
+
 ```bash
 # Generate SQL migrations from schema
 bun run db:generate
@@ -55,9 +60,11 @@ bun run db:migrate
 ```
 
 ### 5. Start Development Server
+
 ```bash
 bun run dev
 ```
+
 The server will start at `http://localhost:9000`.
 
 ---
@@ -65,6 +72,7 @@ The server will start at `http://localhost:9000`.
 ## 📖 API Documentation
 
 The backend includes dynamic OpenAPI documentation:
+
 - **Interactive Scalar Docs**: [http://localhost:9000/reference](http://localhost:9000/reference)
 - **OpenAPI JSON Spec**: [http://localhost:9000/doc](http://localhost:9000/doc)
 
@@ -95,7 +103,9 @@ bun start
 ```
 
 ### Docker Deployment
+
 The backend includes an optimized multi-stage `Dockerfile`:
+
 ```bash
 docker build -t theclosedtest-backend .
 docker run -p 9000:9000 --env-file .env theclosedtest-backend
@@ -104,4 +114,5 @@ docker run -p 9000:9000 --env-file .env theclosedtest-backend
 ---
 
 ## 📜 License
+
 This backend is licensed under the [Source-Available Community License](../LICENSE).

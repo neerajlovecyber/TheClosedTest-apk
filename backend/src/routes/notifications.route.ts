@@ -79,10 +79,7 @@ router.openapi(
       params: z.object({ id: z.string() }),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Notification marked as read"),
-        "Marked as read",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Notification marked as read"), "Marked as read"),
     },
   }),
   async (c) => {
@@ -116,10 +113,7 @@ router.openapi(
   async (c) => {
     const userVar = c.get("user")!
 
-    await db
-      .update(notifications)
-      .set({ read: true })
-      .where(eq(notifications.userId, userVar.id))
+    await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userVar.id))
 
     return c.json({ message: "All notifications marked as read" }, HttpStatusCodes.OK)
   },
@@ -143,9 +137,7 @@ router.openapi(
   async (c) => {
     const userVar = c.get("user")!
 
-    await db
-      .delete(notifications)
-      .where(eq(notifications.userId, userVar.id))
+    await db.delete(notifications).where(eq(notifications.userId, userVar.id))
 
     return c.json({ message: "All notifications deleted" }, HttpStatusCodes.OK)
   },
@@ -168,9 +160,7 @@ router.openapi(
   async (c) => {
     const userVar = c.get("user")!
 
-    await db
-      .delete(notifications)
-      .where(eq(notifications.userId, userVar.id))
+    await db.delete(notifications).where(eq(notifications.userId, userVar.id))
 
     return c.json({ message: "All notifications deleted" }, HttpStatusCodes.OK)
   },
@@ -188,19 +178,14 @@ router.openapi(
       params: z.object({ id: z.string() }),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Notification deleted"),
-        "Notification deleted",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Notification deleted"), "Notification deleted"),
     },
   }),
   async (c) => {
     const { id } = c.req.valid("param")
     const userVar = c.get("user")!
 
-    await db
-      .delete(notifications)
-      .where(and(eq(notifications.id, id), eq(notifications.userId, userVar.id)))
+    await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userVar.id)))
 
     return c.json({ message: "Notification deleted" }, HttpStatusCodes.OK)
   },

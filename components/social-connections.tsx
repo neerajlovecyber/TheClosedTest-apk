@@ -1,34 +1,30 @@
-
-import { toast } from '@/lib/sonner';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import { cn } from '@/lib/utils';
-import { useSSO, type StartSSOFlowParams } from '@clerk/clerk-expo';
-import * as AuthSession from 'expo-auth-session';
-import { router } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import { useColorScheme } from 'nativewind';
-import * as React from 'react';
-import { Image, Platform, View, type ImageSourcePropType } from 'react-native';
+import { toast } from "@/lib/sonner";
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
+import { useSSO, type StartSSOFlowParams } from "@clerk/clerk-expo";
+import * as AuthSession from "expo-auth-session";
+import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import { useColorScheme } from "nativewind";
+import * as React from "react";
+import { Image, Platform, View, type ImageSourcePropType } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
-type SocialConnectionStrategy = Extract<
-  StartSSOFlowParams['strategy'],
-  'oauth_google' | 'oauth_github' | 'oauth_apple'
->;
+type SocialConnectionStrategy = Extract<StartSSOFlowParams["strategy"], "oauth_google" | "oauth_github" | "oauth_apple">;
 
 const SOCIAL_CONNECTION_STRATEGIES: {
   type: SocialConnectionStrategy;
   source: ImageSourcePropType;
   useTint?: boolean;
 }[] = [
-    {
-      type: 'oauth_google',
-      source: { uri: 'https://img.clerk.com/static/google.png?width=160' },
-      useTint: true,
-    },
-  ];
+  {
+    type: "oauth_google",
+    source: { uri: "https://img.clerk.com/static/google.png?width=160" },
+    useTint: true,
+  },
+];
 
 export function SocialConnections() {
   useWarmUpBrowser();
@@ -59,19 +55,19 @@ export function SocialConnections() {
         }
 
         // If no createdSessionId, check if signIn or signUp is complete
-        if (signIn && signIn.status === 'complete' && signIn.createdSessionId && setActive) {
+        if (signIn && signIn.status === "complete" && signIn.createdSessionId && setActive) {
           console.log("✅ OAuth Success: SignIn completed");
           await setActive({ session: signIn.createdSessionId });
           return;
         }
-        if (signUp && signUp.status === 'complete' && signUp.createdSessionId && setActive) {
+        if (signUp && signUp.status === "complete" && signUp.createdSessionId && setActive) {
           console.log("✅ OAuth Success: SignUp completed");
           await setActive({ session: signUp.createdSessionId });
           return;
         }
 
         // Handle 'needs_identifier' status - this is a Clerk configuration issue
-        if (signIn && signIn.status === 'needs_identifier') {
+        if (signIn && signIn.status === "needs_identifier") {
           console.log("🔵 Handling needs_identifier status...");
           console.log("🔵 Available factors:", JSON.stringify(signIn.supportedFirstFactors, null, 2));
 
@@ -86,9 +82,9 @@ export function SocialConnections() {
           console.error("⚠️ 4. Set Email to 'Required' (not 'Off')");
           console.error("⚠️ 5. Set Username to 'Optional' (not 'Required')");
 
-          if (Platform.OS !== 'web') {
+          if (Platform.OS !== "web") {
             toast.error("Configuration Issue", {
-              description: "Google sign-in requires additional setup in Clerk Dashboard. Please check the console for details."
+              description: "Google sign-in requires additional setup in Clerk Dashboard. Please check the console for details.",
             });
           }
           return;
@@ -107,9 +103,9 @@ export function SocialConnections() {
         // 1. Clerk requires additional user information
         // 2. The account needs verification
         // 3. There's a configuration mismatch
-        if (Platform.OS !== 'web') {
+        if (Platform.OS !== "web") {
           toast.error("Sign In Issue", {
-            description: "Google sign-in couldn't complete automatically. Please check your Clerk dashboard settings or try again."
+            description: "Google sign-in couldn't complete automatically. Please check your Clerk dashboard settings or try again.",
           });
         }
       } catch (err: any) {
@@ -118,7 +114,7 @@ export function SocialConnections() {
         console.error("❌ Full error details:", JSON.stringify(err, null, 2));
 
         // Show error to user in development/production build
-        if (Platform.OS !== 'web') {
+        if (Platform.OS !== "web") {
           const errorMessage = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || "An unknown error occurred";
           toast.error("Login Failed", { description: errorMessage });
         }
@@ -130,16 +126,8 @@ export function SocialConnections() {
     <View className="w-full gap-2">
       {SOCIAL_CONNECTION_STRATEGIES.map((strategy) => {
         return (
-          <Button
-            key={strategy.type}
-            size="lg"
-            className="w-full flex-row gap-3 rounded-2xl"
-            onPress={onSocialLoginPress(strategy.type)}>
-            <Image
-              className="size-6"
-              tintColor="white"
-              source={strategy.source}
-            />
+          <Button key={strategy.type} size="lg" className="w-full flex-row gap-3 rounded-2xl" onPress={onSocialLoginPress(strategy.type)}>
+            <Image className="size-6" tintColor="white" source={strategy.source} />
             <Text className="text-primary-foreground text-lg font-semibold">Continue with Google</Text>
           </Button>
         );
@@ -149,7 +137,7 @@ export function SocialConnections() {
 }
 
 const useWarmUpBrowser = Platform.select({
-  web: () => { },
+  web: () => {},
   default: () => {
     React.useEffect(() => {
       // Preloads the browser for Android devices to reduce authentication load time

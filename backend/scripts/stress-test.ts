@@ -21,11 +21,7 @@ interface BenchmarkResult {
   p99Ms: number
 }
 
-async function runBenchmark(
-  endpoint: string,
-  concurrency: number,
-  durationSeconds: number,
-): Promise<BenchmarkResult> {
+async function runBenchmark(endpoint: string, concurrency: number, durationSeconds: number): Promise<BenchmarkResult> {
   const url = `${TARGET_URL}${endpoint}`
   const latencies: number[] = []
   let successful = 0
@@ -62,8 +58,7 @@ async function runBenchmark(
   latencies.sort((a, b) => a - b)
 
   const total = successful + failed
-  const avgLatency =
-    latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0
+  const avgLatency = latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0
 
   const p50 = latencies[Math.floor(latencies.length * 0.5)] || 0
   const p95 = latencies[Math.floor(latencies.length * 0.95)] || 0
@@ -92,7 +87,10 @@ async function main() {
 
   const endpoints = [
     { path: "/health", label: "1. Health Check (Raw HTTP Server Capacity)" },
-    { path: "/api/apps", label: "2. Apps Feed (Real PostgreSQL Database Query)" },
+    {
+      path: "/api/apps",
+      label: "2. Apps Feed (Real PostgreSQL Database Query)",
+    },
   ]
 
   for (const ep of endpoints) {

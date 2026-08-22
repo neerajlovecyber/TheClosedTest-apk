@@ -27,15 +27,7 @@ import { enrichAppsWithTesterCounts } from "./apps.route"
 const ReportSchema = z.object({
   id: z.string(),
   reporterId: z.string(),
-  type: z.enum([
-    "dispute",
-    "app_spam",
-    "toxic_user",
-    "other",
-    "app_broken",
-    "app_not_visible",
-    "user_unresponsive",
-  ]),
+  type: z.enum(["dispute", "app_spam", "toxic_user", "other", "app_broken", "app_not_visible", "user_unresponsive"]),
   targetId: z.string(),
   matchId: z.string().nullable().optional(),
   description: z.string(),
@@ -48,15 +40,7 @@ const ReportSchema = z.object({
 })
 
 const CreateReportSchema = z.object({
-  type: z.enum([
-    "dispute",
-    "app_spam",
-    "toxic_user",
-    "other",
-    "app_broken",
-    "app_not_visible",
-    "user_unresponsive",
-  ]),
+  type: z.enum(["dispute", "app_spam", "toxic_user", "other", "app_broken", "app_not_visible", "user_unresponsive"]),
   targetId: z.string(),
   matchId: z.string().optional(),
   reportedUserId: z.string().optional(),
@@ -223,10 +207,7 @@ router.openapi(
       body: jsonContentRequired(BanUserSchema, "User Ban Payload"),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("User banned"),
-        "User banned successfully",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("User banned"), "User banned successfully"),
     },
   }),
   async (c) => {
@@ -257,10 +238,7 @@ router.openapi(
       body: jsonContentRequired(BanAppSchema, "App Ban Payload"),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("App package banned"),
-        "App banned successfully",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("App package banned"), "App banned successfully"),
     },
   }),
   async (c) => {
@@ -343,11 +321,7 @@ router.openapi(
   }),
   async (c) => {
     const userVar = c.get("user")!
-    const ADMIN_EMAILS = [
-      "neerajlovecyber@gmail.com",
-      "futureaistudio41@gmail.com",
-      "theneerajsec@gmail.com",
-    ]
+    const ADMIN_EMAILS = ["neerajlovecyber@gmail.com", "futureaistudio41@gmail.com", "theneerajsec@gmail.com"]
 
     const allUsers = await db.query.users.findMany()
     const testUsersToDelete = allUsers.filter((u) => {
@@ -373,21 +347,14 @@ router.openapi(
     })
 
     if (testUsersToDelete.length === 0) {
-      return c.json(
-        { message: "No test users found to delete.", deletedUsersCount: 0 },
-        HttpStatusCodes.OK,
-      )
+      return c.json({ message: "No test users found to delete.", deletedUsersCount: 0 }, HttpStatusCodes.OK)
     }
 
     for (const testUser of testUsersToDelete) {
       await db.delete(proofs).where(eq(proofs.uploaderId, testUser.id))
       await db.delete(messages).where(eq(messages.senderId, testUser.id))
-      await db
-        .delete(reports)
-        .where(or(eq(reports.reporterId, testUser.id), eq(reports.targetId, testUser.id)))
-      await db
-        .delete(matches)
-        .where(or(eq(matches.user1Id, testUser.id), eq(matches.user2Id, testUser.id)))
+      await db.delete(reports).where(or(eq(reports.reporterId, testUser.id), eq(reports.targetId, testUser.id)))
+      await db.delete(matches).where(or(eq(matches.user1Id, testUser.id), eq(matches.user2Id, testUser.id)))
       await db.delete(apps).where(eq(apps.userId, testUser.id))
       await db.delete(adminMessages).where(eq(adminMessages.senderId, testUser.id))
       await db.delete(adminChats).where(eq(adminChats.userId, testUser.id))
@@ -430,15 +397,9 @@ router.openapi(
   async (c) => {
     const [userCount] = await db.select({ value: count() }).from(users)
     const [appCount] = await db.select({ value: count() }).from(apps)
-    const [matchCount] = await db
-      .select({ value: count() })
-      .from(matches)
-      .where(eq(matches.status, "active"))
+    const [matchCount] = await db.select({ value: count() }).from(matches).where(eq(matches.status, "active"))
     const [proofCount] = await db.select({ value: count() }).from(proofs)
-    const [reportCount] = await db
-      .select({ value: count() })
-      .from(reports)
-      .where(eq(reports.status, "pending"))
+    const [reportCount] = await db.select({ value: count() }).from(reports).where(eq(reports.status, "pending"))
 
     return c.json(
       {
@@ -462,10 +423,7 @@ router.openapi(
     summary: "List All User Support Conversations",
     middleware: [adminAuthMiddleware] as const,
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        z.array(AdminChatWithUserSchema),
-        "List of all support chats",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(z.array(AdminChatWithUserSchema), "List of all support chats"),
     },
   }),
   async (c) => {
@@ -504,10 +462,7 @@ router.openapi(
       }),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        z.array(AdminUserListItemSchema),
-        "List of platform users",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(z.array(AdminUserListItemSchema), "List of platform users"),
     },
   }),
   async (c) => {
@@ -516,11 +471,7 @@ router.openapi(
     let condition = undefined
     if (search && search.trim()) {
       const term = `%${search.trim()}%`
-      condition = or(
-        ilike(users.name, term),
-        ilike(users.email, term),
-        ilike(users.tokenIdentifier, term),
-      )
+      condition = or(ilike(users.name, term), ilike(users.email, term), ilike(users.tokenIdentifier, term))
     }
 
     const userList = await db.query.users.findMany({
@@ -546,10 +497,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(AdminChatSchema, "Support chat details"),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("User not found"),
-        "User not found",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("User not found"), "User not found"),
     },
   }),
   async (c) => {
@@ -558,8 +506,7 @@ router.openapi(
 
     // Verify target user exists
     const targetUser = await db.query.users.findFirst({
-      where: (u, { or, eq }) =>
-        or(eq(u.id, targetUserId), eq(u.tokenIdentifier, targetUserId)),
+      where: (u, { or, eq }) => or(eq(u.id, targetUserId), eq(u.tokenIdentifier, targetUserId)),
     })
 
     if (!targetUser) {
@@ -614,9 +561,7 @@ router.openapi(
       where: (chatTable, { or, eq }) =>
         or(
           eq(chatTable.userId, userVar.id),
-          userVar.tokenIdentifier
-            ? eq(chatTable.userId, userVar.tokenIdentifier)
-            : eq(chatTable.userId, userVar.id),
+          userVar.tokenIdentifier ? eq(chatTable.userId, userVar.tokenIdentifier) : eq(chatTable.userId, userVar.id),
         ),
     })
 
@@ -657,14 +602,8 @@ router.openapi(
         }),
         "Support chat history",
       ),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("Chat not found"),
-        "Chat not found",
-      ),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("Chat not found"), "Chat not found"),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {
@@ -680,9 +619,7 @@ router.openapi(
     }
 
     const isAdmin = Boolean(userVar.isAdmin)
-    const isOwner =
-      chat.userId === userVar.id ||
-      (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
+    const isOwner = chat.userId === userVar.id || (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
 
     if (!isOwner && !isAdmin) {
       return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
@@ -690,16 +627,10 @@ router.openapi(
 
     // Mark as read when opened
     if (isAdmin && chat.hasUnreadAdmin) {
-      await db
-        .update(adminChats)
-        .set({ hasUnreadAdmin: false })
-        .where(eq(adminChats.id, chatId))
+      await db.update(adminChats).set({ hasUnreadAdmin: false }).where(eq(adminChats.id, chatId))
       chat.hasUnreadAdmin = false
     } else if (!isAdmin && chat.hasUnreadUser) {
-      await db
-        .update(adminChats)
-        .set({ hasUnreadUser: false })
-        .where(eq(adminChats.id, chatId))
+      await db.update(adminChats).set({ hasUnreadUser: false }).where(eq(adminChats.id, chatId))
       chat.hasUnreadUser = false
     }
 
@@ -726,14 +657,8 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.CREATED]: jsonContent(AdminMessageSchema, "Message sent"),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("Chat not found"),
-        "Chat not found",
-      ),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Forbidden"),
-        "Forbidden",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("Chat not found"), "Chat not found"),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
   async (c) => {
@@ -750,9 +675,7 @@ router.openapi(
     }
 
     const isAdmin = Boolean(userVar.isAdmin)
-    const isOwner =
-      chat.userId === userVar.id ||
-      (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
+    const isOwner = chat.userId === userVar.id || (userVar.tokenIdentifier && chat.userId === userVar.tokenIdentifier)
 
     if (!isOwner && !isAdmin) {
       return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
@@ -857,12 +780,7 @@ router.openapi(
     if (search && search.trim()) {
       const term = `%${search.trim()}%`
       conditions.push(
-        or(
-          ilike(apps.title, term),
-          ilike(apps.packageName, term),
-          ilike(users.name, term),
-          ilike(users.email, term),
-        )!,
+        or(ilike(apps.title, term), ilike(apps.packageName, term), ilike(users.name, term), ilike(users.email, term))!,
       )
     }
 
@@ -917,13 +835,9 @@ router.openapi(
     let resultApps = finalApps
     if (status && status !== "all") {
       if (status === "filled") {
-        resultApps = finalApps.filter(
-          (a) => a.status === "filled" || a.currentTesters >= a.requiredTesters,
-        )
+        resultApps = finalApps.filter((a) => a.status === "filled" || a.currentTesters >= a.requiredTesters)
       } else if (status === "recruiting") {
-        resultApps = finalApps.filter(
-          (a) => a.status === "recruiting" && a.currentTesters < a.requiredTesters,
-        )
+        resultApps = finalApps.filter((a) => a.status === "recruiting" && a.currentTesters < a.requiredTesters)
       } else {
         resultApps = finalApps.filter((a) => a.status === status)
       }
@@ -956,14 +870,8 @@ router.openapi(
       }),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("App deleted"),
-        "Deletion result",
-      ),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("App not found"),
-        "App not found",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("App deleted"), "Deletion result"),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("App not found"), "App not found"),
     },
   }),
   async (c) => {
@@ -1028,7 +936,9 @@ router.openapi(
     memoryCache.delete("apps_list:")
 
     return c.json(
-      { message: `App "${targetApp.title}" (${targetApp.packageName}) has been deleted successfully.` },
+      {
+        message: `App "${targetApp.title}" (${targetApp.packageName}) has been deleted successfully.`,
+      },
       HttpStatusCodes.OK,
     )
   },
@@ -1087,10 +997,7 @@ router.openapi(
 
     // Delete associated matches, proofs, and messages for duplicate apps
     const duplicateMatches = await db.query.matches.findMany({
-      where: or(
-        inArray(matches.app1Id, duplicateAppIds),
-        inArray(matches.app2Id, duplicateAppIds),
-      ),
+      where: or(inArray(matches.app1Id, duplicateAppIds), inArray(matches.app2Id, duplicateAppIds)),
       columns: { id: true },
     })
 

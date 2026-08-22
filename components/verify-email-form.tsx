@@ -1,22 +1,22 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Text } from '@/components/ui/text';
-import { useSignUp } from '@clerk/clerk-expo';
-import { router, useLocalSearchParams } from 'expo-router';
-import * as React from 'react';
-import { type TextStyle, View } from 'react-native';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Text } from "@/components/ui/text";
+import { useSignUp } from "@clerk/clerk-expo";
+import { router, useLocalSearchParams } from "expo-router";
+import * as React from "react";
+import { type TextStyle, View } from "react-native";
 
 const RESEND_CODE_INTERVAL_SECONDS = 30;
 
-const TABULAR_NUMBERS_STYLE: TextStyle = { fontVariant: ['tabular-nums'] };
+const TABULAR_NUMBERS_STYLE: TextStyle = { fontVariant: ["tabular-nums"] };
 
 export function VerifyEmailForm() {
   const { signUp, setActive, isLoaded } = useSignUp();
-  const { email = '' } = useLocalSearchParams<{ email?: string }>();
-  const [code, setCode] = React.useState('');
-  const [error, setError] = React.useState('');
+  const { email = "" } = useLocalSearchParams<{ email?: string }>();
+  const [code, setCode] = React.useState("");
+  const [error, setError] = React.useState("");
   const { countdown, restartCountdown } = useCountdown(RESEND_CODE_INTERVAL_SECONDS);
 
   async function onSubmit() {
@@ -30,7 +30,7 @@ export function VerifyEmailForm() {
 
       // If verification was completed, set the session to active
       // and redirect the user
-      if (signUpAttempt.status === 'complete') {
+      if (signUpAttempt.status === "complete") {
         await setActive({ session: signUpAttempt.createdSessionId });
         return;
       }
@@ -52,7 +52,7 @@ export function VerifyEmailForm() {
     if (!isLoaded) return;
 
     try {
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       restartCountdown();
     } catch (err) {
       // See https://go.clerk.com/mRUDrIe for more info on error handling
@@ -69,9 +69,7 @@ export function VerifyEmailForm() {
       <Card className="border-border/0 shadow-none sm:border-border sm:shadow-sm sm:shadow-black/5">
         <CardHeader>
           <CardTitle className="text-center text-xl sm:text-left">Verify your email</CardTitle>
-          <CardDescription className="text-center sm:text-left">
-            Enter the verification code sent to {email || 'your email'}
-          </CardDescription>
+          <CardDescription className="text-center sm:text-left">Enter the verification code sent to {email || "your email"}</CardDescription>
         </CardHeader>
         <CardContent className="gap-6">
           <View className="gap-6">
@@ -87,12 +85,10 @@ export function VerifyEmailForm() {
                 textContentType="oneTimeCode"
                 onSubmitEditing={onSubmit}
               />
-              {!error ? null : (
-                <Text className="text-sm font-medium text-destructive">{error}</Text>
-              )}
+              {!error ? null : <Text className="text-sm font-medium text-destructive">{error}</Text>}
               <Button variant="link" size="sm" disabled={countdown > 0} onPress={onResendCode}>
                 <Text className="text-center text-xs">
-                  Didn&apos;t receive the code? Resend{' '}
+                  Didn&apos;t receive the code? Resend{" "}
                   {countdown > 0 ? (
                     <Text className="text-xs" style={TABULAR_NUMBERS_STYLE}>
                       ({countdown})

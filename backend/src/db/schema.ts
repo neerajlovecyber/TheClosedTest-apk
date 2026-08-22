@@ -1,14 +1,5 @@
 import { relations, sql } from "drizzle-orm"
-import {
-  boolean,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  varchar,
-} from "drizzle-orm/pg-core"
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core"
 
 // ---------------------------------------------------------------------------
 // 1. Users & Auth
@@ -32,9 +23,7 @@ export const users = pgTable(
     bestStreak: integer("best_streak").default(0).notNull(),
     lastCheckInDate: varchar("last_check_in_date", { length: 20 }), // YYYY-MM-DD
     unlockedAppSlots: integer("unlocked_app_slots").default(1).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -79,8 +68,12 @@ export const account = pgTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
     scope: text("scope"),
     password: text("password"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -139,9 +132,7 @@ export const apps = pgTable(
     positiveVotes: integer("positive_votes").default(0).notNull(),
     negativeVotes: integer("negative_votes").default(0).notNull(),
     voters: jsonb("voters").$type<string[]>().default([]).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -181,9 +172,7 @@ export const matches = pgTable(
       .default("pending")
       .notNull(),
     startDate: timestamp("start_date", { withTimezone: true }),
-    lastActivity: timestamp("last_activity", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    lastActivity: timestamp("last_activity", { withTimezone: true }).defaultNow().notNull(),
     lastRead1: timestamp("last_read1", { withTimezone: true }),
     lastRead2: timestamp("last_read2", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -199,9 +188,7 @@ export const matches = pgTable(
       status: string
       updatedAt: string
     }>(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -232,16 +219,16 @@ export const proofs = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     day: integer("day").notNull(), // 1 to 14
-    type: text("type", { enum: ["image", "video"] }).default("image").notNull(),
+    type: text("type", { enum: ["image", "video"] })
+      .default("image")
+      .notNull(),
     storageUrls: jsonb("storage_urls").$type<string[]>().default([]).notNull(),
     status: text("status", { enum: ["pending", "approved", "rejected"] })
       .default("pending")
       .notNull(),
     comment: text("comment"),
     rejectionReason: text("rejection_reason"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   },
   (table) => [
@@ -273,10 +260,7 @@ export const messages = pgTable(
     storageUrl: text("storage_url"),
     sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [
-    index("messages_match_id_idx").on(table.matchId),
-    index("messages_sender_id_idx").on(table.senderId),
-  ],
+  (table) => [index("messages_match_id_idx").on(table.matchId), index("messages_sender_id_idx").on(table.senderId)],
 )
 
 // ---------------------------------------------------------------------------
@@ -298,9 +282,7 @@ export const notifications = pgTable(
     body: text("body").notNull(),
     data: jsonb("data").$type<Record<string, unknown>>().default({}).notNull(),
     read: boolean("read").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("notifications_user_read_idx").on(table.userId, table.read),
@@ -321,15 +303,7 @@ export const reports = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     type: text("type", {
-      enum: [
-        "dispute",
-        "app_spam",
-        "toxic_user",
-        "other",
-        "app_broken",
-        "app_not_visible",
-        "user_unresponsive",
-      ],
+      enum: ["dispute", "app_spam", "toxic_user", "other", "app_broken", "app_not_visible", "user_unresponsive"],
     }).notNull(),
     targetId: text("target_id").notNull(),
     matchId: text("match_id").references(() => matches.id, {
@@ -349,14 +323,9 @@ export const reports = pgTable(
     adminNotes: text("admin_notes"),
     actionTaken: text("action_taken"),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [
-    index("reports_status_idx").on(table.status),
-    index("reports_reporter_idx").on(table.reporterId),
-  ],
+  (table) => [index("reports_status_idx").on(table.status), index("reports_reporter_idx").on(table.reporterId)],
 )
 
 export const userBans = pgTable(
@@ -377,9 +346,7 @@ export const userBans = pgTable(
     reason: text("reason").notNull(),
     permanent: boolean("permanent").default(true).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("user_bans_user_idx").on(table.userId)],
 )
@@ -398,9 +365,7 @@ export const appBans = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     reason: text("reason").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("app_bans_package_name_idx").on(table.packageName)],
 )
@@ -419,9 +384,7 @@ export const userWarnings = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     reason: text("reason").notNull(),
     read: boolean("read").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("user_warnings_user_idx").on(table.userId),
@@ -441,7 +404,9 @@ export const adminChats = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    adminId: text("admin_id").references(() => users.id, { onDelete: "set null" }),
+    adminId: text("admin_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     lastMessage: text("last_message").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -450,10 +415,7 @@ export const adminChats = pgTable(
     hasUnreadUser: boolean("has_unread_user").default(false).notNull(),
     hasUnreadAdmin: boolean("has_unread_admin").default(false).notNull(),
   },
-  (table) => [
-    index("admin_chats_user_idx").on(table.userId),
-    index("admin_chats_updated_idx").on(table.updatedAt),
-  ],
+  (table) => [index("admin_chats_user_idx").on(table.userId), index("admin_chats_updated_idx").on(table.updatedAt)],
 )
 
 export const adminMessages = pgTable(
@@ -469,7 +431,9 @@ export const adminMessages = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     content: text("content").notNull(),
-    type: text("type", { enum: ["text", "image"] }).default("text").notNull(),
+    type: text("type", { enum: ["text", "image"] })
+      .default("text")
+      .notNull(),
     isAdmin: boolean("is_admin").default(false).notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
   },

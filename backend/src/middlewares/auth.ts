@@ -17,8 +17,7 @@ const CLERK_PUBLISHABLE_KEY =
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY
 const CLERK_JWT_KEY = process.env.CLERK_JWT_KEY
 
-const clerkFrontendApi =
-  process.env.CLERK_FRONTEND_API_URL || "clerk.theclosedtest.neerajlovecyber.com"
+const clerkFrontendApi = process.env.CLERK_FRONTEND_API_URL || "clerk.theclosedtest.neerajlovecyber.com"
 const clerkJwksUrl = new URL(`https://${clerkFrontendApi}/.well-known/jwks.json`)
 const JWKS = createRemoteJWKSet(clerkJwksUrl)
 

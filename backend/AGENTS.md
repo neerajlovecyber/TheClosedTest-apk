@@ -105,15 +105,11 @@ router.get("/", async (c) => {
   return c.json(result)
 })
 
-router.post(
-  "/",
-  zValidator("json", z.object({ email: z.string() })),
-  async (c) => {
-    const body = c.req.valid("json")
-    const result = await createData(body)
-    return c.json(result, 201)
-  }
-)
+router.post("/", zValidator("json", z.object({ email: z.string() })), async (c) => {
+  const body = c.req.valid("json")
+  const result = await createData(body)
+  return c.json(result, 201)
+})
 
 export default router
 ```
@@ -145,11 +141,7 @@ export const user = pgTable("user", {
 ### Auth (Better Auth)
 
 ```typescript
-app.on(
-  ["POST", "GET"],
-  "/api/auth/*",
-  async (c) => await auth.handler(c.req.raw)
-)
+app.on(["POST", "GET"], "/api/auth/*", async (c) => await auth.handler(c.req.raw))
 ```
 
 ## Project Structure

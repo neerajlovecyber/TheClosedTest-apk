@@ -7,17 +7,20 @@ Thank you for your interest in contributing to **TheClosedTest**! We welcome com
 ## 🛠️ Development Setup
 
 ### Prerequisites
+
 - [Bun](https://bun.sh/) (v1.2+)
 - [Node.js](https://nodejs.org/) (v20+)
 - [Expo CLI](https://docs.expo.dev/)
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/your-username/TheClosedTest-apk.git
 cd TheClosedTest-apk
 ```
 
 ### 2. Frontend Setup (Mobile App)
+
 ```bash
 # Install dependencies
 bun install
@@ -27,6 +30,7 @@ bun start
 ```
 
 ### 3. Backend Setup (REST API & DB)
+
 ```bash
 cd backend
 
@@ -48,6 +52,7 @@ bun run dev
 ## 🧪 Testing Guidelines
 
 Before submitting any Pull Request:
+
 1. Ensure all backend unit tests pass:
    ```bash
    cd backend
@@ -85,4 +90,5 @@ Before submitting any Pull Request:
 ---
 
 ## 📜 License
+
 By contributing to TheClosedTest, you agree that your contributions will be licensed under the project's [Source-Available Community License](./LICENSE).

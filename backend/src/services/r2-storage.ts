@@ -18,11 +18,7 @@ export interface PresignedUploadResponse {
 let s3Client: S3Client | null = null
 
 function getS3Client(): S3Client | null {
-  if (
-    !env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
-    !env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
-    !env.CLOUDFLARE_R2_ACCOUNT_ID
-  ) {
+  if (!env.CLOUDFLARE_R2_ACCESS_KEY_ID || !env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || !env.CLOUDFLARE_R2_ACCOUNT_ID) {
     return null
   }
 

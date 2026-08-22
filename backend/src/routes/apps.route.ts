@@ -65,13 +65,7 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
   const appIds = appItems.map((a) => a.id)
 
   const activeMatches = await db.query.matches.findMany({
-    where: and(
-      or(
-        inArray(matches.app1Id, appIds),
-        inArray(matches.app2Id, appIds),
-      ),
-      eq(matches.status, "active"),
-    ),
+    where: and(or(inArray(matches.app1Id, appIds), inArray(matches.app2Id, appIds)), eq(matches.status, "active")),
     columns: {
       app1Id: true,
       app2Id: true,
@@ -140,12 +134,7 @@ router.openapi(
     ]
 
     if (search) {
-      conditions.push(
-        or(
-          ilike(apps.title, `%${search}%`),
-          ilike(apps.packageName, `%${search}%`),
-        )!,
-      )
+      conditions.push(or(ilike(apps.title, `%${search}%`), ilike(apps.packageName, `%${search}%`))!)
     }
 
     const rawItems = await db
@@ -260,23 +249,19 @@ router.openapi(
     })
 
     if (isBanned) {
-      return c.json(
-        { message: "This app package has been banned from testing." },
-        HttpStatusCodes.BAD_REQUEST,
-      )
+      return c.json({ message: "This app package has been banned from testing." }, HttpStatusCodes.BAD_REQUEST)
     }
 
     // Check if app with same package name is already registered and active
     const existingActiveApp = await db.query.apps.findFirst({
-      where: and(
-        ilike(apps.packageName, body.packageName.trim()),
-        not(eq(apps.status, "archived")),
-      ),
+      where: and(ilike(apps.packageName, body.packageName.trim()), not(eq(apps.status, "archived"))),
     })
 
     if (existingActiveApp) {
       return c.json(
-        { message: `An app with package name "${body.packageName.trim()}" is already registered in the system.` },
+        {
+          message: `An app with package name "${body.packageName.trim()}" is already registered in the system.`,
+        },
         HttpStatusCodes.BAD_REQUEST,
       )
     }
@@ -338,10 +323,7 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(AppSchema, "App details"),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("App not found"),
-        "App not found",
-      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("App not found"), "App not found"),
     },
   }),
   async (c) => {
@@ -377,18 +359,9 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(AppSchema, "Updated app"),
-      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
-        createMessageObjectSchema("Bad request"),
-        "Bad request",
-      ),
-      [HttpStatusCodes.FORBIDDEN]: jsonContent(
-        createMessageObjectSchema("Not owner"),
-        "Not owner",
-      ),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("App not found"),
-        "App not found",
-      ),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(createMessageObjectSchema("Bad request"), "Bad request"),
+      [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Not owner"), "Not owner"),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("App not found"), "App not found"),
     },
   }),
   async (c) => {
@@ -414,7 +387,9 @@ router.openapi(
       })
       if (conflict) {
         return c.json(
-          { message: `An app with package name "${body.packageName.trim()}" is already registered in the system.` },
+          {
+            message: `An app with package name "${body.packageName.trim()}" is already registered in the system.`,
+          },
           HttpStatusCodes.BAD_REQUEST,
         )
       }
@@ -457,18 +432,9 @@ router.openapi(
       body: jsonContentRequired(VoteSchema, "Vote Payload"),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        createMessageObjectSchema("Vote recorded"),
-        "Vote recorded",
-      ),
-      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
-        createMessageObjectSchema("Already voted"),
-        "Already voted",
-      ),
-      [HttpStatusCodes.NOT_FOUND]: jsonContent(
-        createMessageObjectSchema("App not found"),
-        "App not found",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Vote recorded"), "Vote recorded"),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(createMessageObjectSchema("Already voted"), "Already voted"),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("App not found"), "App not found"),
     },
   }),
   async (c) => {
@@ -485,10 +451,7 @@ router.openapi(
     }
 
     if (app.voters.includes(userVar.id)) {
-      return c.json(
-        { message: "You have already voted on this app" },
-        HttpStatusCodes.BAD_REQUEST,
-      )
+      return c.json({ message: "You have already voted on this app" }, HttpStatusCodes.BAD_REQUEST)
     }
 
     const positiveVotes = type === "positive" ? app.positiveVotes + 1 : app.positiveVotes

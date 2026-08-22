@@ -2,23 +2,17 @@ import "dotenv/config"
 import { z } from "zod"
 
 const rawDbUrl =
-  process.env.DATABASE_URL ||
-  process.env.NF_TESTERDB_POSTGRES_URI ||
-  process.env.NF_TESTERDB_EXTERNAL_POSTGRES_URI
+  process.env.DATABASE_URL || process.env.NF_TESTERDB_POSTGRES_URI || process.env.NF_TESTERDB_EXTERNAL_POSTGRES_URI
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(9000),
-  LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
-    .default("info"),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   DATABASE_URL: z
     .string()
     .min(1)
     .default(rawDbUrl || "postgresql://postgres:postgres@localhost:5432/closedtest"),
-  BETTER_AUTH_SECRET: z
-    .string()
-    .default("dev-secret-change-me-in-production-1234567890abcdef"),
+  BETTER_AUTH_SECRET: z.string().default("dev-secret-change-me-in-production-1234567890abcdef"),
   BETTER_AUTH_URL: z.string().default("http://localhost:9000"),
   EXPO_ACCESS_TOKEN: z.string().optional(),
   CLOUDFLARE_R2_ACCOUNT_ID: z.string().optional(),

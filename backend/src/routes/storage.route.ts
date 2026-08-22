@@ -31,10 +31,7 @@ router.openapi(
       body: jsonContentRequired(StoragePresignedRequestSchema, "File Upload Request"),
     },
     responses: {
-      [HttpStatusCodes.OK]: jsonContent(
-        StoragePresignedResponseSchema,
-        "Presigned upload URL details",
-      ),
+      [HttpStatusCodes.OK]: jsonContent(StoragePresignedResponseSchema, "Presigned upload URL details"),
     },
   }),
   async (c) => {

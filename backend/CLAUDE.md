@@ -32,6 +32,7 @@ Hono web framework running on Bun with Drizzle ORM (Neon PostgreSQL) and Better 
 **Entry point**: `src/index.ts` — sets up middleware (logger, secureHeaders), mounts auth handler at `/api/auth/*`, and mounts route modules.
 
 **Layers**:
+
 - `src/routes/` — Hono routers with Zod validation via `@hono/zod-validator`. Each file exports a `Hono()` instance mounted in index.ts.
 - `src/controllers/` — Business logic functions that interact with the database and return `{ success, data/message }` objects.
 - `src/db/schema.ts` — Drizzle table definitions (waitlist, user, session, account, verification). Relations defined here too.

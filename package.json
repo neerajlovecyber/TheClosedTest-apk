@@ -1,7 +1,8 @@
 {
   "name": "TheClosedTest-apk",
-  "main": "index.js",
   "version": "3.0.0",
+  "private": true,
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start -c",
@@ -99,6 +100,5 @@
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
     "typescript": "~6.0.3"
-  },
-  "private": true
+  }
 }
