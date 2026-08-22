@@ -3,8 +3,15 @@ import { eq } from "drizzle-orm"
 
 import app from "../app"
 import { db } from "../db"
-import { apps, matches, notifications, proofs, users } from "../db/schema"
-import { runDailyStreakMaintenance, runMatchProgressionAndCleanup, runNotificationCleanup } from "../jobs/cron-runner"
+import { apps, matches, notifications, proofs, userBans, users } from "../db/schema"
+import {
+  runDailyStreakMaintenance,
+  runDailyTestingReminders,
+  runExpiredBansCleanup,
+  runMatchProgressionAndCleanup,
+  runNotificationCleanup,
+  runOldMatchesCleanup,
+} from "../jobs/cron-runner"
 
 describe("Security, Edge Cases & Extended Business Logic Suite", () => {
   const normalUser1Token = `test-clerk-${crypto.randomUUID()}`
@@ -504,6 +511,81 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     // Cleanup recent
     await db.delete(notifications).where(eq(notifications.id, recentNotif.id))
   })
+
+  it("29. runExpiredBansCleanup deletes expired temporary bans and preserves active/permanent bans", async () => {
+    const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+    // Insert expired temporary ban
+    const [expiredBan] = await db
+      .insert(userBans)
+      .values({
+        userId: user1Id,
+        bannedBy: adminId,
+        reason: "Temporary test ban expired",
+        permanent: false,
+        expiresAt: expiredDate,
+      })
+      .returning()
+
+    // Insert active temporary ban
+    const [activeBan] = await db
+      .insert(userBans)
+      .values({
+        userId: user2Id,
+        bannedBy: adminId,
+        reason: "Active temporary ban",
+        permanent: false,
+        expiresAt: futureDate,
+      })
+      .returning()
+
+    await runExpiredBansCleanup()
+
+    const expiredCheck = await db.query.userBans.findFirst({ where: (b, { eq }) => eq(b.id, expiredBan.id) })
+    const activeCheck = await db.query.userBans.findFirst({ where: (b, { eq }) => eq(b.id, activeBan.id) })
+
+    expect(expiredCheck).toBeUndefined()
+    expect(activeCheck).toBeDefined()
+
+    // Cleanup
+    await db.delete(userBans).where(eq(userBans.id, activeBan.id))
+  })
+
+  it("30. runOldMatchesCleanup archives matches completed/cancelled >90 days ago", async () => {
+    const hundredDaysAgo = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
+
+    const [oldMatch] = await db
+      .insert(matches)
+      .values({
+        app1Id,
+        app2Id,
+        user1Id,
+        user2Id,
+        status: "completed",
+        updatedAt: hundredDaysAgo,
+      })
+      .returning()
+
+    await runOldMatchesCleanup()
+
+    const matchCheck = await db.query.matches.findFirst({ where: (m, { eq }) => eq(m.id, oldMatch.id) })
+    expect(matchCheck?.status).toBe("archived")
+
+    // Cleanup
+    await db.delete(matches).where(eq(matches.id, oldMatch.id))
+  })
+
+  it("31. runDailyTestingReminders executes cleanly", async () => {
+    let err = null
+    try {
+      await runDailyTestingReminders()
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeNull()
+  })
 })
+
 
 

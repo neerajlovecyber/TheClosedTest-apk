@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm"
 
 import { db } from "../db"
-import { boostCycles, boostLeaderboard, matches, notifications, proofs, users } from "../db/schema"
+import { matches, notifications, proofs, userBans, users } from "../db/schema"
 import { sendExpoPushNotification } from "../services/expo-push"
 
 export async function runDailyStreakMaintenance() {
@@ -262,33 +262,45 @@ export async function runNotificationCleanup() {
   }
 }
 
-
-export async function runBoostCycleMaintenance() {
-  console.log("⏰ Checking 48h boost cycle...")
+export async function runExpiredBansCleanup() {
+  console.log("⏰ Running expired user bans cleanup...")
 
   try {
-    const currentCycle = await db.query.boostCycles.findFirst({
-      orderBy: (bc, { desc }) => [desc(bc.cycleEnd)],
-    })
-
     const now = new Date()
+    const result = await db
+      .delete(userBans)
+      .where(and(eq(userBans.permanent, false), lt(userBans.expiresAt, now)))
+      .returning({ id: userBans.id })
 
-    if (!currentCycle || currentCycle.cycleEnd < now) {
-      console.log("🔄 Resetting boost cycle and starting new 48h period...")
-
-      const cycleStart = now
-      const cycleEnd = new Date(now.getTime() + 48 * 60 * 60 * 1000)
-
-      await db.insert(boostCycles).values({
-        cycleStart,
-        cycleEnd,
-      })
-
-      // Reset leaderboard scores
-      await db.update(boostLeaderboard).set({ boostScore: 0, updatedAt: now })
+    if (result.length > 0) {
+      console.log(`🔓 Lifted ${result.length} expired temporary user bans`)
     }
   } catch (error) {
-    console.error("❌ Failed to maintain boost cycle:", error)
+    console.error("❌ Failed to clean up expired bans:", error)
+  }
+}
+
+export async function runOldMatchesCleanup() {
+  console.log("⏰ Running 90-day completed/cancelled match archival...")
+
+  try {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    const result = await db
+      .update(matches)
+      .set({ status: "archived", updatedAt: new Date() })
+      .where(
+        and(
+          or(eq(matches.status, "completed"), eq(matches.status, "cancelled")),
+          lt(matches.updatedAt, ninetyDaysAgo),
+        ),
+      )
+      .returning({ id: matches.id })
+
+    if (result.length > 0) {
+      console.log(`📦 Archived ${result.length} old matches (>90 days old)`)
+    }
+  } catch (error) {
+    console.error("❌ Failed to archive old matches:", error)
   }
 }
 
@@ -333,34 +345,39 @@ export async function runDailyTestingReminders() {
 export function startBackgroundJobs() {
   console.log("🚀 Starting background cron timers...")
 
-  // Run boost cycle check every hour
-  setInterval(
-    () => {
-      runBoostCycleMaintenance()
-    },
-    60 * 60 * 1000,
-  )
-
-  // Run daily streak & match progression maintenance every 4 hours
+  // Run daily streak & match progression & expired bans maintenance every 4 hours
   setInterval(
     () => {
       runDailyStreakMaintenance()
       runMatchProgressionAndCleanup()
+      runExpiredBansCleanup()
     },
     4 * 60 * 60 * 1000,
   )
 
-  // Run notification DB cleanup every 24 hours
+  // Run daily testing push reminders every 12 hours
+  setInterval(
+    () => {
+      runDailyTestingReminders()
+    },
+    12 * 60 * 60 * 1000,
+  )
+
+  // Run DB cleanups (notifications >7d, old matches >90d) every 24 hours
   setInterval(
     () => {
       runNotificationCleanup()
+      runOldMatchesCleanup()
     },
     24 * 60 * 60 * 1000,
   )
 
   // Trigger initial checks on boot
-  runBoostCycleMaintenance()
   runMatchProgressionAndCleanup()
   runNotificationCleanup()
+  runExpiredBansCleanup()
+  runOldMatchesCleanup()
 }
+
+
 
