@@ -189,14 +189,15 @@ export default function AdminAppsListScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 active:opacity-70"
+                            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 dark:bg-red-600 active:opacity-80"
                             onPress={() => {
                                 setBanPackageOnDelete(false);
                                 setSelectedApp(item);
                             }}
+                            activeOpacity={0.7}
                         >
-                            <Icon as={Trash2Icon} className="size-3.5 text-red-600 dark:text-red-400" />
-                            <Text className="text-xs font-bold text-red-600 dark:text-red-400">Delete App</Text>
+                            <Icon as={Trash2Icon} className="size-3.5 text-white" />
+                            <Text className="text-xs font-bold text-white">Delete App</Text>
                         </TouchableOpacity>
                     </View>
                 </CardContent>
@@ -362,13 +363,15 @@ export default function AdminAppsListScreen() {
 
                     <AlertDialogFooter>
                         <AlertDialogCancel onPress={() => setSelectedApp(null)}>
-                            Cancel
+                            <Text className="text-foreground font-semibold">Cancel</Text>
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            className="bg-red-600 dark:bg-red-600"
+                            className="bg-red-600 dark:bg-red-600 active:bg-red-700"
                             onPress={handleDeleteApp}
                         >
-                            {deleteAppMutation.isPending ? 'Deleting...' : 'Delete App'}
+                            <Text className="text-white font-bold">
+                                {deleteAppMutation.isPending ? 'Deleting...' : 'Delete App'}
+                            </Text>
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -386,13 +389,15 @@ export default function AdminAppsListScreen() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onPress={() => setShowCleanDuplicatesModal(false)}>
-                            Cancel
+                            <Text className="text-foreground font-semibold">Cancel</Text>
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            className="bg-amber-600 dark:bg-amber-600"
+                            className="bg-amber-600 dark:bg-amber-600 active:bg-amber-700"
                             onPress={handleCleanDuplicates}
                         >
-                            {cleanDuplicatesMutation.isPending ? 'Cleaning...' : 'Clean Duplicates Now'}
+                            <Text className="text-white font-bold">
+                                {cleanDuplicatesMutation.isPending ? 'Cleaning...' : 'Clean Duplicates Now'}
+                            </Text>
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

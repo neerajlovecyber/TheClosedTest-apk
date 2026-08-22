@@ -177,6 +177,20 @@ router.openapi(
 
     const enrichedItems = await enrichAppsWithTesterCounts(items)
 
+    enrichedItems.sort((a, b) => {
+      const isFilledA = a.status === "filled" || a.currentTesters >= a.requiredTesters
+      const isFilledB = b.status === "filled" || b.currentTesters >= b.requiredTesters
+
+      if (isFilledA && !isFilledB) return 1
+      if (isFilledB && !isFilledA) return -1
+
+      const repA = a.user?.reputation ?? 100
+      const repB = b.user?.reputation ?? 100
+      if (repB !== repA) return repB - repA
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
     const responseData = {
       apps: enrichedItems,
       total: enrichedItems.length,

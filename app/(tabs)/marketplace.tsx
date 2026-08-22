@@ -83,12 +83,16 @@ export default function MarketplaceScreen() {
         return chunked;
     }, [latestOpportunities]);
 
-    // 2. All Apps: strictly sorted by highest developer reputation first
+    // 2. All Apps: strictly sorted by highest developer reputation first, filled at the end
     const allAppsSortedByReputation = useMemo(() => {
         return [...apps].sort((a, b) => {
-            // Ensure apps with status 'filled' appear at the end
-            if (a.status === 'filled' && b.status !== 'filled') return 1;
-            if (b.status === 'filled' && a.status !== 'filled') return -1;
+            const isFilledA = a.status === 'filled' || (a.currentTesters !== undefined && a.requiredTesters !== undefined && a.currentTesters >= a.requiredTesters);
+            const isFilledB = b.status === 'filled' || (b.currentTesters !== undefined && b.requiredTesters !== undefined && b.currentTesters >= b.requiredTesters);
+
+            // Ensure filled apps (status 'filled' or currentTesters >= requiredTesters) appear at the end
+            if (isFilledA && !isFilledB) return 1;
+            if (isFilledB && !isFilledA) return -1;
+
             const repA = a.user?.reputation ?? 100;
             const repB = b.user?.reputation ?? 100;
             if (repB !== repA) {
