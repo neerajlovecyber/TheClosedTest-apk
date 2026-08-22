@@ -198,9 +198,7 @@ router.openapi(
 
     await db
       .update(matches)
-      .set({
-        ...(isUser1 ? { lastRead1: now } : { lastRead2: now }),
-      })
+      .set((isUser1 ? { lastRead1: now } : { lastRead2: now }))
       .where(eq(matches.id, matchId))
 
     return c.json({ message: "Chat marked as read" }, HttpStatusCodes.OK)

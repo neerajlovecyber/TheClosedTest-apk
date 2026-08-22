@@ -8,6 +8,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "check": "oxlint && oxfmt --check .",
+    "check:fix": "oxlint --fix && oxfmt .",
     "clean": "rm -rf .expo node_modules"
   },
   "dependencies": {
@@ -90,8 +96,8 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@types/react": "~19.2.18",
-    "prettier": "^3.9.6",
-    "prettier-plugin-tailwindcss": "^0.8.1",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
     "typescript": "~6.0.3"
   },
   "private": true

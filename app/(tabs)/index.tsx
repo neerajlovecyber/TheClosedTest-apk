@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, RefreshControl, Image, TouchableOpacity, Platform } from 'react-native';
+import { View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { PendingRequestCard } from '@/components/PendingRequestCard';
 import { OpenSourceAnnouncementBanner } from '@/components/OpenSourceAnnouncementBanner';
@@ -7,7 +7,7 @@ import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { BellIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, LockIcon, PlayCircleIcon } from 'lucide-react-native';
+import { BellIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, LockIcon } from 'lucide-react-native';
 import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { toast } from '@/lib/sonner';

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { Icon } from '@/components/ui/icon';
@@ -11,18 +11,13 @@ import {
     Trash2Icon,
     AlertTriangleIcon,
     CheckCircleIcon,
-    LayersIcon,
-    ExternalLinkIcon,
-    ShieldAlertIcon,
     SparklesIcon,
     StarIcon,
-    UsersIcon,
     UserIcon,
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { toast } from '@/lib/sonner';
 import { useAdminApps, useAdminDeleteApp, useAdminCleanDuplicates, AppEntity } from '@/lib/api-hooks';
-import { Button } from '@/components/ui/button';
 import {
     AlertDialog,
     AlertDialogAction,

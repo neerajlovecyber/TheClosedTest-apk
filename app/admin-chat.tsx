@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Text } from '@/components/ui/text';
@@ -22,7 +22,7 @@ export default function AdminChatScreen() {
     const { data: myChat } = useMySupportChat();
     const effectiveChatId = chatId || myChat?.id;
 
-    const { data: chatData, isLoading } = useSupportChatDetails(effectiveChatId);
+    const { data: chatData } = useSupportChatDetails(effectiveChatId);
     const sendMessageMutation = useSendSupportMessage();
 
     // Mark conversation read and refresh lists
