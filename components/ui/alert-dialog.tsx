@@ -90,23 +90,33 @@ function AlertDialogDescription({ className, ...props }: AlertDialogPrimitive.De
   return <AlertDialogPrimitive.Description className={cn("text-muted-foreground text-sm leading-relaxed", className)} {...props} />;
 }
 
-function AlertDialogAction({ className, ...props }: AlertDialogPrimitive.ActionProps & React.RefAttributes<AlertDialogPrimitive.ActionRef>) {
+type AlertDialogActionProps = AlertDialogPrimitive.ActionProps &
+  React.RefAttributes<AlertDialogPrimitive.ActionRef> & {
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  };
+
+function AlertDialogAction({ className, variant = "default", ...props }: AlertDialogActionProps) {
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, size: "default" })}>
+    <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "default" })}>
       <AlertDialogPrimitive.Action
-        className={cn(buttonVariants({ size: "default" }), "flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85", className)}
+        className={cn(buttonVariants({ variant, size: "default" }), "flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85", className)}
         {...props}
       />
     </TextClassContext.Provider>
   );
 }
 
-function AlertDialogCancel({ className, ...props }: AlertDialogPrimitive.CancelProps & React.RefAttributes<AlertDialogPrimitive.CancelRef>) {
+type AlertDialogCancelProps = AlertDialogPrimitive.CancelProps &
+  React.RefAttributes<AlertDialogPrimitive.CancelRef> & {
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  };
+
+function AlertDialogCancel({ className, variant = "outline", ...props }: AlertDialogCancelProps) {
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant: "outline", size: "default" })}>
+    <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "default" })}>
       <AlertDialogPrimitive.Cancel
         className={cn(
-          buttonVariants({ variant: "outline", size: "default" }),
+          buttonVariants({ variant, size: "default" }),
           "flex-1 h-12 rounded-2xl items-center justify-center border-border/80 active:opacity-85",
           className,
         )}
