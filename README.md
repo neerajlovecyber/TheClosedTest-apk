@@ -1,6 +1,8 @@
 <div align="center">
 
-# 📱 TheClosedTest
+<img src="./assets/images/logo.svg" alt="TheClosedTest Logo" width="110" height="110" />
+
+# TheClosedTest
 
 ### _The Open-Source Community Platform for Google Play 14-Day Closed Testing_
 
