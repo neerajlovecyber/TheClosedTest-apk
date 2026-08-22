@@ -205,25 +205,30 @@ export default function AdminAppsListScreen() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
             <Stack.Screen options={{ headerShown: false }} />
 
             {/* Top Navigation Bar */}
-            <View className="px-4 py-3 border-b border-border flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3">
-                    <TouchableOpacity onPress={() => router.back()} className="p-1 rounded-full active:opacity-60">
-                        <Icon as={ArrowLeftIcon} className="size-6 text-foreground" />
+            <View className="px-5 py-4 border-b border-border bg-card/60 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3 flex-1 mr-2">
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        className="w-10 h-10 rounded-full bg-secondary/80 items-center justify-center active:opacity-60"
+                        activeOpacity={0.7}
+                    >
+                        <Icon as={ArrowLeftIcon} className="size-5 text-foreground" />
                     </TouchableOpacity>
-                    <View>
+                    <View className="flex-1">
                         <Text className="text-xl font-extrabold text-foreground tracking-tight">App Management</Text>
-                        <Text className="text-xs text-muted-foreground font-medium">Search &amp; remove apps</Text>
+                        <Text className="text-xs text-muted-foreground font-medium mt-0.5">Search, inspect &amp; remove apps</Text>
                     </View>
                 </View>
 
                 {duplicatePackagesCount > 0 && (
                     <TouchableOpacity
                         onPress={() => setShowCleanDuplicatesModal(true)}
-                        className="flex-row items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full"
+                        className="flex-row items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-full"
+                        activeOpacity={0.7}
                     >
                         <Icon as={SparklesIcon} className="size-3.5 text-amber-600 dark:text-amber-400" />
                         <Text className="text-xs font-bold text-amber-700 dark:text-amber-400">
@@ -234,21 +239,23 @@ export default function AdminAppsListScreen() {
             </View>
 
             {/* Search Input */}
-            <View className="px-4 pt-3 pb-2">
-                <View className="flex-row items-center bg-card border border-border rounded-xl px-3 h-11">
-                    <Icon as={SearchIcon} className="size-4 text-muted-foreground mr-2" />
+            <View className="px-4 pt-4 pb-2">
+                <View className="flex-row items-center bg-card border border-border rounded-2xl px-3.5 h-12 shadow-sm">
+                    <Icon as={SearchIcon} className="size-4 text-muted-foreground mr-2.5" />
                     <TextInput
                         placeholder="Search app title, package, dev name or email..."
                         placeholderTextColor="#888"
-                        className="flex-1 text-sm text-foreground"
+                        className="flex-1 text-sm text-foreground py-2"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
                 </View>
             </View>
 
             {/* Filter Chips */}
-            <View className="flex-row px-4 py-1.5 gap-2 items-center">
+            <View className="flex-row px-4 py-2 gap-2 items-center flex-wrap">
                 <TouchableOpacity
                     onPress={() => {
                         setShowDuplicatesOnly(false);
