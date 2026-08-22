@@ -22,7 +22,7 @@ export const users = pgTable(
     streak: integer("streak").default(0).notNull(),
     bestStreak: integer("best_streak").default(0).notNull(),
     lastCheckInDate: varchar("last_check_in_date", { length: 20 }), // YYYY-MM-DD
-    unlockedAppSlots: integer("unlocked_app_slots").default(1).notNull(),
+    unlockedAppSlots: integer("unlocked_app_slots").default(3).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

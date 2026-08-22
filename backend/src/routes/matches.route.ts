@@ -9,6 +9,7 @@ import { apps, matches, messages, notifications, proofs, users } from "../db/sch
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 import { sendExpoPushNotification } from "../services/expo-push"
+import { enrichAppsWithTesterCounts } from "./apps.route"
 
 const MatchSchema = z.object({
   id: z.string(),
@@ -215,6 +216,10 @@ router.openapi(
       orderBy: [desc(matches.lastActivity)],
     })
 
+    const allApps = items.flatMap((m) => [m.app1, m.app2].filter(Boolean))
+    const enrichedApps = await enrichAppsWithTesterCounts(allApps)
+    const appMap = new Map(enrichedApps.map((a) => [a.id, a]))
+
     const enrichedItems = items.map((m) => {
       const matchProofs = m.proofs || []
       const user1LatestProof = matchProofs.find((p) => p.uploaderId === m.user1Id)
@@ -231,6 +236,8 @@ router.openapi(
 
       return {
         ...m,
+        app1: m.app1 ? appMap.get(m.app1.id) || m.app1 : null,
+        app2: m.app2 ? appMap.get(m.app2.id) || m.app2 : null,
         hasUnreadMessages,
         latestMessage: latestMsg
           ? {
@@ -315,8 +322,16 @@ router.openapi(
     const user1LatestProof = matchProofs.find((p) => p.uploaderId === match.user1Id)
     const user2LatestProof = matchProofs.find((p) => p.uploaderId === match.user2Id)
 
+    const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts(
+      [match.app1, match.app2].filter(Boolean) as any[],
+    )
+    const app1 = enrichedApp1 || match.app1
+    const app2 = enrichedApp2 || match.app2
+
     const enrichedMatch = {
       ...match,
+      app1,
+      app2,
       user1LastProof: user1LatestProof
         ? {
             day: user1LatestProof.day,
@@ -337,8 +352,8 @@ router.openapi(
       {
         ...enrichedMatch,
         match: enrichedMatch,
-        app1: match.app1,
-        app2: match.app2,
+        app1,
+        app2,
         user1: match.user1,
         user2: match.user2,
       },
@@ -346,6 +361,7 @@ router.openapi(
     )
   },
 )
+
 
 // 4. Accept Match Request
 router.openapi(

@@ -72,7 +72,7 @@ export default function HomeScreen() {
   const userName = user?.firstName || "Tester";
   const reputation = currentUser?.reputation ?? 100;
   const streak = currentUser?.streak ?? 0;
-  const unlockedSlots = currentUser?.unlockedAppSlots ?? 1;
+  const unlockedSlots = currentUser?.unlockedAppSlots ?? 3;
 
   const handleConfirmUnlockSlots = async () => {
     try {
