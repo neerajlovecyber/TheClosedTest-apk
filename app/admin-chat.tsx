@@ -75,7 +75,7 @@ export default function AdminChatScreen() {
             : (!item.isAdmin || (currentUser?.id && item.senderId === currentUser.id) || (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier));
 
         const showSupportBadge = item.isAdmin && !currentUser?.isAdmin;
-        const isSeen = currentUser?.isAdmin ? !chatInfo?.hasUnreadUser : !chatInfo?.hasUnreadAdmin;
+        const isSeen = currentUser?.isAdmin ? !(chatInfo as any)?.hasUnreadUser : !(chatInfo as any)?.hasUnreadAdmin;
 
         return (
             <View className={`flex-row ${isMyMessage ? 'justify-end' : 'justify-start'} mb-3 px-4`}>

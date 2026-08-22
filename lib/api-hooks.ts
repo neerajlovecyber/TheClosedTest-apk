@@ -63,7 +63,7 @@ export interface MatchEntity {
   user2Id: string
   app1Id: string
   app2Id: string
-  status: "pending" | "active" | "completed" | "cancelled"
+  status: "pending" | "active" | "completed" | "cancelled" | "rejected" | "archived"
   startDate?: string | null
   completedAt?: string | null
   user1ApprovedCount: number
@@ -84,6 +84,7 @@ export interface MatchEntity {
   app2?: AppEntity
   user1?: UserProfile
   user2?: UserProfile
+  proofs?: ProofEntity[]
 }
 
 export interface ProofEntity {

@@ -33,6 +33,7 @@ import {
     useUnlockSlots,
     MatchEntity,
 } from '@/lib/api-hooks';
+import { getMatchCurrentDay } from '@/lib/date-utils';
 
 export default function HomeScreen() {
     const { user } = useUser();
@@ -101,21 +102,6 @@ export default function HomeScreen() {
 
     // Format active matches into task objects
     const dueTasks = React.useMemo(() => {
-        // Helper: was this proof submitted today (IST)?
-        const isProofToday = (updatedAt?: string) => {
-            if (!updatedAt) return false;
-            const now = new Date();
-            const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
-            const istNow = new Date(utcTime + 5.5 * 3600000);
-            const proof = new Date(updatedAt);
-            const proofIst = new Date(proof.getTime() + proof.getTimezoneOffset() * 60000 + 5.5 * 3600000);
-            return (
-                istNow.getFullYear() === proofIst.getFullYear() &&
-                istNow.getMonth() === proofIst.getMonth() &&
-                istNow.getDate() === proofIst.getDate()
-            );
-        };
-
         return activeMatches
             .map((m: MatchEntity) => {
                 const isUser1 = m.user1Id === currentUser?.id;
@@ -123,25 +109,26 @@ export default function HomeScreen() {
                 const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
                 const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
+                const highestProofDay = Math.max(1, myLastProof?.day || 1, partnerLastProof?.day || 1);
+                const currentDay = getMatchCurrentDay(m.startDate, m.createdAt, highestProofDay);
+
                 const myProofStatus = (() => {
-                    if (!myLastProof) return 'not_uploaded';
-                    if (myLastProof.status === 'approved') return 'approved';
-                    return isProofToday(myLastProof.updatedAt) ? myLastProof.status : 'not_uploaded';
+                    if (!myLastProof || myLastProof.day < currentDay) return 'not_uploaded';
+                    if (myLastProof.day === currentDay) return myLastProof.status;
+                    return 'not_uploaded';
                 })();
                 const partnerProofStatus = (() => {
-                    if (!partnerLastProof) return 'not_uploaded';
-                    if (partnerLastProof.status === 'approved') return 'approved';
-                    return isProofToday(partnerLastProof.updatedAt) ? partnerLastProof.status : 'not_uploaded';
+                    if (!partnerLastProof || partnerLastProof.day < currentDay) return 'not_uploaded';
+                    if (partnerLastProof.day === currentDay) return partnerLastProof.status;
+                    return 'not_uploaded';
                 })();
-                const isReviewPending = partnerProofStatus === 'pending';
-
-                const day = myLastProof?.day || 1;
+                const isReviewPending = partnerLastProof?.status === 'pending';
 
                 return {
                     id: m.id,
                     name: partnerApp?.title || 'Testing App',
                     owner: partnerApp?.user?.name || 'Partner',
-                    day,
+                    day: currentDay,
                     totalDays: 14,
                     iconUrl: partnerApp?.iconUrl,
                     myProofStatus,

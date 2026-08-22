@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/clerk-expo';
 import { useCurrentUser, useMatches } from '@/lib/api-hooks';
+import { getMatchCurrentDay } from '@/lib/date-utils';
 
 export default function TabLayout() {
     const { user } = useUser();
@@ -24,10 +25,13 @@ export default function TabLayout() {
             const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
             const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
+            const highestProofDay = Math.max(1, myLastProof?.day || 1, partnerLastProof?.day || 1);
+            const currentDay = getMatchCurrentDay(m.startDate, m.createdAt, highestProofDay);
+
             // 1. Partner uploaded a proof that you need to review
             const needsReview = partnerLastProof?.status === 'pending';
-            // 2. You haven't uploaded today's proof or your proof was rejected
-            const needsUpload = !myLastProof || (myLastProof.status as string) === 'rejected';
+            // 2. You haven't uploaded today's proof (or proof for today was rejected)
+            const needsUpload = !myLastProof || myLastProof.day < currentDay || (myLastProof.day === currentDay && (myLastProof.status as string) === 'rejected');
 
             return needsReview || needsUpload;
         });

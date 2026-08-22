@@ -28,23 +28,9 @@ import { MatchChat } from '@/components/MatchChat';
 import { ReportDialog } from '@/components/ReportDialog';
 import { useMatch, useMatchProofs, useCurrentUser, useRejectMatch, useAcceptMatch, useMatchMessages, ProofEntity } from '@/lib/api-hooks';
 
+import { getTimeUntilMidnightIST, getMatchCurrentDay } from '@/lib/date-utils';
+
 const isWeb = Platform.OS === 'web';
-
-const getTimeUntilMidnightIST = () => {
-    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    const nowIST = now + IST_OFFSET;
-    const currentDayIST = Math.floor(nowIST / DAY_MS);
-    const nextMidnightIST = (currentDayIST + 1) * DAY_MS;
-    const timeRemaining = nextMidnightIST - nowIST;
-
-    const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
-    const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
-    const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
-
-    return { hours, minutes, seconds, totalMs: timeRemaining };
-};
 
 export default function MatchDashboardScreen() {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -145,17 +131,29 @@ export default function MatchDashboardScreen() {
     const myLastProof = isUser1 ? match.user1LastProof : match.user2LastProof;
     const partnerLastProof = isUser1 ? match.user2LastProof : match.user1LastProof;
 
+    // Highest proof day submitted so far
+    const highestProofDay = Math.max(
+        1,
+        ...allProofs.map((p) => p.day || 1),
+        myLastProof?.day || 1,
+        partnerLastProof?.day || 1,
+    );
+
+    // Current unlocked active day based on startDate in IST (or highest proof day reached)
+    const currentDay = getMatchCurrentDay(match.startDate, match.createdAt, highestProofDay);
+
     // Check if there is a pending partner proof that needs user's review
     const pendingPartnerProof = partnerProofs.find((p: ProofEntity) => p.status === 'pending');
 
+    // Default day to show:
+    // If partner has a pending proof waiting for review, open that day; otherwise open today's active day
     const defaultDay = pendingPartnerProof
         ? pendingPartnerProof.day
         : (partnerLastProof?.status === 'pending' && partnerLastProof.day)
             ? partnerLastProof.day
-            : Math.min(14, Math.max(1, myLastProof?.day || 1, partnerLastProof?.day || 1));
+            : currentDay;
 
-    const currentDay = defaultDay;
-    const effectiveDay = selectedDay ?? currentDay;
+    const effectiveDay = selectedDay ?? defaultDay;
     const isCompleted = match.status === 'completed';
     const isCancelled = match.status === 'cancelled' || match.status === 'rejected' || match.status === 'archived';
 

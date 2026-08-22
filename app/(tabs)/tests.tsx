@@ -4,10 +4,11 @@ import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon } from 'lucide-react-native';
+import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser, useMatches, MatchEntity } from '@/lib/api-hooks';
+import { getTimeUntilMidnightIST, getMatchCurrentDay } from '@/lib/date-utils';
 
 // Memoized TaskCard component
 const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) => {
@@ -53,12 +54,15 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                         <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
                             <View className={`h-8 w-8 rounded-full items-center justify-center ${item.myProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
                                 item.myProofStatus === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
-                                    'bg-muted'
+                                    item.myProofStatus === 'rejected' ? 'bg-red-100 dark:bg-red-900/30' :
+                                        'bg-muted'
                                 }`}>
                                 {item.myProofStatus === 'approved' ? (
                                     <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
                                 ) : item.myProofStatus === 'pending' ? (
                                     <Icon as={ClockIcon} className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                ) : item.myProofStatus === 'rejected' ? (
+                                    <Icon as={XCircleIcon} className="size-4 text-red-600 dark:text-red-400" />
                                 ) : (
                                     <Icon as={AlertCircleIcon} className="size-4 text-muted-foreground" />
                                 )}
@@ -67,10 +71,12 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                                 <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">My Upload</Text>
                                 <Text className={`text-sm font-bold ${item.myProofStatus === 'approved' ? 'text-green-600' :
                                     item.myProofStatus === 'pending' ? 'text-yellow-600' :
-                                        'text-muted-foreground'
+                                        item.myProofStatus === 'rejected' ? 'text-red-600' :
+                                            'text-muted-foreground'
                                     }`}>
                                     {item.myProofStatus === 'approved' ? 'Done' :
-                                        item.myProofStatus === 'pending' ? 'Uploaded' : 'Required'}
+                                        item.myProofStatus === 'pending' ? 'Uploaded' :
+                                            item.myProofStatus === 'rejected' ? 'Rejected' : 'Required'}
                                 </Text>
                             </View>
                         </View>
@@ -79,7 +85,8 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                         <View className="flex-1 bg-secondary/30 rounded-lg p-2.5 items-center flex-row gap-3 border border-border/50">
                             <View className={`h-8 w-8 rounded-full items-center justify-center ${item.partnerProofStatus === 'approved' ? 'bg-green-100 dark:bg-green-900/30' :
                                 item.partnerProofStatus === 'pending' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                                    'bg-muted'
+                                    item.partnerProofStatus === 'rejected' ? 'bg-orange-100 dark:bg-orange-900/30' :
+                                        'bg-muted'
                                 }`}>
                                 {item.partnerProofStatus === 'approved' ? (
                                     <Icon as={CheckCircleIcon} className="size-4 text-green-600 dark:text-green-400" />
@@ -93,7 +100,8 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                                 <Text className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Partner</Text>
                                 <Text className={`text-sm font-bold ${item.partnerProofStatus === 'approved' ? 'text-green-600' :
                                     item.partnerProofStatus === 'pending' ? 'text-blue-600' :
-                                        'text-muted-foreground'
+                                        item.partnerProofStatus === 'rejected' ? 'text-orange-600' :
+                                            'text-muted-foreground'
                                     }`}>
                                     {item.partnerProofStatus === 'approved' ? 'Done' :
                                         item.partnerProofStatus === 'pending' ? 'Uploaded' : 'Waiting'}
@@ -106,24 +114,6 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
         </TouchableOpacity>
     );
 });
-
-const getTimeUntilMidnightIST = () => {
-    const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istTime = new Date(utcTime + istOffset);
-
-    const nextMidnight = new Date(istTime);
-    nextMidnight.setHours(24, 0, 0, 0);
-
-    const diff = nextMidnight.getTime() - istTime.getTime();
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    return { hours, minutes, seconds };
-};
 
 export default function TestsScreen() {
     const router = useRouter();
@@ -154,36 +144,38 @@ export default function TestsScreen() {
             const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
             const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
-            const currentDay = Math.max(1, myLastProof?.day || 1);
+            const highestProofDay = Math.max(1, myLastProof?.day || 1, partnerLastProof?.day || 1);
+            const currentDay = getMatchCurrentDay(m.startDate, m.createdAt, highestProofDay);
 
-            // Helper: was this proof submitted today (IST)?
-            const isToday = (updatedAt?: string) => {
-                if (!updatedAt) return false;
-                const now = new Date();
-                const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
-                const istNow = new Date(utcTime + 5.5 * 3600000);
-                const proof = new Date(updatedAt);
-                const proofIst = new Date(proof.getTime() + proof.getTimezoneOffset() * 60000 + 5.5 * 3600000);
-                return (
-                    istNow.getFullYear() === proofIst.getFullYear() &&
-                    istNow.getMonth() === proofIst.getMonth() &&
-                    istNow.getDate() === proofIst.getDate()
-                );
-            };
-
+            // My proof status for today's active day (currentDay):
+            // If I haven't uploaded for currentDay (or last proof was a previous day), it's 'not_uploaded'
             const myProofStatus = (() => {
                 if (!myLastProof) return 'not_uploaded';
-                // Approved proofs always show regardless of date
-                if (myLastProof.status === 'approved') return 'approved';
-                // For pending/rejected, only count if submitted today (IST)
-                return isToday(myLastProof.updatedAt) ? myLastProof.status : 'not_uploaded';
+                if (myLastProof.day === currentDay) {
+                    return (myLastProof.status as 'approved' | 'pending' | 'rejected') || 'not_uploaded';
+                }
+                if (myLastProof.day < currentDay) {
+                    return 'not_uploaded';
+                }
+                return 'not_uploaded';
             })();
+
+            // Partner proof status for today's active day (currentDay):
             const partnerProofStatus = (() => {
                 if (!partnerLastProof) return 'not_uploaded';
-                if (partnerLastProof.status === 'approved') return 'approved';
-                return isToday(partnerLastProof.updatedAt) ? partnerLastProof.status : 'not_uploaded';
+                if (partnerLastProof.day === currentDay) {
+                    return (partnerLastProof.status as 'approved' | 'pending' | 'rejected') || 'not_uploaded';
+                }
+                return 'not_uploaded';
             })();
-            const isReviewPending = partnerProofStatus === 'pending';
+
+            // Partner has a pending proof that you need to review (on any day)
+            const isReviewPending = partnerLastProof?.status === 'pending';
+
+            // Needs attention if:
+            // 1. Partner has a proof waiting for review
+            // 2. You haven't uploaded today's proof (not_uploaded)
+            // 3. Your proof for today was rejected (rejected)
             const needsAttention = isReviewPending || myProofStatus === 'not_uploaded' || myProofStatus === 'rejected';
 
             return {
