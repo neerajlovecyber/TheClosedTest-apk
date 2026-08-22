@@ -35,9 +35,11 @@ export default function AdminChatScreen() {
 
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
-    const flatListRef = useRef<FlatList>(null);
-
     const messages = chatData?.messages || [];
+    const chatMessages = React.useMemo(() => {
+        return [...messages].reverse();
+    }, [messages]);
+
     const chatInfo = chatData?.chat;
 
     const handleSend = async () => {
@@ -134,8 +136,8 @@ export default function AdminChatScreen() {
 
             <KeyboardAvoidingView className="flex-1" behavior="padding">
                 <FlatList
-                    ref={flatListRef}
-                    data={messages}
+                    data={chatMessages}
+                    inverted
                     keyExtractor={(item) => item.id}
                     renderItem={renderMessage}
                     contentContainerStyle={{ paddingVertical: 16 }}

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
-import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Modal, Dimensions, Pressable, Alert } from 'react-native';
+import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Modal, Dimensions, Pressable } from 'react-native';
 import { toast } from '@/lib/sonner';
 import { Image } from 'expo-image';
 import { Text } from '@/components/ui/text';
@@ -10,6 +10,16 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCurrentUser, usePresignedUploadUrl, useSubmitProof } from '@/lib/api-hooks';
 import { uploadImageToR2 } from '@/utils/image-uploader';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -34,6 +44,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     const [comment, setComment] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [isEditingProof, setIsEditingProof] = useState(false);
+    const [isConfirmChangeOpen, setIsConfirmChangeOpen] = useState(false);
     const { data: user } = useCurrentUser();
 
     // Image viewer state
@@ -509,24 +520,36 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                                 </View>
                             )}
                             <TouchableOpacity
-                                onPress={() =>
-                                    Alert.alert(
-                                        'Change Screenshots?',
-                                        'Your current proof is pending review. Uploading new screenshots will replace it and reset its status.',
-                                        [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            {
-                                                text: 'Yes, Change',
-                                                style: 'destructive',
-                                                onPress: () => setIsEditingProof(true),
-                                            },
-                                        ],
-                                    )
-                                }
+                                onPress={() => setIsConfirmChangeOpen(true)}
                                 className="py-2 px-3 bg-secondary/60 rounded-xl flex-row items-center justify-center border border-border/50 self-start"
                             >
                                 <Text className="text-xs font-semibold text-foreground">Change Screenshots</Text>
                             </TouchableOpacity>
+
+                            <AlertDialog open={isConfirmChangeOpen} onOpenChange={setIsConfirmChangeOpen}>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Change Screenshots?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Your current proof is pending review. Uploading new screenshots will replace it and reset its status.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>
+                                            <Text>Cancel</Text>
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            variant="destructive"
+                                            onPress={() => {
+                                                setIsConfirmChangeOpen(false);
+                                                setIsEditingProof(true);
+                                            }}
+                                        >
+                                            <Text>Yes, Change</Text>
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
                     {imageViewerModal}

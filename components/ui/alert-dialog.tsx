@@ -58,7 +58,7 @@ function AlertDialogContent({
       <AlertDialogOverlay>
         <AlertDialogPrimitive.Content
           className={cn(
-            'bg-background border-border z-50 flex w-full max-w-[calc(100%-2rem)] flex-col gap-4 rounded-lg border p-6 shadow-lg shadow-black/5 sm:max-w-lg',
+            'bg-card border-border/80 z-50 flex w-full max-w-[calc(100%-2.5rem)] flex-col gap-4 rounded-3xl border p-6 shadow-2xl shadow-black/20 sm:max-w-md',
             Platform.select({
               web: 'animate-in fade-in-0 zoom-in-95 duration-200',
             }),
@@ -73,7 +73,7 @@ function AlertDialogContent({
 
 function AlertDialogHeader({ className, ...props }: ViewProps) {
   return (
-    <TextClassContext.Provider value="text-center sm:text-left">
+    <TextClassContext.Provider value="text-left">
       <View className={cn('flex flex-col gap-2', className)} {...props} />
     </TextClassContext.Provider>
   );
@@ -82,7 +82,7 @@ function AlertDialogHeader({ className, ...props }: ViewProps) {
 function AlertDialogFooter({ className, ...props }: ViewProps) {
   return (
     <View
-      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
+      className={cn('flex flex-row items-center gap-3 pt-2 w-full', className)}
       {...props}
     />
   );
@@ -94,7 +94,7 @@ function AlertDialogTitle({
 }: AlertDialogPrimitive.TitleProps & React.RefAttributes<AlertDialogPrimitive.TitleRef>) {
   return (
     <AlertDialogPrimitive.Title
-      className={cn('text-foreground text-lg font-semibold', className)}
+      className={cn('text-foreground text-xl font-bold tracking-tight', className)}
       {...props}
     />
   );
@@ -107,7 +107,7 @@ function AlertDialogDescription({
   React.RefAttributes<AlertDialogPrimitive.DescriptionRef>) {
   return (
     <AlertDialogPrimitive.Description
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn('text-muted-foreground text-sm leading-relaxed', className)}
       {...props}
     />
   );
@@ -118,8 +118,15 @@ function AlertDialogAction({
   ...props
 }: AlertDialogPrimitive.ActionProps & React.RefAttributes<AlertDialogPrimitive.ActionRef>) {
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className })}>
-      <AlertDialogPrimitive.Action className={cn(buttonVariants(), className)} {...props} />
+    <TextClassContext.Provider value={buttonTextVariants({ className, size: 'default' })}>
+      <AlertDialogPrimitive.Action
+        className={cn(
+          buttonVariants({ size: 'default' }),
+          'flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85',
+          className
+        )}
+        {...props}
+      />
     </TextClassContext.Provider>
   );
 }
@@ -129,9 +136,13 @@ function AlertDialogCancel({
   ...props
 }: AlertDialogPrimitive.CancelProps & React.RefAttributes<AlertDialogPrimitive.CancelRef>) {
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant: 'outline' })}>
+    <TextClassContext.Provider value={buttonTextVariants({ className, variant: 'outline', size: 'default' })}>
       <AlertDialogPrimitive.Cancel
-        className={cn(buttonVariants({ variant: 'outline' }), className)}
+        className={cn(
+          buttonVariants({ variant: 'outline', size: 'default' }),
+          'flex-1 h-12 rounded-2xl items-center justify-center border-border/80 active:opacity-85',
+          className
+        )}
         {...props}
       />
     </TextClassContext.Provider>

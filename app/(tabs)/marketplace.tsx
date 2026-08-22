@@ -15,7 +15,6 @@ import { useRouter } from 'expo-router';
 import { AppCard } from '@/components/AppCard';
 import { GoogleGroupWidget } from '@/components/GoogleGroupWidget';
 import { ReportDialog } from '@/components/ReportDialog';
-import { Alert } from 'react-native';
 import { useCurrentUser, useRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from '@/lib/api-hooks';
 
 export default function MarketplaceScreen() {
@@ -122,17 +121,7 @@ export default function MarketplaceScreen() {
 
     const handleReportApp = useCallback((app: any) => {
         setReportApp(app);
-        Alert.alert(
-            "Report App",
-            `Do you want to report "${app.title}"?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Report",
-                    onPress: () => setShowReportDialog(true),
-                },
-            ],
-        );
+        setShowReportDialog(true);
     }, []);
 
     const renderAppItem = useCallback(({ item }: { item: AppEntity }) => (
