@@ -22,6 +22,7 @@ import {
 import { memoryCache } from "../lib/cache"
 import { createRouter } from "../lib/create-app"
 import { adminAuthMiddleware, authMiddleware } from "../middlewares/auth"
+import { enrichAppsWithTesterCounts } from "./apps.route"
 
 const ReportSchema = z.object({
   id: z.string(),
@@ -897,19 +898,41 @@ router.openapi(
 
     const duplicatePackagesCount = Array.from(packageCountMap.values()).filter((c) => c > 1).length
 
-    const formatted = rawApps.map((r) => {
-      const isDup = (packageCountMap.get(r.app.packageName.toLowerCase().trim()) || 0) > 1
+    const formatted = rawApps.map((r) => ({
+      ...r.app,
+      user: r.user,
+    }))
+
+    const enriched = await enrichAppsWithTesterCounts(formatted)
+
+    const finalApps = enriched.map((item) => {
+      const isDup = (packageCountMap.get(item.packageName.toLowerCase().trim()) || 0) > 1
       return {
-        ...r.app,
-        user: r.user,
+        ...item,
         isDuplicate: isDup,
       }
     })
 
+    // Filter by status if provided (checking real filled vs recruiting status)
+    let resultApps = finalApps
+    if (status && status !== "all") {
+      if (status === "filled") {
+        resultApps = finalApps.filter(
+          (a) => a.status === "filled" || a.currentTesters >= a.requiredTesters,
+        )
+      } else if (status === "recruiting") {
+        resultApps = finalApps.filter(
+          (a) => a.status === "recruiting" && a.currentTesters < a.requiredTesters,
+        )
+      } else {
+        resultApps = finalApps.filter((a) => a.status === status)
+      }
+    }
+
     return c.json(
       {
-        apps: formatted,
-        total: formatted.length,
+        apps: resultApps,
+        total: resultApps.length,
         duplicatePackagesCount,
       },
       HttpStatusCodes.OK,

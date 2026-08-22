@@ -60,7 +60,7 @@ const VoteSchema = z.object({
   type: z.enum(["positive", "negative"]),
 })
 
-async function enrichAppsWithTesterCounts<T extends { id: string }>(appItems: T[]): Promise<T[]> {
+export async function enrichAppsWithTesterCounts<T extends { id: string }>(appItems: T[]): Promise<T[]> {
   if (appItems.length === 0) return []
   const appIds = appItems.map((a) => a.id)
 
@@ -383,9 +383,17 @@ router.openapi(
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(AppSchema, "Updated app"),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
+        createMessageObjectSchema("Bad request"),
+        "Bad request",
+      ),
       [HttpStatusCodes.FORBIDDEN]: jsonContent(
         createMessageObjectSchema("Not owner"),
         "Not owner",
+      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(
+        createMessageObjectSchema("App not found"),
+        "App not found",
       ),
     },
   }),

@@ -37,7 +37,7 @@ import {
 export default function AdminAppsListScreen() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'recruiting' | 'filled'>('all');
     const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
 
     // Selected app for delete confirmation
@@ -47,21 +47,51 @@ export default function AdminAppsListScreen() {
 
     const { data: appsResponse, isLoading, refetch, isRefetching } = useAdminApps(
         searchQuery || undefined,
-        statusFilter === 'all' ? undefined : statusFilter,
-        100,
+        undefined,
+        150,
         0,
     );
 
     const deleteAppMutation = useAdminDeleteApp();
     const cleanDuplicatesMutation = useAdminCleanDuplicates();
 
-    const allApps = appsResponse?.apps || [];
+    const allApps = useMemo(() => appsResponse?.apps || [], [appsResponse?.apps]);
     const duplicatePackagesCount = appsResponse?.duplicatePackagesCount || 0;
 
+    const { recruitingCount, filledCount, duplicateCount } = useMemo(() => {
+        let rec = 0;
+        let fil = 0;
+        let dup = 0;
+        for (const a of allApps) {
+            const isFilled = a.status === 'filled' || (a.currentTesters !== undefined && a.requiredTesters !== undefined && a.currentTesters >= a.requiredTesters);
+            if (isFilled) {
+                fil++;
+            } else if (a.status === 'recruiting') {
+                rec++;
+            }
+            if (a.isDuplicate) dup++;
+        }
+        return { recruitingCount: rec, filledCount: fil, duplicateCount: dup };
+    }, [allApps]);
+
     const filteredApps = useMemo(() => {
-        if (!showDuplicatesOnly) return allApps;
-        return allApps.filter((a) => a.isDuplicate);
-    }, [allApps, showDuplicatesOnly]);
+        let list = allApps;
+        if (showDuplicatesOnly) {
+            list = list.filter((a) => a.isDuplicate);
+        }
+        if (statusFilter === 'recruiting') {
+            list = list.filter((a) => {
+                const isFilled = a.status === 'filled' || (a.currentTesters !== undefined && a.requiredTesters !== undefined && a.currentTesters >= a.requiredTesters);
+                return a.status === 'recruiting' && !isFilled;
+            });
+        } else if (statusFilter === 'filled') {
+            list = list.filter((a) => {
+                const isFilled = a.status === 'filled' || (a.currentTesters !== undefined && a.requiredTesters !== undefined && a.currentTesters >= a.requiredTesters);
+                return isFilled;
+            });
+        }
+        return list;
+    }, [allApps, showDuplicatesOnly, statusFilter]);
 
     const handleDeleteApp = async () => {
         if (!selectedApp) return;
@@ -256,39 +286,40 @@ export default function AdminAppsListScreen() {
                     </Text>
                 </TouchableOpacity>
 
-                {duplicatePackagesCount > 0 && (
+                {duplicateCount > 0 && (
                     <TouchableOpacity
                         onPress={() => setShowDuplicatesOnly(!showDuplicatesOnly)}
-                        className={`px-3 py-1 rounded-full border flex-row items-center gap-1 ${showDuplicatesOnly ? 'bg-amber-500 border-amber-500' : 'bg-amber-500/10 border-amber-500/30'}`}
+                        className={`px-3 py-1 rounded-full border flex-row items-center gap-1.5 ${showDuplicatesOnly ? 'bg-amber-500 border-amber-500' : 'bg-amber-500/10 border-amber-500/30'}`}
+                        activeOpacity={0.7}
                     >
                         <Icon as={AlertTriangleIcon} className={`size-3 ${showDuplicatesOnly ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
                         <Text className={`text-xs font-bold ${showDuplicatesOnly ? 'text-white' : 'text-amber-700 dark:text-amber-400'}`}>
-                            Duplicates Only ({duplicatePackagesCount})
+                            Duplicates ({duplicateCount})
                         </Text>
                     </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
                     onPress={() => {
-                        setShowDuplicatesOnly(false);
                         setStatusFilter(statusFilter === 'recruiting' ? 'all' : 'recruiting');
                     }}
                     className={`px-3 py-1 rounded-full border ${statusFilter === 'recruiting' ? 'bg-primary border-primary' : 'bg-card border-border'}`}
+                    activeOpacity={0.7}
                 >
                     <Text className={`text-xs font-semibold ${statusFilter === 'recruiting' ? 'text-primary-foreground' : 'text-foreground'}`}>
-                        Recruiting
+                        Recruiting ({recruitingCount})
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     onPress={() => {
-                        setShowDuplicatesOnly(false);
                         setStatusFilter(statusFilter === 'filled' ? 'all' : 'filled');
                     }}
                     className={`px-3 py-1 rounded-full border ${statusFilter === 'filled' ? 'bg-primary border-primary' : 'bg-card border-border'}`}
+                    activeOpacity={0.7}
                 >
                     <Text className={`text-xs font-semibold ${statusFilter === 'filled' ? 'text-primary-foreground' : 'text-foreground'}`}>
-                        Filled
+                        Filled ({filledCount})
                     </Text>
                 </TouchableOpacity>
             </View>
