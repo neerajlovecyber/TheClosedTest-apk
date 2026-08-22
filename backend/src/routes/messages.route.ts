@@ -58,7 +58,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, matchId),
+      where: (m, { eq }) => eq(m.id, matchId),
     })
 
     if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
@@ -66,7 +66,7 @@ router.openapi(
     }
 
     const items = await db.query.messages.findMany({
-      where: eq(messages.matchId, matchId),
+      where: (m, { eq }) => eq(m.matchId, matchId),
       with: {
         sender: true,
       },
@@ -105,7 +105,7 @@ router.openapi(
     const body = c.req.valid("json")
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, matchId),
+      where: (m, { eq }) => eq(m.id, matchId),
     })
 
     if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
@@ -139,7 +139,7 @@ router.openapi(
     // Send push notification to partner in background
     db.query.users
       .findFirst({
-        where: eq(users.id, partnerId),
+        where: (u, { eq }) => eq(u.id, partnerId),
       })
       .then((partner) => {
         if (partner?.pushToken) {
@@ -186,7 +186,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, matchId),
+      where: (m, { eq }) => eq(m.id, matchId),
     })
 
     if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {

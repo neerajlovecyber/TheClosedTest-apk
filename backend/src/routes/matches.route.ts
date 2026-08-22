@@ -87,7 +87,7 @@ router.openapi(
 
     // Verify user owns app1
     const app1 = await db.query.apps.findFirst({
-      where: eq(apps.id, app1Id),
+      where: (a, { eq }) => eq(a.id, app1Id),
     })
 
     if (!app1 || app1.userId !== userVar.id) {
@@ -96,7 +96,7 @@ router.openapi(
 
     // Verify target app exists
     const app2 = await db.query.apps.findFirst({
-      where: eq(apps.id, targetAppId),
+      where: (a, { eq }) => eq(a.id, targetAppId),
     })
 
     if (!app2) {
@@ -109,13 +109,14 @@ router.openapi(
 
     // Check for duplicate pending/active match between these apps
     const existing = await db.query.matches.findFirst({
-      where: and(
-        or(
-          and(eq(matches.app1Id, app1Id), eq(matches.app2Id, targetAppId)),
-          and(eq(matches.app1Id, targetAppId), eq(matches.app2Id, app1Id)),
+      where: (m, { and, or, eq }) =>
+        and(
+          or(
+            and(eq(m.app1Id, app1Id), eq(m.app2Id, targetAppId)),
+            and(eq(m.app1Id, targetAppId), eq(m.app2Id, app1Id)),
+          ),
+          or(eq(m.status, "pending"), eq(m.status, "active")),
         ),
-        or(eq(matches.status, "pending"), eq(matches.status, "active")),
-      ),
     })
 
     if (existing) {
@@ -150,7 +151,7 @@ router.openapi(
     // Fetch target user's push token to send push alert in background
     db.query.users
       .findFirst({
-        where: eq(users.id, app2.userId),
+        where: (u, { eq }) => eq(u.id, app2.userId),
       })
       .then((targetUser) => {
         if (targetUser?.pushToken) {
@@ -299,7 +300,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, id),
+      where: (m, { eq }) => eq(m.id, id),
       with: {
         app1: true,
         app2: true,
@@ -379,7 +380,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, id),
+      where: (m, { eq }) => eq(m.id, id),
     })
 
     if (!match || match.user2Id !== userVar.id || match.status !== "pending") {
@@ -412,7 +413,7 @@ router.openapi(
       }),
       db.query.users
         .findFirst({
-          where: eq(users.id, match.user1Id),
+          where: (u, { eq }) => eq(u.id, match.user1Id),
         })
         .then((requester) => {
           if (requester?.pushToken) {
@@ -456,7 +457,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, id),
+      where: (m, { eq }) => eq(m.id, id),
     })
 
     if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
@@ -483,7 +484,7 @@ router.openapi(
       }),
       db.query.users
         .findFirst({
-          where: eq(users.id, partnerId),
+          where: (u, { eq }) => eq(u.id, partnerId),
         })
         .then((partnerUser) => {
           if (partnerUser?.pushToken) {

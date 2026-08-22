@@ -85,7 +85,7 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
 
   // Strictly look up user by verified tokenIdentifier
   let user = await db.query.users.findFirst({
-    where: eq(users.tokenIdentifier, tokenIdentifier),
+    where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
   })
 
   // Auto-provision user if not already present for verified token
@@ -109,10 +109,16 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
         .onConflictDoNothing()
         .returning()
 
-      user = newUser || (await db.query.users.findFirst({ where: eq(users.tokenIdentifier, tokenIdentifier) }))
+      user =
+        newUser ||
+        (await db.query.users.findFirst({
+          where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
+        }))
     } catch {
       // Re-fetch on conflict
-      user = await db.query.users.findFirst({ where: eq(users.tokenIdentifier, tokenIdentifier) })
+      user = await db.query.users.findFirst({
+        where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
+      })
     }
   }
 

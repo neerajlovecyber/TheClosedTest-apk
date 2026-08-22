@@ -45,7 +45,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const items = await db.query.notifications.findMany({
-      where: eq(notifications.userId, userVar.id),
+      where: (n, { eq }) => eq(n.userId, userVar.id),
       orderBy: [desc(notifications.createdAt)],
       limit: 50,
     })

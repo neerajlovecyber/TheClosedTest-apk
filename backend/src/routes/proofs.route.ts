@@ -63,11 +63,12 @@ router.openapi(
     },
   }),
   async (c) => {
-    const userVar = c.get("user")!
-    const body = c.req.valid("json")
+    try {
+      const userVar = c.get("user")!
+      const body = c.req.valid("json")
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, body.matchId),
+      where: (m, { eq }) => eq(m.id, body.matchId),
     })
 
     if (!match || (match.status !== "active" && match.status !== "pending")) {
@@ -96,11 +97,12 @@ router.openapi(
 
     // Upsert proof for this match, uploader, and day
     const existingProof = await db.query.proofs.findFirst({
-      where: and(
-        eq(proofs.matchId, match.id),
-        eq(proofs.uploaderId, userVar.id),
-        eq(proofs.day, body.day),
-      ),
+      where: (p, { and, eq }) =>
+        and(
+          eq(p.matchId, match.id),
+          eq(p.uploaderId, userVar.id),
+          eq(p.day, body.day),
+        ),
     })
 
     let newProof
@@ -162,7 +164,7 @@ router.openapi(
     // Send push notification in background
     db.query.users
       .findFirst({
-        where: eq(users.id, partnerId),
+        where: (u, { eq }) => eq(u.id, partnerId),
       })
       .then((partner) => {
         if (partner?.pushToken) {
@@ -178,7 +180,11 @@ router.openapi(
         console.error("Proof push error:", err)
       })
 
-    return c.json(newProof, HttpStatusCodes.CREATED)
+      return c.json(newProof, HttpStatusCodes.CREATED)
+    } catch (err: any) {
+      console.error("Proof POST Exception:", err)
+      return c.json({ message: err?.message || "Internal server error" }, HttpStatusCodes.BAD_REQUEST)
+    }
   },
 )
 
@@ -206,7 +212,7 @@ router.openapi(
     const userVar = c.get("user")!
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, matchId),
+      where: (m, { eq }) => eq(m.id, matchId),
     })
 
     if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
@@ -214,7 +220,7 @@ router.openapi(
     }
 
     const items = await db.query.proofs.findMany({
-      where: eq(proofs.matchId, matchId),
+      where: (p, { eq }) => eq(p.matchId, matchId),
       orderBy: [desc(proofs.day), desc(proofs.submittedAt)],
     })
 
@@ -252,7 +258,7 @@ router.openapi(
     const { status, rejectionReason } = c.req.valid("json")
 
     const proof = await db.query.proofs.findFirst({
-      where: eq(proofs.id, id),
+      where: (p, { eq }) => eq(p.id, id),
     })
 
     if (!proof) {
@@ -260,7 +266,7 @@ router.openapi(
     }
 
     const match = await db.query.matches.findFirst({
-      where: eq(matches.id, proof.matchId),
+      where: (m, { eq }) => eq(m.id, proof.matchId),
     })
 
     if (!match) {
