@@ -242,12 +242,27 @@ router.openapi(
 
     // Check banned package names
     const isBanned = await db.query.appBans.findFirst({
-      where: eq(appBans.packageName, body.packageName),
+      where: eq(appBans.packageName, body.packageName.trim()),
     })
 
     if (isBanned) {
       return c.json(
         { message: "This app package has been banned from testing." },
+        HttpStatusCodes.BAD_REQUEST,
+      )
+    }
+
+    // Check if app with same package name is already registered and active
+    const existingActiveApp = await db.query.apps.findFirst({
+      where: and(
+        ilike(apps.packageName, body.packageName.trim()),
+        not(eq(apps.status, "archived")),
+      ),
+    })
+
+    if (existingActiveApp) {
+      return c.json(
+        { message: `An app with package name "${body.packageName.trim()}" is already registered in the system.` },
         HttpStatusCodes.BAD_REQUEST,
       )
     }
@@ -371,6 +386,22 @@ router.openapi(
 
     if (!existing || existing.userId !== userVar.id) {
       return c.json({ message: "Forbidden: Not owner of this app" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    if (body.packageName && body.packageName.trim().toLowerCase() !== existing.packageName.toLowerCase()) {
+      const conflict = await db.query.apps.findFirst({
+        where: and(
+          ilike(apps.packageName, body.packageName.trim()),
+          not(eq(apps.id, id)),
+          not(eq(apps.status, "archived")),
+        ),
+      })
+      if (conflict) {
+        return c.json(
+          { message: `An app with package name "${body.packageName.trim()}" is already registered in the system.` },
+          HttpStatusCodes.BAD_REQUEST,
+        )
+      }
     }
 
     const [updated] = await db
