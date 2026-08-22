@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@/components/ui/icon';
-import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon } from 'lucide-react-native';
+import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon, LayersIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAdminStats } from '@/lib/api-hooks';
 
@@ -62,8 +62,28 @@ export default function AdminDashboardScreen() {
                 </View>
 
                 {/* Quick Actions */}
-                <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Support Management</Text>
+                <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Management &amp; Controls</Text>
 
+                {/* App Management */}
+                <Card className="border-border shadow-sm mb-3">
+                    <TouchableOpacity
+                        className="flex-row items-center justify-between p-4"
+                        onPress={() => router.push('/admin/apps-list' as any)}
+                    >
+                        <View className="flex-row items-center">
+                            <View className="bg-blue-500/10 p-2.5 rounded-xl mr-3">
+                                <Icon as={LayersIcon} className="text-blue-600 size-5" />
+                            </View>
+                            <View>
+                                <Text className="font-semibold text-foreground">App Management</Text>
+                                <Text className="text-xs text-muted-foreground">Search, delete apps &amp; clean duplicates</Text>
+                            </View>
+                        </View>
+                        <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
+                    </TouchableOpacity>
+                </Card>
+
+                {/* Support Inbox */}
                 <Card className="border-border shadow-sm mb-4">
                     <TouchableOpacity
                         className="flex-row items-center justify-between p-4"

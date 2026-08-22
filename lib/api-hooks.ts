@@ -848,6 +848,54 @@ export function useGetOrCreateAdminUserChat() {
   })
 }
 
+export function useAdminApps(search?: string, status?: string, limit = 50, offset = 0) {
+  return useQuery<{
+    apps: (AppEntity & { isDuplicate?: boolean })[]
+    total: number
+    duplicatePackagesCount: number
+  }>({
+    queryKey: ["adminApps", { search, status, limit, offset }],
+    queryFn: () =>
+      api.get("/api/admin/apps", {
+        params: { search, status, limit, offset },
+      }),
+    refetchInterval: 1000 * 10,
+  })
+}
+
+export function useAdminDeleteApp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ appId, banPackage, reason }: { appId: string; banPackage?: boolean; reason?: string }) =>
+      api.delete<{ message: string }>(`/api/admin/apps/${appId}`, {
+        params: { banPackage: banPackage ? "true" : "false", reason },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminApps"] })
+      queryClient.invalidateQueries({ queryKey: ["apps"] })
+      queryClient.invalidateQueries({ queryKey: ["myApps"] })
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] })
+    },
+  })
+}
+
+export function useAdminCleanDuplicates() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ message: string; deletedAppsCount: number; cleanedPackages: string[] }>(
+        "/api/admin/apps/clean-duplicates",
+        {},
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminApps"] })
+      queryClient.invalidateQueries({ queryKey: ["apps"] })
+      queryClient.invalidateQueries({ queryKey: ["myApps"] })
+      queryClient.invalidateQueries({ queryKey: ["adminStats"] })
+    },
+  })
+}
+
 export function useAdminCleanAllApps() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -857,6 +905,7 @@ export function useAdminCleanAllApps() {
       queryClient.invalidateQueries({ queryKey: ["apps"] })
       queryClient.invalidateQueries({ queryKey: ["myApps"] })
       queryClient.invalidateQueries({ queryKey: ["adminStats"] })
+      queryClient.invalidateQueries({ queryKey: ["adminApps"] })
     },
   })
 }
@@ -870,6 +919,7 @@ export function useAdminCleanTestUsers() {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] })
       queryClient.invalidateQueries({ queryKey: ["adminStats"] })
       queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] })
+      queryClient.invalidateQueries({ queryKey: ["adminApps"] })
     },
   })
 }
