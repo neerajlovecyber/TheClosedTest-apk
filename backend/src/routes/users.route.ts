@@ -26,7 +26,6 @@ const UserResponseSchema = z.object({
   bestStreak: z.number(),
   lastCheckInDate: z.string().nullable().optional(),
   unlockedAppSlots: z.number(),
-  showDeletionPopup: z.boolean(),
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
 })
@@ -57,34 +56,52 @@ router.openapi(
     path: "/api/users/sync",
     summary: "Sync User Identity",
     description: "Upserts user after Clerk/BetterAuth login",
+    middleware: [authMiddleware] as const,
     request: {
       body: jsonContentRequired(SyncUserSchema, "User Sync Payload"),
     },
     responses: {
       [HttpStatusCodes.OK]: jsonContent(UserResponseSchema, "User profile"),
       [HttpStatusCodes.CREATED]: jsonContent(UserResponseSchema, "New user created"),
+      [HttpStatusCodes.BAD_REQUEST]: jsonContent(
+        createMessageObjectSchema("Invalid sync request"),
+        "Invalid sync request",
+      ),
     },
   }),
   async (c) => {
+    const authUser = c.get("user")!
     const body = c.req.valid("json")
     const avatar =
       body.avatarUrl ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(body.name)}&background=random`
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(body.name || authUser.name || "Developer")}&background=random`
 
     const existingUser = await db.query.users.findFirst({
-      where: (u, { or, eq }) =>
-        or(eq(u.tokenIdentifier, body.tokenIdentifier), eq(u.email, body.email)),
+      where: (u, { eq }) => eq(u.tokenIdentifier, authUser.tokenIdentifier!),
     })
 
-    const isUserAdminRole = isUserAdmin(body.email, existingUser?.isAdmin)
-
     if (existingUser) {
+      // Prevent hijacking if email is already taken by another account
+      if (body.email && body.email.toLowerCase() !== existingUser.email.toLowerCase()) {
+        const emailConflict = await db.query.users.findFirst({
+          where: (u, { and, eq, not }) =>
+            and(eq(u.email, body.email.toLowerCase()), not(eq(u.id, existingUser.id))),
+        })
+        if (emailConflict) {
+          return c.json(
+            { message: "Email address is already registered to another user." },
+            HttpStatusCodes.BAD_REQUEST,
+          )
+        }
+      }
+
+      const isUserAdminRole = isUserAdmin(body.email || existingUser.email, existingUser.isAdmin)
+
       const [updated] = await db
         .update(users)
         .set({
-          name: body.name,
-          email: body.email,
-          tokenIdentifier: body.tokenIdentifier,
+          name: body.name || existingUser.name,
+          email: body.email ? body.email.toLowerCase() : existingUser.email,
           avatarUrl: avatar,
           isAdmin: isUserAdminRole,
           updatedAt: new Date(),
@@ -103,12 +120,13 @@ router.openapi(
       )
     }
 
+    const isUserAdminRole = isUserAdmin(body.email || authUser.email, false)
     const [newUser] = await db
       .insert(users)
       .values({
-        tokenIdentifier: body.tokenIdentifier,
-        name: body.name,
-        email: body.email,
+        tokenIdentifier: authUser.tokenIdentifier,
+        name: body.name || "Developer",
+        email: body.email ? body.email.toLowerCase() : authUser.email,
         avatarUrl: avatar,
         isAdmin: isUserAdminRole,
         reputation: 100,

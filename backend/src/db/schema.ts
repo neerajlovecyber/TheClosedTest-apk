@@ -32,7 +32,6 @@ export const users = pgTable(
     bestStreak: integer("best_streak").default(0).notNull(),
     lastCheckInDate: varchar("last_check_in_date", { length: 20 }), // YYYY-MM-DD
     unlockedAppSlots: integer("unlocked_app_slots").default(1).notNull(),
-    showDeletionPopup: boolean("show_deletion_popup").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

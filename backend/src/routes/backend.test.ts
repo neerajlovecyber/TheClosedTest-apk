@@ -18,7 +18,10 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
   it("1. POST /api/users/sync creates user 1", async () => {
     const res = await app.request("/api/users/sync", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${user1TokenId}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         tokenIdentifier: user1TokenId,
         name: "Developer Alice",
@@ -36,7 +39,10 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
   it("2. POST /api/users/sync creates user 2", async () => {
     const res = await app.request("/api/users/sync", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${user2TokenId}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         tokenIdentifier: user2TokenId,
         name: "Developer Bob",
