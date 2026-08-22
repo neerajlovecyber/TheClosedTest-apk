@@ -307,10 +307,10 @@ router.openapi(
       .insert(apps)
       .values({
         userId: user.id,
-        title: body.title,
-        packageName: body.packageName,
-        playStoreUrl: body.playStoreUrl,
-        iconUrl: body.iconUrl,
+        title: body.title.trim(),
+        packageName: body.packageName.trim(),
+        playStoreUrl: body.playStoreUrl.trim(),
+        iconUrl: body.iconUrl.trim(),
         instructions: body.instructions,
         requiredTesters: body.requiredTesters,
         currentTesters: 0,
@@ -318,12 +318,6 @@ router.openapi(
         visibilityStatus: "unverified",
       })
       .returning()
-
-    // Increment user's appsCount
-    await db
-      .update(users)
-      .set({ appsCount: user.appsCount + 1 })
-      .where(eq(users.id, user.id))
 
     // Invalidate public feed cache
     memoryCache.delete("apps_list:")

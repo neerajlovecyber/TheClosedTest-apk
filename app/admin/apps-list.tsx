@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, RefreshControl, TextInput, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,6 +37,13 @@ import {
 export default function AdminAppsListScreen() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     const [statusFilter, setStatusFilter] = useState<'all' | 'recruiting' | 'filled'>('all');
     const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
 
@@ -46,7 +53,7 @@ export default function AdminAppsListScreen() {
     const [showCleanDuplicatesModal, setShowCleanDuplicatesModal] = useState(false);
 
     const { data: appsResponse, isLoading, refetch, isRefetching } = useAdminApps(
-        searchQuery || undefined,
+        debouncedSearch || undefined,
         undefined,
         150,
         0,

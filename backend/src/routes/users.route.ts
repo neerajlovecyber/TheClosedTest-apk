@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { eq, sql } from "drizzle-orm"
+import { and, count, eq, not, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
-import { dailyActivity, users } from "../db/schema"
+import { apps, dailyActivity, users } from "../db/schema"
 import { isUserAdmin } from "../lib/constants"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
@@ -92,7 +92,15 @@ router.openapi(
         .where(eq(users.id, existingUser.id))
         .returning()
 
-      return c.json(updated, HttpStatusCodes.OK)
+      const [activeApps] = await db
+        .select({ count: count() })
+        .from(apps)
+        .where(and(eq(apps.userId, existingUser.id), not(eq(apps.status, "archived"))))
+
+      return c.json(
+        { ...updated, appsCount: activeApps?.count ?? 0 },
+        HttpStatusCodes.OK,
+      )
     }
 
     const [newUser] = await db
@@ -142,8 +150,17 @@ router.openapi(
       return c.json({ message: "User not found" }, HttpStatusCodes.NOT_FOUND)
     }
 
+    const [activeAppsResult] = await db
+      .select({ count: count() })
+      .from(apps)
+      .where(and(eq(apps.userId, user.id), not(eq(apps.status, "archived"))))
+
     return c.json(
-      { ...user, googleGroupConfirmed: user.isGroupMember },
+      {
+        ...user,
+        appsCount: activeAppsResult?.count ?? 0,
+        googleGroupConfirmed: user.isGroupMember,
+      },
       HttpStatusCodes.OK,
     )
   },

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { LegendList } from '@legendapp/list/react-native';
 import { Text } from '@/components/ui/text';
@@ -39,9 +39,15 @@ export default function MarketplaceScreen() {
     });
 
     // API Queries
+    const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     const { data: user } = useCurrentUser();
     const { data: appsData, isLoading, refetch, isFetching } = useRecruitingApps(
-        searchQuery || undefined,
+        debouncedSearch || undefined,
         50,
         0,
     );

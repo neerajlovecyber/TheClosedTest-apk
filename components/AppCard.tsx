@@ -76,8 +76,8 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                 {/* Header Row: Title & Badge */}
                 <View className="flex-row justify-between items-start">
                     <View className="flex-1 flex-row items-center gap-1.5 mr-2">
-                        <Text className="font-bold text-sm leading-tight shrink" numberOfLines={2}>
-                            {item.title.length > 15 ? `${item.title.substring(0, 15)}...` : item.title}
+                        <Text className="font-bold text-sm leading-tight shrink" numberOfLines={1}>
+                            {item.title}
                         </Text>
                         {item.hasUnread && (
                             <View className="bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-background shadow-sm" />
@@ -173,9 +173,7 @@ export function AppCard({ item, onPress, onReport, variant = 'marketplace', acti
                             <View className="flex-row items-center gap-3">
                                 <View className="bg-secondary/50 px-2 py-1 rounded-md">
                                     <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
-                                        {(item.ownerName || 'Unknown').length > 15
-                                            ? `${(item.ownerName || 'Unknown').substring(0, 15)}...`
-                                            : (item.ownerName || 'Unknown')}
+                                        {item.ownerName || 'Developer'}
                                     </Text>
                                 </View>
                                 {/* Reputation (Moved back to bottom) */}
