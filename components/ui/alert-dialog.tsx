@@ -99,7 +99,11 @@ function AlertDialogAction({ className, variant = "default", ...props }: AlertDi
   return (
     <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "default" })}>
       <AlertDialogPrimitive.Action
-        className={cn(buttonVariants({ variant, size: "default" }), "flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85", className)}
+        className={cn(
+          buttonVariants({ variant, size: "default" }),
+          "flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85",
+          className,
+        )}
         {...props}
       />
     </TextClassContext.Provider>
