@@ -994,15 +994,16 @@ export function useSendSupportMessage() {
     onMutate: async (newMessage) => {
       await queryClient.cancelQueries({ queryKey: ["supportChat", newMessage.chatId] })
       const previousData = queryClient.getQueryData<any>(["supportChat", newMessage.chatId])
+      const currentUser = queryClient.getQueryData<UserProfile>(["currentUser"])
 
       if (previousData) {
         const optimisticMsg = {
           id: `temp-${Date.now()}`,
           chatId: newMessage.chatId,
-          senderId: "me",
+          senderId: currentUser?.id || "me",
           content: newMessage.content,
           type: newMessage.type || "text",
-          isAdmin: false,
+          isAdmin: Boolean(currentUser?.isAdmin),
           sentAt: new Date().toISOString(),
         }
 

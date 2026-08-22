@@ -70,9 +70,11 @@ export default function AdminChatScreen() {
     };
 
     const renderMessage = ({ item }: { item: any }) => {
-        const isMyMessage = currentUser?.isAdmin
-            ? (item.isAdmin || (currentUser?.id && item.senderId === currentUser.id) || (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier))
-            : (!item.isAdmin || (currentUser?.id && item.senderId === currentUser.id) || (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier));
+        const isMyMessage =
+            item.senderId === 'me' ||
+            (currentUser?.id && item.senderId === currentUser.id) ||
+            (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier) ||
+            (currentUser?.isAdmin ? item.isAdmin : !item.isAdmin);
 
         const showSupportBadge = item.isAdmin && !currentUser?.isAdmin;
         const isSeen = currentUser?.isAdmin ? !(chatInfo as any)?.hasUnreadUser : !(chatInfo as any)?.hasUnreadAdmin;
