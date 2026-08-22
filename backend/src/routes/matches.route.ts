@@ -105,6 +105,18 @@ router.openapi(
       return c.json({ message: "Cannot match with your own app" }, HttpStatusCodes.BAD_REQUEST)
     }
 
+    if (app1.status === "filled" || app1.status === "archived" || app2.status === "filled" || app2.status === "archived") {
+      return c.json({ message: "Cannot request match: One of the apps is already filled or closed" }, HttpStatusCodes.BAD_REQUEST)
+    }
+
+    const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2])
+    const count1 = (enrichedApp1 as any)?.currentTesters ?? 0
+    const count2 = (enrichedApp2 as any)?.currentTesters ?? 0
+
+    if (count1 >= app1.requiredTesters || count2 >= app2.requiredTesters) {
+      return c.json({ message: "Cannot request match: One of the apps has already reached full tester capacity" }, HttpStatusCodes.BAD_REQUEST)
+    }
+
     // Check for duplicate pending/active match between these apps
     const existing = await db.query.matches.findFirst({
       where: (m, { and, or, eq }) =>
@@ -138,6 +150,7 @@ router.openapi(
         user2ApprovedCount: 0,
       })
       .returning()
+
 
     // Create notification for target user
     await db.insert(notifications).values({
@@ -391,6 +404,27 @@ router.openapi(
       return c.json({ message: "Forbidden: Only target user can accept a pending match" }, HttpStatusCodes.FORBIDDEN)
     }
 
+    const [app1, app2] = await Promise.all([
+      db.query.apps.findFirst({ where: (a, { eq }) => eq(a.id, match.app1Id) }),
+      db.query.apps.findFirst({ where: (a, { eq }) => eq(a.id, match.app2Id) }),
+    ])
+
+    if (!app1 || !app2) {
+      return c.json({ message: "One of the matched apps was not found" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    if (app1.status === "filled" || app1.status === "archived" || app2.status === "filled" || app2.status === "archived") {
+      return c.json({ message: "Cannot accept: One of the apps is already full or closed" }, HttpStatusCodes.FORBIDDEN)
+    }
+
+    const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2])
+    const count1 = (enrichedApp1 as any)?.currentTesters ?? 0
+    const count2 = (enrichedApp2 as any)?.currentTesters ?? 0
+
+    if (count1 >= app1.requiredTesters || count2 >= app2.requiredTesters) {
+      return c.json({ message: "Cannot accept: One of the apps has reached full tester capacity" }, HttpStatusCodes.FORBIDDEN)
+    }
+
     const now = new Date()
     const [updated] = await db
       .update(matches)
@@ -402,6 +436,15 @@ router.openapi(
       })
       .where(eq(matches.id, id))
       .returning()
+
+    // If either app reaches capacity after this accept, update status to filled
+    if (count1 + 1 >= app1.requiredTesters) {
+      await db.update(apps).set({ status: "filled" }).where(eq(apps.id, app1.id))
+    }
+    if (count2 + 1 >= app2.requiredTesters) {
+      await db.update(apps).set({ status: "filled" }).where(eq(apps.id, app2.id))
+    }
+
 
     // Concurrently create notification and fire push alert in background
     Promise.all([
