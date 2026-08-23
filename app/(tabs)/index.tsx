@@ -6,7 +6,6 @@ import { PendingRequestCard } from "@/components/PendingRequestCard";
 import { OpenSourceAnnouncementBanner } from "@/components/OpenSourceAnnouncementBanner";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { BellIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, LockIcon } from "lucide-react-native";
 import { useUser } from "@clerk/clerk-expo";
@@ -205,10 +204,18 @@ export default function HomeScreen() {
               <Text className="text-3xl font-bold text-foreground">Hello, {userName}!</Text>
               <Text className="text-muted-foreground text-lg">Let's squash some bugs today.</Text>
             </View>
-            <Button variant="outline" size="icon" className="relative" onPress={() => router.push("/notifications")}>
-              <Icon as={BellIcon} className="text-foreground" />
-              {unreadCount > 0 && <View className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-background z-10" />}
-            </Button>
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              activeOpacity={0.7}
+              className="p-2 rounded-full active:bg-secondary/40"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Notifications"
+            >
+              <View className="relative">
+                <Icon as={BellIcon} size={24} className="text-foreground" />
+                {unreadCount > 0 && <View className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-background z-10" />}
+              </View>
+            </TouchableOpacity>
           </View>
 
           <View className="flex-row gap-4 mt-2">
