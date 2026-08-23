@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
-import { HeadphonesIcon, InfoIcon, XIcon, LayersIcon, StarIcon, FlameIcon, ExternalLinkIcon, CheckCircleIcon, CopyIcon, CheckIcon } from "lucide-react-native";
+import { HeadphonesIcon, InfoIcon, XIcon, LayersIcon, StarIcon, FlameIcon, CheckCircleIcon } from "lucide-react-native";
 import { toast } from "@/lib/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useCurrentUser, useMySupportChat, useSupportChatDetails, useSendSupportMessage, useAdminUserDetails } from "@/lib/api-hooks";
 import { ChatView, ChatMessageItem } from "@/components/ChatView";
-import { View, TouchableOpacity, Modal, ScrollView, Image, ActivityIndicator, Linking } from "react-native";
+import { AppCard } from "@/components/AppCard";
+import { View, TouchableOpacity, Modal, ScrollView, Image, ActivityIndicator } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { Button } from "@/components/ui/button";
-import * as Clipboard from "expo-clipboard";
 
 const SUPPORT_QUICK_CHIPS = [
   "📸 Issue with proof approval",
@@ -41,7 +40,6 @@ export default function AdminChatScreen() {
   const { data: userContext, isLoading: isUserContextLoading } = useAdminUserDetails(isTargetUserAdmin ? targetUserId : undefined);
 
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [copiedPkg, setCopiedPkg] = useState<string | null>(null);
 
   // Mark conversation read and refresh query lists
   useEffect(() => {
@@ -95,13 +93,6 @@ export default function AdminChatScreen() {
     } catch {
       toast.error("Failed to send message");
     }
-  };
-
-  const handleCopy = async (pkg: string) => {
-    await Clipboard.setStringAsync(pkg);
-    setCopiedPkg(pkg);
-    toast.success("Package name copied!");
-    setTimeout(() => setCopiedPkg(null), 2000);
   };
 
   const rightAction = isTargetUserAdmin ? (
@@ -209,8 +200,10 @@ export default function AdminChatScreen() {
                   </Card>
 
                   {/* Registered Apps Section */}
-                  <View className="gap-3 mt-1">
-                    <Text className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Registered Apps ({userContext.apps.length})</Text>
+                  <View className="gap-2 mt-1">
+                    <Text className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 mb-1">
+                      Registered Apps ({userContext.apps.length})
+                    </Text>
 
                     {userContext.apps.length === 0 ? (
                       <View className="p-6 bg-secondary/30 rounded-2xl items-center justify-center border border-dashed border-border">
@@ -218,74 +211,25 @@ export default function AdminChatScreen() {
                       </View>
                     ) : (
                       userContext.apps.map((app) => (
-                        <Card key={app.id} className="border-border/70 bg-card overflow-hidden">
-                          <CardContent className="p-4 gap-3">
-                            <View className="flex-row items-start gap-3">
-                              {app.iconUrl ? (
-                                <Image source={{ uri: app.iconUrl }} className="w-12 h-12 rounded-xl bg-secondary border border-border" />
-                              ) : (
-                                <View className="w-12 h-12 rounded-xl bg-primary/10 items-center justify-center">
-                                  <Icon as={LayersIcon} className="size-6 text-primary" />
-                                </View>
-                              )}
-                              <View className="flex-1">
-                                <View className="flex-row items-center justify-between">
-                                  <Text className="text-base font-bold text-foreground flex-1 mr-2" numberOfLines={1}>
-                                    {app.title}
-                                  </Text>
-                                  <View className="bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
-                                    <Text className="text-[10px] font-bold text-primary uppercase tracking-wider">{app.status}</Text>
-                                  </View>
-                                </View>
-
-                                {/* Package Name with Copy Button */}
-                                <TouchableOpacity
-                                  onPress={() => handleCopy(app.packageName)}
-                                  activeOpacity={0.7}
-                                  className="flex-row items-center gap-1.5 mt-1 bg-secondary/50 px-2 py-1 rounded-md self-start"
-                                >
-                                  <Text className="text-xs font-mono text-muted-foreground" numberOfLines={1}>
-                                    {app.packageName}
-                                  </Text>
-                                  <Icon as={copiedPkg === app.packageName ? CheckIcon : CopyIcon} size={12} className="text-muted-foreground" />
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-
-                            {/* Testers Progress & Action Links */}
-                            <View className="flex-row items-center justify-between pt-2 border-t border-border/30">
-                              <Text className="text-xs font-medium text-muted-foreground">
-                                Testers: <Text className="font-bold text-foreground">{app.currentTesters}</Text> / {app.requiredTesters}
-                              </Text>
-
-                              <View className="flex-row items-center gap-2">
-                                {app.playStoreUrl ? (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 px-2.5 rounded-lg flex-row gap-1 border-border/60"
-                                    onPress={() => Linking.openURL(app.playStoreUrl).catch(() => toast.error("Could not open URL"))}
-                                  >
-                                    <Icon as={ExternalLinkIcon} size={12} className="text-foreground" />
-                                    <Text className="text-xs font-semibold text-foreground">Play Store</Text>
-                                  </Button>
-                                ) : null}
-
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  className="h-8 px-2.5 rounded-lg"
-                                  onPress={() => {
-                                    setShowInfoModal(false);
-                                    router.push(`/app-details/${app.id}` as any);
-                                  }}
-                                >
-                                  <Text className="text-xs font-semibold text-foreground">Details</Text>
-                                </Button>
-                              </View>
-                            </View>
-                          </CardContent>
-                        </Card>
+                        <AppCard
+                          key={app.id}
+                          item={{
+                            _id: app.id,
+                            title: app.title,
+                            iconUrl: app.iconUrl,
+                            currentTesters: app.currentTesters,
+                            requiredTesters: app.requiredTesters,
+                            status: app.status,
+                            ownerName: userContext.user.name || undefined,
+                            ownerEmail: userContext.user.email || undefined,
+                            reputation: userContext.user.reputation,
+                          }}
+                          variant="my-app"
+                          onPress={() => {
+                            setShowInfoModal(false);
+                            router.push(`/app-details/${app.id}` as any);
+                          }}
+                        />
                       ))
                     )}
                   </View>

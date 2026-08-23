@@ -603,6 +603,8 @@ router.openapi(
       orderBy: [desc(apps.createdAt)],
     })
 
+    const enrichedUserApps = await enrichAppsWithTesterCounts(userApps)
+
     const [activeMatchesResult] = await db
       .select({ count: count() })
       .from(matches)
@@ -622,7 +624,7 @@ router.openapi(
           isGroupMember: targetUser.isGroupMember,
           createdAt: targetUser.createdAt,
         },
-        apps: userApps.map((a) => ({
+        apps: enrichedUserApps.map((a: any) => ({
           id: a.id,
           title: a.title,
           packageName: a.packageName,
