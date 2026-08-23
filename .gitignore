@@ -35,6 +35,8 @@ android
 .env.development
 .env.test
 backend/.env
+telegram-bot/.env
+telegram-bot/.env*
 
 # typescript
 *.tsbuildinfo

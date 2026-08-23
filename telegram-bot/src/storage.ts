@@ -1,0 +1,42 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const STATE_FILE = path.resolve(import.meta.dir, "../bot-state.json");
+
+export interface BotState {
+  groupId: number | string | null;
+  groupTitle: string;
+  bannedKeywords: string[];
+  topics: Record<string, { threadId: number; name: string; isGeneral?: boolean }>;
+}
+
+export function loadBotState(): BotState {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const raw = fs.readFileSync(STATE_FILE, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    console.warn("Could not load bot-state.json:", err);
+  }
+
+  return {
+    groupId: process.env.GROUP_ID || process.env.TARGET_GROUP_ID || null,
+    groupTitle: "Your Group",
+    bannedKeywords: [],
+    topics: {},
+  };
+}
+
+export function saveBotState(state: Partial<BotState>) {
+  try {
+    const current = loadBotState();
+    const updated: BotState = {
+      ...current,
+      ...state,
+    };
+    fs.writeFileSync(STATE_FILE, JSON.stringify(updated, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save bot-state.json:", err);
+  }
+}
