@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, RefreshControl } from "react-native";
+import { View, TouchableOpacity, useWindowDimensions, ActivityIndicator, RefreshControl } from "react-native";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
@@ -176,8 +177,8 @@ export default function MarketplaceScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+      <ScreenScrollView
+        contentContainerStyle={{ padding: 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
       >
@@ -280,7 +281,7 @@ export default function MarketplaceScreen() {
             )}
           </View>
         </View>
-      </ScrollView>
+      </ScreenScrollView>
 
       {/* Google Group Modal */}
       <Modal animationType="slide" transparent={true} visible={showGroupModal} onRequestClose={() => setShowGroupModal(false)}>

@@ -35,7 +35,8 @@ import {
 } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import * as React from "react";
-import { Linking, ScrollView, View, Share, TouchableOpacity, Modal, Pressable } from "react-native";
+import { Linking, View, Share, TouchableOpacity, Modal, Pressable } from "react-native";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import Constants from "expo-constants";
 import { useCurrentUser, useMySupportChat } from "@/lib/api-hooks";
 
@@ -160,7 +161,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScreenScrollView className="flex-1 bg-background">
       {/* Header */}
       <View className="px-6 py-4 flex-row items-center justify-between">
         <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
@@ -239,20 +240,13 @@ export default function SettingsScreen() {
           <View className="gap-3">
             <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Legal</Text>
             <Card className="overflow-hidden p-0 gap-0 border-0">
-              <CardContent className="p-0 gap-0 divide-y divide-border/30">
+              <CardContent className="p-0 gap-0">
                 <SettingItem
                   icon={ShieldIcon}
-                  label="Privacy Policy"
-                  subtitle="How we protect your data"
+                  label="Terms & Privacy Policy"
+                  subtitle="Terms of service and data protection"
                   onPress={() => router.push("/privacy-policy" as any)}
                   iconColor="bg-teal-500"
-                />
-                <SettingItem
-                  icon={InfoIcon}
-                  label="Terms of Service"
-                  subtitle="Rules and guidelines"
-                  onPress={() => router.push("/terms-of-service" as any)}
-                  iconColor="bg-slate-500"
                 />
               </CardContent>
             </Card>
@@ -337,6 +331,6 @@ export default function SettingsScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }

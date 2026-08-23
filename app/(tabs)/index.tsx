@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { AppCard } from "@/components/AppCard";
 import { PendingRequestCard } from "@/components/PendingRequestCard";
 import { OpenSourceAnnouncementBanner } from "@/components/OpenSourceAnnouncementBanner";
@@ -196,7 +197,7 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <ScrollView className="flex-1" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <ScreenScrollView className="flex-1" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Header Section */}
         <View className="px-6 pt-8 pb-4">
           <View className="flex-row justify-between items-start mb-4">
@@ -404,7 +405,7 @@ export default function HomeScreen() {
             );
           })}
         </View>
-      </ScrollView>
+      </ScreenScrollView>
 
       <AlertDialog open={isUnlockSlotsDialogOpen} onOpenChange={setIsUnlockSlotsDialogOpen}>
         <AlertDialogContent>

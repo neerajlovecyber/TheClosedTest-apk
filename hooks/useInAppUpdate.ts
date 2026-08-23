@@ -1,15 +1,14 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import SpInAppUpdates, { IAUUpdateKind, StartUpdateOptions } from "sp-react-native-in-app-updates";
-import * as Application from "expo-application";
 
 const inAppUpdates = new SpInAppUpdates(
-  false, // isDebug: Set to true only for testing with 'fake' updates in debug mode if needed, but usually better to test with internal app sharing
+  false, // isDebug: Set to true only for testing with 'fake' updates in debug mode if needed
 );
 
 export function useInAppUpdate() {
   useEffect(() => {
-    if (Platform.OS !== "android") return;
+    if (Platform.OS !== "android" || __DEV__) return;
 
     const checkAndUpdate = async () => {
       try {
@@ -22,9 +21,11 @@ export function useInAppUpdate() {
 
           await inAppUpdates.startUpdate(updateOptions);
         }
-      } catch (error) {
-        // Fail silently so we don't disturb the user login flow if update check fails
-        console.log("In-App Update check failed:", error);
+      } catch (error: any) {
+        // Fail silently for dev / non-play-store builds (e.g. -10 ERROR_APP_NOT_OWNED)
+        if (!error?.message?.includes("-10")) {
+          console.warn("In-App Update check notice:", error?.message || error);
+        }
       }
     };
 

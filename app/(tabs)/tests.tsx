@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, memo, useState, useEffect } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
+import { View, RefreshControl, TouchableOpacity } from "react-native";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
@@ -258,11 +259,7 @@ export default function TestsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
-      >
+      <ScreenScrollView className="flex-1" refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}>
         {/* Header */}
         <View className="px-6 py-4">
           <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
@@ -381,7 +378,7 @@ export default function TestsScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </ScreenScrollView>
     </View>
   );
 }

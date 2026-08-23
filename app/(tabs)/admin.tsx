@@ -1,5 +1,6 @@
 import React from "react";
-import { View, ScrollView, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,7 +24,7 @@ export default function AdminDashboardScreen() {
         <Text className="text-sm text-muted-foreground mt-0.5">Dashboard &amp; Overview</Text>
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScreenScrollView className="flex-1 px-4">
         {/* Key Metrics - Hero Cards */}
         <View className="flex-row gap-3 mb-6">
           <Card className="border-border shadow-sm h-32 bg-card flex-1">
@@ -113,7 +114,7 @@ export default function AdminDashboardScreen() {
             <Icon as={ChevronRightIcon} className="text-red-400 size-5" />
           </TouchableOpacity>
         </Card>
-      </ScrollView>
+      </ScreenScrollView>
     </SafeAreaView>
   );
 }

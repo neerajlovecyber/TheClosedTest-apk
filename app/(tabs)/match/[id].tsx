@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity, Platform, useWindowDimensions, Pressable, Linking, Share } from "react-native";
+import { View, RefreshControl, TouchableOpacity, Platform, useWindowDimensions, Pressable, Linking, Share } from "react-native";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { toast } from "@/lib/sonner";
 import {
   AlertDialog,
@@ -284,10 +285,9 @@ export default function MatchDashboardScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <ScreenScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: isWeb ? 40 : 60 }}
         style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
         refreshControl={<RefreshControl refreshing={isManualRefreshing || isFetchingMatch || isFetchingProofs} onRefresh={handleRefresh} />}
       >
@@ -505,11 +505,11 @@ export default function MatchDashboardScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+      </ScreenScrollView>
 
       {/* Chat Floating Action Button with Live Red Dot Indicator */}
       {!isCancelled && (
-        <View className="absolute bottom-6 right-6 z-50">
+        <View className="absolute right-6 z-50" style={{ bottom: Math.max(insets.bottom, 16) + 84 }}>
           <TouchableOpacity
             onPress={() => setChatVisible(true)}
             className="relative w-14 h-14 bg-primary rounded-full items-center justify-center shadow-lg shadow-primary/30 p-0"

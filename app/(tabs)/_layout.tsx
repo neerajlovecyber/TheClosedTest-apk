@@ -1,12 +1,13 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
-import { FlaskConicalIcon, HomeIcon, SettingsIcon, StoreIcon, ShieldIcon } from "lucide-react-native";
-import { Icon } from "@/components/ui/icon";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUser } from "@clerk/clerk-expo";
 import { useCurrentUser, useMatches, useMySupportChat } from "@/lib/api-hooks";
 import { getMatchCurrentDay } from "@/lib/date-utils";
+
+import { FloatingTabBar } from "@/components/FloatingTabBar";
+import { TabScrollProvider } from "@/lib/tab-scroll-context";
 
 export default function TabLayout() {
   const { user } = useUser();
@@ -47,120 +48,61 @@ export default function TabLayout() {
   }, [activeMatches, currentUser?.id]);
 
   return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      <Tabs
-        screenOptions={{
-          tabBarHideOnKeyboard: false,
-          headerTitleAlign: "left",
-          headerTitleStyle: { paddingLeft: 16 },
-          tabBarStyle: {
-            height: 60 + insets.bottom,
-            paddingBottom: insets.bottom + 4,
-            paddingTop: 8,
-          },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "500",
-          },
-          headerShown: false,
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Home",
-            tabBarIcon: ({ color }) => <Icon as={HomeIcon} color={color} className="size-6" />,
-          }}
-        />
-        <Tabs.Screen
-          name="marketplace"
-          options={{
-            title: "Marketplace",
-            tabBarIcon: ({ color }) => <Icon as={StoreIcon} color={color} className="size-6" />,
+    <TabScrollProvider>
+      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+        <Tabs
+          tabBar={(props) => (
+            <FloatingTabBar
+              {...props}
+              hasPendingTasks={hasPendingTasks}
+              hasUnreadMessages={hasUnreadMessages}
+              hasUnreadSupport={hasUnreadSupport}
+              isAdmin={isAdmin}
+            />
+          )}
+          screenOptions={{
             headerShown: false,
           }}
-        />
-        <Tabs.Screen
-          name="tests"
-          options={{
-            title: "Tests",
-            tabBarIcon: ({ color }) => (
-              <View style={{ position: "relative" }}>
-                <Icon as={FlaskConicalIcon} color={color} className="size-6" />
-                {hasPendingTasks ? (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: -4,
-                      right: -6,
-                      width: 10,
-                      height: 10,
-                      backgroundColor: "#ef4444",
-                      borderRadius: 5,
-                    }}
-                  />
-                ) : hasUnreadMessages ? (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: -4,
-                      right: -6,
-                      width: 10,
-                      height: 10,
-                      backgroundColor: "#0ea5e9",
-                      borderRadius: 5,
-                    }}
-                  />
-                ) : null}
-              </View>
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: "Settings",
-            tabBarIcon: ({ color }) => (
-              <View style={{ position: "relative" }}>
-                <Icon as={SettingsIcon} color={color} className="size-6" />
-                {hasUnreadSupport && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: -4,
-                      right: -6,
-                      width: 10,
-                      height: 10,
-                      backgroundColor: "#0ea5e9",
-                      borderRadius: 5,
-                    }}
-                  />
-                )}
-              </View>
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="match/[id]"
-          options={{
-            href: null,
-            headerShown: false,
-          }}
-        />
-        <Tabs.Screen
-          name="admin"
-          options={{
-            title: "Admin",
-            href: isAdmin ? "/admin" : null,
-            tabBarIcon: ({ color }) => (
-              <View style={{ position: "relative" }}>
-                <Icon as={ShieldIcon} color={color} className="size-6" />
-              </View>
-            ),
-            headerShown: false,
-          }}
-        />
-      </Tabs>
-    </View>
+        >
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: "Home",
+            }}
+          />
+          <Tabs.Screen
+            name="marketplace"
+            options={{
+              title: "Marketplace",
+            }}
+          />
+          <Tabs.Screen
+            name="tests"
+            options={{
+              title: "Tests",
+            }}
+          />
+          <Tabs.Screen
+            name="settings"
+            options={{
+              title: "Settings",
+            }}
+          />
+          <Tabs.Screen
+            name="match/[id]"
+            options={{
+              href: null,
+            }}
+          />
+          <Tabs.Screen
+            name="admin"
+            options={{
+              title: "Admin",
+              href: isAdmin ? "/admin" : null,
+            }}
+          />
+        </Tabs>
+      </View>
+    </TabScrollProvider>
   );
 }
