@@ -34,10 +34,7 @@ export function VerifyEmailForm() {
         await setActive({ session: signUpAttempt.createdSessionId });
         return;
       }
-      // TODO: Handle other statuses
-      // If the status is not complete, check why. User may need to
-      // complete further steps.
-      console.error(JSON.stringify(signUpAttempt, null, 2));
+      setError("Verification couldn't be completed. Check the code or request a new one.");
     } catch (err) {
       // See https://go.clerk.com/mRUDrIe for more info on error handling
       if (err instanceof Error) {

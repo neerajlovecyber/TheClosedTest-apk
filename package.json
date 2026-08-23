@@ -15,6 +15,7 @@
     "format:check": "oxfmt --check .",
     "check": "oxlint && oxfmt --check .",
     "check:fix": "oxlint --fix && oxfmt .",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf .expo node_modules"
   },
   "dependencies": {

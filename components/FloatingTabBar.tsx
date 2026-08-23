@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { BlurView } from "expo-blur";
 import { useColorScheme } from "nativewind";
 import { Platform, View, TouchableOpacity, StyleSheet } from "react-native";
-import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/build/react-navigation/bottom-tabs/types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, withSpring, useSharedValue, interpolate } from "react-native-reanimated";
 import { HomeIcon, StoreIcon, FlaskConicalIcon, SettingsIcon } from "lucide-react-native";
@@ -14,6 +14,7 @@ interface FloatingTabBarProps extends BottomTabBarProps {
   hasPendingTasks?: boolean;
   hasUnreadMessages?: boolean;
   hasUnreadSupport?: boolean;
+  isAdmin?: boolean;
 }
 
 const TAB_ICONS: Record<string, any> = {
@@ -30,7 +31,7 @@ const TAB_LABELS: Record<string, string> = {
   settings: "Settings",
 };
 
-export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport }: FloatingTabBarProps) {
+export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport, isAdmin }: FloatingTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";

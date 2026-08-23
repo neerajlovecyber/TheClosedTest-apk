@@ -12,10 +12,11 @@ import {
   useRefreshOnFocus,
   NotificationEntity,
 } from "@/lib/api-hooks";
+import { ErrorState } from "@/components/ErrorState";
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { data: notificationsData, refetch, isFetching } = useNotifications();
+  const { data: notificationsData, refetch, isFetching, isError } = useNotifications();
   const markAllAsRead = useMarkAllNotificationsRead();
   const markAsRead = useMarkNotificationRead();
   const clearAllNotifications = useClearAllNotifications();
@@ -126,7 +127,14 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView className="flex-1 px-6 pt-4" refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}>
-        {notifications.length > 0 ? (
+        {isError ? (
+          <ErrorState
+            title="Couldn't load notifications"
+            message="We couldn't reach the server. Pull down or tap retry once you're back online."
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        ) : notifications.length > 0 ? (
           <View className="pb-10">
             {notifications.map((notification) => {
               const isUnread = !notification.isRead;

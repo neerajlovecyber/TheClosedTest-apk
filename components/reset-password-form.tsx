@@ -32,7 +32,7 @@ export function ResetPasswordForm() {
         setActive({ session: result.createdSessionId });
         return;
       }
-      // TODO: Handle other statuses
+      setError({ code: "", password: "Password reset couldn't be completed. Request a new code and try again." });
     } catch (err) {
       // See https://go.clerk.com/mRUDrIe for more info on error handling
       if (err instanceof Error) {

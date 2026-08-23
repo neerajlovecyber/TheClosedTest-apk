@@ -9,6 +9,7 @@ import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCir
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser, useMatches, useRefreshOnFocus, MatchEntity } from "@/lib/api-hooks";
+import { ErrorState } from "@/components/ErrorState";
 import { getTimeUntilMidnightIST, getMatchCurrentDay } from "@/lib/date-utils";
 
 // Memoized TaskCard component
@@ -152,7 +153,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
 export default function TestsScreen() {
   const router = useRouter();
   const { data: currentUser } = useCurrentUser();
-  const { data: activeMatches = [], refetch, isFetching } = useMatches("active");
+  const { data: activeMatches = [], refetch, isFetching, isError } = useMatches("active");
 
   // Instant refresh when navigating or switching to Tests tab
   useRefreshOnFocus(
@@ -298,84 +299,99 @@ export default function TestsScreen() {
         </View>
 
         <View className="px-4 pt-1">
-          {/* Pending Section */}
-          {pendingTasks.length > 0 && (
-            <View className="mb-6">
-              <View className="flex-row items-center gap-2 mb-3">
-                <Icon as={ClockIcon} className="size-5 text-orange-500" />
-                <Text className="text-lg font-bold">Pending Today</Text>
-                <View className="bg-orange-500 px-2 py-0.5 rounded-full">
-                  <Text className="text-xs text-white font-bold">{pendingTasks.length}</Text>
-                </View>
-              </View>
-
-              <View className="gap-0">
-                {pendingTasks.map((item) => (
-                  <React.Fragment key={keyExtractor(item)}>{renderTaskItem({ item })}</React.Fragment>
-                ))}
-              </View>
-            </View>
+          {/* Error State */}
+          {isError && (
+            <ErrorState
+              title="Couldn't load your tasks"
+              message="We couldn't reach the server. Pull down or tap retry once you're back online."
+              onRetry={() => refetch()}
+              isRetrying={isFetching}
+              className="pb-6"
+            />
           )}
 
-          {/* Completed Section */}
-          {completedTasks.length > 0 && (
-            <View>
-              <View className="flex-row items-center gap-2 mb-3">
-                <Icon as={CheckCircleIcon} className="size-5 text-green-500" />
-                <Text className="text-lg font-bold">Completed Today</Text>
-                <View className="bg-green-500 px-2 py-0.5 rounded-full">
-                  <Text className="text-xs text-white font-bold">{completedTasks.length}</Text>
+          {!isError && (
+            <>
+              {/* Pending Section */}
+              {pendingTasks.length > 0 && (
+                <View className="mb-6">
+                  <View className="flex-row items-center gap-2 mb-3">
+                    <Icon as={ClockIcon} className="size-5 text-orange-500" />
+                    <Text className="text-lg font-bold">Pending Today</Text>
+                    <View className="bg-orange-500 px-2 py-0.5 rounded-full">
+                      <Text className="text-xs text-white font-bold">{pendingTasks.length}</Text>
+                    </View>
+                  </View>
+
+                  <View className="gap-0">
+                    {pendingTasks.map((item) => (
+                      <React.Fragment key={keyExtractor(item)}>{renderTaskItem({ item })}</React.Fragment>
+                    ))}
+                  </View>
                 </View>
-              </View>
+              )}
 
-              <View className="gap-0">
-                {completedTasks.map((item) => (
-                  <React.Fragment key={keyExtractor(item)}>{renderTaskItem({ item })}</React.Fragment>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Empty State */}
-          {testingApps.length === 0 && (
-            <View className="items-center justify-center pb-12 px-6">
-              <View className="bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full p-8 mb-6">
-                <Icon as={ClockIcon} className="size-20 text-primary" />
-              </View>
-
-              <Text className="text-2xl font-extrabold text-foreground mb-6 text-center">Ready to Start Testing?</Text>
-
-              <View className="w-full gap-3 mb-8">
-                <Card className="bg-blue-500/10 border-blue-500/30">
-                  <CardContent className="p-4 flex-row items-center gap-3">
-                    <View className="bg-blue-500 rounded-full p-2">
-                      <Icon as={CheckCircleIcon} className="size-5 text-white" />
+              {/* Completed Section */}
+              {completedTasks.length > 0 && (
+                <View>
+                  <View className="flex-row items-center gap-2 mb-3">
+                    <Icon as={CheckCircleIcon} className="size-5 text-green-500" />
+                    <Text className="text-lg font-bold">Completed Today</Text>
+                    <View className="bg-green-500 px-2 py-0.5 rounded-full">
+                      <Text className="text-xs text-white font-bold">{completedTasks.length}</Text>
                     </View>
-                    <View className="flex-1">
-                      <Text className="font-bold text-blue-600 dark:text-blue-400">Get Real Feedback</Text>
-                      <Text className="text-xs text-muted-foreground">Daily proof reviews from testers</Text>
-                    </View>
-                  </CardContent>
-                </Card>
+                  </View>
 
-                <Card className="bg-green-500/10 border-green-500/30">
-                  <CardContent className="p-4 flex-row items-center gap-3">
-                    <View className="bg-green-500 rounded-full p-2">
-                      <Icon as={StarIcon} className="size-5 text-white" />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="font-bold text-green-600 dark:text-green-400">Build Reputation</Text>
-                      <Text className="text-xs text-muted-foreground">Earn points for quality testing</Text>
-                    </View>
-                  </CardContent>
-                </Card>
-              </View>
+                  <View className="gap-0">
+                    {completedTasks.map((item) => (
+                      <React.Fragment key={keyExtractor(item)}>{renderTaskItem({ item })}</React.Fragment>
+                    ))}
+                  </View>
+                </View>
+              )}
 
-              <Button onPress={() => router.push("/(tabs)/marketplace" as any)} className="w-full rounded-2xl h-14 shadow-lg shadow-primary/30">
-                <Icon as={SearchIcon} className="text-primary-foreground size-5 mr-2" />
-                <Text className="text-primary-foreground font-bold text-base">Browse Marketplace</Text>
-              </Button>
-            </View>
+              {/* Empty State */}
+              {testingApps.length === 0 && (
+                <View className="items-center justify-center pb-12 px-6">
+                  <View className="bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full p-8 mb-6">
+                    <Icon as={ClockIcon} className="size-20 text-primary" />
+                  </View>
+
+                  <Text className="text-2xl font-extrabold text-foreground mb-6 text-center">Ready to Start Testing?</Text>
+
+                  <View className="w-full gap-3 mb-8">
+                    <Card className="bg-blue-500/10 border-blue-500/30">
+                      <CardContent className="p-4 flex-row items-center gap-3">
+                        <View className="bg-blue-500 rounded-full p-2">
+                          <Icon as={CheckCircleIcon} className="size-5 text-white" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-bold text-blue-600 dark:text-blue-400">Get Real Feedback</Text>
+                          <Text className="text-xs text-muted-foreground">Daily proof reviews from testers</Text>
+                        </View>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-green-500/10 border-green-500/30">
+                      <CardContent className="p-4 flex-row items-center gap-3">
+                        <View className="bg-green-500 rounded-full p-2">
+                          <Icon as={StarIcon} className="size-5 text-white" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-bold text-green-600 dark:text-green-400">Build Reputation</Text>
+                          <Text className="text-xs text-muted-foreground">Earn points for quality testing</Text>
+                        </View>
+                      </CardContent>
+                    </Card>
+                  </View>
+
+                  <Button onPress={() => router.push("/(tabs)/marketplace" as any)} className="w-full rounded-2xl h-14 shadow-lg shadow-primary/30">
+                    <Icon as={SearchIcon} className="text-primary-foreground size-5 mr-2" />
+                    <Text className="text-primary-foreground font-bold text-base">Browse Marketplace</Text>
+                  </Button>
+                </View>
+              )}
+            </>
           )}
         </View>
       </ScreenScrollView>

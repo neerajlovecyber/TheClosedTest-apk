@@ -36,8 +36,7 @@ export function SignInForm() {
         await setActive({ session: signInAttempt.createdSessionId });
         return;
       }
-      // TODO: Handle other statuses
-      console.error(JSON.stringify(signInAttempt, null, 2));
+      setError({ password: "Sign-in couldn't be completed. Please try again." });
     } catch (err) {
       // See https://go.clerk.com/mRUDrIe for more info on error handling
       if (err instanceof Error) {

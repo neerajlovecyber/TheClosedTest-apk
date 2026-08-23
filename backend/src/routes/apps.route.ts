@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, asc, desc, eq, ilike, inArray, not, or, sql } from "drizzle-orm"
+import { and, count, desc, eq, ilike, inArray, not, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
@@ -60,29 +60,31 @@ const VoteSchema = z.object({
   type: z.enum(["positive", "negative"]),
 })
 
-export async function enrichAppsWithTesterCounts<T extends { id: string }>(appItems: T[]): Promise<T[]> {
+export async function enrichAppsWithTesterCounts<T extends { id: string }>(
+  appItems: T[],
+): Promise<Array<T & { requiredTesters: number; currentTesters: number; status: any }>> {
   if (appItems.length === 0) return []
   const appIds = appItems.map((a) => a.id)
 
-  const countedMatches = await db.query.matches.findMany({
-    where: and(
-      or(inArray(matches.app1Id, appIds), inArray(matches.app2Id, appIds)),
-      or(eq(matches.status, "active"), eq(matches.status, "completed")),
-    ),
-    columns: {
-      app1Id: true,
-      app2Id: true,
-    },
-  })
+  const activeOrCompleted = or(eq(matches.status, "active"), eq(matches.status, "completed"))
+
+  const [asApp1, asApp2] = await Promise.all([
+    db
+      .select({ appId: matches.app1Id, count: sql<number>`count(*)::int` })
+      .from(matches)
+      .where(and(inArray(matches.app1Id, appIds), activeOrCompleted))
+      .groupBy(matches.app1Id),
+    db
+      .select({ appId: matches.app2Id, count: sql<number>`count(*)::int` })
+      .from(matches)
+      .where(and(inArray(matches.app2Id, appIds), activeOrCompleted))
+      .groupBy(matches.app2Id),
+  ])
 
   const countMap = new Map<string, number>()
-  for (const m of countedMatches) {
-    if (m.app1Id && appIds.includes(m.app1Id)) {
-      countMap.set(m.app1Id, (countMap.get(m.app1Id) || 0) + 1)
-    }
-    if (m.app2Id && appIds.includes(m.app2Id)) {
-      countMap.set(m.app2Id, (countMap.get(m.app2Id) || 0) + 1)
-    }
+  for (const row of [...asApp1, ...asApp2]) {
+    if (!row.appId || !appIds.includes(row.appId)) continue
+    countMap.set(row.appId, (countMap.get(row.appId) || 0) + row.count)
   }
 
   return appItems.map((item) => {
@@ -103,9 +105,11 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
   })
 }
 
-async function enrichAppWithTesterCount<T extends { id: string }>(app: T): Promise<T> {
+async function enrichAppWithTesterCount<T extends { id: string }>(
+  app: T,
+): Promise<T & { requiredTesters: number; currentTesters: number; status: any }> {
   const [enriched] = await enrichAppsWithTesterCounts([app])
-  return enriched || app
+  return enriched || (app as T & { requiredTesters: number; currentTesters: number; status: any })
 }
 
 const router = createRouter()
@@ -168,7 +172,14 @@ router.openapi(
       .leftJoin(users, eq(apps.userId, users.id))
       .where(and(...conditions))
       .orderBy(
-        asc(sql`CASE WHEN apps.status = 'filled' THEN 1 ELSE 0 END`),
+        // Dynamically "filled" apps (active/completed matches >= required testers) sink to the end,
+        // so unfilled opportunities always come first across every page
+        sql`CASE WHEN (
+          SELECT COUNT(*)::int FROM matches m
+          WHERE (m.app1_id = ${apps.id} OR m.app2_id = ${apps.id})
+            AND m.status IN ('active', 'completed')
+        ) >= LEAST(12, GREATEST(1, COALESCE(${apps.requiredTesters}, 12)))
+          OR ${apps.status} = 'filled' THEN 1 ELSE 0 END`,
         desc(users.reputation),
         desc(apps.createdAt),
       )
@@ -181,6 +192,12 @@ router.openapi(
     }))
 
     const enrichedItems = await enrichAppsWithTesterCounts(items)
+
+    // Total matching rows across ALL pages (not just this page)
+    const [countRow] = await db
+      .select({ value: count() })
+      .from(apps)
+      .where(and(...conditions))
 
     enrichedItems.sort((a, b) => {
       const isFilledA = a.status === "filled" || a.currentTesters >= a.requiredTesters
@@ -198,7 +215,7 @@ router.openapi(
 
     const responseData = {
       apps: enrichedItems,
-      total: enrichedItems.length,
+      total: Number(countRow?.value ?? enrichedItems.length),
     }
 
     memoryCache.set(cacheKey, responseData, 5)
@@ -430,7 +447,8 @@ router.openapi(
     // Invalidate public feed cache
     memoryCache.delete("apps_list:")
 
-    return c.json(updated, HttpStatusCodes.OK)
+    const enrichedUpdated = await enrichAppWithTesterCount(updated)
+    return c.json(enrichedUpdated, HttpStatusCodes.OK)
   },
 )
 

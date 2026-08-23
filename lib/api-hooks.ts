@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
 import { api } from "./api";
 
@@ -248,6 +248,23 @@ export function useRecruitingApps(search?: string, limit = 50, offset = 0) {
       api.get<{ apps: AppEntity[]; total: number }>("/api/apps", {
         params: { search, limit, offset },
       }),
+    staleTime: 1000 * 10,
+  });
+}
+
+export function useInfiniteRecruitingApps(search?: string, pageSize = 20) {
+  return useInfiniteQuery<{ apps: AppEntity[]; total: number }, Error>({
+    queryKey: ["apps", "infinite", { search, pageSize }],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }: { pageParam: unknown }) =>
+      api.get<{ apps: AppEntity[]; total: number }>("/api/apps", {
+        params: { search, limit: pageSize, offset: pageParam as number },
+      }),
+    getNextPageParam: (lastPage, allPages) => {
+      const fetched = allPages.reduce((sum, page) => sum + page.apps.length, 0);
+      if (lastPage.apps.length === 0 || fetched >= lastPage.total) return undefined;
+      return fetched;
+    },
     staleTime: 1000 * 10,
   });
 }

@@ -12,7 +12,8 @@ import { useRouter } from "expo-router";
 import { AppCard } from "@/components/AppCard";
 import { GoogleGroupWidget } from "@/components/GoogleGroupWidget";
 import { ReportDialog } from "@/components/ReportDialog";
-import { useCurrentUser, useRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from "@/lib/api-hooks";
+import { ErrorState } from "@/components/ErrorState";
+import { useCurrentUser, useInfiniteRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from "@/lib/api-hooks";
 
 export default function MarketplaceScreen() {
   const router = useRouter();
@@ -42,7 +43,16 @@ export default function MarketplaceScreen() {
   }, [searchQuery]);
 
   const { data: user } = useCurrentUser();
-  const { data: appsData, isLoading, refetch, isFetching } = useRecruitingApps(debouncedSearch || undefined, 50, 0);
+  const {
+    data: appsData,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteRecruitingApps(debouncedSearch || undefined, 20);
   const { data: allMatches = [], refetch: refetchMatches } = useMatches("all");
 
   // Instant refresh when switching to Marketplace tab
@@ -52,7 +62,15 @@ export default function MarketplaceScreen() {
     }, [refetch, refetchMatches]),
   );
 
-  const apps = appsData?.apps || [];
+  const apps = useMemo(() => appsData?.pages.flatMap((page) => page.apps) ?? [], [appsData]);
+  const totalApps = appsData?.pages[0]?.total ?? apps.length;
+  const hasMoreApps = hasNextPage ?? false;
+
+  const onLoadMore = useCallback(() => {
+    if (hasMoreApps && !isFetchingNextPage && !isFetching) {
+      fetchNextPage();
+    }
+  }, [hasMoreApps, isFetchingNextPage, isFetching, fetchNextPage]);
 
   const onRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchMatches()]);
@@ -224,62 +242,79 @@ export default function MarketplaceScreen() {
           </View>
 
           {/* Latest Opportunities Carousel: Sorted by Latest */}
-          {!searchQuery && (
-            <View className="mt-1">
-              <Text className="text-lg font-bold px-1 mb-2">Latest Opportunities</Text>
-              {groupedRecruiting.length > 0 ? (
-                <View>
-                  <FlashList
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    data={groupedRecruiting}
-                    keyExtractor={groupKeyExtractor}
-                    snapToInterval={windowWidth * 0.85 + 16}
-                    decelerationRate="fast"
-                    snapToAlignment="start"
-                    onViewableItemsChanged={onViewableItemsChanged.current}
-                    viewabilityConfig={viewabilityConfig.current}
-                    contentContainerStyle={{ paddingRight: 16 }}
-                    renderItem={renderGroupItem}
-                  />
-                  <View className="flex-row justify-center mt-2 gap-2">
-                    {groupedRecruiting.map((_, index) => (
-                      <View
-                        key={index}
-                        className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
+          {isError ? (
+            <ErrorState
+              title="Couldn't load the marketplace"
+              message="We couldn't reach the server. Pull down or tap retry once you're back online."
+              onRetry={() => refetch()}
+              isRetrying={isFetching}
+            />
+          ) : (
+            <>
+              {!searchQuery && (
+                <View className="mt-1">
+                  <Text className="text-lg font-bold px-1 mb-2">Latest Opportunities</Text>
+                  {groupedRecruiting.length > 0 ? (
+                    <View>
+                      <FlashList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={groupedRecruiting}
+                        keyExtractor={groupKeyExtractor}
+                        snapToInterval={windowWidth * 0.85 + 16}
+                        decelerationRate="fast"
+                        snapToAlignment="start"
+                        onViewableItemsChanged={onViewableItemsChanged.current}
+                        viewabilityConfig={viewabilityConfig.current}
+                        contentContainerStyle={{ paddingRight: 16 }}
+                        renderItem={renderGroupItem}
                       />
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <View className="items-center py-4">
-                  <Text className="text-muted-foreground">No new apps available yet.</Text>
+                      <View className="flex-row justify-center mt-2 gap-2">
+                        {groupedRecruiting.map((_, index) => (
+                          <View
+                            key={index}
+                            className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ) : (
+                    <View className="items-center py-4">
+                      <Text className="text-muted-foreground">No new apps available yet.</Text>
+                    </View>
+                  )}
                 </View>
               )}
-            </View>
+
+              {/* All Apps List: Sorted by Highest Reputation */}
+              <View className="mt-1">
+                <View className="flex-row justify-between items-center px-1 mb-3">
+                  <Text className="text-lg font-bold">{searchQuery ? "Search Results" : "All Apps"}</Text>
+                  <Text className="text-xs text-muted-foreground font-medium">
+                    {allAppsSortedByReputation.length} {allAppsSortedByReputation.length === 1 ? "app" : "apps"}
+                  </Text>
+                </View>
+
+                {allAppsSortedByReputation.length > 0 ? (
+                  <View className="gap-0">
+                    {allAppsSortedByReputation.map((item: AppEntity) => (
+                      <React.Fragment key={keyExtractor(item)}>{renderAppItem({ item })}</React.Fragment>
+                    ))}
+                    {hasMoreApps && (
+                      <Button variant="outline" className="mt-4 mx-6" onPress={onLoadMore} disabled={isFetchingNextPage}>
+                        <Text>{isFetchingNextPage ? "Loading..." : "Load more apps"}</Text>
+                      </Button>
+                    )}
+                    {!hasMoreApps && apps.length > 20 && <Text className="text-center text-xs text-muted-foreground mt-4">You've reached the end.</Text>}
+                  </View>
+                ) : (
+                  <View className="items-center py-10">
+                    {isLoading ? <ActivityIndicator size="small" /> : <Text className="text-muted-foreground">No apps found.</Text>}
+                  </View>
+                )}
+              </View>
+            </>
           )}
-
-          {/* All Apps List: Sorted by Highest Reputation */}
-          <View className="mt-1">
-            <View className="flex-row justify-between items-center px-1 mb-3">
-              <Text className="text-lg font-bold">{searchQuery ? "Search Results" : "All Apps"}</Text>
-              <Text className="text-xs text-muted-foreground font-medium">
-                {allAppsSortedByReputation.length} {allAppsSortedByReputation.length === 1 ? "app" : "apps"}
-              </Text>
-            </View>
-
-            {allAppsSortedByReputation.length > 0 ? (
-              <View className="gap-0">
-                {allAppsSortedByReputation.map((item: AppEntity) => (
-                  <React.Fragment key={keyExtractor(item)}>{renderAppItem({ item })}</React.Fragment>
-                ))}
-              </View>
-            ) : (
-              <View className="items-center py-10">
-                {isLoading ? <ActivityIndicator size="small" /> : <Text className="text-muted-foreground">No apps found.</Text>}
-              </View>
-            )}
-          </View>
         </View>
       </ScreenScrollView>
 
