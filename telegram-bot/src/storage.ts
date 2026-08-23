@@ -1,7 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const STATE_FILE = path.resolve(import.meta.dir, "../bot-state.json");
+// import.meta.dir only exists under Bun; derive the dir for Node runtimes (Vercel)
+const here =
+  typeof import.meta.dir === "string"
+    ? import.meta.dir
+    : path.dirname(fileURLToPath(import.meta.url));
+
+const STATE_FILE = path.resolve(here, "../bot-state.json");
 
 export interface BotState {
   groupId: number | string | null;
