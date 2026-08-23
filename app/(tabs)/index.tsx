@@ -7,7 +7,7 @@ import { OpenSourceAnnouncementBanner } from "@/components/OpenSourceAnnouncemen
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { BellIcon, CheckCircleIcon, FlameIcon, StarIcon, PlusIcon, LockIcon } from "lucide-react-native";
+import { BellIcon, FlameIcon, StarIcon, PlusIcon, LockIcon } from "lucide-react-native";
 import { useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { toast } from "@/lib/sonner";
@@ -249,11 +249,10 @@ export default function HomeScreen() {
         {/* Open Source & Fresh Refresh Announcement Banner */}
         <OpenSourceAnnouncementBanner />
 
-        {/* Attention Needed Section */}
-        <View className="px-6 pb-4">
-          <Text className="text-xl font-bold mb-4">⚡ Attention Needed</Text>
-
-          {dueTasks.length > 0 ? (
+        {/* Attention Needed Section (Only shown when action is needed) */}
+        {dueTasks.length > 0 && (
+          <View className="px-6 pb-4">
+            <Text className="text-xl font-bold mb-4">⚡ Attention Needed</Text>
             <ScrollView ref={attentionScrollRef} horizontal showsHorizontalScrollIndicator={false} className="gap-4">
               {dueTasks.map((task) => {
                 let actionBadge = "";
@@ -285,13 +284,8 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
-          ) : (
-            <View className="p-6 bg-secondary rounded-xl items-center">
-              <Icon as={CheckCircleIcon} className="text-green-500 mb-2 size-8" />
-              <Text className="font-medium">You're all caught up!</Text>
-            </View>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Pending Requests Section */}
         {incomingRequests.length > 0 && (

@@ -372,22 +372,43 @@ export function useAcceptMatch() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (matchId: string) => api.post<MatchEntity>(`/api/matches/${matchId}/accept`),
-    onSuccess: (acceptedMatch, matchId) => {
-      queryClient.invalidateQueries({ queryKey: ["matches"] });
-      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
-      queryClient.invalidateQueries({ queryKey: ["myApps"] });
-      queryClient.invalidateQueries({ queryKey: ["apps"] });
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+    onMutate: async (matchId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] });
 
+      const prevAll = queryClient.getQueryData<MatchEntity[]>(["matches", { status: undefined }]);
+      const prevPending = queryClient.getQueryData<MatchEntity[]>(["matches", { status: "pending" }]);
+      const prevActive = queryClient.getQueryData<MatchEntity[]>(["matches", { status: "active" }]);
+
+      // Optimistically update caches instantly (0ms delay)
+      queryClient.setQueryData<MatchEntity[]>(["matches", { status: undefined }], (old = []) =>
+        old.map((m) => (m.id === matchId ? { ...m, status: "active" as const, startDate: new Date().toISOString() } : m)),
+      );
+      queryClient.setQueryData<MatchEntity[]>(["matches", { status: "pending" }], (old = []) => old.filter((m) => m.id !== matchId));
+      queryClient.setQueryData<MatchEntity[]>(["matches", { status: "active" }], (old = []) => {
+        const target = prevAll?.find((m) => m.id === matchId) || prevPending?.find((m) => m.id === matchId);
+        if (target) {
+          return [{ ...target, status: "active" as const, startDate: new Date().toISOString() }, ...old];
+        }
+        return old;
+      });
+
+      return { prevAll, prevPending, prevActive };
+    },
+    onError: (_err, _matchId, context) => {
+      if (context) {
+        queryClient.setQueryData(["matches", { status: undefined }], context.prevAll);
+        queryClient.setQueryData(["matches", { status: "pending" }], context.prevPending);
+        queryClient.setQueryData(["matches", { status: "active" }], context.prevActive);
+      }
+    },
+    onSuccess: (acceptedMatch, matchId) => {
       if (acceptedMatch) {
-        queryClient.setQueryData<MatchEntity[]>(["matches", { status: "active" }], (old = []) => {
-          const exists = old.some((m) => m.id === matchId);
-          if (exists) {
-            return old.map((m) => (m.id === matchId ? { ...m, ...acceptedMatch, status: "active" as const } : m));
-          }
-          return [acceptedMatch, ...old];
-        });
-        queryClient.setQueryData<MatchEntity[]>(["matches", { status: "pending" }], (old = []) => old.filter((m) => m.id !== matchId));
+        queryClient.setQueryData<MatchEntity[]>(["matches", { status: undefined }], (old = []) =>
+          old.map((m) => (m.id === matchId ? { ...m, ...acceptedMatch } : m)),
+        );
+        queryClient.setQueryData<MatchEntity[]>(["matches", { status: "active" }], (old = []) =>
+          old.map((m) => (m.id === matchId ? { ...m, ...acceptedMatch } : m)),
+        );
       }
     },
     onSettled: (_, _err, matchId) => {
@@ -395,6 +416,7 @@ export function useAcceptMatch() {
       queryClient.invalidateQueries({ queryKey: ["match", matchId] });
       queryClient.invalidateQueries({ queryKey: ["myApps"] });
       queryClient.invalidateQueries({ queryKey: ["apps"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
     },
   });
 }
@@ -403,11 +425,26 @@ export function useRejectMatch() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (matchId: string) => api.post<MatchEntity>(`/api/matches/${matchId}/reject`),
-    onSuccess: (_, matchId) => {
+    onMutate: async (matchId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] });
+
+      const prevAll = queryClient.getQueryData<MatchEntity[]>(["matches", { status: undefined }]);
+      const prevPending = queryClient.getQueryData<MatchEntity[]>(["matches", { status: "pending" }]);
+      const prevActive = queryClient.getQueryData<MatchEntity[]>(["matches", { status: "active" }]);
+
+      // Optimistically remove card from all match caches immediately (0ms delay)
+      queryClient.setQueryData<MatchEntity[]>(["matches", { status: undefined }], (old = []) => old.filter((m) => m.id !== matchId));
       queryClient.setQueryData<MatchEntity[]>(["matches", { status: "pending" }], (old = []) => old.filter((m) => m.id !== matchId));
       queryClient.setQueryData<MatchEntity[]>(["matches", { status: "active" }], (old = []) => old.filter((m) => m.id !== matchId));
-      queryClient.invalidateQueries({ queryKey: ["matches"] });
-      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+
+      return { prevAll, prevPending, prevActive };
+    },
+    onError: (_err, _matchId, context) => {
+      if (context) {
+        queryClient.setQueryData(["matches", { status: undefined }], context.prevAll);
+        queryClient.setQueryData(["matches", { status: "pending" }], context.prevPending);
+        queryClient.setQueryData(["matches", { status: "active" }], context.prevActive);
+      }
     },
     onSettled: (_, _err, matchId) => {
       queryClient.invalidateQueries({ queryKey: ["matches"] });
