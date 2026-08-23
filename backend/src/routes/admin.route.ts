@@ -626,12 +626,17 @@ router.openapi(
     }
 
     // Mark as read when opened
+    const updateData: { hasUnreadAdmin?: boolean; hasUnreadUser?: boolean } = {}
     if (isAdmin && chat.hasUnreadAdmin) {
-      await db.update(adminChats).set({ hasUnreadAdmin: false }).where(eq(adminChats.id, chatId))
+      updateData.hasUnreadAdmin = false
       chat.hasUnreadAdmin = false
-    } else if (!isAdmin && chat.hasUnreadUser) {
-      await db.update(adminChats).set({ hasUnreadUser: false }).where(eq(adminChats.id, chatId))
+    }
+    if (isOwner && chat.hasUnreadUser) {
+      updateData.hasUnreadUser = false
       chat.hasUnreadUser = false
+    }
+    if (Object.keys(updateData).length > 0) {
+      await db.update(adminChats).set(updateData).where(eq(adminChats.id, chatId))
     }
 
     const messages = await db.query.adminMessages.findMany({
@@ -681,6 +686,10 @@ router.openapi(
       return c.json({ message: "Forbidden" }, HttpStatusCodes.FORBIDDEN)
     }
 
+    // If the sender is the owner of this support chat, they are sending as the User
+    // (even if their account has admin role). Only when replying to another user's chat are they acting as admin.
+    const isSendingAsAdmin = isAdmin && !isOwner
+
     const [newMessage] = await db
       .insert(adminMessages)
       .values({
@@ -688,7 +697,7 @@ router.openapi(
         senderId: userVar.id,
         content: body.content,
         type: body.type,
-        isAdmin,
+        isAdmin: isSendingAsAdmin,
       })
       .returning()
 
@@ -696,9 +705,9 @@ router.openapi(
       .update(adminChats)
       .set({
         lastMessage: body.content,
-        hasUnreadUser: isAdmin ? true : false,
-        hasUnreadAdmin: isAdmin ? false : true,
-        adminId: isAdmin ? userVar.id : chat.adminId,
+        hasUnreadUser: isSendingAsAdmin ? true : false,
+        hasUnreadAdmin: isSendingAsAdmin ? false : true,
+        adminId: isSendingAsAdmin ? userVar.id : chat.adminId,
         updatedAt: new Date(),
       })
       .where(eq(adminChats.id, chatId))

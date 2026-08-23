@@ -33,6 +33,7 @@ export default function AdminChatScreen() {
   // Mark conversation read and refresh query lists
   useEffect(() => {
     if (effectiveChatId) {
+      queryClient.setQueryData<any>(["mySupportChat"], (old: any) => (old ? { ...old, hasUnreadUser: false } : old));
       queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] });
       queryClient.invalidateQueries({ queryKey: ["mySupportChat"] });
     }

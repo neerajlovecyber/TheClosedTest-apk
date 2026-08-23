@@ -26,6 +26,7 @@ import {
   MoonIcon,
   Share2Icon,
   ShieldIcon,
+  ShieldAlertIcon,
   StarIcon,
   SunIcon,
   HelpCircleIcon,
@@ -131,9 +132,11 @@ function UserProfile({ onOpenGroupModal }: { onOpenGroupModal: () => void }) {
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
-  const { user } = useUser();
   const { colorScheme, toggleColorScheme } = useColorScheme();
   const router = useRouter();
+
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = Boolean(currentUser?.isAdmin);
 
   const { data: mySupportChat } = useMySupportChat();
   const hasUnreadFromAdmin = mySupportChat?.hasUnreadUser ?? false;
@@ -251,6 +254,24 @@ export default function SettingsScreen() {
               </CardContent>
             </Card>
           </View>
+
+          {/* Admin Control Section (Only visible to authorized admins) */}
+          {isAdmin && (
+            <View className="gap-3">
+              <Text className="text-xs font-bold text-amber-600 dark:text-amber-400 px-2 uppercase tracking-widest">Administration</Text>
+              <Card className="overflow-hidden p-0 gap-0 border-0">
+                <CardContent className="p-0 gap-0">
+                  <SettingItem
+                    icon={ShieldAlertIcon}
+                    label="Admin Dashboard"
+                    subtitle="Manage apps, inspect stats & support inbox"
+                    onPress={() => router.push("/(tabs)/admin" as any)}
+                    iconColor="bg-amber-600"
+                  />
+                </CardContent>
+              </Card>
+            </View>
+          )}
 
           {/* App Version */}
           <View className="gap-3">

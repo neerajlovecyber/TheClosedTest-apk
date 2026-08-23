@@ -12,7 +12,6 @@ interface FloatingTabBarProps extends BottomTabBarProps {
   hasPendingTasks?: boolean;
   hasUnreadMessages?: boolean;
   hasUnreadSupport?: boolean;
-  isAdmin?: boolean;
 }
 
 const TAB_ICONS: Record<string, any> = {
@@ -20,7 +19,6 @@ const TAB_ICONS: Record<string, any> = {
   marketplace: StoreIcon,
   tests: FlaskConicalIcon,
   settings: SettingsIcon,
-  admin: ShieldIcon,
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -28,19 +26,17 @@ const TAB_LABELS: Record<string, string> = {
   marketplace: "Market",
   tests: "Tests",
   settings: "Settings",
-  admin: "Admin",
 };
 
-export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport, isAdmin }: FloatingTabBarProps) {
+export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport }: FloatingTabBarProps) {
   const insets = useSafeAreaInsets();
   const [barWidth, setBarWidth] = useState(0);
 
   const tabScroll = useTabScroll();
   const scrollProgress = tabScroll?.scrollProgress || { value: 0 };
 
-  // Filter out routes that are hidden (e.g. href: null, match/[id], or admin when not admin)
+  // Filter out routes that are hidden (e.g. href: null or match/[id])
   const visibleRoutes = state.routes.filter((route) => {
-    if (route.name === "admin" && !isAdmin) return false;
     const { options } = descriptors[route.key];
     if ((options as any)?.href === null) return false;
     return Boolean(TAB_ICONS[route.name]);

@@ -2,7 +2,6 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useUser } from "@clerk/clerk-expo";
 import { useCurrentUser, useMatches, useMySupportChat } from "@/lib/api-hooks";
 import { getMatchCurrentDay } from "@/lib/date-utils";
 
@@ -10,12 +9,10 @@ import { FloatingTabBar } from "@/components/FloatingTabBar";
 import { TabScrollProvider } from "@/lib/tab-scroll-context";
 
 export default function TabLayout() {
-  const { user } = useUser();
-  const ADMIN_EMAILS = ["neerajlovecyber@gmail.com", "futureaistudio41@gmail.com"];
-  const isAdmin = user?.emailAddresses.some((e) => ADMIN_EMAILS.includes(e.emailAddress));
   const insets = useSafeAreaInsets();
 
   const { data: currentUser } = useCurrentUser();
+  const isAdmin = Boolean(currentUser?.isAdmin);
   const { data: activeMatches = [] } = useMatches("active");
   const { data: mySupportChat } = useMySupportChat();
 
@@ -97,8 +94,7 @@ export default function TabLayout() {
           <Tabs.Screen
             name="admin"
             options={{
-              title: "Admin",
-              href: isAdmin ? "/admin" : null,
+              href: null,
             }}
           />
         </Tabs>
