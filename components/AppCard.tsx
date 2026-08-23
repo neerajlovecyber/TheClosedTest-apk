@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { StarIcon } from "lucide-react-native";
+import { StarIcon, MessageSquareIcon } from "lucide-react-native";
 
 export interface AppItem {
   _id: string;
@@ -78,18 +78,22 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
             <Text className="font-bold text-sm leading-tight shrink" numberOfLines={1}>
               {item.title}
             </Text>
-            {item.hasUnread && <View className="bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-background shadow-sm" />}
           </View>
 
           {/* Action Badge & Reputation Container */}
           <View className="flex-row items-center gap-2">
             {/* Reputation removed from here */}
 
-            {/* Action Badge (highest priority) */}
             {actionBadge ? (
-              <View className={`px-2.5 py-1 rounded-full ${actionBadge === "Approve" ? "bg-orange-500" : "bg-blue-500"}`}>
-                <Text className="text-[11px] text-white font-bold uppercase tracking-wide">{actionBadge}</Text>
-              </View>
+              actionBadge === "Message" ? (
+                <View className="bg-sky-500 w-8 h-8 rounded-full items-center justify-center shadow-md">
+                  <Icon as={MessageSquareIcon} className="text-white size-4" />
+                </View>
+              ) : (
+                <View className={`px-2.5 py-1 rounded-full ${actionBadge === "Approve" ? "bg-orange-500" : "bg-blue-500"}`}>
+                  <Text className="text-[11px] text-white font-bold uppercase tracking-wide">{actionBadge}</Text>
+                </View>
+              )
             ) : (
               <>
                 {/* Variant Specific Badges */}

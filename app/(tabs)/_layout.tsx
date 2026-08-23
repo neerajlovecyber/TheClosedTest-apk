@@ -5,7 +5,7 @@ import { FlaskConicalIcon, HomeIcon, SettingsIcon, StoreIcon, ShieldIcon } from 
 import { Icon } from "@/components/ui/icon";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUser } from "@clerk/clerk-expo";
-import { useCurrentUser, useMatches } from "@/lib/api-hooks";
+import { useCurrentUser, useMatches, useMySupportChat } from "@/lib/api-hooks";
 import { getMatchCurrentDay } from "@/lib/date-utils";
 
 export default function TabLayout() {
@@ -16,6 +16,15 @@ export default function TabLayout() {
 
   const { data: currentUser } = useCurrentUser();
   const { data: activeMatches = [] } = useMatches("active");
+  const { data: mySupportChat } = useMySupportChat();
+
+  const hasUnreadSupport = mySupportChat?.hasUnreadUser ?? false;
+
+  // Unread chat messages from match partners
+  const hasUnreadMessages = React.useMemo(() => {
+    if (!currentUser?.id) return false;
+    return activeMatches.some((m) => Boolean(m.hasUnreadMessages));
+  }, [activeMatches, currentUser?.id]);
 
   // Only show red badge on Tests if there is an actual task pending action
   const hasPendingTasks = React.useMemo(() => {
@@ -78,7 +87,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => (
               <View style={{ position: "relative" }}>
                 <Icon as={FlaskConicalIcon} color={color} className="size-6" />
-                {hasPendingTasks && (
+                {hasPendingTasks ? (
                   <View
                     style={{
                       position: "absolute",
@@ -90,7 +99,19 @@ export default function TabLayout() {
                       borderRadius: 5,
                     }}
                   />
-                )}
+                ) : hasUnreadMessages ? (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      right: -6,
+                      width: 10,
+                      height: 10,
+                      backgroundColor: "#0ea5e9",
+                      borderRadius: 5,
+                    }}
+                  />
+                ) : null}
               </View>
             ),
           }}
@@ -99,7 +120,24 @@ export default function TabLayout() {
           name="settings"
           options={{
             title: "Settings",
-            tabBarIcon: ({ color }) => <Icon as={SettingsIcon} color={color} className="size-6" />,
+            tabBarIcon: ({ color }) => (
+              <View style={{ position: "relative" }}>
+                <Icon as={SettingsIcon} color={color} className="size-6" />
+                {hasUnreadSupport && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      right: -6,
+                      width: 10,
+                      height: 10,
+                      backgroundColor: "#0ea5e9",
+                      borderRadius: 5,
+                    }}
+                  />
+                )}
+              </View>
+            ),
           }}
         />
         <Tabs.Screen

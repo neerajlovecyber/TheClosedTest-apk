@@ -139,7 +139,7 @@ export default function HomeScreen() {
           myProofStatus,
           partnerProofStatus,
           isReviewPending,
-          hasUnread: false,
+          hasUnread: Boolean(m.hasUnreadMessages),
         };
       })
       .filter((t) => {

@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon } from "lucide-react-native";
+import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon, MessageSquareIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser, useMatches, useRefreshOnFocus, MatchEntity } from "@/lib/api-hooks";
@@ -18,10 +18,10 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Card className={`mb-3 ${isMyTaskDone && isPartnerTaskDone ? "opacity-80" : ""}`}>
-        <CardContent className="p-4">
-          {/* Header: App Name & Notifications */}
-          <View className="flex-row items-center justify-between mb-3">
+      <Card className="mb-3 p-4 bg-card border border-border rounded-xl">
+        <View className="flex-col gap-3">
+          {/* Header Row: App Info + Status Badges */}
+          <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-3 flex-1">
               <Image
                 source={{ uri: displayIconUrl }}
@@ -31,23 +31,27 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
                 transition={150}
               />
               <View className="flex-1">
-                <View className="flex-row items-center gap-2">
-                  <Text className="font-bold text-lg leading-tight" numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  {item.hasUnread && <View className="bg-red-500 w-2.5 h-2.5 rounded-full border border-background shadow-sm" />}
-                </View>
+                <Text className="font-bold text-lg leading-tight" numberOfLines={1}>
+                  {item.name}
+                </Text>
                 <Text className="text-muted-foreground text-xs font-medium">
                   Day {item.day} of {item.totalDays}
                 </Text>
               </View>
             </View>
 
-            {item.isReviewPending && (
-              <View className="bg-orange-100 dark:bg-orange-900/40 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
-                <Text className="text-xs font-bold text-orange-700 dark:text-orange-400">Review Needed</Text>
-              </View>
-            )}
+            <View className="flex-row items-center gap-2">
+              {item.isReviewPending && (
+                <View className="bg-orange-500 px-2.5 py-1 rounded-full shadow-sm">
+                  <Text className="text-[11px] font-bold text-white uppercase tracking-wide">Review</Text>
+                </View>
+              )}
+              {item.hasUnread && (
+                <View className="bg-sky-500 w-8 h-8 rounded-full items-center justify-center shadow-md">
+                  <Icon as={MessageSquareIcon} className="text-white size-4" />
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Status Grid */}
@@ -138,7 +142,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
               </View>
             </View>
           </View>
-        </CardContent>
+        </View>
       </Card>
     </TouchableOpacity>
   );
