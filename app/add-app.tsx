@@ -134,9 +134,9 @@ export default function AddAppScreen() {
     }
 
     const testers = parseInt(requiredTesters);
-    if (isNaN(testers) || testers < 0 || testers > 12) {
+    if (isNaN(testers) || testers < 1 || testers > 12) {
       toast.error("Error", {
-        description: "Please enter a number between 0 and 12 for required testers",
+        description: "Please enter a number between 1 and 12 for required testers",
       });
       return;
     }

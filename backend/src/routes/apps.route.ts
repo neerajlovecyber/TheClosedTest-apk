@@ -49,7 +49,7 @@ const CreateAppSchema = z.object({
   playStoreUrl: z.string().url(),
   iconUrl: z.string().url(),
   instructions: z.string().min(10),
-  requiredTesters: z.number().int().min(1).default(12),
+  requiredTesters: z.number().int().min(1).max(12).default(12),
 })
 
 const UpdateAppSchema = CreateAppSchema.partial().extend({
@@ -87,7 +87,7 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
 
   return appItems.map((item) => {
     const current = countMap.get(item.id) || 0
-    const required = (item as any).requiredTesters || 12
+    const required = Math.min(12, Math.max(1, (item as any).requiredTesters || 12))
     let dynamicStatus = (item as any).status
     if (dynamicStatus === "recruiting" || dynamicStatus === "filled") {
       dynamicStatus = current >= required ? "filled" : "recruiting"
@@ -95,6 +95,7 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
 
     return {
       ...item,
+      requiredTesters: required,
       currentTesters: current,
       status: dynamicStatus,
     }
