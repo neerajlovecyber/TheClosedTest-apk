@@ -85,7 +85,7 @@ export async function runMatchProgressionAndCleanup() {
 
     for (const match of activeMatches) {
       // Use match.startDate as the anchor. If not set, fallback to updatedAt or now (NEVER stale createdAt)
-      const matchStart = match.startDate ? new Date(match.startDate) : (match.updatedAt ? new Date(match.updatedAt) : now)
+      const matchStart = match.startDate ? new Date(match.startDate) : match.updatedAt ? new Date(match.updatedAt) : now
 
       // Guard: If the match itself started less than 3 full days ago,
       // it CANNOT be considered abandoned under any circumstances.
@@ -293,10 +293,7 @@ export async function runOldMatchesCleanup() {
       .update(matches)
       .set({ status: "archived", updatedAt: new Date() })
       .where(
-        and(
-          or(eq(matches.status, "completed"), eq(matches.status, "cancelled")),
-          lt(matches.updatedAt, sixtyDaysAgo),
-        ),
+        and(or(eq(matches.status, "completed"), eq(matches.status, "cancelled")), lt(matches.updatedAt, sixtyDaysAgo)),
       )
       .returning({ id: matches.id })
 
@@ -307,7 +304,6 @@ export async function runOldMatchesCleanup() {
     console.error("❌ Failed to archive old matches:", error)
   }
 }
-
 
 export async function runDailyTestingReminders() {
   console.log("⏰ Sending daily testing reminders to active testers...")
@@ -377,13 +373,9 @@ export function startBackgroundJobs() {
     24 * 60 * 60 * 1000,
   )
 
-
   // Trigger initial checks on boot
   runMatchProgressionAndCleanup()
   runNotificationCleanup()
   runExpiredBansCleanup()
   runOldMatchesCleanup()
 }
-
-
-

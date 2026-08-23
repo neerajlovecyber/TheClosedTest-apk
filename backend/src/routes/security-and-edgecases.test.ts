@@ -576,7 +576,6 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     await db.delete(matches).where(eq(matches.id, oldMatch.id))
   })
 
-
   it("31. runDailyTestingReminders executes cleanly", async () => {
     let err = null
     try {
@@ -587,6 +586,3 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     expect(err).toBeNull()
   })
 })
-
-
-

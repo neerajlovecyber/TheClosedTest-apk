@@ -139,7 +139,9 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
           <Button
             size="sm"
             className={`flex-1 h-8 px-0 shadow-sm ${
-              (offeredApp?.currentTesters !== undefined && offeredApp?.requiredTesters !== undefined && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+              (offeredApp?.currentTesters !== undefined &&
+                offeredApp?.requiredTesters !== undefined &&
+                offeredApp.currentTesters >= offeredApp.requiredTesters) ||
               (myApp?.currentTesters !== undefined && myApp?.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters)
                 ? "bg-muted opacity-50"
                 : "bg-primary shadow-primary/20"
@@ -149,15 +151,15 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
               (offeredApp?.currentTesters !== undefined &&
                 offeredApp?.requiredTesters !== undefined &&
                 offeredApp.currentTesters >= offeredApp.requiredTesters) ||
-              (myApp?.currentTesters !== undefined &&
-                myApp?.requiredTesters !== undefined &&
-                myApp.currentTesters >= myApp.requiredTesters)
+              (myApp?.currentTesters !== undefined && myApp?.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters)
             }
           >
             <Icon
               as={CheckIcon}
               className={`size-3.5 mr-1.5 ${
-                (offeredApp?.currentTesters !== undefined && offeredApp?.requiredTesters !== undefined && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                (offeredApp?.currentTesters !== undefined &&
+                  offeredApp?.requiredTesters !== undefined &&
+                  offeredApp.currentTesters >= offeredApp.requiredTesters) ||
                 (myApp?.currentTesters !== undefined && myApp?.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters)
                   ? "text-muted-foreground"
                   : "text-primary-foreground"
@@ -165,7 +167,9 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
             />
             <Text
               className={`${
-                (offeredApp?.currentTesters !== undefined && offeredApp?.requiredTesters !== undefined && offeredApp.currentTesters >= offeredApp.requiredTesters) ||
+                (offeredApp?.currentTesters !== undefined &&
+                  offeredApp?.requiredTesters !== undefined &&
+                  offeredApp.currentTesters >= offeredApp.requiredTesters) ||
                 (myApp?.currentTesters !== undefined && myApp?.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters)
                   ? "text-muted-foreground"
                   : "text-primary-foreground"
@@ -175,8 +179,6 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
             </Text>
           </Button>
         </View>
-
-
       </CardContent>
     </Card>
   );

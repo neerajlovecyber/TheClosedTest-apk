@@ -106,8 +106,16 @@ router.openapi(
       return c.json({ message: "Cannot match with your own app" }, HttpStatusCodes.BAD_REQUEST)
     }
 
-    if (app1.status === "filled" || app1.status === "archived" || app2.status === "filled" || app2.status === "archived") {
-      return c.json({ message: "Cannot request match: One of the apps is already filled or closed" }, HttpStatusCodes.BAD_REQUEST)
+    if (
+      app1.status === "filled" ||
+      app1.status === "archived" ||
+      app2.status === "filled" ||
+      app2.status === "archived"
+    ) {
+      return c.json(
+        { message: "Cannot request match: One of the apps is already filled or closed" },
+        HttpStatusCodes.BAD_REQUEST,
+      )
     }
 
     const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2])
@@ -115,7 +123,10 @@ router.openapi(
     const count2 = (enrichedApp2 as any)?.currentTesters ?? 0
 
     if (count1 >= app1.requiredTesters || count2 >= app2.requiredTesters) {
-      return c.json({ message: "Cannot request match: One of the apps has already reached full tester capacity" }, HttpStatusCodes.BAD_REQUEST)
+      return c.json(
+        { message: "Cannot request match: One of the apps has already reached full tester capacity" },
+        HttpStatusCodes.BAD_REQUEST,
+      )
     }
 
     // Check for duplicate pending/active match between these apps
@@ -151,7 +162,6 @@ router.openapi(
         user2ApprovedCount: 0,
       })
       .returning()
-
 
     // Create notification for target user
     await db.insert(notifications).values({
@@ -376,7 +386,6 @@ router.openapi(
   },
 )
 
-
 // 4. Accept Match Request
 router.openapi(
   createRoute({
@@ -414,7 +423,12 @@ router.openapi(
       return c.json({ message: "One of the matched apps was not found" }, HttpStatusCodes.FORBIDDEN)
     }
 
-    if (app1.status === "filled" || app1.status === "archived" || app2.status === "filled" || app2.status === "archived") {
+    if (
+      app1.status === "filled" ||
+      app1.status === "archived" ||
+      app2.status === "filled" ||
+      app2.status === "archived"
+    ) {
       return c.json({ message: "Cannot accept: One of the apps is already full or closed" }, HttpStatusCodes.FORBIDDEN)
     }
 
@@ -423,7 +437,10 @@ router.openapi(
     const count2 = (enrichedApp2 as any)?.currentTesters ?? 0
 
     if (count1 >= app1.requiredTesters || count2 >= app2.requiredTesters) {
-      return c.json({ message: "Cannot accept: One of the apps has reached full tester capacity" }, HttpStatusCodes.FORBIDDEN)
+      return c.json(
+        { message: "Cannot accept: One of the apps has reached full tester capacity" },
+        HttpStatusCodes.FORBIDDEN,
+      )
     }
 
     const now = new Date()
@@ -524,10 +541,18 @@ router.openapi(
     ])
     if (app1 || app2) {
       const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2].filter(Boolean) as any[])
-      if (enrichedApp1 && enrichedApp1.status === "filled" && enrichedApp1.currentTesters < enrichedApp1.requiredTesters) {
+      if (
+        enrichedApp1 &&
+        enrichedApp1.status === "filled" &&
+        enrichedApp1.currentTesters < enrichedApp1.requiredTesters
+      ) {
         await db.update(apps).set({ status: "recruiting" }).where(eq(apps.id, enrichedApp1.id))
       }
-      if (enrichedApp2 && enrichedApp2.status === "filled" && enrichedApp2.currentTesters < enrichedApp2.requiredTesters) {
+      if (
+        enrichedApp2 &&
+        enrichedApp2.status === "filled" &&
+        enrichedApp2.currentTesters < enrichedApp2.requiredTesters
+      ) {
         await db.update(apps).set({ status: "recruiting" }).where(eq(apps.id, enrichedApp2.id))
       }
     }
