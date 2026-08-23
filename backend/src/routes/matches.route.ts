@@ -234,7 +234,6 @@ router.openapi(
         },
         messages: {
           orderBy: [desc(messages.sentAt)],
-          limit: 1,
         },
       },
       orderBy: [desc(matches.lastActivity)],
@@ -249,12 +248,17 @@ router.openapi(
       const user1LatestProof = matchProofs.find((p) => p.uploaderId === m.user1Id)
       const user2LatestProof = matchProofs.find((p) => p.uploaderId === m.user2Id)
       const latestMsg = m.messages?.[0]
-      const isUser1 = m.user1Id === userVar.id
+      const isUser1 = m.user1Id === userVar.id || (userVar.tokenIdentifier && m.user1Id === userVar.tokenIdentifier)
       const myLastRead = isUser1 ? m.lastRead1 : m.lastRead2
+      const isMsgFromMe =
+        latestMsg &&
+        (latestMsg.senderId === userVar.id ||
+          (userVar.tokenIdentifier && latestMsg.senderId === userVar.tokenIdentifier) ||
+          latestMsg.senderId === "me")
 
       const hasUnreadMessages = Boolean(
         latestMsg &&
-        latestMsg.senderId !== userVar.id &&
+        !isMsgFromMe &&
         (!myLastRead || new Date(latestMsg.sentAt).getTime() > new Date(myLastRead).getTime()),
       )
 
