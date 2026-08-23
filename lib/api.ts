@@ -3,17 +3,61 @@
  * Connects React Native / Expo to the Northflank Hono + PostgreSQL Backend.
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run";
+const LOCAL_API_URL = process.env.EXPO_PUBLIC_LOCAL_API_URL || "http://192.168.1.4:9000";
+
+const API_ENV_STORAGE_KEY = "api_env_override";
+
+export type ApiEnv = "prod" | "local";
+
+let apiBaseUrl = PROD_API_URL;
+let envLoaded = false;
+
+async function loadApiEnv(): Promise<void> {
+  if (envLoaded) return;
+  envLoaded = true;
+  try {
+    const saved = await AsyncStorage.getItem(API_ENV_STORAGE_KEY);
+    if (__DEV__ && saved === "local") {
+      apiBaseUrl = LOCAL_API_URL;
+    }
+  } catch {
+    // Fall back to default URL if storage is unavailable
+  }
+}
+
+export function getApiEnv(): ApiEnv {
+  return apiBaseUrl === LOCAL_API_URL ? "local" : "prod";
+}
+
+export function getApiBaseUrl(): string {
+  return apiBaseUrl;
+}
+
+export async function setApiEnv(env: ApiEnv): Promise<void> {
+  apiBaseUrl = env === "local" ? LOCAL_API_URL : PROD_API_URL;
+  try {
+    if (env === "prod") {
+      await AsyncStorage.removeItem(API_ENV_STORAGE_KEY);
+    } else {
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "local");
+    }
+  } catch {
+    // Ignore storage failures
+  }
+}
+
+/** Dev builds can pre-select the local server via env var without touching storage. */
+if (__DEV__ && process.env.EXPO_PUBLIC_DEFAULT_TO_LOCAL_API === "true") {
+  apiBaseUrl = LOCAL_API_URL;
+}
 
 let authTokenGetter: (() => Promise<string | null>) | null = null;
-let currentUserId: string | null = null;
 
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   authTokenGetter = getter;
-}
-
-export function setCurrentUserId(userId: string | null) {
-  currentUserId = userId;
 }
 
 export interface ApiFetchOptions extends RequestInit {
@@ -21,10 +65,11 @@ export interface ApiFetchOptions extends RequestInit {
 }
 
 export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+  await loadApiEnv();
   const { params, headers: customHeaders, ...fetchOptions } = options;
 
   // Build Query String if params are provided
-  let url = `${API_BASE_URL}${path}`;
+  let url = `${apiBaseUrl}${path}`;
   if (params) {
     const searchParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
@@ -41,10 +86,6 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
   const headers = new Headers(customHeaders || {});
   if (!headers.has("Content-Type") && !(fetchOptions.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
-  }
-
-  if (currentUserId && !headers.has("x-user-id")) {
-    headers.set("x-user-id", currentUserId);
   }
 
   // Inject Clerk Bearer Token if available

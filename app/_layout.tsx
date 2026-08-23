@@ -36,7 +36,6 @@ import { useOTAUpdate } from "@/hooks/useOTAUpdate";
 import { useInAppUpdate } from "@/hooks/useInAppUpdate";
 import { ForceUpdateDialog } from "@/components/ForceUpdateDialog";
 import { WarningDisplay } from "@/components/WarningDisplay";
-import AppDeletedModal from "@/components/AppDeletedModal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
@@ -142,7 +141,6 @@ function InitialLayout() {
     <>
       <ForceUpdateDialog isVisible={isUpdateDownloaded} onReload={reloadApp} />
       <WarningDisplay />
-      <AppDeletedModal />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />

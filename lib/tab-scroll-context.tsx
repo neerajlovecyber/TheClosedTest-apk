@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef } from "react";
 import { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
-import { useSharedValue, withSpring } from "react-native-reanimated";
+import { Easing, useSharedValue, withTiming } from "react-native-reanimated";
 
 interface TabScrollContextType {
   scrollProgress: { value: number }; // 0 = expanded (show text), 1 = shrunk (hide text)
@@ -16,10 +16,9 @@ export function TabScrollProvider({ children }: { children: React.ReactNode }) {
   const lastScrollY = useRef(0);
 
   const setShrunk = (shrunk: boolean) => {
-    scrollProgress.value = withSpring(shrunk ? 1 : 0, {
-      damping: 18,
-      stiffness: 170,
-      mass: 0.7,
+    scrollProgress.value = withTiming(shrunk ? 1 : 0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
     });
   };
 

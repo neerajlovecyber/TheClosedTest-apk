@@ -9,16 +9,11 @@ import messagesRoute from "./routes/messages.route"
 import notificationsRoute from "./routes/notifications.route"
 import proofsRoute from "./routes/proofs.route"
 import storageRoute from "./routes/storage.route"
-import streamRoute from "./routes/stream"
 import usersRoute from "./routes/users.route"
-import { auth } from "./utils/auth"
 
 const app = createApp()
 
 configureOpenAPI(app)
-
-// Auth Routes (Better Auth)
-app.on(["POST", "GET"], "/api/auth/*", async (c) => await auth.handler(c.req.raw))
 
 const appWithRoutes = app
   .route("/", indexRoute)
@@ -31,7 +26,6 @@ const appWithRoutes = app
   .route("/", storageRoute)
   .route("/", leaderboardRoute)
   .route("/", adminRoute)
-  .route("/", streamRoute)
 
 export type AppType = typeof appWithRoutes
 export default app

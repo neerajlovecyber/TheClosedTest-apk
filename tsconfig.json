@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "strict": false,
+    "strict": true,
     "paths": {
       "@/*": ["./*"]
     },
@@ -11,8 +11,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "noImplicitAny": false
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "app/**/*.ts",

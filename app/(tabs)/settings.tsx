@@ -38,6 +38,7 @@ import { useColorScheme } from "nativewind";
 import * as React from "react";
 import { Linking, View, Share, TouchableOpacity, Modal, Pressable } from "react-native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
+import { ApiEnvSwitch } from "@/components/ApiEnvSwitch";
 import Constants from "expo-constants";
 import { useCurrentUser, useMySupportChat } from "@/lib/api-hooks";
 
@@ -272,6 +273,9 @@ export default function SettingsScreen() {
               </Card>
             </View>
           )}
+
+          {/* Dev API Server Switch (dev builds only) */}
+          {__DEV__ && <ApiEnvSwitch />}
 
           {/* App Version */}
           <View className="gap-3">

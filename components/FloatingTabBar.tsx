@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { View, TouchableOpacity, StyleSheet, LayoutChangeEvent } from "react-native";
-import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import React, { useEffect } from "react";
+import { BlurView } from "expo-blur";
+import { useColorScheme } from "nativewind";
+import { Platform, View, TouchableOpacity, StyleSheet } from "react-native";
+import type { BottomTabBarProps } from "expo-router/build/react-navigation/bottom-tabs/types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, withSpring, useSharedValue, interpolate } from "react-native-reanimated";
-import { HomeIcon, StoreIcon, FlaskConicalIcon, SettingsIcon, ShieldIcon } from "lucide-react-native";
+import { HomeIcon, StoreIcon, FlaskConicalIcon, SettingsIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useTabScroll } from "@/lib/tab-scroll-context";
@@ -12,6 +14,7 @@ interface FloatingTabBarProps extends BottomTabBarProps {
   hasPendingTasks?: boolean;
   hasUnreadMessages?: boolean;
   hasUnreadSupport?: boolean;
+  isAdmin?: boolean;
 }
 
 const TAB_ICONS: Record<string, any> = {
@@ -28,9 +31,10 @@ const TAB_LABELS: Record<string, string> = {
   settings: "Settings",
 };
 
-export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport }: FloatingTabBarProps) {
+export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport, isAdmin }: FloatingTabBarProps) {
   const insets = useSafeAreaInsets();
-  const [barWidth, setBarWidth] = useState(0);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const tabScroll = useTabScroll();
   const scrollProgress = tabScroll?.scrollProgress || { value: 0 };
@@ -43,78 +47,80 @@ export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks
   });
 
   const activeIndex = visibleRoutes.findIndex((r) => r.key === state.routes[state.index]?.key);
-
   const numTabs = visibleRoutes.length || 1;
-  const paddingH = 6;
-  const usableWidth = Math.max(0, barWidth - paddingH * 2);
-  const tabWidth = usableWidth / numTabs;
 
-  const translateX = useSharedValue(0);
+  const activePos = useSharedValue(activeIndex >= 0 ? activeIndex : 0);
 
   useEffect(() => {
-    if (activeIndex >= 0 && tabWidth > 0) {
-      translateX.value = withSpring(activeIndex * tabWidth, {
-        damping: 18,
-        stiffness: 170,
-        mass: 0.8,
+    if (activeIndex >= 0) {
+      activePos.value = withSpring(activeIndex, {
+        damping: 24,
+        stiffness: 220,
+        mass: 0.6,
       });
     }
-  }, [activeIndex, tabWidth, translateX]);
+  }, [activeIndex]);
 
   const animatedIndicatorStyle = useAnimatedStyle(() => {
+    const progress = scrollProgress.value;
+    const currentMaxWidth = interpolate(progress, [0, 1], [356, 285]);
+    const pad = 6;
+    const tabWidth = (currentMaxWidth - pad * 2) / numTabs;
+
     return {
-      transform: [{ translateX: translateX.value }],
       width: tabWidth,
+      transform: [{ translateX: activePos.value * tabWidth + pad }],
     };
   });
 
   const animatedBarStyle = useAnimatedStyle(() => {
-    const isShrunk = scrollProgress.value;
-    const height = interpolate(isShrunk, [0, 1], [72, 54]);
-    const marginHorizontal = interpolate(isShrunk, [0, 1], [16, 28]);
-    const scale = interpolate(isShrunk, [0, 1], [1, 0.96]);
+    const progress = scrollProgress.value;
+    // Smoothly transition between 356px (expanded) and 285px (compact)
+    const maxWidth = interpolate(progress, [0, 1], [356, 285]);
+    const scale = interpolate(progress, [0, 1], [1, 0.96]);
 
     return {
-      height,
-      marginHorizontal,
+      maxWidth,
       transform: [{ scale }],
     };
   });
 
   const animatedTextStyle = useAnimatedStyle(() => {
-    const isShrunk = scrollProgress.value;
-    const opacity = interpolate(isShrunk, [0, 0.35, 1], [1, 0, 0]);
-    const translateY = interpolate(isShrunk, [0, 1], [0, 6]);
+    const progress = scrollProgress.value;
+    const opacity = interpolate(progress, [0, 0.6, 1], [1, 0.2, 0]);
+    const height = interpolate(progress, [0, 1], [14, 0]);
+    const translateY = interpolate(progress, [0, 1], [0, 2]);
 
     return {
       opacity,
+      height,
+      overflow: "hidden",
       transform: [{ translateY }],
-      height: isShrunk > 0.5 ? 0 : "auto",
     };
   });
 
-  const handleLayout = (e: LayoutChangeEvent) => {
-    const { width } = e.nativeEvent.layout;
-    if (width > 0 && width !== barWidth) {
-      setBarWidth(width);
-    }
-  };
-
   return (
     <View pointerEvents="box-none" style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 10) + 4 }]}>
-      {/* Outer Floating Capsule with Smooth Shrink Animation */}
+      {/* Outer Floating Capsule with Smooth Shrink Animation & Real Frosted Glass Blur */}
       <Animated.View
-        onLayout={handleLayout}
-        className="rounded-full border border-border bg-card dark:bg-card shadow-xl relative flex-row items-center px-1.5 py-1"
-        style={[styles.barInner, animatedBarStyle]}
+        className="rounded-full border border-border/80 bg-card/85 dark:bg-card/75 shadow-2xl overflow-hidden relative flex-row items-center px-1.5 py-1"
+        style={[styles.barInner, animatedBarStyle as any]}
       >
-        {/* Sliding Active Pill Enclosing Both Icon & Label */}
-        {tabWidth > 0 && (
-          <Animated.View
-            style={[styles.indicator, animatedIndicatorStyle]}
-            className="bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-full"
+        <BlurView intensity={Platform.OS === "ios" ? 60 : 35} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+
+        {/* Smooth Sliding Active Pill Indicator */}
+        <Animated.View style={[styles.indicatorWrapper, animatedIndicatorStyle as any]} pointerEvents="none">
+          <View
+            style={{
+              flex: 1,
+              marginHorizontal: 3,
+              borderRadius: 9999,
+              backgroundColor: isDark ? "rgba(59, 130, 246, 0.22)" : "rgba(59, 130, 246, 0.14)",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(59, 130, 246, 0.40)" : "rgba(59, 130, 246, 0.30)",
+            }}
           />
-        )}
+        </Animated.View>
 
         {/* Tab Buttons */}
         {visibleRoutes.map((route) => {
@@ -186,20 +192,26 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
+    alignItems: "center",
+    paddingHorizontal: 16,
     zIndex: 50,
   },
   barInner: {
+    width: "100%",
+    maxWidth: 356,
+    flexDirection: "row",
+    alignItems: "center",
     elevation: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
   },
-  indicator: {
+  indicatorWrapper: {
     position: "absolute",
     top: 4,
     bottom: 4,
-    left: 6,
+    left: 0,
     zIndex: 1,
   },
 });

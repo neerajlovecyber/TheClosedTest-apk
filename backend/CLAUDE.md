@@ -23,21 +23,21 @@ bun run db:migrate   # Run migrations
 bun run db:studio    # Visual database editor
 ```
 
-No test framework is configured yet.
+Tests use Bun's built-in runner: `bun test` (suites live in `src/routes/*.test.ts`).
 
 ## Architecture
 
-Hono web framework running on Bun with Drizzle ORM (Neon PostgreSQL) and Better Auth.
+Hono web framework running on Bun with Drizzle ORM (Neon PostgreSQL) and Clerk authentication.
 
-**Entry point**: `src/index.ts` — sets up middleware (logger, secureHeaders), mounts auth handler at `/api/auth/*`, and mounts route modules.
+**Entry point**: `src/index.ts` — sets up middleware (logger, secureHeaders) and mounts route modules.
 
 **Layers**:
 
-- `src/routes/` — Hono routers with Zod validation via `@hono/zod-validator`. Each file exports a `Hono()` instance mounted in index.ts.
+- `src/routes/` — Hono routers with Zod validation via `@hono/zod-validator`. Each file exports a `Hono()` instance mounted in app.ts.
 - `src/controllers/` — Business logic functions that interact with the database and return `{ success, data/message }` objects.
-- `src/db/schema.ts` — Drizzle table definitions (waitlist, user, session, account, verification). Relations defined here too.
+- `src/db/schema.ts` — Drizzle table definitions. Relations defined here too.
 - `src/db/index.ts` — Drizzle client instance using Neon serverless driver.
-- `src/utils/auth.ts` — Better Auth config with Google OAuth and Drizzle adapter.
+- `src/middlewares/auth.ts` — Clerk token verification (Backend SDK + remote JWKS via jose), user auto-provisioning, and admin guard.
 - `src/utils/datetime.ts` — date-fns formatting helpers.
 
 ## Code Style
@@ -54,4 +54,4 @@ Routes create a `new Hono()`, define handlers, and `export default router`. POST
 
 ## Environment
 
-Copy `.env.example` to `.env`. Key variables: `DATABASE_URL` (Neon PostgreSQL), `BETTER_AUTH_SECRET`, Google OAuth credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`).
+Copy `.env.example` to `.env`. Key variables: `DATABASE_URL` (Neon PostgreSQL), Clerk keys (`CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `CLERK_PUBLISHABLE_KEY`).

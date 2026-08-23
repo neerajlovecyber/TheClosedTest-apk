@@ -61,7 +61,7 @@ export function ChatView({
   isSending = false,
 }: ChatViewProps) {
   const insets = useSafeAreaInsets();
-  const isKeyboardVisible = useKeyboardState((state) => state.visible);
+  const isKeyboardVisible = useKeyboardState((state) => state.isVisible);
   const [newMessage, setNewMessage] = useState("");
   const inputRef = useRef<TextInput>(null);
   const listRef = useRef<any>(null);

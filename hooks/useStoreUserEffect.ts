@@ -1,6 +1,6 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useEffect, useState } from "react";
-import { setAuthTokenGetter, setCurrentUserId } from "@/lib/api";
+import { setAuthTokenGetter } from "@/lib/api";
 import { useSyncUser } from "@/lib/api-hooks";
 
 export function useStoreUserEffect() {
@@ -10,7 +10,6 @@ export function useStoreUserEffect() {
   const syncUser = useSyncUser();
 
   useEffect(() => {
-    setCurrentUserId(user?.id || null);
     // Wire up Clerk auth token generator for all backend requests
     setAuthTokenGetter(async () => {
       const token = await getToken();
@@ -21,15 +20,17 @@ export function useStoreUserEffect() {
   useEffect(() => {
     if (!user) return;
 
+    const currentUser = user;
+
     async function createUser() {
       try {
-        const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || `${user.id}@theclosedtest.app`;
+        const email = currentUser.primaryEmailAddress?.emailAddress || currentUser.emailAddresses?.[0]?.emailAddress || `${currentUser.id}@theclosedtest.app`;
 
         const synced = await syncUser.mutateAsync({
-          tokenIdentifier: user.id,
-          name: user.fullName || user.firstName || user.username || "Developer",
+          tokenIdentifier: currentUser.id,
+          name: currentUser.fullName || currentUser.firstName || currentUser.username || "Developer",
           email: email,
-          avatarUrl: user.imageUrl || undefined,
+          avatarUrl: currentUser.imageUrl || undefined,
         });
         setUserId(synced.id);
       } catch (e) {

@@ -40,7 +40,6 @@
     "@clerk/backend": "^3.16.10",
     "@hono/zod-openapi": "^1.6.1",
     "@scalar/hono-api-reference": "^0.11.14",
-    "better-auth": "^1.6.29",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.2",

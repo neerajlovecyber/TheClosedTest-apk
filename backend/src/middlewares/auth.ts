@@ -22,8 +22,8 @@ const clerkJwksUrl = new URL(`https://${clerkFrontendApi}/.well-known/jwks.json`
 const JWKS = createRemoteJWKSet(clerkJwksUrl)
 
 export async function verifyTokenPayload(rawToken: string): Promise<{ sub: string; email?: string } | null> {
-  // Test suite fixture tokens
-  if (rawToken.startsWith("test-clerk-")) {
+  // Test suite fixture tokens — never accepted outside of the test environment
+  if (process.env.NODE_ENV === "test" && rawToken.startsWith("test-clerk-")) {
     return { sub: rawToken, email: `${rawToken}@example.com` }
   }
 

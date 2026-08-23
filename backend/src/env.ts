@@ -16,8 +16,6 @@ const EnvSchema = z.object({
     .string()
     .min(1)
     .default(rawDbUrl || "postgresql://postgres:postgres@localhost:5432/closedtest"),
-  BETTER_AUTH_SECRET: z.string().default("dev-secret-change-me-in-production-1234567890abcdef"),
-  BETTER_AUTH_URL: z.string().default("http://localhost:9000"),
   EXPO_ACCESS_TOKEN: z.string().optional(),
   CLOUDFLARE_R2_ACCOUNT_ID: z.string().optional(),
   CLOUDFLARE_R2_ACCESS_KEY_ID: z.string().optional(),
@@ -37,8 +35,6 @@ function parseEnv(): Env {
   }
 
   // Ensure process.env has these values for libraries that inspect process.env directly
-  process.env.BETTER_AUTH_SECRET = parsed.data.BETTER_AUTH_SECRET
-  process.env.BETTER_AUTH_URL = parsed.data.BETTER_AUTH_URL
   process.env.DATABASE_URL = parsed.data.DATABASE_URL
 
   return parsed.data

@@ -8,7 +8,7 @@ Essential information for AI coding agents working in this repository.
 - **Runtime**: Bun v1.3.5
 - **Language**: TypeScript v5.x (ESNext, ES modules)
 - **Database**: Drizzle ORM with Neon PostgreSQL
-- **Auth**: Better Auth v1.x
+- **Auth**: Clerk (token verification in `src/middlewares/auth.ts`)
 - **Validation**: Zod v4.x
 
 ## Commands
@@ -38,15 +38,13 @@ Essential information for AI coding agents working in this repository.
 
 ### Testing
 
-**Note**: No testing framework configured. CI expects `npm test`. To add Vitest:
+Tests use Bun's built-in runner (`bun test`). Integration suites live in `src/routes/*.test.ts` and run against an in-memory PGlite database.
 
-1. Install: `bun add -D vitest`
-2. Add to package.json scripts:
-   ```json
-   "test": "vitest run",
-   "test:watch": "vitest"
-   ```
-3. Run single test: `bun run test:run path/to/test.ts`
+- `bun test` - Run all tests
+- `bun test --watch` - Watch mode
+- `bun test src/routes/backend.test.ts` - Run a single file
+
+Fixture tokens (`test-clerk-*`) are only accepted when `NODE_ENV=test`; never add unguarded test-token shortcuts to auth middleware.
 
 ## Code Style
 
@@ -138,35 +136,27 @@ export const user = pgTable("user", {
 })
 ```
 
-### Auth (Better Auth)
+### Auth (Clerk)
 
-```typescript
-app.on(["POST", "GET"], "/api/auth/*", async (c) => await auth.handler(c.req.raw))
-```
+Protected routes use `authMiddleware` / `adminAuthMiddleware` from `src/middlewares/auth.ts`, which verifies Clerk session tokens (Backend SDK or remote JWKS) and auto-provisions the user row.
 
 ## Project Structure
 
 ```
 src/
-├── index.ts           # App entry point, middleware setup
-├── routes/            # Hono route definitions
-│   ├── user.ts
-│   ├── waitlist.ts
-│   └── stream.ts
-├── controllers/       # Business logic
-│   └── waitlist.ts
+├── index.ts           # Server entry point
+├── app.ts             # App creation, route mounting
+├── routes/            # Hono route definitions + tests
 ├── db/                # Database schema & connection
-│   ├── index.ts
-│   └── schema.ts
-└── utils/             # Utilities
-    ├── auth.ts
-    └── datetime.ts
+├── middlewares/       # Auth middleware (Clerk)
+└── utils/             # Helpers (datetime, cache)
 ```
 
 ## Environment Variables
 
 - `PORT` - Server port (default: 9000)
 - `DATABASE_URL` - Neon PostgreSQL connection string
+- `CLERK_SECRET_KEY` / `CLERK_JWT_KEY` / `CLERK_PUBLISHABLE_KEY` - Clerk credentials
 
 Copy `.env.example` to `.env` and fill in values.
 
@@ -177,10 +167,9 @@ Copy `.env.example` to `.env` and fill in values.
 
 ## CI/CD
 
-GitHub Actions workflow (`.github/workflows/node.js.yml`):
+GitHub Actions workflow (`.github/workflows/test.yml`):
 
-- Runs on Node.js 20.x
-- Steps: checkout → setup Node → npm ci → build → test
+- Runs on push/PR: `bun install` → `bunx tsc --noEmit` → oxlint/oxfmt → `bun test`
 
 ## Quick Start
 

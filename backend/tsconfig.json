@@ -12,6 +12,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "erasableSyntaxOnly": true,
+    "types": ["bun"],
     "typeRoots": ["./node_modules/@types"]
   },
   "include": ["**/*.ts", "**/*.tsx"],

@@ -34,6 +34,7 @@ import {
   useRefreshOnFocus,
   MatchEntity,
 } from "@/lib/api-hooks";
+import { ErrorState } from "@/components/ErrorState";
 import { getMatchCurrentDay } from "@/lib/date-utils";
 
 export default function HomeScreen() {
@@ -47,11 +48,21 @@ export default function HomeScreen() {
   const attentionScrollRef = React.useRef<ScrollView>(null);
 
   // API Queries
-  const { data: currentUser, refetch: refetchUser } = useCurrentUser();
+  const { data: currentUser, refetch: refetchUser, isError: userError } = useCurrentUser();
   const { data: myApps = [], refetch: refetchMyApps } = useMyApps();
-  const { data: activeMatches = [], refetch: refetchActive } = useMatches("active");
-  const { data: pendingMatches = [], refetch: refetchPending } = useMatches("pending");
+  const { data: activeMatches = [], refetch: refetchActive, isError: activeError } = useMatches("active");
+  const { data: pendingMatches = [], refetch: refetchPending, isError: pendingError } = useMatches("pending");
   const { data: notificationsData, refetch: refetchNotifications } = useNotifications();
+
+  const hasLoadError = Boolean(userError || activeError || pendingError);
+  const retryAll = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetchUser(), refetchMyApps(), refetchActive(), refetchPending(), refetchNotifications()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchUser, refetchMyApps, refetchActive, refetchPending, refetchNotifications]);
 
   // Instant refresh when navigating or switching to Home tab
   useRefreshOnFocus(
@@ -161,11 +172,11 @@ export default function HomeScreen() {
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refetchUser(), refetchMyApps(), refetchActive(), refetchPending(), refetchNotifications()]);
+      await retryAll();
     } finally {
       setRefreshing(false);
     }
-  }, [refetchUser, refetchMyApps, refetchActive, refetchPending, refetchNotifications]);
+  }, [retryAll]);
 
   const handleAccept = async (matchId: string) => {
     try {
@@ -217,6 +228,15 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           </View>
+
+          {hasLoadError && (
+            <ErrorState
+              title="Couldn't load your dashboard"
+              message="Some of your data failed to load. Pull down or tap retry."
+              onRetry={() => void retryAll()}
+              isRetrying={refreshing}
+            />
+          )}
 
           <View className="flex-row gap-4 mt-2">
             <TouchableOpacity className="flex-1" onPress={() => router.push("/help" as any)} activeOpacity={0.7}>
@@ -297,7 +317,12 @@ export default function HomeScreen() {
                   key={req.id}
                   request={{
                     _id: req.id,
-                    user1: req.user1,
+                    user1: req.user1
+                      ? {
+                          ...req.user1,
+                          avatarUrl: req.user1.avatarUrl ?? undefined,
+                        }
+                      : req.user1,
                     app1: req.app1,
                     app2: req.app2,
                   }}
@@ -341,12 +366,6 @@ export default function HomeScreen() {
 
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-xl font-bold">My Apps ({myApps.length}/3)</Text>
-            {myApps.length < unlockedSlots && (
-              <TouchableOpacity className="flex-row items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-full" onPress={() => router.push("/add-app")}>
-                <Icon as={PlusIcon} className="text-primary size-4" />
-                <Text className="text-primary font-bold text-xs uppercase">New App</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Show actual apps */}
