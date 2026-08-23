@@ -232,8 +232,8 @@ export default function MatchDashboardScreen() {
 
     return {
       day: dayNum,
-      myStatus: myP ? myP.status : dayNum > currentDay ? "future" : "not_uploaded",
-      partnerStatus: partnerP ? partnerP.status : dayNum > currentDay ? "future" : "not_uploaded",
+      myStatus: myP ? myP.status : dayNum > currentDay ? "future" : dayNum < currentDay ? "missed" : "not_uploaded",
+      partnerStatus: partnerP ? partnerP.status : dayNum > currentDay ? "future" : dayNum < currentDay ? "missed" : "not_uploaded",
       isToday: dayNum === currentDay,
     };
   });
@@ -466,6 +466,7 @@ export default function MatchDashboardScreen() {
               }
               isCompleted={isCompleted}
               isFuture={effectiveDay > currentDay}
+              isPast={effectiveDay < currentDay}
             />
 
             <View className="h-px bg-border my-2" />
@@ -473,6 +474,9 @@ export default function MatchDashboardScreen() {
             <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Partner's Proof</Text>
             <ProofReviewer
               matchId={matchId}
+              currentDay={effectiveDay}
+              isPast={effectiveDay < currentDay}
+              isFuture={effectiveDay > currentDay}
               partnerProof={
                 selectedDayPartnerProof
                   ? {

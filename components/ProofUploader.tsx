@@ -49,9 +49,10 @@ interface ProofUploaderProps {
   onUploadComplete?: () => void;
   isCompleted?: boolean;
   isFuture?: boolean;
+  isPast?: boolean;
 }
 
-function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete, isCompleted, isFuture }: ProofUploaderProps) {
+function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadComplete, isCompleted, isFuture, isPast }: ProofUploaderProps) {
   const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
   const [comment, setComment] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -355,6 +356,25 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             </View>
             <Text className="font-bold text-foreground text-base">Day {currentDay} is Locked</Text>
             <Text className="text-muted-foreground text-xs text-center mt-1">This testing day will unlock automatically on Day {currentDay}.</Text>
+          </CardContent>
+        </Card>
+        {imageViewerModal}
+      </>
+    );
+  }
+
+  if (isPast && (!todayProof || todayProof.status === "rejected")) {
+    return (
+      <>
+        <Card className="bg-destructive/5 border-destructive/20 mb-4">
+          <CardContent className="p-5 items-center justify-center py-6">
+            <View className="w-12 h-12 rounded-full bg-destructive/10 items-center justify-center mb-3">
+              <Icon as={AlertCircleIcon} className="size-6 text-destructive" />
+            </View>
+            <Text className="font-bold text-destructive text-base">Day {currentDay} Missed</Text>
+            <Text className="text-muted-foreground text-xs text-center mt-1">
+              No proof was submitted for Day {currentDay}. Daily testing must be completed on its active day.
+            </Text>
           </CardContent>
         </Card>
         {imageViewerModal}

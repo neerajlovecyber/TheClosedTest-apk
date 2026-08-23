@@ -15,6 +15,9 @@ const IMAGE_PLACEHOLDER =
 
 interface ProofReviewerProps {
   matchId: string;
+  currentDay?: number;
+  isPast?: boolean;
+  isFuture?: boolean;
   partnerProof?: {
     _id?: string;
     day?: number;
@@ -28,7 +31,7 @@ interface ProofReviewerProps {
   onReject?: (proofId: string) => void;
 }
 
-function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onReject }: ProofReviewerProps) {
+function ProofReviewerComponent({ matchId, currentDay, isPast, isFuture, partnerProof, onReviewComplete, onReject }: ProofReviewerProps) {
   const [isReviewing, setIsReviewing] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -123,7 +126,31 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
     }
   }, [isFullScreen, images.length, currentImageIndex]);
 
+  if (isFuture) {
+    return (
+      <Card className="bg-secondary/20 border-border/50 mb-6">
+        <CardContent className="p-5 items-center justify-center">
+          <Text className="text-sm text-muted-foreground text-center">Day {currentDay} testing is locked.</Text>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!partnerProof || partnerProof.status === "not_uploaded") {
+    if (isPast) {
+      return (
+        <Card className="bg-secondary/30 mb-6">
+          <CardContent className="p-5 items-center">
+            <Icon as={ClockIcon} className="text-muted-foreground size-8 mb-2" />
+            <Text className="text-sm font-bold text-center">Day {currentDay} Missed</Text>
+            <Text className="text-xs text-muted-foreground text-center mt-1">
+              {partnerProof?.partnerName || "Your partner"} did not submit proof on Day {currentDay}.
+            </Text>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
       <Card className="bg-secondary/30 mb-6">
         <CardContent className="p-6 items-center">
@@ -136,6 +163,20 @@ function ProofReviewerComponent({ matchId, partnerProof, onReviewComplete, onRej
   }
 
   if (partnerProof.status === "rejected") {
+    if (isPast) {
+      return (
+        <Card className="bg-secondary/30 mb-6">
+          <CardContent className="p-5 items-center">
+            <Icon as={XCircleIcon} className="text-muted-foreground size-8 mb-2" />
+            <Text className="text-sm font-bold text-center">Day {currentDay} Rejected</Text>
+            <Text className="text-xs text-muted-foreground text-center mt-1">
+              {partnerProof.partnerName || "Your partner"}'s proof was rejected and the day ended.
+            </Text>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
       <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
         <CardContent className="p-4">
