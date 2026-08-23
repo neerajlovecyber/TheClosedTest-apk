@@ -25,7 +25,7 @@ import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ThemeProvider } from "expo-router/react-navigation";
 import { PortalHost } from "@rn-primitives/portal";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
@@ -52,6 +52,112 @@ export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
 } from "expo-router";
+
+SplashScreen.preventAutoHideAsync();
+
+function InitialLayout() {
+  const { isSignedIn, isLoaded } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
+
+  // Sync user with backend
+  const syncedUserId = useStoreUserEffect();
+
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const { expoPushToken, notificationResponse } = usePushNotifications();
+  const updatePushToken = useUpdatePushToken();
+
+  // Handle OTA Updates
+  const { isUpdateDownloaded, reloadApp } = useOTAUpdate();
+
+  // Handle Native In-App Updates
+  useInAppUpdate();
+
+  React.useEffect(() => {
+    if (expoPushToken && isSignedIn && syncedUserId) {
+      updatePushToken.mutateAsync(expoPushToken).catch((e) => console.error("Failed to save push token:", e));
+    }
+    if (syncedUserId) {
+      identifyDevice(syncedUserId);
+    }
+  }, [expoPushToken, isSignedIn, syncedUserId]);
+
+  React.useEffect(() => {
+    if (!isLoaded || !rootNavigationState?.key) return;
+
+    const inAuthGroup = segments[0] === "(auth)";
+
+    if (isSignedIn && inAuthGroup) {
+      // Redirect to tabs if signed in and in auth group
+      router.replace("/(tabs)");
+    } else if (!isSignedIn && !inAuthGroup) {
+      // Redirect to welcome if not signed in
+      router.replace("/(auth)/welcome");
+    }
+  }, [isSignedIn, isLoaded, segments, rootNavigationState?.key]);
+
+  // Handle Notification Navigation Safely
+  React.useEffect(() => {
+    if (!isLoaded || !isSignedIn || !notificationResponse || !rootNavigationState?.key) return;
+
+    try {
+      const data = notificationResponse.notification.request.content.data as Record<string, unknown> | undefined;
+      console.log("Handling notification navigation:", data);
+
+      if (data?.type === "request" || data?.type === "match_request") {
+        router.push("/(tabs)");
+      } else if (data?.matchId) {
+        if (data.type === "message") {
+          router.push({
+            pathname: "/(tabs)/match/[id]",
+            params: { id: data.matchId as string, tab: "chat" },
+          });
+        } else {
+          router.push({ pathname: "/(tabs)/match/[id]", params: { id: data.matchId as string } });
+        }
+      } else if (data?.type === "new_app" && data.appId) {
+        router.push(`/app-details/${data.appId}`);
+      } else if (data?.type === "admin_chat") {
+        router.push("/admin-chat");
+      } else if (data?.type === "open_url" && data.url) {
+        Linking.openURL(data.url as string).catch((err) => console.error("Failed to open URL:", err));
+      }
+    } catch (e) {
+      console.error("Failed to navigate from notification:", e);
+    }
+  }, [notificationResponse, isLoaded, isSignedIn, rootNavigationState?.key]);
+
+  React.useEffect(() => {
+    if (isLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoaded]);
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  return (
+    <>
+      <ForceUpdateDialog isVisible={isUpdateDownloaded} onReload={reloadApp} />
+      <WarningDisplay />
+      <AppDeletedModal />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="add-app" options={{ presentation: "modal", headerShown: false }} />
+        <Stack.Screen name="app-details/[id]" options={{ presentation: "modal", headerShown: false }} />
+        <Stack.Screen name="boost-hub" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/chats-list" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="admin/debug-push" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-chat" options={{ headerShown: false }} />
+      </Stack>
+    </>
+  );
+}
 
 export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
@@ -88,7 +194,7 @@ export default function RootLayout() {
     <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={NAV_THEME[colorScheme ?? "light"]}>
-          <KeyboardProvider statusBarTranslucent>
+          <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
             <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             <InitialLayout />
             <PortalHost />
@@ -97,109 +203,5 @@ export default function RootLayout() {
         </ThemeProvider>
       </QueryClientProvider>
     </ClerkProvider>
-  );
-}
-
-SplashScreen.preventAutoHideAsync();
-
-function InitialLayout() {
-  const { isSignedIn, isLoaded } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-
-  // Sync user with backend
-  const syncedUserId = useStoreUserEffect();
-
-  /* eslint-disable react-hooks/exhaustive-deps */
-  const { expoPushToken, notificationResponse } = usePushNotifications();
-  const updatePushToken = useUpdatePushToken();
-
-  React.useEffect(() => {
-    if (expoPushToken && isSignedIn && syncedUserId) {
-      updatePushToken.mutateAsync(expoPushToken).catch((e) => console.error("Failed to save push token:", e));
-    }
-    if (syncedUserId) {
-      identifyDevice(syncedUserId);
-    }
-  }, [expoPushToken, isSignedIn, syncedUserId]);
-
-  React.useEffect(() => {
-    if (!isLoaded) return;
-
-    const inAuthGroup = segments[0] === "(auth)";
-
-    if (isSignedIn && inAuthGroup) {
-      // Redirect to tabs if signed in and in auth group
-      router.replace("/(tabs)");
-    } else if (!isSignedIn && !inAuthGroup) {
-      // Redirect to welcome if not signed in
-      router.replace("/(auth)/welcome");
-    }
-  }, [isSignedIn, isLoaded, segments]);
-
-  // Handle Notification Navigation Safely
-  React.useEffect(() => {
-    if (!isLoaded || !isSignedIn || !notificationResponse) return;
-
-    try {
-      const data = notificationResponse.notification.request.content.data as Record<string, unknown> | undefined;
-      console.log("Handling notification navigation:", data);
-
-      if (data?.type === "request" || data?.type === "match_request") {
-        router.push("/(tabs)");
-      } else if (data?.matchId) {
-        if (data.type === "message") {
-          router.push({
-            pathname: "/(tabs)/match/[id]",
-            params: { id: data.matchId as string, tab: "chat" },
-          });
-        } else {
-          router.push({ pathname: "/(tabs)/match/[id]", params: { id: data.matchId as string } });
-        }
-      } else if (data?.type === "new_app" && data.appId) {
-        router.push(`/app-details/${data.appId}`);
-      } else if (data?.type === "admin_chat") {
-        router.push("/admin-chat");
-      } else if (data?.type === "open_url" && data.url) {
-        Linking.openURL(data.url as string).catch((err) => console.error("Failed to open URL:", err));
-      }
-    } catch (e) {
-      console.error("Failed to navigate from notification:", e);
-    }
-  }, [notificationResponse, isLoaded, isSignedIn]);
-
-  React.useEffect(() => {
-    if (isLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [isLoaded]);
-
-  // Handle OTA Updates
-  const { isUpdateDownloaded, reloadApp } = useOTAUpdate();
-
-  // Handle Native In-App Updates
-  useInAppUpdate();
-
-  if (!isLoaded) {
-    return null;
-  }
-
-  return (
-    <>
-      <ForceUpdateDialog isVisible={isUpdateDownloaded} onReload={reloadApp} />
-      <WarningDisplay />
-      <AppDeletedModal />
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
-        <Stack.Screen name="add-app" options={{ presentation: "modal", headerShown: false }} />
-        <Stack.Screen name="app-details/[id]" options={{ presentation: "modal", headerShown: false }} />
-        <Stack.Screen name="boost-hub" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/chats-list" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/notifications" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/debug-push" options={{ headerShown: false }} />
-      </Stack>
-    </>
   );
 }

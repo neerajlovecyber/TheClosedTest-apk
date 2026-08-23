@@ -475,6 +475,8 @@ export function useMatchMessages(matchId?: string, limit = 50, offset = 0) {
         params: { limit, offset },
       }),
     enabled: Boolean(matchId),
+    staleTime: 1000 * 10, // Keep fresh in cache for instant opens
+    gcTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 2, // 2-second live chat polling
   });
 }
@@ -916,6 +918,8 @@ export function useSupportChatDetails(chatId?: string) {
     queryKey: ["supportChat", chatId],
     queryFn: () => api.get(`/api/support/chats/${chatId}`),
     enabled: Boolean(chatId),
+    staleTime: 1000 * 10,
+    gcTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 5,
   });
 }

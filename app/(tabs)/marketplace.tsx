@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { View, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, RefreshControl } from "react-native";
-import { LegendList } from "@legendapp/list/react-native";
+import { FlashList } from "@shopify/flash-list";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,7 +228,7 @@ export default function MarketplaceScreen() {
               <Text className="text-lg font-bold px-1 mb-2">Latest Opportunities</Text>
               {groupedRecruiting.length > 0 ? (
                 <View>
-                  <LegendList
+                  <FlashList
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     data={groupedRecruiting}
@@ -240,8 +240,6 @@ export default function MarketplaceScreen() {
                     viewabilityConfig={viewabilityConfig.current}
                     contentContainerStyle={{ paddingRight: 16 }}
                     renderItem={renderGroupItem}
-                    recycleItems
-                    estimatedItemSize={windowWidth * 0.85}
                   />
                   <View className="flex-row justify-center mt-2 gap-2">
                     {groupedRecruiting.map((_, index) => (

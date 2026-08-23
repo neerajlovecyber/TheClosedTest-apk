@@ -1,31 +1,36 @@
-import React, { useState, useEffect } from "react";
-import { View, TextInput, TouchableOpacity, FlatList } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { Text } from "@/components/ui/text";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
+import React, { useEffect, useMemo } from "react";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
+import { HeadphonesIcon } from "lucide-react-native";
 import { toast } from "@/lib/sonner";
-import { Icon } from "@/components/ui/icon";
-import { ArrowLeftIcon, SendIcon, ShieldIcon, CheckIcon, CheckCheckIcon } from "lucide-react-native";
-import { LinkableText } from "@/components/ui/LinkableText";
-import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { useCurrentUser, useMySupportChat, useSupportChatDetails, useSendSupportMessage } from "@/lib/api-hooks";
+import { ChatView, ChatMessageItem } from "@/components/ChatView";
+
+const SUPPORT_QUICK_CHIPS = [
+  "📸 Issue with proof approval",
+  "❓ How do 14 days of testing work?",
+  "🐛 Found a bug in the app",
+  "🛡️ Need help with partner match",
+];
 
 export default function AdminChatScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
-  const { chatId, userName } = useLocalSearchParams<{ chatId?: string; userName?: string }>();
+  const { chatId, userName, userId } = useLocalSearchParams<{
+    chatId?: string;
+    userName?: string;
+    userId?: string;
+  }>();
 
   const { data: currentUser } = useCurrentUser();
   const { data: myChat } = useMySupportChat();
   const effectiveChatId = chatId || myChat?.id;
 
-  const { data: chatData } = useSupportChatDetails(effectiveChatId);
+  const { data: chatData, isLoading } = useSupportChatDetails(effectiveChatId);
   const sendMessageMutation = useSendSupportMessage();
 
-  // Mark conversation read and refresh lists
+  // Mark conversation read and refresh query lists
   useEffect(() => {
     if (effectiveChatId) {
       queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] });
@@ -33,124 +38,67 @@ export default function AdminChatScreen() {
     }
   }, [effectiveChatId, queryClient]);
 
-  const [newMessage, setNewMessage] = useState("");
-  const [sending, setSending] = useState(false);
   const messages = chatData?.messages || [];
-  const chatMessages = React.useMemo(() => {
-    return [...messages].reverse();
-  }, [messages]);
 
-  const chatInfo = chatData?.chat;
+  const formattedMessages = useMemo<ChatMessageItem[]>(() => {
+    const isAdminUser = Boolean(currentUser?.isAdmin);
+    return messages.map((msg: any) => {
+      // Correctly identify if the message is from me vs the other party
+      const isMe = isAdminUser
+        ? Boolean(msg.isAdmin) || msg.senderRole === "admin" || msg.senderId === currentUser?.id
+        : !msg.isAdmin && msg.senderRole !== "admin";
 
-  const handleSend = async () => {
-    if (!newMessage.trim()) return;
+      const isFromAdmin = Boolean(msg.isAdmin) || msg.senderRole === "admin";
 
-    setSending(true);
+      return {
+        id: msg.id,
+        content: msg.content,
+        sentAt: msg.sentAt,
+        isMe,
+        isOptimistic: String(msg.id).startsWith("temp-"),
+        senderBadge: !isMe && isFromAdmin ? "Support Team" : undefined,
+      };
+    });
+  }, [messages, currentUser?.isAdmin, currentUser?.id]);
+
+  const handleSend = async (text: string) => {
     try {
-      let targetChatId = effectiveChatId;
-      if (!targetChatId) {
-        const created = await api.post<{ id: string }>("/api/support/my-chat");
-        targetChatId = created?.id;
+      if (currentUser?.isAdmin && userId) {
+        await api.post(`/admin/support/chats/${userId}/messages`, {
+          content: text,
+        });
+      } else {
+        await sendMessageMutation.mutateAsync({
+          chatId: effectiveChatId!,
+          content: text,
+          type: "text",
+        });
       }
-
-      if (!targetChatId) {
-        toast.error("Support chat unavailable. Please try again.");
-        return;
-      }
-
-      await sendMessageMutation.mutateAsync({
-        chatId: targetChatId,
-        content: newMessage.trim(),
-        type: "text",
-      });
-      setNewMessage("");
-    } catch (error: any) {
-      toast.error("Failed to send", { description: error.message || "Could not send message" });
-    } finally {
-      setSending(false);
+      queryClient.invalidateQueries({ queryKey: ["adminSupportChat", userId] });
+      queryClient.invalidateQueries({ queryKey: ["mySupportChat"] });
+    } catch {
+      toast.error("Failed to send message");
     }
   };
 
-  const renderMessage = ({ item }: { item: any }) => {
-    const isMyMessage =
-      item.senderId === "me" ||
-      (currentUser?.id && item.senderId === currentUser.id) ||
-      (currentUser?.tokenIdentifier && item.senderId === currentUser.tokenIdentifier) ||
-      (currentUser?.isAdmin ? item.isAdmin : !item.isAdmin);
-
-    const showSupportBadge = item.isAdmin && !currentUser?.isAdmin;
-    const isSeen = currentUser?.isAdmin ? !(chatInfo as any)?.hasUnreadUser : !(chatInfo as any)?.hasUnreadAdmin;
-
-    return (
-      <View className={`flex-row ${isMyMessage ? "justify-end" : "justify-start"} mb-3 px-4`}>
-        <View
-          style={{ maxWidth: "80%" }}
-          className={`px-4 py-2.5 rounded-2xl ${isMyMessage ? "bg-primary rounded-tr-none" : "bg-secondary rounded-tl-none border border-border/50"}`}
-        >
-          {showSupportBadge && (
-            <View className="flex-row items-center gap-1 mb-1">
-              <Icon as={ShieldIcon} className="text-primary size-3" />
-              <Text className="text-[10px] font-bold text-primary">Support Team</Text>
-            </View>
-          )}
-          <LinkableText text={item.content} className={`${isMyMessage ? "text-primary-foreground font-medium" : "text-foreground"}`} />
-          <View className={`flex-row items-center gap-1 mt-1 ${isMyMessage ? "justify-end" : "justify-start"}`}>
-            <Text className={`text-[10px] ${isMyMessage ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
-              {new Date(item.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </Text>
-            {isMyMessage && <Icon as={isSeen ? CheckCheckIcon : CheckIcon} className={`size-3.5 ${isSeen ? "text-sky-300" : "text-primary-foreground/60"}`} />}
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+    <>
       <Stack.Screen options={{ headerShown: false }} />
-
-      {/* Header */}
-      <View className="px-4 py-3 border-b border-border flex-row items-center justify-between">
-        <View className="flex-row items-center flex-1">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
-            <Icon as={ArrowLeftIcon} className="text-foreground size-6" />
-          </TouchableOpacity>
-          <View>
-            <Text className="text-lg font-bold text-foreground">{userName ? `Support: ${userName}` : "Official Support"}</Text>
-            <Text className="text-xs text-muted-foreground">{userName ? "User Support Ticket" : "Direct chat with admins"}</Text>
-          </View>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView className="flex-1" behavior="padding">
-        <FlatList
-          data={chatMessages}
-          inverted
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={{ paddingVertical: 16 }}
-          className="flex-1"
-        />
-
-        <View style={{ paddingBottom: Math.max(insets.bottom, 16) }} className="p-4 bg-background border-t border-border flex-row items-center gap-2">
-          <TextInput
-            value={newMessage}
-            onChangeText={setNewMessage}
-            placeholder="Type a message to support..."
-            placeholderTextColor="#9ca3af"
-            className="flex-1 bg-secondary text-foreground px-4 py-3 rounded-full text-base"
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-          />
-          <TouchableOpacity
-            onPress={handleSend}
-            disabled={!newMessage.trim() || sending}
-            className={`w-12 h-12 rounded-full items-center justify-center ${newMessage.trim() ? "bg-primary" : "bg-muted"}`}
-          >
-            <Icon as={SendIcon} className="text-primary-foreground size-5" />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <ChatView
+        title={userName ? `Support: ${userName}` : "Official Support"}
+        subtitle={userName ? "User Support Ticket" : "Direct chat with admins"}
+        onBack={() => router.back()}
+        messages={formattedMessages}
+        isLoading={isLoading}
+        emptyTitle="Direct Support Chat"
+        emptyDescription="Have questions about testers, proofs, or apps? Ask anything below and our team will respond."
+        emptyIcon={HeadphonesIcon}
+        quickChips={!currentUser?.isAdmin ? SUPPORT_QUICK_CHIPS : []}
+        quickChipsLabel="Topics:"
+        placeholder="Type a message to support..."
+        onSend={handleSend}
+        isSending={sendMessageMutation.isPending}
+      />
+    </>
   );
 }
