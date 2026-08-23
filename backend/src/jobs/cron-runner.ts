@@ -344,10 +344,12 @@ export async function runDailyTestingReminders() {
 }
 
 export function startBackgroundJobs() {
+  if (process.env.NODE_ENV === "test") return
+
   console.log("🚀 Starting background cron timers...")
 
   // Run daily streak & match progression & expired bans maintenance every 4 hours
-  setInterval(
+  const t1 = setInterval(
     () => {
       runDailyStreakMaintenance()
       runMatchProgressionAndCleanup()
@@ -355,23 +357,26 @@ export function startBackgroundJobs() {
     },
     4 * 60 * 60 * 1000,
   )
+  t1.unref?.()
 
   // Run daily testing push reminders every 12 hours
-  setInterval(
+  const t2 = setInterval(
     () => {
       runDailyTestingReminders()
     },
     12 * 60 * 60 * 1000,
   )
+  t2.unref?.()
 
   // Run DB cleanups (notifications >7d, old matches >60d) every 24 hours
-  setInterval(
+  const t3 = setInterval(
     () => {
       runNotificationCleanup()
       runOldMatchesCleanup()
     },
     24 * 60 * 60 * 1000,
   )
+  t3.unref?.()
 
   // Trigger initial checks on boot
   runMatchProgressionAndCleanup()
