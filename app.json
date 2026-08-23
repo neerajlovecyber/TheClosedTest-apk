@@ -4,7 +4,7 @@
     "slug": "theclosedtest",
     "version": "3.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/adaptive-icon/adaptive-icon.png",
     "scheme": "theclosedtest",
     "userInterfaceStyle": "automatic",
     "runtimeVersion": {
@@ -12,6 +12,10 @@
     },
     "updates": {
       "url": "https://u.expo.dev/5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
+    },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#3B82F6"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -37,6 +41,13 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-image",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#3B82F6"
+        }
+      ],
       [
         "expo-splash-screen",
         {
