@@ -8,6 +8,9 @@ export interface BotState {
   groupTitle: string;
   bannedKeywords: string[];
   topics: Record<string, { threadId: number; name: string; isGeneral?: boolean }>;
+  linkFilters: Record<string, string[]>;
+  pendingLinkFilters: Record<string, string[]>;
+  allowedLinks: string[];
 }
 
 export function loadBotState(): BotState {
@@ -25,6 +28,9 @@ export function loadBotState(): BotState {
     groupTitle: "Your Group",
     bannedKeywords: [],
     topics: {},
+    linkFilters: {},
+    pendingLinkFilters: {},
+    allowedLinks: [],
   };
 }
 

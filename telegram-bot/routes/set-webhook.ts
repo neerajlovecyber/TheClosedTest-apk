@@ -1,4 +1,4 @@
-import { TOKEN } from "~/src/env";
+import { WEBHOOK_SECRET } from "~/src/env";
 import { bot } from "../src";
 
 export default eventHandler(async (evt) => {
@@ -6,7 +6,7 @@ export default eventHandler(async (evt) => {
   const webhookUrl = `https://${host}/telegram-hook`;
   const success = await bot.api.setWebhook(webhookUrl, {
     drop_pending_updates: true,
-    secret_token: TOKEN,
+    secret_token: WEBHOOK_SECRET,
   });
   const info = await bot.api.getWebhookInfo();
   return {

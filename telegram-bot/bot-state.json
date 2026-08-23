@@ -7,6 +7,39 @@
       "threadId": 1,
       "name": "General",
       "isGeneral": true
+    },
+    "7": {
+      "threadId": 7,
+      "name": "Topic #7"
+    },
+    "11": {
+      "threadId": 11,
+      "name": "Topic #11"
+    },
+    "7098": {
+      "threadId": 7098,
+      "name": "bot_test"
     }
-  }
+  },
+  "linkFilters": {
+    "1": [
+      "groups.google.com"
+    ],
+    "7": [
+      "groups.google.com"
+    ],
+    "8": [
+      "groups.google.com"
+    ],
+    "13": [
+      "groups.google.com"
+    ],
+    "5225": [
+      "groups.google.com"
+    ]
+  },
+  "pendingLinkFilters": {},
+  "allowedLinks": [
+    "groups.google.com/g/developers-community-official"
+  ]
 }
