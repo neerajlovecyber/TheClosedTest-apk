@@ -305,6 +305,18 @@ export async function runOldMatchesCleanup() {
   }
 }
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function getMatchDay(startDate?: Date | null, createdAt?: Date | null): number {
+  const start = startDate || createdAt
+  if (!start) return 1
+  const startDayIST = Math.floor((new Date(start).getTime() + IST_OFFSET_MS) / DAY_MS)
+  const todayDayIST = Math.floor((Date.now() + IST_OFFSET_MS) / DAY_MS)
+  const elapsed = Math.max(0, todayDayIST - startDayIST)
+  return Math.min(14, Math.max(1, elapsed + 1))
+}
+
 export async function runDailyTestingReminders() {
   console.log("⏰ Sending daily testing reminders to active testers...")
 
@@ -316,25 +328,60 @@ export async function runDailyTestingReminders() {
         user2: true,
         app1: true,
         app2: true,
+        proofs: true,
       },
     })
 
+    // Group pending tests by user so each user receives at most ONE reminder
+    const userPendingMap = new Map<string, { pushToken: string; pendingApps: string[] }>()
+
     for (const match of activeMatches) {
+      const matchDay = getMatchDay(match.startDate, match.createdAt)
+
+      // User 1 tests App 2
       if (match.user1?.pushToken) {
-        await sendExpoPushNotification({
-          to: match.user1.pushToken,
-          title: "Daily Testing Reminder 📱",
-          body: `Don't forget to open and test ${match.app2.title} today to keep your streak!`,
-          data: { matchId: match.id },
-        })
+        const user1DoneToday = match.proofs?.some(
+          (p) => p.uploaderId === match.user1Id && p.day === matchDay && p.status !== "rejected",
+        )
+        if (!user1DoneToday) {
+          const entry = userPendingMap.get(match.user1Id) || {
+            pushToken: match.user1.pushToken,
+            pendingApps: [],
+          }
+          entry.pendingApps.push(match.app2.title)
+          userPendingMap.set(match.user1Id, entry)
+        }
       }
 
+      // User 2 tests App 1
       if (match.user2?.pushToken) {
+        const user2DoneToday = match.proofs?.some(
+          (p) => p.uploaderId === match.user2Id && p.day === matchDay && p.status !== "rejected",
+        )
+        if (!user2DoneToday) {
+          const entry = userPendingMap.get(match.user2Id) || {
+            pushToken: match.user2.pushToken,
+            pendingApps: [],
+          }
+          entry.pendingApps.push(match.app1.title)
+          userPendingMap.set(match.user2Id, entry)
+        }
+      }
+    }
+
+    // Send 1 consolidated notification per user
+    for (const [, { pushToken, pendingApps }] of userPendingMap) {
+      if (pendingApps.length === 1) {
         await sendExpoPushNotification({
-          to: match.user2.pushToken,
+          to: pushToken,
           title: "Daily Testing Reminder 📱",
-          body: `Don't forget to open and test ${match.app1.title} today to keep your streak!`,
-          data: { matchId: match.id },
+          body: `Don't forget to test ${pendingApps[0]} today to maintain your streak!`,
+        })
+      } else if (pendingApps.length > 1) {
+        await sendExpoPushNotification({
+          to: pushToken,
+          title: "Daily Testing Reminder 📱",
+          body: `You have ${pendingApps.length} apps waiting for daily testing. Complete today's tests to protect your streak!`,
         })
       }
     }
