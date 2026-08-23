@@ -472,7 +472,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     }
 
     if (todayProof.status === "pending") {
-      if (isEditingProof) {
+      if (isEditingProof && !isPast) {
         return (
           <View className="mb-4">
             <View className="flex-row items-center justify-between mb-2">
@@ -530,37 +530,41 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
                   <Text className="text-xs text-muted-foreground italic">"{todayProof.comment}"</Text>
                 </View>
               )}
-              <TouchableOpacity
-                onPress={() => setIsConfirmChangeOpen(true)}
-                className="py-2 px-3 bg-secondary/60 rounded-xl flex-row items-center justify-center border border-border/50 self-start"
-              >
-                <Text className="text-xs font-semibold text-foreground">Change Screenshots</Text>
-              </TouchableOpacity>
+              {!isPast && (
+                <TouchableOpacity
+                  onPress={() => setIsConfirmChangeOpen(true)}
+                  className="py-2 px-3 bg-secondary/60 rounded-xl flex-row items-center justify-center border border-border/50 self-start"
+                >
+                  <Text className="text-xs font-semibold text-foreground">Change Screenshots</Text>
+                </TouchableOpacity>
+              )}
 
-              <AlertDialog open={isConfirmChangeOpen} onOpenChange={setIsConfirmChangeOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Change Screenshots?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Your current proof is pending review. Uploading new screenshots will replace it and reset its status.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      <Text>Cancel</Text>
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onPress={() => {
-                        setIsConfirmChangeOpen(false);
-                        setIsEditingProof(true);
-                      }}
-                    >
-                      <Text>Yes, Change</Text>
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {!isPast && (
+                <AlertDialog open={isConfirmChangeOpen} onOpenChange={setIsConfirmChangeOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Change Screenshots?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Your current proof is pending review. Uploading new screenshots will replace it and reset its status.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        <Text>Cancel</Text>
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onPress={() => {
+                          setIsConfirmChangeOpen(false);
+                          setIsEditingProof(true);
+                        }}
+                      >
+                        <Text>Yes, Change</Text>
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </CardContent>
           </Card>
           {imageViewerModal}
