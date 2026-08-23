@@ -64,8 +64,11 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
   if (appItems.length === 0) return []
   const appIds = appItems.map((a) => a.id)
 
-  const activeMatches = await db.query.matches.findMany({
-    where: and(or(inArray(matches.app1Id, appIds), inArray(matches.app2Id, appIds)), eq(matches.status, "active")),
+  const countedMatches = await db.query.matches.findMany({
+    where: and(
+      or(inArray(matches.app1Id, appIds), inArray(matches.app2Id, appIds)),
+      or(eq(matches.status, "active"), eq(matches.status, "completed")),
+    ),
     columns: {
       app1Id: true,
       app2Id: true,
@@ -73,7 +76,7 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
   })
 
   const countMap = new Map<string, number>()
-  for (const m of activeMatches) {
+  for (const m of countedMatches) {
     if (m.app1Id && appIds.includes(m.app1Id)) {
       countMap.set(m.app1Id, (countMap.get(m.app1Id) || 0) + 1)
     }
@@ -82,10 +85,20 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
     }
   }
 
-  return appItems.map((item) => ({
-    ...item,
-    currentTesters: countMap.get(item.id) || 0,
-  }))
+  return appItems.map((item) => {
+    const current = countMap.get(item.id) || 0
+    const required = (item as any).requiredTesters || 12
+    let dynamicStatus = (item as any).status
+    if (dynamicStatus === "recruiting" || dynamicStatus === "filled") {
+      dynamicStatus = current >= required ? "filled" : "recruiting"
+    }
+
+    return {
+      ...item,
+      currentTesters: current,
+      status: dynamicStatus,
+    }
+  })
 }
 
 async function enrichAppWithTesterCount<T extends { id: string }>(app: T): Promise<T> {
@@ -129,7 +142,8 @@ router.openapi(
     }
 
     const conditions = [
-      eq(apps.status, "recruiting"),
+      not(eq(apps.status, "archived")),
+      not(eq(apps.status, "paused")),
       or(eq(apps.visibilityStatus, "visible"), eq(apps.visibilityStatus, "unverified")),
     ]
 
@@ -298,7 +312,6 @@ router.openapi(
         iconUrl: body.iconUrl.trim(),
         instructions: body.instructions,
         requiredTesters: body.requiredTesters,
-        currentTesters: 0,
         status: "recruiting",
         visibilityStatus: "unverified",
       })
@@ -307,7 +320,7 @@ router.openapi(
     // Invalidate public feed cache
     memoryCache.delete("apps_list:")
 
-    return c.json(newApp, HttpStatusCodes.CREATED)
+    return c.json({ ...newApp, currentTesters: 0 }, HttpStatusCodes.CREATED)
   },
 )
 

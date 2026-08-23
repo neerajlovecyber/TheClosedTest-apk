@@ -6,6 +6,7 @@ import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
 import { db } from "../db"
 import { apps, matches, messages, notifications, proofs, users } from "../db/schema"
+import { memoryCache } from "../lib/cache"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 import { sendExpoPushNotification } from "../services/expo-push"
@@ -445,6 +446,8 @@ router.openapi(
       await db.update(apps).set({ status: "filled" }).where(eq(apps.id, app2.id))
     }
 
+    // Invalidate public feed cache so marketplace immediately reflects new tester count
+    memoryCache.delete("apps_list:")
 
     // Concurrently create notification and fire push alert in background
     Promise.all([
@@ -513,6 +516,24 @@ router.openapi(
       })
       .where(eq(matches.id, id))
       .returning()
+
+    // Reopen apps if they were marked filled and now have capacity
+    const [app1, app2] = await Promise.all([
+      db.query.apps.findFirst({ where: (a, { eq }) => eq(a.id, match.app1Id) }),
+      db.query.apps.findFirst({ where: (a, { eq }) => eq(a.id, match.app2Id) }),
+    ])
+    if (app1 || app2) {
+      const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2].filter(Boolean) as any[])
+      if (enrichedApp1 && enrichedApp1.status === "filled" && enrichedApp1.currentTesters < enrichedApp1.requiredTesters) {
+        await db.update(apps).set({ status: "recruiting" }).where(eq(apps.id, enrichedApp1.id))
+      }
+      if (enrichedApp2 && enrichedApp2.status === "filled" && enrichedApp2.currentTesters < enrichedApp2.requiredTesters) {
+        await db.update(apps).set({ status: "recruiting" }).where(eq(apps.id, enrichedApp2.id))
+      }
+    }
+
+    // Invalidate public feed cache so marketplace immediately reflects new tester count
+    memoryCache.delete("apps_list:")
 
     const partnerId = match.user1Id === userVar.id ? match.user2Id : match.user1Id
     Promise.all([

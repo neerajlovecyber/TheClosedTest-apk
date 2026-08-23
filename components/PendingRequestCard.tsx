@@ -94,7 +94,7 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                 <Text
                   className={`text-[10px] ${offeredApp.currentTesters !== undefined && offeredApp.requiredTesters !== undefined && offeredApp.currentTesters >= offeredApp.requiredTesters ? "text-destructive font-bold" : "text-muted-foreground"}`}
                 >
-                  {offeredApp.currentTesters ?? 0}/{offeredApp.requiredTesters ?? 20} Testers
+                  {offeredApp.currentTesters ?? 0}/{offeredApp.requiredTesters ?? 12} Testers
                 </Text>
               )}
             </View>
@@ -114,7 +114,7 @@ export function PendingRequestCard({ request, onAccept, onReject, onAppPress }: 
                 <Text
                   className={`text-[10px] ${myApp.currentTesters !== undefined && myApp.requiredTesters !== undefined && myApp.currentTesters >= myApp.requiredTesters ? "text-destructive font-bold" : "text-muted-foreground"}`}
                 >
-                  {myApp.currentTesters ?? 0}/{myApp.requiredTesters ?? 20} Testers
+                  {myApp.currentTesters ?? 0}/{myApp.requiredTesters ?? 12} Testers
                 </Text>
               )}
             </View>

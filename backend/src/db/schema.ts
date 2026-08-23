@@ -118,7 +118,6 @@ export const apps = pgTable(
     iconUrl: text("icon_url").notNull(),
     instructions: text("instructions").notNull(),
     requiredTesters: integer("required_testers").default(12).notNull(),
-    currentTesters: integer("current_testers").default(0).notNull(),
     status: text("status", {
       enum: ["recruiting", "filled", "paused", "archived", "completed"],
     })

@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm"
 
 import { db } from "../db"
 import { matches, notifications, proofs, userBans, users } from "../db/schema"
+import { memoryCache } from "../lib/cache"
 import { sendExpoPushNotification } from "../services/expo-push"
 
 export async function runDailyStreakMaintenance() {
@@ -240,6 +241,9 @@ export async function runMatchProgressionAndCleanup() {
         })
       }
     }
+
+    // Invalidate public feed cache if matches progressed or completed
+    memoryCache.delete("apps_list:")
   } catch (error) {
     console.error("❌ Failed match progression check:", error)
   }
