@@ -967,6 +967,41 @@ export function useSupportChatDetails(chatId?: string) {
   });
 }
 
+export interface AdminUserContextDetails {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    avatarUrl?: string | null;
+    reputation: number;
+    streak: number;
+    isGroupMember: boolean;
+    createdAt: string;
+  };
+  apps: {
+    id: string;
+    title: string;
+    packageName: string;
+    iconUrl: string;
+    playStoreUrl: string;
+    status: string;
+    requiredTesters: number;
+    currentTesters: number;
+    instructions: string;
+    createdAt: string;
+  }[];
+  activeMatchesCount: number;
+}
+
+export function useAdminUserDetails(userId?: string) {
+  return useQuery<AdminUserContextDetails>({
+    queryKey: ["adminUserDetails", userId],
+    queryFn: () => api.get<AdminUserContextDetails>(`/api/admin/users/${userId}/details`),
+    enabled: Boolean(userId),
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useSendSupportMessage() {
   const queryClient = useQueryClient();
   return useMutation({

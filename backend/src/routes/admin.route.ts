@@ -542,6 +542,105 @@ router.openapi(
   },
 )
 
+// 5e. Get Full User Context & Apps (Admin)
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "get",
+    path: "/api/admin/users/:userId/details",
+    summary: "Get User Context and Registered Apps for Admin Inspection",
+    middleware: [adminAuthMiddleware] as const,
+    request: {
+      params: z.object({ userId: z.string() }),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.object({
+          user: z.object({
+            id: z.string(),
+            name: z.string().nullable().optional(),
+            email: z.string().nullable().optional(),
+            avatarUrl: z.string().nullable().optional(),
+            reputation: z.number(),
+            streak: z.number(),
+            isGroupMember: z.boolean(),
+            createdAt: z.string().or(z.date()),
+          }),
+          apps: z.array(
+            z.object({
+              id: z.string(),
+              title: z.string(),
+              packageName: z.string(),
+              iconUrl: z.string(),
+              playStoreUrl: z.string(),
+              status: z.string(),
+              requiredTesters: z.number(),
+              currentTesters: z.number(),
+              instructions: z.string(),
+              createdAt: z.string().or(z.date()),
+            }),
+          ),
+          activeMatchesCount: z.number(),
+        }),
+        "User context details",
+      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("User not found"), "User not found"),
+    },
+  }),
+  async (c) => {
+    const { userId: targetUserId } = c.req.valid("param")
+
+    const targetUser = await db.query.users.findFirst({
+      where: (u, { or, eq }) => or(eq(u.id, targetUserId), eq(u.tokenIdentifier, targetUserId)),
+    })
+
+    if (!targetUser) {
+      return c.json({ message: "User not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    const userApps = await db.query.apps.findMany({
+      where: and(eq(apps.userId, targetUser.id), not(eq(apps.status, "archived"))),
+      orderBy: [desc(apps.createdAt)],
+    })
+
+    const [activeMatchesResult] = await db
+      .select({ count: count() })
+      .from(matches)
+      .where(
+        and(eq(matches.status, "active"), or(eq(matches.user1Id, targetUser.id), eq(matches.user2Id, targetUser.id))),
+      )
+
+    return c.json(
+      {
+        user: {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          avatarUrl: targetUser.avatarUrl,
+          reputation: targetUser.reputation,
+          streak: targetUser.streak,
+          isGroupMember: targetUser.isGroupMember,
+          createdAt: targetUser.createdAt,
+        },
+        apps: userApps.map((a) => ({
+          id: a.id,
+          title: a.title,
+          packageName: a.packageName,
+          iconUrl: a.iconUrl,
+          playStoreUrl: a.playStoreUrl,
+          status: a.status,
+          requiredTesters: a.requiredTesters,
+          currentTesters: a.currentTesters,
+          instructions: a.instructions,
+          createdAt: a.createdAt,
+        })),
+        activeMatchesCount: activeMatchesResult?.count ?? 0,
+      },
+      HttpStatusCodes.OK,
+    )
+  },
+)
+
 // 6. Get or Create My Support Chat (User)
 router.openapi(
   createRoute({
