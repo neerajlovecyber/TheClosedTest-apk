@@ -13,6 +13,10 @@ export interface PushNotificationPayload {
 export async function sendExpoPushNotification(
   payload: PushNotificationPayload,
 ): Promise<{ success: boolean; error?: string }> {
+  if (process.env.NODE_ENV === "test") {
+    return { success: true }
+  }
+
   const recipients = Array.isArray(payload.to) ? payload.to : [payload.to]
   const validTokens = recipients.filter(
     (token) => token && (token.startsWith("ExponentPushToken[") || token.startsWith("ExpoPushToken[")),

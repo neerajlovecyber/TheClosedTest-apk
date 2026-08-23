@@ -8,9 +8,12 @@ import postgres from "postgres"
 import { env } from "../env"
 import * as schema from "./schema"
 
+export let pgliteInstance: PGlite | null = null
+
 function createDatabase() {
-  if (process.env.NODE_ENV === "test") {
+  if (env.NODE_ENV === "test" || process.env.NODE_ENV === "test") {
     const pglite = new PGlite()
+    pgliteInstance = pglite
     try {
       const sqlPath = path.resolve(import.meta.dirname, "./migrations/0000_initial_schema.sql")
       if (fs.existsSync(sqlPath)) {

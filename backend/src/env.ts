@@ -4,8 +4,12 @@ import { z } from "zod"
 const rawDbUrl =
   process.env.DATABASE_URL || process.env.NF_TESTERDB_POSTGRES_URI || process.env.NF_TESTERDB_EXTERNAL_POSTGRES_URI
 
+const defaultNodeEnv =
+  process.env.NODE_ENV ||
+  (process.env.BUN_TEST || typeof (globalThis as any).describe === "function" ? "test" : "development")
+
 const EnvSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  NODE_ENV: z.enum(["development", "production", "test"]).default(defaultNodeEnv as any),
   PORT: z.coerce.number().default(9000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   DATABASE_URL: z

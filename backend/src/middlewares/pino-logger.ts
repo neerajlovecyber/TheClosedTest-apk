@@ -8,9 +8,9 @@ export function pinoLogger() {
   return logger({
     pino: pino(
       {
-        level: env.LOG_LEVEL,
+        level: env.NODE_ENV === "test" ? "silent" : env.LOG_LEVEL,
       },
-      env.NODE_ENV === "production" ? undefined : pretty(),
+      env.NODE_ENV === "production" || env.NODE_ENV === "test" ? undefined : pretty(),
     ),
     http: {
       reqId: () => crypto.randomUUID(),
