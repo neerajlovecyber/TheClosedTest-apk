@@ -341,12 +341,6 @@ export default function HomeScreen() {
 
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-xl font-bold">My Apps ({myApps.length}/3)</Text>
-            {myApps.length < unlockedSlots && (
-              <TouchableOpacity className="flex-row items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-full" onPress={() => router.push("/add-app")}>
-                <Icon as={PlusIcon} className="text-primary size-4" />
-                <Text className="text-primary font-bold text-xs uppercase">New App</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Show actual apps */}
