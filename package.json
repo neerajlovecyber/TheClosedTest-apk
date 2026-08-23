@@ -55,6 +55,7 @@
     "expo": "~57.0.15",
     "expo-application": "~57.0.2",
     "expo-auth-session": "~57.0.8",
+    "expo-blur": "^57.0.2",
     "expo-build-properties": "~57.0.13",
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.13",

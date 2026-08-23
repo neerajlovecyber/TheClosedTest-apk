@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, TouchableOpacity, StyleSheet, LayoutChangeEvent } from "react-native";
+import { BlurView } from "expo-blur";
+import { useColorScheme } from "nativewind";
+import { Platform, View, TouchableOpacity, StyleSheet, LayoutChangeEvent } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, withSpring, useSharedValue, interpolate } from "react-native-reanimated";
-import { HomeIcon, StoreIcon, FlaskConicalIcon, SettingsIcon, ShieldIcon } from "lucide-react-native";
+import { HomeIcon, StoreIcon, FlaskConicalIcon, SettingsIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useTabScroll } from "@/lib/tab-scroll-context";
@@ -30,6 +32,8 @@ const TAB_LABELS: Record<string, string> = {
 
 export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks, hasUnreadMessages, hasUnreadSupport }: FloatingTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const [barWidth, setBarWidth] = useState(0);
 
   const tabScroll = useTabScroll();
@@ -46,45 +50,42 @@ export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks
 
   const numTabs = visibleRoutes.length || 1;
   const paddingH = 6;
-  const usableWidth = Math.max(0, barWidth - paddingH * 2);
-  const tabWidth = usableWidth / numTabs;
+  const tabWidth = barWidth > 0 ? (barWidth - paddingH * 2) / numTabs : 0;
 
-  const translateX = useSharedValue(0);
+  const indicatorOffset = useSharedValue(0);
 
   useEffect(() => {
-    if (activeIndex >= 0 && tabWidth > 0) {
-      translateX.value = withSpring(activeIndex * tabWidth, {
-        damping: 18,
-        stiffness: 170,
-        mass: 0.8,
+    if (tabWidth > 0 && activeIndex >= 0) {
+      indicatorOffset.value = withSpring(activeIndex * tabWidth + paddingH, {
+        damping: 24,
+        stiffness: 220,
+        mass: 0.7,
       });
     }
-  }, [activeIndex, tabWidth, translateX]);
+  }, [activeIndex, tabWidth]);
 
   const animatedIndicatorStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX: translateX.value }],
-      width: tabWidth,
+      transform: [{ translateX: indicatorOffset.value }],
+      width: Math.max(tabWidth, 0),
     };
   });
 
   const animatedBarStyle = useAnimatedStyle(() => {
-    const isShrunk = scrollProgress.value;
-    const height = interpolate(isShrunk, [0, 1], [72, 54]);
-    const marginHorizontal = interpolate(isShrunk, [0, 1], [16, 28]);
-    const scale = interpolate(isShrunk, [0, 1], [1, 0.96]);
+    const progress = scrollProgress.value;
+    const translateY = interpolate(progress, [0, 1], [0, 8]);
+    const scale = interpolate(progress, [0, 1], [1, 0.96]);
 
     return {
-      height,
-      marginHorizontal,
-      transform: [{ scale }],
+      transform: [{ translateY }, { scale }],
     };
   });
 
   const animatedTextStyle = useAnimatedStyle(() => {
-    const isShrunk = scrollProgress.value;
-    const opacity = interpolate(isShrunk, [0, 0.35, 1], [1, 0, 0]);
-    const translateY = interpolate(isShrunk, [0, 1], [0, 6]);
+    const progress = scrollProgress.value;
+    const opacity = interpolate(progress, [0, 0.5, 1], [1, 0.2, 0]);
+    const translateY = interpolate(progress, [0, 1], [0, 6]);
+    const isShrunk = progress;
 
     return {
       opacity,
@@ -102,80 +103,86 @@ export function FloatingTabBar({ state, descriptors, navigation, hasPendingTasks
 
   return (
     <View pointerEvents="box-none" style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 10) + 4 }]}>
-      {/* Outer Floating Capsule with Smooth Shrink Animation */}
+      {/* Outer Floating Capsule with Smooth Shrink Animation & Real Frosted Glass Blur */}
       <Animated.View
         onLayout={handleLayout}
-        className="rounded-full border border-border bg-card dark:bg-card shadow-xl relative flex-row items-center px-1.5 py-1"
+        className="rounded-full border border-border/80 shadow-2xl overflow-hidden relative"
         style={[styles.barInner, animatedBarStyle]}
       >
-        {/* Sliding Active Pill Enclosing Both Icon & Label */}
-        {tabWidth > 0 && (
-          <Animated.View
-            style={[styles.indicator, animatedIndicatorStyle]}
-            className="bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-full"
-          />
-        )}
+        <BlurView
+          intensity={Platform.OS === "ios" ? 60 : 35}
+          tint={isDark ? "dark" : "light"}
+          className="flex-row items-center px-1.5 py-1 w-full bg-card/85 dark:bg-card/75"
+        >
+          {/* Sliding Active Pill Enclosing Both Icon & Label */}
+          {tabWidth > 0 && (
+            <Animated.View
+              style={[styles.indicator, animatedIndicatorStyle]}
+              className="bg-primary/10 dark:bg-primary/20 border border-primary/25 rounded-full"
+            />
+          )}
 
-        {/* Tab Buttons */}
-        {visibleRoutes.map((route) => {
-          const isFocused = state.routes[state.index]?.key === route.key;
-          const IconComponent = TAB_ICONS[route.name] || HomeIcon;
-          const label = TAB_LABELS[route.name] || route.name;
+          {/* Tab Buttons */}
+          {visibleRoutes.map((route) => {
+            const isFocused = state.routes[state.index]?.key === route.key;
+            const IconComponent = TAB_ICONS[route.name] || HomeIcon;
+            const label = TAB_LABELS[route.name] || route.name;
 
-          // Notification Badges
-          const showRedDot = route.name === "tests" && hasPendingTasks;
-          const showBlueDot = (route.name === "tests" && !hasPendingTasks && hasUnreadMessages) || (route.name === "settings" && hasUnreadSupport);
+            // Notification Badges
+            const showRedDot = route.name === "tests" && hasPendingTasks;
+            const showBlueDot = (route.name === "tests" && !hasPendingTasks && hasUnreadMessages) || (route.name === "settings" && hasUnreadSupport);
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: "tabPress",
-              target: route.key,
-              canPreventDefault: true,
-            });
+            const onPress = () => {
+              const event = navigation.emit({
+                type: "tabPress",
+                target: route.key,
+                canPreventDefault: true,
+              });
 
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
-            }
-          };
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
 
-          const onLongPress = () => {
-            navigation.emit({
-              type: "tabLongPress",
-              target: route.key,
-            });
-          };
+            const onLongPress = () => {
+              navigation.emit({
+                type: "tabLongPress",
+                target: route.key,
+              });
+            };
 
-          return (
-            <TouchableOpacity
-              key={route.key}
-              accessibilityRole="button"
-              accessibilityState={isFocused ? { selected: true } : {}}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              activeOpacity={0.75}
-              className="flex-1 items-center justify-center py-1.5 relative z-10"
-            >
-              {/* Icon on Top with Notification Dot */}
-              <View className="items-center justify-center relative mb-0.5">
-                <Icon as={IconComponent} size={26} strokeWidth={isFocused ? 2.5 : 1.9} className={isFocused ? "text-primary" : "text-muted-foreground"} />
+            return (
+              <TouchableOpacity
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                activeOpacity={0.75}
+                className="flex-1 items-center justify-center py-1.5 relative z-10"
+              >
+                {/* Icon on Top with Notification Dot */}
+                <View className="items-center justify-center relative mb-0.5">
+                  <Icon as={IconComponent} size={26} strokeWidth={isFocused ? 2.5 : 1.9} className={isFocused ? "text-primary" : "text-muted-foreground"} />
 
-                {/* Status Badges */}
-                {showRedDot && <View className="absolute -top-1 -right-2 w-2.5 h-2.5 rounded-full bg-red-500 border border-background shadow-sm" />}
-                {showBlueDot && <View className="absolute -top-1 -right-2 w-2.5 h-2.5 rounded-full bg-sky-500 border border-background shadow-sm" />}
-              </View>
+                  {/* Status Badges */}
+                  {showRedDot && <View className="absolute -top-1 -right-2 w-2.5 h-2.5 rounded-full bg-red-500 border border-background shadow-sm" />}
+                  {showBlueDot && <View className="absolute -top-1 -right-2 w-2.5 h-2.5 rounded-full bg-sky-500 border border-background shadow-sm" />}
+                </View>
 
-              {/* Text Label Directly at the Bottom - Fades out on scroll */}
-              <Animated.View style={animatedTextStyle}>
-                <Text
-                  className={`text-[10px] tracking-tight text-center ${isFocused ? "font-bold text-primary" : "font-medium text-muted-foreground"}`}
-                  numberOfLines={1}
-                >
-                  {label}
-                </Text>
-              </Animated.View>
-            </TouchableOpacity>
-          );
-        })}
+                {/* Text Label Directly at the Bottom - Fades out on scroll */}
+                <Animated.View style={animatedTextStyle}>
+                  <Text
+                    className={`text-[10px] tracking-tight text-center ${isFocused ? "font-bold text-primary" : "font-medium text-muted-foreground"}`}
+                    numberOfLines={1}
+                  >
+                    {label}
+                  </Text>
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
+        </BlurView>
       </Animated.View>
     </View>
   );
