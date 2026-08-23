@@ -137,8 +137,10 @@ export default function AppDetailsScreen() {
     }
 
     const selectedApp = myApps.find((a) => a.id === selectedMyApp);
-    if (selectedApp && (selectedApp.currentTesters >= selectedApp.requiredTesters || selectedApp.status === "filled")) {
-      toast.error("App Full", { description: "Your selected app already has enough testers." });
+    if (selectedApp && selectedApp.currentTesters >= selectedApp.requiredTesters) {
+      toast.error("Your App is Full", {
+        description: `"${selectedApp.title}" already has all required testers (${selectedApp.currentTesters}/${selectedApp.requiredTesters}). Select another app to swap.`,
+      });
       return;
     }
 

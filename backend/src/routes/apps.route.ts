@@ -53,7 +53,7 @@ const CreateAppSchema = z.object({
 })
 
 const UpdateAppSchema = CreateAppSchema.partial().extend({
-  status: z.enum(["recruiting", "filled", "paused", "archived", "completed"]).optional(),
+  status: z.enum(["recruiting", "paused", "archived", "completed"]).optional(),
 })
 
 const VoteSchema = z.object({
@@ -88,8 +88,9 @@ export async function enrichAppsWithTesterCounts<T extends { id: string }>(appIt
   return appItems.map((item) => {
     const current = countMap.get(item.id) || 0
     const required = Math.min(12, Math.max(1, (item as any).requiredTesters || 12))
-    let dynamicStatus = (item as any).status
-    if (dynamicStatus === "recruiting" || dynamicStatus === "filled") {
+    const rawStatus = (item as any).status
+    let dynamicStatus = rawStatus
+    if (rawStatus !== "archived" && rawStatus !== "paused") {
       dynamicStatus = current >= required ? "filled" : "recruiting"
     }
 

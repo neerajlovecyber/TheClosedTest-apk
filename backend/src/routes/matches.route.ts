@@ -106,14 +106,9 @@ router.openapi(
       return c.json({ message: "Cannot match with your own app" }, HttpStatusCodes.BAD_REQUEST)
     }
 
-    if (
-      app1.status === "filled" ||
-      app1.status === "archived" ||
-      app2.status === "filled" ||
-      app2.status === "archived"
-    ) {
+    if (app1.status === "archived" || app2.status === "archived") {
       return c.json(
-        { message: "Cannot request match: One of the apps is already filled or closed" },
+        { message: "Cannot request match: One of the apps has been archived or deleted" },
         HttpStatusCodes.BAD_REQUEST,
       )
     }
@@ -122,9 +117,20 @@ router.openapi(
     const count1 = (enrichedApp1 as any)?.currentTesters ?? 0
     const count2 = (enrichedApp2 as any)?.currentTesters ?? 0
 
-    if (count1 >= app1.requiredTesters || count2 >= app2.requiredTesters) {
+    if (count1 >= app1.requiredTesters) {
       return c.json(
-        { message: "Cannot request match: One of the apps has already reached full tester capacity" },
+        {
+          message: `Cannot request swap: Your app "${app1.title}" has reached full tester capacity (${count1}/${app1.requiredTesters})`,
+        },
+        HttpStatusCodes.BAD_REQUEST,
+      )
+    }
+
+    if (count2 >= app2.requiredTesters) {
+      return c.json(
+        {
+          message: `Cannot request swap: "${app2.title}" has reached full tester capacity (${count2}/${app2.requiredTesters})`,
+        },
         HttpStatusCodes.BAD_REQUEST,
       )
     }
@@ -427,22 +433,31 @@ router.openapi(
       return c.json({ message: "One of the matched apps was not found" }, HttpStatusCodes.FORBIDDEN)
     }
 
-    if (
-      app1.status === "filled" ||
-      app1.status === "archived" ||
-      app2.status === "filled" ||
-      app2.status === "archived"
-    ) {
-      return c.json({ message: "Cannot accept: One of the apps is already full or closed" }, HttpStatusCodes.FORBIDDEN)
+    if (app1.status === "archived" || app2.status === "archived") {
+      return c.json(
+        { message: "Cannot accept: One of the apps has been archived or deleted" },
+        HttpStatusCodes.FORBIDDEN,
+      )
     }
 
     const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2])
     const count1 = (enrichedApp1 as any)?.currentTesters ?? 0
     const count2 = (enrichedApp2 as any)?.currentTesters ?? 0
 
-    if (count1 >= app1.requiredTesters || count2 >= app2.requiredTesters) {
+    if (count1 >= app1.requiredTesters) {
       return c.json(
-        { message: "Cannot accept: One of the apps has reached full tester capacity" },
+        {
+          message: `Cannot accept: "${app1.title}" has reached full tester capacity (${count1}/${app1.requiredTesters})`,
+        },
+        HttpStatusCodes.FORBIDDEN,
+      )
+    }
+
+    if (count2 >= app2.requiredTesters) {
+      return c.json(
+        {
+          message: `Cannot accept: "${app2.title}" has reached full tester capacity (${count2}/${app2.requiredTesters})`,
+        },
         HttpStatusCodes.FORBIDDEN,
       )
     }
@@ -458,14 +473,6 @@ router.openapi(
       })
       .where(eq(matches.id, id))
       .returning()
-
-    // If either app reaches capacity after this accept, update status to filled
-    if (count1 + 1 >= app1.requiredTesters) {
-      await db.update(apps).set({ status: "filled" }).where(eq(apps.id, app1.id))
-    }
-    if (count2 + 1 >= app2.requiredTesters) {
-      await db.update(apps).set({ status: "filled" }).where(eq(apps.id, app2.id))
-    }
 
     // Invalidate public feed cache so marketplace immediately reflects new tester count
     memoryCache.delete("apps_list:")
@@ -537,29 +544,6 @@ router.openapi(
       })
       .where(eq(matches.id, id))
       .returning()
-
-    // Reopen apps if they were marked filled and now have capacity
-    const [app1, app2] = await Promise.all([
-      db.query.apps.findFirst({ where: (a, { eq }) => eq(a.id, match.app1Id) }),
-      db.query.apps.findFirst({ where: (a, { eq }) => eq(a.id, match.app2Id) }),
-    ])
-    if (app1 || app2) {
-      const [enrichedApp1, enrichedApp2] = await enrichAppsWithTesterCounts([app1, app2].filter(Boolean) as any[])
-      if (
-        enrichedApp1 &&
-        enrichedApp1.status === "filled" &&
-        enrichedApp1.currentTesters < enrichedApp1.requiredTesters
-      ) {
-        await db.update(apps).set({ status: "recruiting" }).where(eq(apps.id, enrichedApp1.id))
-      }
-      if (
-        enrichedApp2 &&
-        enrichedApp2.status === "filled" &&
-        enrichedApp2.currentTesters < enrichedApp2.requiredTesters
-      ) {
-        await db.update(apps).set({ status: "recruiting" }).where(eq(apps.id, enrichedApp2.id))
-      }
-    }
 
     // Invalidate public feed cache so marketplace immediately reflects new tester count
     memoryCache.delete("apps_list:")
