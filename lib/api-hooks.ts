@@ -904,7 +904,13 @@ export function useAdminStats() {
 
 export function useSupportChatDetails(chatId?: string) {
   return useQuery<{
-    chat: { id: string; userId: string; lastMessage: string };
+    chat: {
+      id: string;
+      userId: string;
+      lastMessage: string;
+      hasUnreadUser?: boolean;
+      hasUnreadAdmin?: boolean;
+    };
     messages: {
       id: string;
       chatId: string;

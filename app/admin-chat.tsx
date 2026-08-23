@@ -42,6 +42,7 @@ export default function AdminChatScreen() {
 
   const formattedMessages = useMemo<ChatMessageItem[]>(() => {
     const isAdminUser = Boolean(currentUser?.isAdmin);
+    const chat = chatData?.chat;
     return messages.map((msg: any) => {
       // Correctly identify if the message is from me vs the other party
       const isMe = isAdminUser
@@ -49,17 +50,19 @@ export default function AdminChatScreen() {
         : !msg.isAdmin && msg.senderRole !== "admin";
 
       const isFromAdmin = Boolean(msg.isAdmin) || msg.senderRole === "admin";
+      const isSeen = isMe ? (isAdminUser ? !chat?.hasUnreadUser : !chat?.hasUnreadAdmin) : false;
 
       return {
         id: msg.id,
         content: msg.content,
         sentAt: msg.sentAt,
         isMe,
+        isSeen,
         isOptimistic: String(msg.id).startsWith("temp-"),
         senderBadge: !isMe && isFromAdmin ? "Support Team" : undefined,
       };
     });
-  }, [messages, currentUser?.isAdmin, currentUser?.id]);
+  }, [messages, currentUser?.isAdmin, currentUser?.id, chatData?.chat]);
 
   const handleSend = async (text: string) => {
     try {
