@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, RefreshControl, ScrollView, TouchableOpacity, View } from "react-native";
+import { RefreshControl, ScrollView, TouchableOpacity, View } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
@@ -18,6 +18,16 @@ import {
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -139,19 +149,19 @@ export default function NotificationsScreen() {
     }
   };
 
+  const [showClearConfirm, setShowClearConfirm] = React.useState(false);
+
   const handleClearAll = () => {
-    Alert.alert("Delete all notifications?", "Your entire notification history will be removed.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          clearAllNotifications.mutateAsync().catch((error) => {
-            console.error("Error clearing notifications:", error);
-          });
-        },
-      },
-    ]);
+    setShowClearConfirm(true);
+  };
+
+  const handleConfirmClear = async () => {
+    try {
+      setShowClearConfirm(false);
+      await clearAllNotifications.mutateAsync();
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+    }
   };
 
   const handleNotificationPress = React.useCallback(
@@ -270,6 +280,25 @@ export default function NotificationsScreen() {
           </View>
         </ScrollView>
       )}
+
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your entire notification history will be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onPress={() => setShowClearConfirm(false)}>
+              <Text>Cancel</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onPress={handleConfirmClear} className="bg-destructive">
+              <Text className="text-destructive-foreground font-bold">Delete</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SafeAreaView>
   );
 }
