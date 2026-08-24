@@ -94,7 +94,7 @@ function UserProfile({ onOpenGroupModal }: { onOpenGroupModal: () => void }) {
   const isMember = Boolean(dbUser?.isGroupMember || dbUser?.googleGroupConfirmed);
 
   return (
-    <Card className="mx-4 mb-4 border-0 overflow-hidden">
+    <Card className="mx-4 mb-4 border-0 bg-transparent shadow-none overflow-hidden">
       <CardContent className="p-5">
         <View className="flex-row items-center gap-4">
           <View>
@@ -169,14 +169,27 @@ export default function SettingsScreen() {
       {/* Header */}
       <View className="px-6 py-4 flex-row items-center justify-between">
         <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
-        <TouchableOpacity
-          onPress={toggleColorScheme}
-          className="p-2.5 rounded-full bg-secondary/50 border border-border/60 active:bg-secondary"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Toggle Dark Mode"
-        >
-          <Icon as={colorScheme === "dark" ? SunIcon : MoonIcon} className="size-5 text-foreground" />
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-2">
+          {__DEV__ && isAdmin && <ApiEnvSwitch />}
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/admin" as any)}
+              className="p-2.5 rounded-full bg-amber-500/10 border border-amber-500/20 active:bg-amber-500/20"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Admin Dashboard"
+            >
+              <Icon as={ShieldAlertIcon} className="size-5 text-amber-600 dark:text-amber-400" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={toggleColorScheme}
+            className="p-2.5 rounded-full bg-secondary/50 border border-border/60 active:bg-secondary"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Toggle Dark Mode"
+          >
+            <Icon as={colorScheme === "dark" ? SunIcon : MoonIcon} className="size-5 text-foreground" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View className="flex-1 gap-4">
@@ -256,26 +269,6 @@ export default function SettingsScreen() {
             </Card>
           </View>
 
-          {/* Admin Control Section (Only visible to authorized admins) */}
-          {isAdmin && (
-            <View className="gap-3">
-              <Text className="text-xs font-bold text-amber-600 dark:text-amber-400 px-2 uppercase tracking-widest">Administration</Text>
-              <Card className="overflow-hidden p-0 gap-0 border-0">
-                <CardContent className="p-0 gap-0">
-                  <SettingItem
-                    icon={ShieldAlertIcon}
-                    label="Admin Dashboard"
-                    subtitle="Manage apps, inspect stats & support inbox"
-                    onPress={() => router.push("/(tabs)/admin" as any)}
-                    iconColor="bg-amber-600"
-                  />
-                </CardContent>
-              </Card>
-            </View>
-          )}
-
-          {/* Dev API Server Switch (dev builds only) */}
-          {__DEV__ && <ApiEnvSwitch />}
 
           {/* App Version */}
           <View className="gap-3">

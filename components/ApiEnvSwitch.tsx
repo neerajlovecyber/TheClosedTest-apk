@@ -1,63 +1,42 @@
 import React from "react";
-import { View, TouchableOpacity } from "react-native";
+import { TouchableOpacity } from "react-native";
 import { ServerIcon, WifiIcon } from "lucide-react-native";
-import { Card, CardContent } from "@/components/ui/card";
-import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { useQueryClient } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
 import { getApiBaseUrl, getApiEnv, setApiEnv, type ApiEnv } from "@/lib/api";
 
-const OPTIONS: Array<{ value: ApiEnv; label: string; icon: typeof ServerIcon }> = [
-  { value: "local", label: "Local", icon: WifiIcon },
-  { value: "prod", label: "Production", icon: ServerIcon },
-];
-
 export function ApiEnvSwitch() {
   const queryClient = useQueryClient();
   const [env, setEnvState] = React.useState<ApiEnv>(getApiEnv());
 
-  const handleSelect = async (next: ApiEnv) => {
-    if (next === env) return;
+  const handleToggle = async () => {
+    const next: ApiEnv = env === "local" ? "prod" : "local";
     await setApiEnv(next);
     setEnvState(next);
     await queryClient.invalidateQueries();
     Toast.show({
       type: "success",
-      text1: next === "local" ? "Using local server" : "Using production server",
+      text1: next === "local" ? "Using Local Server" : "Using Production Server",
       text2: getApiBaseUrl(),
     });
   };
 
+  const isLocal = env === "local";
+
   return (
-    <Card className="mx-4 mb-4 border-orange-400/40 bg-orange-500/5">
-      <CardContent className="p-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <Icon as={ServerIcon} className="size-4 text-orange-500" />
-          <Text className="text-sm font-bold text-foreground">Dev: API Server</Text>
-        </View>
-        <View className="flex-row gap-2">
-          {OPTIONS.map((option) => {
-            const isActive = env === option.value;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => void handleSelect(option.value)}
-                activeOpacity={0.7}
-                className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-xl border ${
-                  isActive ? "bg-primary border-primary" : "bg-background border-border"
-                }`}
-              >
-                <Icon as={option.icon} className={`size-4 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                <Text className={`text-sm font-bold ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`}>{option.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-          Current: {getApiBaseUrl()}
-        </Text>
-      </CardContent>
-    </Card>
+    <TouchableOpacity
+      onPress={() => void handleToggle()}
+      className={`p-2.5 rounded-full border active:opacity-70 ${
+        isLocal ? "bg-amber-500/10 border-amber-500/20" : "bg-sky-500/10 border-sky-500/20"
+      }`}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      accessibilityLabel={`API Server: ${isLocal ? "Local" : "Production"}`}
+    >
+      <Icon
+        as={isLocal ? WifiIcon : ServerIcon}
+        className={`size-5 ${isLocal ? "text-amber-500" : "text-sky-500"}`}
+      />
+    </TouchableOpacity>
   );
 }
