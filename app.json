@@ -61,11 +61,6 @@
         "expo-build-properties",
         {
           "android": {
-            "newArchEnabled": true,
-            "enableShrinking": false,
-            "enableProguardInReleaseBuilds": false,
-            "reactNativeArchitectures": ["arm64-v8a"],
-            "extraProguardRules": "-dontwarn **\n-keep class com.google.android.gms.ads.** { *; }\n-keep class coil3.** { *; }",
             "packagingOptions": {
               "pickFirst": ["**/libc++_shared.so"]
             }
