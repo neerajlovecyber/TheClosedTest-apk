@@ -99,6 +99,7 @@
     "@babel/core": "^7.29.0",
     "@expo/fingerprint": "^0.20.9",
     "@types/react": "~19.2.18",
+    "babel-plugin-react-compiler": "^1.0.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
     "typescript": "^7.0.2"

@@ -6,7 +6,6 @@
       "name": "TheClosedTest-apk",
       "dependencies": {
         "@clerk/clerk-expo": "2.16.1",
-        "@codsod/react-native-chat": "^1.0.14",
         "@react-native-async-storage/async-storage": "^2.2.0",
         "@rn-primitives/accordion": "^1.2.0",
         "@rn-primitives/alert-dialog": "^1.2.0",
@@ -86,6 +85,7 @@
         "@babel/core": "^7.29.0",
         "@expo/fingerprint": "^0.20.9",
         "@types/react": "~19.2.18",
+        "babel-plugin-react-compiler": "^1.0.0",
         "oxfmt": "^0.64.0",
         "oxlint": "^1.79.0",
         "typescript": "^7.0.2",
@@ -254,8 +254,6 @@
     "@clerk/shared": ["@clerk/shared@3.42.0", "", { "dependencies": { "csstype": "3.1.3", "dequal": "2.0.3", "glob-to-regexp": "0.4.1", "js-cookie": "3.0.5", "std-env": "^3.9.0", "swr": "2.3.4" }, "peerDependencies": { "react": "^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0", "react-dom": "^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0" }, "optionalPeers": ["react", "react-dom"] }, "sha512-sJUur/7jnHHlAsdoDosxpOmfV05VR7K5rvqlFskj3GaAMFEJrvdOztw0hmhBGVSWiCpjTZfdGITegton8mo7mQ=="],
 
     "@clerk/types": ["@clerk/types@4.101.10", "", { "dependencies": { "@clerk/shared": "^3.42.0" } }, "sha512-qlmgnAm/IeK02RKEKVN8/Glx07xw/Lcv67jBfikM8HXhHc5v7bfYLD8UiWTr6H2RGtvB09cIt9JezRRlsuVBew=="],
-
-    "@codsod/react-native-chat": ["@codsod/react-native-chat@1.0.14", "", { "dependencies": { "date-fns": "^3.6.0" } }, "sha512-fWOe7Ft/Bf/D2Yqxep5OAEabfH1H1BrJPIB6FYVh4uX28G4UBX6aS3UnBgMy9+d1V+Pm6wzR2ucawXyyExdzxA=="],
 
     "@coinbase/wallet-sdk": ["@coinbase/wallet-sdk@4.3.0", "", { "dependencies": { "@noble/hashes": "^1.4.0", "clsx": "^1.2.1", "eventemitter3": "^5.0.1", "preact": "^10.24.2" } }, "sha512-T3+SNmiCw4HzDm4we9wCHCxlP0pqCiwKe4sOwPH3YAK2KSKjxPRydKu6UQJrdONFVLG7ujXvbd/6ZqmvJb8rkw=="],
 
@@ -990,8 +988,6 @@
     "cssesc": ["cssesc@3.0.0", "", { "bin": { "cssesc": "bin/cssesc" } }, "sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg=="],
 
     "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
-
-    "date-fns": ["date-fns@3.6.0", "", {}, "sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww=="],
 
     "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
