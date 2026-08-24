@@ -21,7 +21,10 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { NAV_THEME } from "@/lib/theme";
+import * as WebBrowser from "expo-web-browser";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+
+WebBrowser.maybeCompleteAuthSession();
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { ThemeProvider } from "expo-router/react-navigation";
 import { PortalHost } from "@rn-primitives/portal";
