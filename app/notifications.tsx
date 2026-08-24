@@ -28,44 +28,23 @@ import {
 } from "@/lib/api-hooks";
 import { ErrorState } from "@/components/ErrorState";
 
-type TypeStyle = { icon: LucideIcon; badgeClass: string; iconClass: string };
+type TypeStyle = { icon: LucideIcon; iconClass: string };
 
 const TYPE_STYLES: Record<string, TypeStyle> = {
-  match_request: { icon: UserPlusIcon, badgeClass: "bg-blue-500/10", iconClass: "text-blue-500" },
-  request: { icon: UserPlusIcon, badgeClass: "bg-blue-500/10", iconClass: "text-blue-500" },
-  match_accepted: { icon: CheckCircleIcon, badgeClass: "bg-green-500/10", iconClass: "text-green-500" },
-  acceptance: { icon: CheckCircleIcon, badgeClass: "bg-green-500/10", iconClass: "text-green-500" },
-  proof_update: { icon: ClipboardCheckIcon, badgeClass: "bg-orange-500/10", iconClass: "text-orange-500" },
-  message: { icon: MessageSquareIcon, badgeClass: "bg-purple-500/10", iconClass: "text-purple-500" },
-  match_cancelled: { icon: XCircleIcon, badgeClass: "bg-red-500/10", iconClass: "text-red-500" },
+  match_request: { icon: UserPlusIcon, iconClass: "text-blue-400" },
+  request: { icon: UserPlusIcon, iconClass: "text-blue-400" },
+  match_accepted: { icon: CheckCircleIcon, iconClass: "text-green-400" },
+  acceptance: { icon: CheckCircleIcon, iconClass: "text-green-400" },
+  proof_update: { icon: ClipboardCheckIcon, iconClass: "text-orange-400" },
+  message: { icon: MessageSquareIcon, iconClass: "text-purple-400" },
+  match_cancelled: { icon: XCircleIcon, iconClass: "text-red-400" },
 };
 
-const DEFAULT_TYPE_STYLE: TypeStyle = {
-  icon: BellIcon,
-  badgeClass: "bg-muted",
-  iconClass: "text-muted-foreground",
-};
+const DEFAULT_TYPE_STYLE: TypeStyle = { icon: BellIcon, iconClass: "text-primary" };
 
 type Row =
   | { kind: "header"; key: string; label: string }
   | { kind: "notification"; key: string; notification: NotificationEntity };
-
-function formatRelativeTime(iso: string): string {
-  const date = new Date(iso);
-  const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  const hours = Math.floor(diffMinutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-}
 
 function getGroupLabel(iso: string): string {
   const date = new Date(iso);
@@ -73,7 +52,7 @@ function getGroupLabel(iso: string): string {
   startOfToday.setHours(0, 0, 0, 0);
   if (date >= startOfToday) return "Today";
   if (date >= new Date(startOfToday.getTime() - 86400000)) return "Yesterday";
-  if (date >= new Date(startOfToday.getTime() - 7 * 86400000)) return "Previous 7 days";
+  if (date >= new Date(startOfToday.getTime() - 6 * 86400000)) return "This week";
   return "Earlier";
 }
 
@@ -91,33 +70,25 @@ function NotificationRow({
     <TouchableOpacity
       onPress={() => onPress(notification)}
       activeOpacity={0.7}
-      className={`flex-row items-start p-4 mb-2.5 rounded-2xl border ${isUnread ? "bg-primary/5 border-primary/25" : "bg-card border-border"}`}
+      className={`flex-row items-center gap-4 px-5 py-4 border-b border-border/40 active:bg-muted/70 ${isUnread ? "bg-primary/10" : "bg-transparent"}`}
     >
-      <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${style.badgeClass}`}>
-        <Icon as={style.icon} size={18} className={style.iconClass} />
+      <View className="w-[52px] h-[52px] rounded-2xl bg-primary/10 items-center justify-center">
+        <Icon as={style.icon} size={24} className={style.iconClass} />
       </View>
       <View className="flex-1">
-        <View className="flex-row items-start">
-          <Text
-            numberOfLines={2}
-            className={`flex-1 text-[15px] leading-snug ${isUnread ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}
-          >
-            {notification.title}
-          </Text>
-          <Text className="text-xs text-muted-foreground/70 ml-2 mt-0.5">
-            {formatRelativeTime(notification.createdAt)}
-          </Text>
-        </View>
-        <Text numberOfLines={2} className="text-sm text-muted-foreground mt-1 leading-snug">
-          {notification.body}
+        <Text
+          numberOfLines={2}
+          className={`text-[15px] leading-snug text-foreground ${isUnread ? "font-semibold" : "font-medium"}`}
+        >
+          {notification.title}
         </Text>
-        {isUnread && (
-          <View className="flex-row items-center gap-1.5 mt-2">
-            <View className="w-1.5 h-1.5 rounded-full bg-primary" />
-            <Text className="text-[11px] font-medium text-primary">New</Text>
-          </View>
-        )}
+        {notification.body ? (
+          <Text numberOfLines={2} className="text-[13px] text-muted-foreground mt-0.5 leading-snug">
+            {notification.body}
+          </Text>
+        ) : null}
       </View>
+      {isUnread && <View className="w-2.5 h-2.5 rounded-full bg-destructive" />}
     </TouchableOpacity>
   );
 }
@@ -210,7 +181,7 @@ export default function NotificationsScreen() {
     ({ item }: { item: Row }) => {
       if (item.kind === "header") {
         return (
-          <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2 mt-1">
+          <Text className="text-[17px] font-semibold text-muted-foreground px-5 pt-6 pb-3">
             {item.label}
           </Text>
         );
@@ -220,67 +191,56 @@ export default function NotificationsScreen() {
     [handleNotificationPress],
   );
 
+  const refreshControl = <RefreshControl refreshing={isFetching} onRefresh={onRefresh} />;
+
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View className="px-6 pt-2 pb-4 flex-row items-center justify-between border-b border-border">
+      <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
         <View className="flex-row items-center flex-1">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 -ml-2 mr-3 rounded-full bg-muted/60 active:bg-muted"
+            className="p-2 -ml-2 mr-2 rounded-full active:bg-muted/60"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityLabel="Go back"
           >
-            <Icon as={ArrowLeftIcon} size={20} className="text-foreground" />
+            <Icon as={ArrowLeftIcon} size={24} className="text-foreground" />
           </TouchableOpacity>
-          <View>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-2xl font-bold">Notifications</Text>
-              {unreadCount > 0 && (
-                <View className="px-2 py-0.5 rounded-full bg-primary">
-                  <Text className="text-xs font-semibold text-primary-foreground">{unreadCount}</Text>
-                </View>
-              )}
+          <Text className="text-[26px] font-extrabold tracking-tight text-foreground">
+            Notifications
+          </Text>
+          {unreadCount > 0 && (
+            <View className="min-w-6 h-6 px-1.5 rounded-full bg-destructive items-center justify-center ml-2">
+              <Text className="text-xs font-bold text-destructive-foreground">{unreadCount}</Text>
             </View>
-            <Text className="text-xs text-muted-foreground mt-0.5">
-              {unreadCount > 0
-                ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`
-                : "You're all caught up"}
-            </Text>
-          </View>
+          )}
         </View>
         {rows.length > 0 && (
           <View className="flex-row items-center gap-2">
-            {unreadCount > 0 && (
-              <TouchableOpacity
-                onPress={handleMarkAllRead}
-                className="p-2 rounded-xl bg-primary/10 active:bg-primary/20"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityLabel="Mark all as read"
-              >
-                <Icon as={CheckCheckIcon} className="size-5 text-primary" />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              onPress={handleMarkAllRead}
+              disabled={unreadCount === 0}
+              className="p-2.5 rounded-full bg-muted/60 active:bg-primary/15 disabled:opacity-40"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Mark all as read"
+            >
+              <Icon as={CheckCheckIcon} size={18} className="text-foreground" />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={handleClearAll}
-              className="p-2 rounded-xl bg-muted/60 active:bg-destructive/10"
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              className="p-2.5 rounded-full bg-muted/60 active:bg-destructive/15"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Delete all notifications"
             >
-              <Icon as={Trash2Icon} className="size-5 text-muted-foreground" />
+              <Icon as={Trash2Icon} size={18} className="text-destructive" />
             </TouchableOpacity>
           </View>
         )}
       </View>
 
       {isError ? (
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ flexGrow: 1 }}
-          refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }} refreshControl={refreshControl} showsVerticalScrollIndicator={false}>
           <ErrorState
             title="Couldn't load notifications"
             message="We couldn't reach the server. Pull down or tap retry once you're back online."
@@ -293,22 +253,17 @@ export default function NotificationsScreen() {
           data={rows}
           keyExtractor={(item) => item.key}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32 }}
-          refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ flexGrow: 1 }}
-          refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="items-center justify-center py-24 px-8">
-            <View className="w-20 h-20 rounded-full bg-primary/10 items-center justify-center mb-4">
+        <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }} refreshControl={refreshControl} showsVerticalScrollIndicator={false}>
+          <View className="items-center justify-center flex-1 py-24 px-8">
+            <View className="w-20 h-20 rounded-3xl bg-primary/10 items-center justify-center mb-4">
               <Icon as={BellOffIcon} size={30} className="text-primary" />
             </View>
-            <Text className="text-lg font-bold">No notifications yet</Text>
+            <Text className="text-lg font-bold text-foreground">No notifications yet</Text>
             <Text className="text-muted-foreground text-sm mt-1.5 text-center leading-relaxed">
               You're all caught up. Updates about swap requests and testing proofs will show up here.
             </Text>
