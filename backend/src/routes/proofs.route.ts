@@ -139,7 +139,7 @@ router.openapi(
       await db.insert(notifications).values({
         userId: partnerId,
         type: "proof_update",
-        title: `Day ${body.day} Proof Uploaded! 📸`,
+        title: `Day ${body.day} Proof Uploaded!`,
         body: `${userVar.name || "Your partner"} uploaded testing proof for Day ${body.day}. Please review it.`,
         data: { matchId: match.id, proofId: newProof.id, day: body.day },
       })
@@ -153,7 +153,7 @@ router.openapi(
           if (partner?.pushToken) {
             sendExpoPushNotification({
               to: partner.pushToken,
-              title: `Day ${body.day} Proof Uploaded! 📸`,
+              title: `Day ${body.day} Proof Uploaded!`,
               body: `${userVar.name || "Your partner"} uploaded proof for Day ${body.day}. Review it now!`,
               data: { matchId: match.id, proofId: newProof.id },
             }).catch(() => {})
@@ -315,7 +315,7 @@ router.openapi(
     await db.insert(notifications).values({
       userId: proof.uploaderId,
       type: "proof_update",
-      title: `Proof Day ${proof.day} ${status === "approved" ? "Approved! ✅" : "Rejected ⚠️"}`,
+      title: `Proof Day ${proof.day} ${status === "approved" ? "Approved!" : "Rejected"}`,
       body:
         status === "approved"
           ? `Your Day ${proof.day} proof was approved by your partner!`

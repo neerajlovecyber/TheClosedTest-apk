@@ -374,13 +374,13 @@ export async function runDailyTestingReminders() {
       if (pendingApps.length === 1) {
         await sendExpoPushNotification({
           to: pushToken,
-          title: "Daily Testing Reminder 📱",
+          title: "Daily Testing Reminder",
           body: `Don't forget to test ${pendingApps[0]} today to maintain your streak!`,
         })
       } else if (pendingApps.length > 1) {
         await sendExpoPushNotification({
           to: pushToken,
-          title: "Daily Testing Reminder 📱",
+          title: "Daily Testing Reminder",
           body: `You have ${pendingApps.length} apps waiting for daily testing. Complete today's tests to protect your streak!`,
         })
       }

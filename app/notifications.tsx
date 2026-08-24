@@ -66,6 +66,14 @@ function getGroupLabel(iso: string): string {
   return "Earlier";
 }
 
+function stripEmojis(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{200D}]/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function NotificationRow({
   notification,
   onPress,
@@ -75,6 +83,8 @@ function NotificationRow({
 }) {
   const isUnread = !notification.isRead;
   const style = TYPE_STYLES[notification.type] ?? DEFAULT_TYPE_STYLE;
+  const title = stripEmojis(notification.title);
+  const body = notification.body ? stripEmojis(notification.body) : "";
 
   return (
     <TouchableOpacity
@@ -90,11 +100,11 @@ function NotificationRow({
           numberOfLines={2}
           className={`text-[15px] leading-snug text-foreground ${isUnread ? "font-semibold" : "font-medium"}`}
         >
-          {notification.title}
+          {title}
         </Text>
-        {notification.body ? (
+        {body ? (
           <Text numberOfLines={2} className="text-[13px] text-muted-foreground mt-0.5 leading-snug">
-            {notification.body}
+            {body}
           </Text>
         ) : null}
       </View>

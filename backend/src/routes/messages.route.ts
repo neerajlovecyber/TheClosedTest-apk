@@ -139,7 +139,7 @@ router.openapi(
         if (partner?.pushToken) {
           sendExpoPushNotification({
             to: partner.pushToken,
-            title: `Message from ${userVar.name || "Testing Partner"} 💬`,
+            title: `Message from ${userVar.name || "Testing Partner"}`,
             body: body.type === "text" ? body.content : "Sent an attachment",
             data: { matchId, messageId: newMessage.id },
           }).catch(() => {})

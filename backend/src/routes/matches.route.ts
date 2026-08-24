@@ -187,7 +187,7 @@ router.openapi(
         if (targetUser?.pushToken) {
           sendExpoPushNotification({
             to: targetUser.pushToken,
-            title: "New Testing Request! 🚀",
+            title: "New Testing Request!",
             body: `${userVar.name || "A developer"} requested a peer test with ${app2.title}!`,
             data: { matchId: newMatch.id },
           }).catch(() => {})
@@ -482,7 +482,7 @@ router.openapi(
       db.insert(notifications).values({
         userId: match.user1Id,
         type: "acceptance",
-        title: "Match Accepted! 🎉",
+        title: "Match Accepted!",
         body: "Your testing exchange was accepted! Day 1 testing starts today.",
         data: { matchId: match.id },
       }),
@@ -494,7 +494,7 @@ router.openapi(
           if (requester?.pushToken) {
             sendExpoPushNotification({
               to: requester.pushToken,
-              title: "Match Accepted! 🎉",
+              title: "Match Accepted!",
               body: "Your peer testing partner accepted! Day 1 testing has started.",
               data: { matchId: match.id },
             }).catch(() => {})
