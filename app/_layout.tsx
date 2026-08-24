@@ -144,17 +144,30 @@ function InitialLayout() {
     <>
       <ForceUpdateDialog isVisible={isUpdateDownloaded} onReload={reloadApp} />
       <WarningDisplay />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/welcome" options={{ headerShown: false }} />
-        <Stack.Screen name="add-app" options={{ presentation: "modal", headerShown: false }} />
-        <Stack.Screen name="app-details/[id]" options={{ presentation: "modal", headerShown: false }} />
-        <Stack.Screen name="boost-hub" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/chats-list" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/notifications" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/debug-push" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-chat" options={{ headerShown: false }} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "none",
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="(auth)/welcome" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="add-app" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="app-details/[id]" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="boost-hub" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="edit-app" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="help" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="about-us" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="playstore-guide" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="privacy-policy" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="create-ticket" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="my-tickets" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="admin/chats-list" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="admin/analytics" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="admin/notifications" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="admin/debug-push" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="admin-chat" options={{ headerShown: false, animation: "none" }} />
       </Stack>
     </>
   );

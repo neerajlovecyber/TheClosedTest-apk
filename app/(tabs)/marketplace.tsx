@@ -13,6 +13,7 @@ import { AppCard } from "@/components/AppCard";
 import { GoogleGroupWidget } from "@/components/GoogleGroupWidget";
 import { ReportDialog } from "@/components/ReportDialog";
 import { ErrorState } from "@/components/ErrorState";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { useCurrentUser, useInfiniteRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from "@/lib/api-hooks";
 
 export default function MarketplaceScreen() {
@@ -307,9 +308,11 @@ export default function MarketplaceScreen() {
                     )}
                     {!hasMoreApps && apps.length > 20 && <Text className="text-center text-xs text-muted-foreground mt-4">You've reached the end.</Text>}
                   </View>
+                ) : isLoading ? (
+                  <LoadingAnimation message="Discovering apps..." />
                 ) : (
                   <View className="items-center py-10">
-                    {isLoading ? <ActivityIndicator size="small" /> : <Text className="text-muted-foreground">No apps found.</Text>}
+                    <Text className="text-muted-foreground">No apps found.</Text>
                   </View>
                 )}
               </View>

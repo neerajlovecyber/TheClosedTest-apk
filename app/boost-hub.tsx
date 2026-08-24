@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { View, ScrollView, TouchableOpacity } from "react-native";
+import { ActivityIndicator, View, ScrollView, TouchableOpacity } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { RocketIcon, TrophyIcon, ArrowLeftIcon, TrendingUpIcon, SparklesIcon, ZapIcon, CrownIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { useLeaderboard, useCurrentUser } from "@/lib/api-hooks";
 
 export default function BoostHubScreen() {
@@ -106,13 +106,17 @@ export default function BoostHubScreen() {
                 })}
               </CardContent>
             </Card>
+          ) : isLoading ? (
+            <Card className="border-0 overflow-hidden bg-transparent py-8 items-center">
+              <LoadingAnimation message="Loading rankings..." />
+            </Card>
           ) : (
             <Card className="border-dashed border-2 border-muted-foreground/20">
               <CardContent className="py-8 items-center">
                 <View className="w-16 h-16 rounded-full bg-yellow-500/10 items-center justify-center mb-3">
                   <Icon as={TrophyIcon} className="text-yellow-500/50 size-8" />
                 </View>
-                <Text className="font-semibold text-foreground mb-1">Leaderboard Loading</Text>
+                <Text className="font-semibold text-foreground mb-1">No Rank Data Yet</Text>
                 <Text className="text-sm text-muted-foreground text-center">Complete testing cycles to increase your rank!</Text>
               </CardContent>
             </Card>

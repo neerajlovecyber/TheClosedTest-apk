@@ -43,6 +43,7 @@ import { ProgressGrid } from "@/components/ProgressGrid";
 import { RejectionReasonModal } from "@/components/RejectionReasonModal";
 import { MatchChat } from "@/components/MatchChat";
 import { ReportDialog } from "@/components/ReportDialog";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { useMatch, useMatchProofs, useCurrentUser, useRejectMatch, useAcceptMatch, useMatchMessages, ProofEntity } from "@/lib/api-hooks";
 
 import { getTimeUntilMidnightIST, getMatchCurrentDay } from "@/lib/date-utils";
@@ -125,8 +126,18 @@ export default function MatchDashboardScreen() {
 
   if (isLoadingMatch || !match) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <Text>Loading match...</Text>
+      <View className="flex-1 bg-background">
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-border bg-background">
+          <View className="flex-row items-center gap-2 flex-1">
+            <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2 rounded-full active:bg-secondary">
+              <Icon as={ArrowLeftIcon} className="size-6 text-foreground" />
+            </TouchableOpacity>
+            <Text className="text-lg font-bold text-foreground">Testing Dashboard</Text>
+          </View>
+        </View>
+        <View className="flex-1 items-center justify-center">
+          <LoadingAnimation message="Loading testing match..." />
+        </View>
       </View>
     );
   }

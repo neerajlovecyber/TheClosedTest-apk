@@ -23,6 +23,7 @@ import { Icon } from "@/components/ui/icon";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { useAppDetails, useUpdateApp, usePresignedUploadUrl } from "@/lib/api-hooks";
 import { uploadImageToR2 } from "@/utils/image-uploader";
 
@@ -176,8 +177,17 @@ export default function EditAppScreen() {
 
   if (isLoading || !app) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" />
+      <View className="flex-1 bg-background pt-12">
+        <Stack.Screen options={{ headerShown: false }} />
+        <View className="flex-row items-center px-4 pb-4 border-b border-border">
+          <Button variant="ghost" size="icon" onPress={() => router.back()}>
+            <Icon as={ArrowLeftIcon} className="size-6 text-foreground" />
+          </Button>
+          <Text className="text-xl font-bold ml-2">Edit App</Text>
+        </View>
+        <View className="flex-1 items-center justify-center">
+          <LoadingAnimation message="Loading app details..." />
+        </View>
       </View>
     );
   }
