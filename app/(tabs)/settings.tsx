@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import appConfig from "../../app.json";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { LucideIcon } from "lucide-react-native";
 import {

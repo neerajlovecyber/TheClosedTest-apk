@@ -22,10 +22,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { NAV_THEME } from "@/lib/theme";
 import * as WebBrowser from "expo-web-browser";
-import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth } from "@clerk/expo";
 
 WebBrowser.maybeCompleteAuthSession();
-import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { tokenCache } from "@clerk/expo/token-cache";
 import { ThemeProvider } from "expo-router/react-navigation";
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
@@ -192,7 +192,7 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider tokenCache={tokenCache} publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={NAV_THEME[colorScheme ?? "light"]}>
           <KeyboardProvider statusBarTranslucent navigationBarTranslucent>

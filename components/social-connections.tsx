@@ -1,7 +1,7 @@
 import { toast } from "@/lib/sonner";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
-import { useOAuth } from "@clerk/clerk-expo";
+import { useOAuth } from "@clerk/expo";
 import * as WebBrowser from "expo-web-browser";
 import * as React from "react";
 import { Image, Platform, View } from "react-native";
@@ -18,7 +18,7 @@ export function SocialConnections() {
       console.log("🔵 Starting Google OAuth flow via useOAuth...");
       const { createdSessionId, setActive, signIn, signUp } = await startOAuthFlow();
       console.log("🔵 OAuth result:", {
-        hasCreatedSessionId: !!createdSessionId,
+        createdSessionId,
         signInStatus: signIn?.status,
         signUpStatus: signUp?.status,
       });

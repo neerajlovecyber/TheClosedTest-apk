@@ -1,4 +1,4 @@
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { useEffect, useState } from "react";
 import { setAuthTokenGetter } from "@/lib/api";
 import { useSyncUser } from "@/lib/api-hooks";

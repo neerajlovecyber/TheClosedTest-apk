@@ -8,7 +8,7 @@ import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { BellIcon, FlameIcon, StarIcon, PlusIcon, LockIcon } from "lucide-react-native";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { toast } from "@/lib/sonner";
 import {
