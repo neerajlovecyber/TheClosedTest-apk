@@ -1,4 +1,4 @@
-const IS_DEV = process.env.APP_VARIANT === "development";
+const IS_DEV = process.env.APP_VARIANT !== "production";
 
 export default ({ config }) => {
   return {

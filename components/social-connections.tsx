@@ -35,9 +35,12 @@ export function SocialConnections() {
     return async () => {
       try {
         console.log("🔵 Starting Google OAuth flow...");
+        const redirectUrl = AuthSession.makeRedirectUri();
+        console.log("🔵 Starting Google OAuth flow with redirectUrl:", redirectUrl);
         // Start the authentication process by calling `startSSOFlow()`
         const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
           strategy,
+          redirectUrl,
         });
 
         console.log("🔵 OAuth flow returned:", {
@@ -47,47 +50,33 @@ export function SocialConnections() {
           signUpStatus: signUp?.status,
         });
 
-        // If sign in was successful, set the active session
-        if (createdSessionId && setActive) {
-          console.log("✅ OAuth Success: Session created directly");
-          await setActive({ session: createdSessionId });
+        // Check for session in any of the returned fields
+        const sessionId = createdSessionId || signIn?.createdSessionId || signUp?.createdSessionId;
+        if (sessionId && setActive) {
+          console.log("✅ OAuth Success: Session active", sessionId);
+          await setActive({ session: sessionId });
           return;
         }
 
-        // If no createdSessionId, check if signIn or signUp is complete
-        if (signIn && signIn.status === "complete" && signIn.createdSessionId && setActive) {
-          console.log("✅ OAuth Success: SignIn completed");
-          await setActive({ session: signIn.createdSessionId });
-          return;
-        }
-        if (signUp && signUp.status === "complete" && signUp.createdSessionId && setActive) {
-          console.log("✅ OAuth Success: SignUp completed");
-          await setActive({ session: signUp.createdSessionId });
-          return;
-        }
-
-        // Handle 'needs_identifier' status - this is a Clerk configuration issue
-        if (signIn && signIn.status === "needs_identifier") {
-          console.log("🔵 Handling needs_identifier status...");
-          console.log("🔵 Available factors:", JSON.stringify(signIn.supportedFirstFactors, null, 2));
-
-          // This status means Clerk can't automatically complete the OAuth flow
-          // This is almost always a configuration issue in the Clerk Dashboard
-          console.error("⚠️ CLERK CONFIGURATION ISSUE:");
-          console.error("⚠️ Google OAuth returned 'needs_identifier' status");
-          console.error("⚠️ Fix this in Clerk Dashboard:");
-          console.error("⚠️ 1. Go to User & Authentication → Social Connections → Google");
-          console.error("⚠️ 2. Enable 'Automatically create users'");
-          console.error("⚠️ 3. Go to User & Authentication → Email, Phone, Username");
-          console.error("⚠️ 4. Set Email to 'Required' (not 'Off')");
-          console.error("⚠️ 5. Set Username to 'Optional' (not 'Required')");
-
-          if (Platform.OS !== "web") {
-            toast.error("Configuration Issue", {
-              description: "Google sign-in requires additional setup in Clerk Dashboard. Please check the console for details.",
-            });
+        // Check if authentication needs transfer (e.g. new user sign up or sign in transfer)
+        if (signIn?.firstFactorVerification?.status === "transferable") {
+          console.log("🔵 Attempting to complete sign-up via transfer...");
+          const res = await signUp?.create({ transfer: true });
+          if (res?.createdSessionId && setActive) {
+            console.log("✅ OAuth Success: SignUp transfer complete");
+            await setActive({ session: res.createdSessionId });
+            return;
           }
-          return;
+        }
+
+        if (signUp?.verifications?.externalAccount?.status === "transferable") {
+          console.log("🔵 Attempting to complete sign-in via transfer...");
+          const res = await signIn?.create({ transfer: true });
+          if (res?.createdSessionId && setActive) {
+            console.log("✅ OAuth Success: SignIn transfer complete");
+            await setActive({ session: res.createdSessionId });
+            return;
+          }
         }
 
         // Log detailed status for debugging
@@ -98,14 +87,9 @@ export function SocialConnections() {
           signUpMissingFields: signUp?.missingFields,
         });
 
-        // If we get here, the OAuth flow didn't complete automatically
-        // This can happen if:
-        // 1. Clerk requires additional user information
-        // 2. The account needs verification
-        // 3. There's a configuration mismatch
         if (Platform.OS !== "web") {
-          toast.error("Sign In Issue", {
-            description: "Google sign-in couldn't complete automatically. Please check your Clerk dashboard settings or try again.",
+          toast.error("Sign In Incomplete", {
+            description: "Google sign-in could not complete. Please try again.",
           });
         }
       } catch (err: any) {
