@@ -4,6 +4,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
+import { sensitiveActionLimiter } from "../middlewares/rate-limiter"
 import { generateUploadUrl } from "../services/r2-storage"
 
 const StoragePresignedRequestSchema = z.object({
@@ -26,7 +27,7 @@ router.openapi(
     method: "post",
     path: "/api/storage/presigned-url",
     summary: "Get Presigned Upload URL for Cloudflare R2 / S3",
-    middleware: [authMiddleware] as const,
+    middleware: [authMiddleware, sensitiveActionLimiter] as const,
     request: {
       body: jsonContentRequired(StoragePresignedRequestSchema, "File Upload Request"),
     },

@@ -1,3 +1,4 @@
+import { Cron } from "croner"
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm"
 
 import { db } from "../db"
@@ -456,45 +457,43 @@ export async function runDailyTestingReminders() {
   }
 }
 
-export function startBackgroundJobs() {
+export function startCronJobs() {
   if (process.env.NODE_ENV === "test") return
 
-  console.log("🚀 Starting background cron timers...")
+  console.log("🚀 Initializing Croner background schedulers (IST / Asia/Kolkata)...")
 
-  // Run daily streak & match progression & expired bans maintenance every 4 hours
-  const t1 = setInterval(
-    () => {
-      runDailyStreakMaintenance()
-      runMatchProgressionAndCleanup()
-      runExpiredBansCleanup()
-    },
-    4 * 60 * 60 * 1000,
-  )
-  t1.unref?.()
+  // 1. Midnight IST Streak Check & Penalty Maintenance (00:00 IST)
+  new Cron("0 0 * * *", { timezone: "Asia/Kolkata", name: "daily-streak" }, async () => {
+    console.log("🌙 Triggering Midnight IST Streak Maintenance...")
+    await runDailyStreakMaintenance()
+  })
 
-  // Run daily testing push reminders every 6 hours
-  const t2 = setInterval(
-    () => {
-      runDailyTestingReminders()
-    },
-    6 * 60 * 60 * 1000,
-  )
-  t2.unref?.()
+  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Every 2 hours)
+  new Cron("0 */2 * * *", { name: "match-maintenance" }, async () => {
+    console.log("🔄 Triggering Match Progression & Ban Expirations...")
+    await runMatchProgressionAndCleanup()
+    await runExpiredBansCleanup()
+  })
 
-  // Run DB cleanups (notifications >7d, old matches >60d) every 24 hours
-  const t3 = setInterval(
-    () => {
-      runNotificationCleanup()
-      runOldMatchesCleanup()
-    },
-    24 * 60 * 60 * 1000,
-  )
-  t3.unref?.()
+  // 3. Testing & Review Push Reminders (10:00 AM, 3:00 PM, and 8:00 PM IST)
+  new Cron("0 10,15,20 * * *", { timezone: "Asia/Kolkata", name: "daily-reminders" }, async () => {
+    console.log("🔔 Triggering Daily Testing & Review Push Reminders...")
+    await runDailyTestingReminders()
+  })
 
-  // Trigger initial checks on boot
+  // 4. Nightly DB Cleanups (Notifications >7d, Old Matches >60d) at 03:00 AM IST
+  new Cron("0 3 * * *", { timezone: "Asia/Kolkata", name: "db-cleanup" }, async () => {
+    console.log("🧹 Triggering Nightly Database Cleanup...")
+    await runNotificationCleanup()
+    await runOldMatchesCleanup()
+  })
+
+  // Initial checks on server boot
   runMatchProgressionAndCleanup()
   runDailyTestingReminders()
   runNotificationCleanup()
   runExpiredBansCleanup()
   runOldMatchesCleanup()
 }
+
+export const startBackgroundJobs = startCronJobs

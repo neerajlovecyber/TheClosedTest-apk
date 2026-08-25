@@ -3,6 +3,7 @@ import { notFound, onError, serveEmojiFavicon } from "stoker/middlewares"
 import { defaultHook } from "stoker/openapi"
 
 import { pinoLogger } from "../middlewares/pino-logger"
+import { globalRateLimiter } from "../middlewares/rate-limiter"
 import type { AppBindings, AppOpenAPI } from "./types"
 
 export function createRouter(): AppOpenAPI {
@@ -17,6 +18,7 @@ export function createApp(): AppOpenAPI {
 
   app.use(serveEmojiFavicon("🚀"))
   app.use(pinoLogger())
+  app.use(globalRateLimiter)
 
   app.notFound(notFound)
   app.onError(onError)
