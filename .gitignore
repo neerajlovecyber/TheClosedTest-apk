@@ -37,6 +37,9 @@ android
 backend/.env
 telegram-bot/.env
 telegram-bot/.env*
+cloudflare-expo-ota-updates/.env*
+cloudflare-expo-ota-updates/.wrangler/
+cloudflare-expo-ota-updates/**/dist/
 
 # typescript
 *.tsbuildinfo

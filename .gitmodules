@@ -1,0 +1,3 @@
+[submodule "cloudflare-expo-ota-updates"]
+	path = cloudflare-expo-ota-updates
+	url = https://github.com/neerajlovecyber/cloudflare-expo-ota-updates
