@@ -336,7 +336,7 @@ export default function HomeScreen() {
         )}
 
         {/* My Apps Overview */}
-        <View className="px-6 pb-20">
+        <View className="px-6 pb-4">
           {/* Free 3 Slots 1-Week Event Promo Banner */}
           {unlockedSlots < 3 && (
             <TouchableOpacity
