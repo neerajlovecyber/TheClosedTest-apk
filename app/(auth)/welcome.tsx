@@ -5,12 +5,12 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import { router } from "expo-router";
 import * as React from "react";
-import { Animated, Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View, Alert } from "react-native";
+import { Animated, Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Box, Handshake, Camera, Sparkles, Star, HelpCircleIcon } from "lucide-react-native";
-import { useColorScheme } from "nativewind";
+import { HelpCircleIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
-import { TouchableOpacity } from "react-native";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 
 const ONBOARDING_STEPS = [
   {
@@ -36,6 +36,12 @@ const ONBOARDING_STEPS = [
     description: "Test your partner's app for 14 days. Upload screenshot proof daily.",
     mockupType: "testing" as const,
     iconBgClass: "bg-orange-500/10 dark:bg-orange-500/20",
+  },
+  {
+    title: "Stay in the Loop",
+    description: "Get instant alerts for testing swap requests, review approvals, and daily streak reminders.",
+    mockupType: "notifications" as const,
+    iconBgClass: "bg-purple-500/10 dark:bg-purple-500/20",
   },
   {
     title: "Get Published!",
@@ -91,6 +97,21 @@ export default function WelcomeScreen() {
     }
   }, [activeIndex]);
 
+  const handleEnableNotifications = React.useCallback(async () => {
+    try {
+      if (Device.isDevice) {
+        await Notifications.requestPermissionsAsync();
+      }
+    } catch (e) {
+      console.error("Permission request failed:", e);
+    } finally {
+      handleNext();
+    }
+  }, [handleNext]);
+
+  const currentStep = ONBOARDING_STEPS[activeIndex];
+  const isNotificationStep = currentStep?.mockupType === "notifications";
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Help Button */}
@@ -140,18 +161,24 @@ export default function WelcomeScreen() {
       </ScrollView>
 
       {/* Bottom Section */}
-      <View className="mx-6 mb-6 p-6 rounded-3xl gap-6 bg-card">
+      <View className="mx-6 mb-6 p-6 rounded-3xl gap-4 bg-card">
         {/* Pagination Indicators */}
-        <View className="flex-row justify-center gap-2">
+        <View className="flex-row justify-center gap-2 mb-2">
           {ONBOARDING_STEPS.map((_, i) => (
             <View key={i} className={cn("h-2.5 rounded-full transition-all", i === activeIndex ? "w-10 bg-primary" : "w-2.5 bg-muted-foreground/30")} />
           ))}
         </View>
 
         {activeIndex < ONBOARDING_STEPS.length - 1 ? (
-          <Button onPress={handleNext} size="lg" className="w-full rounded-2xl">
-            <Text className="text-lg font-semibold text-primary-foreground">Continue</Text>
-          </Button>
+          isNotificationStep ? (
+            <Button onPress={handleEnableNotifications} size="lg" className="w-full rounded-2xl">
+              <Text className="text-lg font-semibold text-primary-foreground">Enable Alerts & Continue</Text>
+            </Button>
+          ) : (
+            <Button onPress={handleNext} size="lg" className="w-full rounded-2xl">
+              <Text className="text-lg font-semibold text-primary-foreground">Continue</Text>
+            </Button>
+          )
         ) : (
           <View className="w-full gap-4">
             <SocialConnections />

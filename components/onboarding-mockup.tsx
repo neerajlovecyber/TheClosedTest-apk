@@ -19,10 +19,11 @@ import {
   ArrowRightIcon,
   PartyPopperIcon,
   ActivityIcon,
+  BellIcon,
 } from "lucide-react-native";
 
 interface OnboardingMockupProps {
-  type: "welcome" | "add-app" | "marketplace" | "testing" | "success";
+  type: "welcome" | "add-app" | "marketplace" | "testing" | "notifications" | "success";
 }
 
 export function OnboardingMockup({ type }: OnboardingMockupProps) {
@@ -35,6 +36,8 @@ export function OnboardingMockup({ type }: OnboardingMockupProps) {
       return <MarketplaceMockup />;
     case "testing":
       return <TestingMockup />;
+    case "notifications":
+      return <NotificationsMockup />;
     case "success":
       return <SuccessMockup />;
     default:
@@ -205,6 +208,56 @@ function TestingMockup() {
       <View className="absolute -bottom-4 bg-primary px-4 py-2 rounded-full shadow-lg flex-row items-center gap-2">
         <Icon as={CameraIcon} className="text-primary-foreground size-4" />
         <Text className="text-xs font-bold text-primary-foreground">Upload Proof</Text>
+      </View>
+    </View>
+  );
+}
+
+function NotificationsMockup() {
+  return (
+    <View className="w-full max-w-[280px] items-center gap-3">
+      {/* Central Pulsing Bell Icon */}
+      <View className="relative items-center justify-center mb-1">
+        <View className="w-16 h-16 rounded-full bg-purple-500/20 items-center justify-center">
+          <View className="w-12 h-12 rounded-full bg-purple-500 items-center justify-center shadow-lg shadow-purple-500/40">
+            <Icon as={BellIcon} className="text-white size-6" />
+          </View>
+        </View>
+        <View className="absolute top-0 right-0 w-4 h-4 rounded-full bg-red-500 border-2 border-background" />
+      </View>
+
+      {/* Notification Banner Card 1 */}
+      <View className="bg-card w-full p-3 rounded-2xl border border-border shadow-md gap-1">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-1.5">
+            <View className="w-4 h-4 rounded bg-primary/20 items-center justify-center">
+              <Icon as={BellIcon} className="text-primary size-2.5" />
+            </View>
+            <Text className="text-[10px] font-bold text-foreground">TheClosedTest</Text>
+          </View>
+          <Text className="text-[9px] text-muted-foreground">Just now</Text>
+        </View>
+        <Text className="text-xs font-bold text-foreground">New Swap Request! 🤝</Text>
+        <Text className="text-[10px] text-muted-foreground leading-tight" numberOfLines={1}>
+          Alex requested a reciprocal test swap for your app.
+        </Text>
+      </View>
+
+      {/* Notification Banner Card 2 */}
+      <View className="bg-card w-full p-3 rounded-2xl border border-border shadow-md gap-1 opacity-80 scale-95">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-1.5">
+            <View className="w-4 h-4 rounded bg-green-500/20 items-center justify-center">
+              <Icon as={CheckCircle2Icon} className="text-green-600 size-2.5" />
+            </View>
+            <Text className="text-[10px] font-bold text-foreground">Streak Protected</Text>
+          </View>
+          <Text className="text-[9px] text-muted-foreground">2h ago</Text>
+        </View>
+        <Text className="text-xs font-bold text-foreground">Day 4 Proof Approved ✅</Text>
+        <Text className="text-[10px] text-muted-foreground leading-tight" numberOfLines={1}>
+          Partner approved your test! 10 days remaining.
+        </Text>
       </View>
     </View>
   );

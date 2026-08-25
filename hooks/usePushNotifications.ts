@@ -33,15 +33,9 @@ export function usePushNotifications() {
     }
 
     if (Device.isDevice) {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== "granted") {
-        // alert('Failed to get push token for push notification!');
-        console.log("Failed to get push token for push notification!");
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== "granted") {
+        // Do NOT prompt user on cold launch. Permission is requested contextually via UI banner.
         return;
       }
 
