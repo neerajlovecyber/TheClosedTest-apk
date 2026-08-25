@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import {
   CameraIcon,
+  UploadIcon,
   XIcon,
   PlusIcon,
   SendIcon,
@@ -56,6 +57,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
   const [selectedImages, setSelectedImages] = useState<{ uri: string; mimeType?: string }[]>([]);
   const [comment, setComment] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [isEditingProof, setIsEditingProof] = useState(false);
   const [isConfirmChangeOpen, setIsConfirmChangeOpen] = useState(false);
   const { data: user } = useCurrentUser();
@@ -118,6 +120,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
     }
 
     setIsUploading(true);
+    setUploadStatus("Optimizing screenshots...");
 
     try {
       let FileSystem: any;
@@ -143,10 +146,18 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
       );
 
       // 2. Upload to Cloudflare R2
+      setUploadStatus(`Uploading screenshot 1 of ${processedImages.length}...`);
+      let uploadedCount = 0;
+
       const uploadPromises = processedImages.map(async (image, i: number) => {
         const customFilename = `proof_${matchId}_day${currentDay}_${i}_${Date.now()}.webp`;
         try {
-          return await uploadImageToR2(image.uri, "proofs", customFilename);
+          const url = await uploadImageToR2(image.uri, "proofs", customFilename);
+          uploadedCount++;
+          if (uploadedCount < processedImages.length) {
+            setUploadStatus(`Uploading screenshot ${uploadedCount + 1} of ${processedImages.length}...`);
+          }
+          return url;
         } catch (r2Err) {
           console.warn("Direct R2 upload failed, trying presigned URL:", r2Err);
           const { uploadUrl, publicUrl } = await getPresignedUrlMutation.mutateAsync({
@@ -165,12 +176,16 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             xhr.setRequestHeader("Content-Type", "image/webp");
             xhr.onload = () => {
               if (xhr.status >= 200 && xhr.status < 300) {
+                uploadedCount++;
+                if (uploadedCount < processedImages.length) {
+                  setUploadStatus(`Uploading screenshot ${uploadedCount + 1} of ${processedImages.length}...`);
+                }
                 resolve();
               } else {
                 reject(new Error(`Upload failed: ${xhr.status}`));
               }
             };
-            xhr.onerror = () => reject(new Error("Upload failed"));
+            xhr.onerror = () => reject(new Error("Network error during upload"));
 
             const binaryString = atob(base64);
             const bytes = new Uint8Array(binaryString.length);
@@ -187,6 +202,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
       const uploadedUrls = await Promise.all(uploadPromises);
 
       // 3. Submit proof to backend API
+      setUploadStatus("Finalizing submission...");
       await submitProofMutation.mutateAsync({
         matchId,
         day: currentDay,
@@ -202,9 +218,10 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
       onUploadComplete?.();
     } catch (error: any) {
       console.error(error);
-      toast.error("Upload failed", { description: error.message });
+      toast.error("Upload failed", { description: error.message || "Please check your internet connection and retry." });
     } finally {
       setIsUploading(false);
+      setUploadStatus("");
     }
   }, [selectedImages, matchId, currentDay, comment, submitProofMutation, getPresignedUrlMutation, onUploadComplete, user]);
 
@@ -214,19 +231,34 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
         {/* Selected Images Preview */}
         {selectedImages.length > 0 && (
           <View className="mb-4">
-            <Text className="text-sm font-medium mb-2 text-muted-foreground">Selected Images ({selectedImages.length}/5)</Text>
+            <Text className="text-sm font-medium mb-2 text-muted-foreground">
+              Selected Images ({selectedImages.length}/5)
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pt-2">
               {selectedImages.map((image, index) => (
                 <View key={index} className="relative mr-3">
-                  <Image source={{ uri: image.uri }} style={{ width: 96, height: 96, borderRadius: 12 }} contentFit="cover" transition={150} />
-                  <TouchableOpacity onPress={() => removeImage(index)} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1">
-                    <Icon as={XIcon} className="text-white size-4" />
+                  <Pressable onPress={() => openImageViewer(selectedImages.map((img) => img.uri), index)}>
+                    <Image
+                      source={{ uri: image.uri }}
+                      style={{ width: 96, height: 96, borderRadius: 12 }}
+                      contentFit="cover"
+                      transition={150}
+                    />
+                  </Pressable>
+                  <TouchableOpacity
+                    onPress={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 bg-destructive rounded-full p-1 shadow-sm"
+                    disabled={isUploading}
+                  >
+                    <Icon as={XIcon} className="text-destructive-foreground size-3" />
                   </TouchableOpacity>
                 </View>
               ))}
+
               {selectedImages.length < 5 && (
                 <TouchableOpacity
                   onPress={handlePickImages}
+                  disabled={isUploading}
                   className="w-24 h-24 rounded-xl border-2 border-dashed border-border items-center justify-center bg-card"
                 >
                   <Icon as={PlusIcon} className="text-muted-foreground size-8" />
@@ -236,10 +268,11 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
           </View>
         )}
 
-        {/* Upload Area */}
+        {/* Upload Box when no images are selected */}
         {selectedImages.length === 0 && (
           <TouchableOpacity
             onPress={handlePickImages}
+            disabled={isUploading}
             className="w-full rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 items-center justify-center mb-4 p-6"
           >
             <Icon as={CameraIcon} className="text-primary size-10 mb-1.5" />
@@ -266,21 +299,28 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
           <TouchableOpacity
             onPress={handleUpload}
             disabled={isUploading}
-            className={`bg-primary p-4 rounded-xl flex-row items-center justify-center ${isUploading ? "opacity-50" : ""}`}
+            className={`bg-primary p-4 rounded-xl flex-row items-center justify-center ${isUploading ? "opacity-75" : ""}`}
           >
             {isUploading ? (
-              <ActivityIndicator color="white" />
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator color="white" size="small" />
+                <Text className="text-primary-foreground font-bold text-base">
+                  {uploadStatus || "Uploading..."}
+                </Text>
+              </View>
             ) : (
               <>
                 <Icon as={SendIcon} className="text-primary-foreground size-5 mr-2" />
-                <Text className="text-primary-foreground font-bold text-lg">Submit Day {currentDay} Proof</Text>
+                <Text className="text-primary-foreground font-bold text-lg">
+                  Submit Day {currentDay} Proof
+                </Text>
               </>
             )}
           </TouchableOpacity>
         )}
       </View>
     );
-  }, [selectedImages, comment, isUploading, currentDay, handlePickImages, removeImage, handleUpload]);
+  }, [selectedImages, comment, isUploading, uploadStatus, currentDay, handlePickImages, removeImage, handleUpload, openImageViewer]);
 
   // Image viewer modal
   const imageViewerModal = (

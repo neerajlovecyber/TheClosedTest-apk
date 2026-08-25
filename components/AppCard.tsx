@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { StarIcon, MessageSquareIcon } from "lucide-react-native";
+import { StarIcon, MessageSquareIcon, ClockIcon } from "lucide-react-native";
 
 export interface AppItem {
   _id: string;
@@ -205,14 +205,22 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
           )}
 
           {isTesting && (
-            <View className="flex-row items-center gap-1.5">
+            <View className="flex-row items-center gap-1.5 flex-wrap">
               {/* Simple Day Indicator */}
               <View className="bg-secondary/50 px-2 py-1 rounded-md">
                 <Text className="text-xs font-medium text-foreground">
                   Day {item.day || 1} of {item.totalDays || 14}
                 </Text>
               </View>
-              {item.ownerName ? <Text className="text-muted-foreground text-xs ml-2">Owner: {item.ownerName}</Text> : null}
+              {item.dueIn && !item.isReviewPending && (
+                <View className="bg-orange-500/10 px-2 py-0.5 rounded-md flex-row items-center gap-1 border border-orange-500/20">
+                  <Icon as={ClockIcon} className="size-3 text-orange-600 dark:text-orange-400" />
+                  <Text className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                    {item.dueIn}
+                  </Text>
+                </View>
+              )}
+              {item.ownerName ? <Text className="text-muted-foreground text-xs ml-auto">Owner: {item.ownerName}</Text> : null}
             </View>
           )}
         </View>

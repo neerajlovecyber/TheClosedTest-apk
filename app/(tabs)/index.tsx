@@ -4,6 +4,7 @@ import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { AppCard } from "@/components/AppCard";
 import { PendingRequestCard } from "@/components/PendingRequestCard";
 import { OpenSourceAnnouncementBanner } from "@/components/OpenSourceAnnouncementBanner";
+import { NotificationPermissionBanner } from "@/components/NotificationPermissionBanner";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
@@ -35,7 +36,7 @@ import {
   MatchEntity,
 } from "@/lib/api-hooks";
 import { ErrorState } from "@/components/ErrorState";
-import { getMatchCurrentDay } from "@/lib/date-utils";
+import { getMatchCurrentDay, getTimeUntilMidnightIST } from "@/lib/date-utils";
 
 export default function HomeScreen() {
   const { user } = useUser();
@@ -45,7 +46,15 @@ export default function HomeScreen() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isUnlockSlotsDialogOpen, setIsUnlockSlotsDialogOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
+  const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
   const attentionScrollRef = React.useRef<ScrollView>(null);
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeUntilReset(getTimeUntilMidnightIST());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // API Queries
   const { data: currentUser, refetch: refetchUser, isError: userError } = useCurrentUser();
@@ -266,6 +275,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Soft Notification Permission Banner (if not enabled) */}
+        <NotificationPermissionBanner />
+
         {/* Open Source & Fresh Refresh Announcement Banner */}
         <OpenSourceAnnouncementBanner />
 
@@ -289,7 +301,7 @@ export default function HomeScreen() {
                         _id: String(task.id),
                         title: task.name,
                         ownerName: task.owner,
-                        dueIn: `Day ${task.day} of ${task.totalDays}`,
+                        dueIn: `${timeUntilReset.hours}h ${timeUntilReset.minutes}m left`,
                         day: task.day,
                         totalDays: task.totalDays,
                         iconUrl: task.iconUrl,

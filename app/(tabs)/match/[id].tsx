@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { View, RefreshControl, TouchableOpacity, Platform, useWindowDimensions, Pressable, Linking, Share } from "react-native";
+import { View, RefreshControl, TouchableOpacity, Platform, useWindowDimensions, Pressable, Linking } from "react-native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { toast } from "@/lib/sonner";
 import {
@@ -19,7 +19,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import {
   MessageSquareIcon,
-  CalendarCheckIcon,
   InfoIcon,
   ChevronDownIcon,
   ChevronUpIcon,
@@ -28,13 +27,9 @@ import {
   CheckCircle2Icon,
   ClockIcon,
   ArrowLeftIcon,
-  ArrowRightLeftIcon,
-  CheckIcon,
-  XIcon,
   FlagIcon,
-  RotateCwIcon,
 } from "lucide-react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as IntentLauncher from "expo-intent-launcher";
 import { Button } from "@/components/ui/button";
 import { ProofUploader } from "@/components/ProofUploader";
@@ -275,16 +270,6 @@ export default function MatchDashboardScreen() {
         </View>
 
         <View className="flex-row items-center gap-2">
-          {/* Reload / Refresh Button */}
-          <TouchableOpacity
-            onPress={handleRefresh}
-            disabled={isManualRefreshing || isFetchingMatch || isFetchingProofs}
-            activeOpacity={0.7}
-            className="p-2.5 rounded-full bg-secondary/40 border border-border/50 flex-row items-center justify-center"
-          >
-            <Icon as={RotateCwIcon} className="size-4 text-foreground" />
-          </TouchableOpacity>
-
           {/* Report Partner Button */}
           <TouchableOpacity
             onPress={() => setReportDialogVisible(true)}
