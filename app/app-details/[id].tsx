@@ -38,6 +38,7 @@ import {
 } from "lucide-react-native";
 import { ReportDialog } from "@/components/ReportDialog";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { TestingCommitmentModal } from "@/components/TestingCommitmentModal";
 import {
   useAppDetails,
   useMyApps,
@@ -73,6 +74,7 @@ export default function AppDetailsScreen() {
 
   const [selectedMyApp, setSelectedMyApp] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [commitmentModalVisible, setCommitmentModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSentRequest, setHasSentRequest] = useState(false);
   const [activeAlert, setActiveAlert] = useState<null | "no_apps" | "reject" | "complete" | "delete">(null);
@@ -145,6 +147,11 @@ export default function AppDetailsScreen() {
       return;
     }
 
+    setCommitmentModalVisible(true);
+  };
+
+  const handleConfirmSwap = async () => {
+    if (!selectedMyApp) return;
     try {
       setIsSubmitting(true);
       await requestMatch.mutateAsync({
@@ -153,6 +160,7 @@ export default function AppDetailsScreen() {
       });
       toast.success("Sent!", { description: "Swap request sent." });
       setHasSentRequest(true);
+      setCommitmentModalVisible(false);
     } catch (error: any) {
       toast.error("Error", { description: error.message || "Failed to send request" });
     } finally {
@@ -532,8 +540,15 @@ export default function AppDetailsScreen() {
                     key={myapp.id}
                     className={`flex-row items-center gap-4 p-4 mb-3 rounded-xl border ${selectedMyApp === myapp.id ? "border-primary bg-primary/5" : "border-border"}`}
                     onPress={() => {
+                      if (myapp.currentTesters >= myapp.requiredTesters) {
+                        toast.error("Your App is Full", {
+                          description: `"${myapp.title}" already has all required testers (${myapp.currentTesters}/${myapp.requiredTesters}).`,
+                        });
+                        return;
+                      }
                       setSelectedMyApp(myapp.id);
                       setIsModalVisible(false);
+                      setCommitmentModalVisible(true);
                     }}
                   >
                     <Image source={{ uri: myapp.iconUrl || "https://github.com/shadcn.png" }} className="w-12 h-12 rounded-lg bg-muted" />
@@ -551,6 +566,13 @@ export default function AppDetailsScreen() {
           </View>
         </View>
       </Modal>
+
+      <TestingCommitmentModal
+        visible={commitmentModalVisible}
+        onClose={() => setCommitmentModalVisible(false)}
+        onConfirm={handleConfirmSwap}
+        isSubmitting={isSubmitting}
+      />
 
       <ReportDialog
         visible={reportDialogVisible}
