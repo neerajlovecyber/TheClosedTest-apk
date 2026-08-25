@@ -1,4 +1,5 @@
-name: preview
+name: Cloudflare OTA Update
+
 on:
   push:
     branches:
@@ -11,48 +12,51 @@ on:
       - ".gitignore"
       - ".eslintrc*"
       - "prettier*"
+  workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        description: "Deployment channel"
+        default: "production"
+        options:
+          - production
+          - preview
 
 jobs:
-  update:
-    name: EAS Update
+  ota-update:
+    name: Publish OTA Update
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
-      - name: Check for EXPO_TOKEN
-        run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "You must provide an EXPO_TOKEN secret linked to this project's Expo account in this repo's secrets. Learn more: https://docs.expo.dev/eas-update/github-actions"
-            exit 1
-          fi
-
-      - name: Checkout repository
+      - name: 🏗 Checkout repository with submodules
         uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-      - name: Setup Bun
+      - name: 🏗 Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Setup Node
+      - name: 🏗 Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v9
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          packager: bun
-          eas-cache: true
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: bun install
 
-      - name: Create update
-        uses: expo/expo-github-action/preview@v9
-        with:
-          command: eas update --auto
+      - name: 🚀 Publish OTA Update to Cloudflare
+        env:
+          OTA_SERVER: "https://expo-ota-updates.neerajsec.workers.dev"
+          OTA_API_KEY: ${{ secrets.OTA_API_KEY }}
+          APP_VARIANT: production
+        run: |
+          if [ -z "$OTA_API_KEY" ]; then
+            echo "::error::Missing OTA_API_KEY secret! Please configure OTA_API_KEY in your GitHub repository secrets."
+            exit 1
+          fi
+          CHANNEL="${{ github.event.inputs.channel || 'production' }}"
+          echo "Publishing OTA update to channel: $CHANNEL..."
+          bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel "$CHANNEL" --dangerously-ignore-fingerprint-check
