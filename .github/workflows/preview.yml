@@ -50,11 +50,11 @@ jobs:
       - name: 🚀 Publish OTA Update to Cloudflare
         env:
           OTA_SERVER: "https://expo-ota-updates.neerajsec.workers.dev"
-          OTA_API_KEY: ${{ secrets.OTA_API_KEY }}
+          OTA_API_KEY: ${{ secrets.OTA_API_KEY || vars.OTA_API_KEY }}
           APP_VARIANT: production
         run: |
           if [ -z "$OTA_API_KEY" ]; then
-            echo "::error::Missing OTA_API_KEY secret! Please configure OTA_API_KEY in your GitHub repository secrets."
+            echo "::error::Missing OTA_API_KEY! Please configure OTA_API_KEY in GitHub Secrets or Variables."
             exit 1
           fi
           CHANNEL="${{ github.event.inputs.channel || 'production' }}"
