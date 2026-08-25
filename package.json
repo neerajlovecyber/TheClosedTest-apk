@@ -102,10 +102,15 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@expo/fingerprint": "^0.20.9",
+    "@inquirer/prompts": "^8.3.2",
     "@types/react": "~19.2.18",
+    "@types/yargs": "^17.0.35",
     "babel-plugin-react-compiler": "^1.0.0",
+    "chalk": "^5.4.1",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "valibot": "^1.1.0",
+    "yargs": "^18.0.0"
   }
 }
