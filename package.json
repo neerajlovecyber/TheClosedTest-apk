@@ -16,7 +16,10 @@
     "check": "oxlint && oxfmt --check .",
     "check:fix": "oxlint --fix && oxfmt .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .expo node_modules"
+    "clean": "rm -rf .expo node_modules",
+    "ota:prod": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel production",
+    "ota:preview": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel preview",
+    "ota:dry-run": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel production --dry-run"
   },
   "dependencies": {
     "@clerk/expo": "^4.5.2",

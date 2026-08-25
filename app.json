@@ -11,7 +11,13 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/5ef1829f-e48b-4b44-ace2-2e4fd488e2c7"
+      "url": "https://expo-ota-updates.neerajsec.workers.dev/manifest",
+      "enabled": true,
+      "fallbackToCacheTimeout": 10000,
+      "requestHeaders": {
+        "expo-channel-name": "production",
+        "expo-app-id": "theclosedtest"
+      }
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -28,7 +34,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
