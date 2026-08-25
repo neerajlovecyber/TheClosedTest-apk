@@ -39,6 +39,7 @@ import { useOTAUpdate } from "@/hooks/useOTAUpdate";
 import { useInAppUpdate } from "@/hooks/useInAppUpdate";
 import { ForceUpdateDialog } from "@/components/ForceUpdateDialog";
 import { WarningDisplay } from "@/components/WarningDisplay";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
@@ -210,6 +211,7 @@ export default function RootLayout() {
         <ThemeProvider value={NAV_THEME[colorScheme ?? "light"]}>
           <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
             <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+            <OfflineBanner />
             <InitialLayout />
             <PortalHost />
             <Toast config={toastConfig} topOffset={60} />

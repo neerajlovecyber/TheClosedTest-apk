@@ -1,12 +1,24 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { View, Pressable, TextInput, ScrollView, ActivityIndicator, Platform } from "react-native";
+import { View, Pressable, TextInput, ScrollView, ActivityIndicator, Platform, Modal, Dimensions, TouchableOpacity } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { FlashList } from "@shopify/flash-list";
+import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { LinkableText } from "@/components/ui/LinkableText";
-import { ArrowLeftIcon, SendIcon, CheckIcon, CheckCheckIcon, ClockIcon, MessageSquareIcon, SparklesIcon, ShieldIcon, LucideIcon } from "lucide-react-native";
+import {
+  ArrowLeftIcon,
+  SendIcon,
+  CheckIcon,
+  CheckCheckIcon,
+  ClockIcon,
+  MessageSquareIcon,
+  SparklesIcon,
+  ShieldIcon,
+  XIcon,
+  LucideIcon,
+} from "lucide-react-native";
 
 export interface ChatMessageItem {
   id: string;
@@ -16,6 +28,8 @@ export interface ChatMessageItem {
   isOptimistic?: boolean;
   isSeen?: boolean;
   senderBadge?: string;
+  storageUrl?: string;
+  type?: "text" | "image" | "video";
 }
 
 interface ChatListItem {
@@ -63,6 +77,7 @@ export function ChatView({
   const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardState((state) => state.isVisible);
   const [newMessage, setNewMessage] = useState("");
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
   const listRef = useRef<any>(null);
 
@@ -176,11 +191,24 @@ export function ChatView({
               <Text className="text-[11px] font-bold text-primary">{msg.senderBadge}</Text>
             </View>
           )}
-          <LinkableText
-            text={msg.content}
-            className={`text-[15px] leading-5 ${isMe ? "text-primary-foreground font-medium" : "text-foreground"}`}
-            linkClassName={isMe ? "text-primary-foreground underline font-semibold" : "text-primary underline font-semibold"}
-          />
+          {msg.storageUrl && (
+            <Pressable onPress={() => setPreviewImageUrl(msg.storageUrl!)} className="mb-2 rounded-xl overflow-hidden active:opacity-90">
+              <Image
+                source={{ uri: msg.storageUrl }}
+                style={{ width: 200, height: 160, borderRadius: 12 }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
+            </Pressable>
+          )}
+          {msg.content ? (
+            <LinkableText
+              text={msg.content}
+              className={`text-[15px] leading-5 ${isMe ? "text-primary-foreground font-medium" : "text-foreground"}`}
+              linkClassName={isMe ? "text-primary-foreground underline font-semibold" : "text-primary underline font-semibold"}
+            />
+          ) : null}
           <View
             style={{
               flexDirection: "row",
@@ -312,6 +340,37 @@ export function ChatView({
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Fullscreen Image Preview Modal */}
+      {previewImageUrl && (
+        <Modal
+          visible={Boolean(previewImageUrl)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewImageUrl(null)}
+        >
+          <View className="flex-1 bg-black/95 items-center justify-center">
+            <SafeAreaView className="absolute top-0 right-0 z-50 p-4">
+              <TouchableOpacity
+                onPress={() => setPreviewImageUrl(null)}
+                className="w-10 h-10 rounded-full bg-white/20 items-center justify-center active:bg-white/30"
+              >
+                <Icon as={XIcon} className="text-white size-6" />
+              </TouchableOpacity>
+            </SafeAreaView>
+
+            <Image
+              source={{ uri: previewImageUrl }}
+              style={{
+                width: Dimensions.get("window").width,
+                height: Dimensions.get("window").height * 0.85,
+              }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }

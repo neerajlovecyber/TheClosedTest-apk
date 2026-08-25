@@ -1,4 +1,8 @@
 import { Expo, type ExpoPushMessage, type ExpoPushTicket } from "expo-server-sdk"
+import { inArray } from "drizzle-orm"
+
+import { db } from "../db"
+import { users } from "../db/schema"
 import { env } from "../env"
 
 export interface PushNotificationPayload {
@@ -45,15 +49,36 @@ export async function sendExpoPushNotification(
   // Chunk messages into batches of 100 as required by Expo
   const chunks = expo.chunkPushNotifications(messages)
   const tickets: ExpoPushTicket[] = []
+  const deadTokens: string[] = []
 
   try {
     for (const chunk of chunks) {
       try {
         const ticketChunk = await expo.sendPushNotificationsAsync(chunk)
         tickets.push(...ticketChunk)
+
+        // Inspect tickets for invalid/unregistered devices
+        ticketChunk.forEach((ticket, idx) => {
+          if (ticket.status === "error") {
+            if (ticket.details?.error === "DeviceNotRegistered") {
+              const deadToken = chunk[idx]?.to
+              if (deadToken && typeof deadToken === "string") {
+                deadTokens.push(deadToken)
+              }
+            }
+          }
+        })
       } catch (chunkError) {
         console.error("❌ Failed to send chunk of Expo push notifications:", chunkError)
       }
+    }
+
+    // Asynchronously prune dead tokens from database
+    if (deadTokens.length > 0) {
+      db.update(users)
+        .set({ pushToken: null })
+        .where(inArray(users.pushToken, deadTokens))
+        .catch((e) => console.error("Failed to prune dead push tokens:", e))
     }
 
     return { success: true, tickets }

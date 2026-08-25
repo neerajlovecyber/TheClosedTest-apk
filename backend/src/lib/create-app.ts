@@ -1,4 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi"
+import { compress } from "hono/compress"
+import { cors } from "hono/cors"
+import { secureHeaders } from "hono/secure-headers"
 import { notFound, onError, serveEmojiFavicon } from "stoker/middlewares"
 import { defaultHook } from "stoker/openapi"
 
@@ -17,6 +20,9 @@ export function createApp(): AppOpenAPI {
   const app = createRouter()
 
   app.use(serveEmojiFavicon("🚀"))
+  app.use(cors())
+  app.use(secureHeaders())
+  app.use(compress())
   app.use(pinoLogger())
   app.use(globalRateLimiter)
 

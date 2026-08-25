@@ -42,6 +42,8 @@ export function MatchChat({ visible, onClose, matchId, partnerName, onReport, cu
         isMe,
         isOptimistic: String(msg.id).startsWith("temp-"),
         isSeen,
+        storageUrl: (msg as any).storageUrl,
+        type: (msg as any).type || "text",
       };
     });
   }, [messages, myUserId, partnerLastRead]);
