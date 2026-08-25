@@ -141,6 +141,8 @@ export const apps = pgTable(
     index("apps_user_id_idx").on(table.userId),
     index("apps_status_idx").on(table.status),
     index("apps_package_name_idx").on(table.packageName),
+    index("apps_user_status_idx").on(table.userId, table.status),
+    index("apps_status_created_idx").on(table.status, table.createdAt),
   ],
 )
 
@@ -199,6 +201,9 @@ export const matches = pgTable(
     index("matches_app1_idx").on(table.app1Id),
     index("matches_app2_idx").on(table.app2Id),
     index("matches_status_idx").on(table.status),
+    index("matches_user1_status_idx").on(table.user1Id, table.status),
+    index("matches_user2_status_idx").on(table.user2Id, table.status),
+    index("matches_status_activity_idx").on(table.status, table.lastActivity),
   ],
 )
 
@@ -234,6 +239,8 @@ export const proofs = pgTable(
     index("proofs_match_id_idx").on(table.matchId),
     index("proofs_uploader_id_idx").on(table.uploaderId),
     index("proofs_match_day_idx").on(table.matchId, table.day),
+    index("proofs_match_uploader_day_idx").on(table.matchId, table.uploaderId, table.day),
+    index("proofs_uploader_status_idx").on(table.uploaderId, table.status),
   ],
 )
 
@@ -259,7 +266,11 @@ export const messages = pgTable(
     storageUrl: text("storage_url"),
     sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("messages_match_id_idx").on(table.matchId), index("messages_sender_id_idx").on(table.senderId)],
+  (table) => [
+    index("messages_match_id_idx").on(table.matchId),
+    index("messages_sender_id_idx").on(table.senderId),
+    index("messages_match_sent_idx").on(table.matchId, table.sentAt),
+  ],
 )
 
 // ---------------------------------------------------------------------------

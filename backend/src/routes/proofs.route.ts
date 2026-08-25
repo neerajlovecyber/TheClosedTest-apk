@@ -9,6 +9,7 @@ import { matches, notifications, proofs, users } from "../db/schema"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 import { sendExpoPushNotification } from "../services/expo-push"
+import { deleteMultipleObjectsFromR2 } from "../services/r2-storage"
 
 const ProofSchema = z.object({
   id: z.string(),
@@ -90,6 +91,14 @@ router.openapi(
 
       let newProof
       if (existingProof) {
+        // Asynchronously delete old screenshots from R2
+        if (existingProof.storageUrls && existingProof.storageUrls.length > 0) {
+          const oldUrls = existingProof.storageUrls
+          deleteMultipleObjectsFromR2(oldUrls).catch((e) =>
+            console.error("Failed to delete replaced proof files from R2:", e),
+          )
+        }
+
         const [updated] = await db
           .update(proofs)
           .set({

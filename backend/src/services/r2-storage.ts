@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import { DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 import { env } from "../env"
@@ -74,5 +74,67 @@ export async function generateUploadUrl({
     uploadUrl,
     publicUrl,
     key: uniqueKey,
+  }
+}
+
+export async function deleteObjectFromR2(fileUrlOrKey: string): Promise<boolean> {
+  const client = getS3Client()
+  if (!client || !fileUrlOrKey) return false
+
+  try {
+    const bucketName = env.CLOUDFLARE_R2_BUCKET_NAME || "theclosedtest"
+    const publicBaseUrl = env.CLOUDFLARE_R2_PUBLIC_URL || "https://assets.theclosedtest.com"
+
+    let key = fileUrlOrKey
+    if (key.startsWith(publicBaseUrl)) {
+      key = key.replace(`${publicBaseUrl}/`, "")
+    } else if (key.includes(".r2.dev/")) {
+      key = key.split(".r2.dev/").pop() || key
+    }
+
+    const command = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    })
+    await client.send(command)
+    return true
+  } catch (err) {
+    console.error("Failed to delete object from R2:", err)
+    return false
+  }
+}
+
+export async function deleteMultipleObjectsFromR2(fileUrlsOrKeys: string[]): Promise<boolean> {
+  const client = getS3Client()
+  if (!client || !fileUrlsOrKeys || fileUrlsOrKeys.length === 0) return false
+
+  try {
+    const bucketName = env.CLOUDFLARE_R2_BUCKET_NAME || "theclosedtest"
+    const publicBaseUrl = env.CLOUDFLARE_R2_PUBLIC_URL || "https://assets.theclosedtest.com"
+
+    const objects = fileUrlsOrKeys
+      .filter(Boolean)
+      .map((item) => {
+        let key = item
+        if (key.startsWith(publicBaseUrl)) {
+          key = key.replace(`${publicBaseUrl}/`, "")
+        } else if (key.includes(".r2.dev/")) {
+          key = key.split(".r2.dev/").pop() || key
+        }
+        return { Key: key }
+      })
+      .filter((obj) => obj.Key.length > 0)
+
+    if (objects.length === 0) return false
+
+    const command = new DeleteObjectsCommand({
+      Bucket: bucketName,
+      Delete: { Objects: objects, Quiet: true },
+    })
+    await client.send(command)
+    return true
+  } catch (err) {
+    console.error("Failed to delete objects from R2:", err)
+    return false
   }
 }
