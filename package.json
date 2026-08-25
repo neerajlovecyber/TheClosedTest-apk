@@ -17,8 +17,8 @@
     "check:fix": "oxlint --fix && oxfmt .",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .expo node_modules",
-    "ota:prod": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel production",
-    "ota:preview": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel preview",
+    "ota:prod": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel production --dangerously-ignore-fingerprint-check",
+    "ota:preview": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel preview --dangerously-ignore-fingerprint-check",
     "ota:dry-run": "bun run cloudflare-expo-ota-updates/apps/easc/index.ts update --channel production --dry-run"
   },
   "dependencies": {
