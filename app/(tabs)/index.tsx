@@ -46,15 +46,7 @@ export default function HomeScreen() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isUnlockSlotsDialogOpen, setIsUnlockSlotsDialogOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
-  const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
   const attentionScrollRef = React.useRef<ScrollView>(null);
-
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeUntilReset(getTimeUntilMidnightIST());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   // API Queries
   const { data: currentUser, refetch: refetchUser, isError: userError } = useCurrentUser();
@@ -301,7 +293,7 @@ export default function HomeScreen() {
                         _id: String(task.id),
                         title: task.name,
                         ownerName: task.owner,
-                        dueIn: `${timeUntilReset.hours}h ${timeUntilReset.minutes}m left`,
+                        dueIn: `Day ${task.day} of ${task.totalDays}`,
                         day: task.day,
                         totalDays: task.totalDays,
                         iconUrl: task.iconUrl,
