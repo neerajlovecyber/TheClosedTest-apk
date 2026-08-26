@@ -405,8 +405,22 @@ export async function runDailyTestingReminders() {
     }
 
     // Send consolidated notifications per user
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000)
+
     for (const [userId, { pushToken, uploadApps, reviewApps }] of userReminderMap) {
       if (uploadApps.length === 0 && reviewApps.length === 0) continue
+
+      // Deduplication guard: Avoid spamming the user if a reminder was sent in the last 4 hours
+      const recentReminder = await db.query.notifications.findFirst({
+        where: and(
+          eq(notifications.userId, userId),
+          eq(notifications.type, "reminder"),
+          sql`${notifications.createdAt} >= ${fourHoursAgo}`,
+        ),
+      })
+      if (recentReminder) {
+        continue
+      }
 
       let title = "Daily Testing Reminder"
       let body = ""
@@ -481,9 +495,8 @@ export function startCronJobs() {
     await runOldMatchesCleanup()
   })
 
-  // Initial checks on server boot
+  // Initial maintenance checks on server boot (data cleanups only, NO notification spam)
   runMatchProgressionAndCleanup()
-  runDailyTestingReminders()
   runNotificationCleanup()
   runExpiredBansCleanup()
   runOldMatchesCleanup()
