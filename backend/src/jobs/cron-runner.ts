@@ -334,10 +334,7 @@ export async function runDailyTestingReminders() {
     })
 
     // Map: userId -> { pushToken?: string, uploadApps: string[], reviewApps: string[] }
-    const userReminderMap = new Map<
-      string,
-      { pushToken?: string | null; uploadApps: string[]; reviewApps: string[] }
-    >()
+    const userReminderMap = new Map<string, { pushToken?: string | null; uploadApps: string[]; reviewApps: string[] }>()
 
     for (const match of activeMatches) {
       const matchDay = getMatchDay(match.startDate, match.createdAt)
@@ -346,9 +343,7 @@ export async function runDailyTestingReminders() {
 
       // --- USER 1 CHECKS ---
       // 1. Did User 1 upload proof for today? (User 1 tests App 2)
-      const user1UploadedToday = user1Proofs.some(
-        (p) => p.day === matchDay && p.status !== "rejected",
-      )
+      const user1UploadedToday = user1Proofs.some((p) => p.day === matchDay && p.status !== "rejected")
       if (!user1UploadedToday) {
         const entry = userReminderMap.get(match.user1Id) || {
           pushToken: match.user1?.pushToken,
@@ -379,9 +374,7 @@ export async function runDailyTestingReminders() {
 
       // --- USER 2 CHECKS ---
       // 1. Did User 2 upload proof for today? (User 2 tests App 1)
-      const user2UploadedToday = user2Proofs.some(
-        (p) => p.day === matchDay && p.status !== "rejected",
-      )
+      const user2UploadedToday = user2Proofs.some((p) => p.day === matchDay && p.status !== "rejected")
       if (!user2UploadedToday) {
         const entry = userReminderMap.get(match.user2Id) || {
           pushToken: match.user2?.pushToken,

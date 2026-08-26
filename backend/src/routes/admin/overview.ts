@@ -7,6 +7,7 @@ import { createMessageObjectSchema } from "stoker/openapi/schemas"
 import { db } from "../../db"
 import { apps, matches, proofs, reports, users } from "../../db/schema"
 import { createRouter } from "../../lib/create-app"
+import { presence } from "../../lib/presence"
 import { adminAuthMiddleware } from "../../middlewares/auth"
 import { enrichAppsWithTesterCounts } from "../apps.route"
 import { AdminUserListItemSchema } from "./schemas"
@@ -29,6 +30,7 @@ router.openapi(
           activeMatches: z.number(),
           totalProofs: z.number(),
           pendingReports: z.number(),
+          activeUsers: z.number(),
         }),
         "Platform stats",
       ),
@@ -48,6 +50,7 @@ router.openapi(
         activeMatches: Number(matchCount.value),
         totalProofs: Number(proofCount.value),
         pendingReports: Number(reportCount.value),
+        activeUsers: presence.getActiveCount(5),
       },
       HttpStatusCodes.OK,
     )

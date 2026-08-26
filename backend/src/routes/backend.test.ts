@@ -332,6 +332,15 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
     expect(Array.isArray(data.leaderboard)).toBe(true)
   })
 
+  it("20. GET /api/users/active-count returns in-memory presence statistics", async () => {
+    const res = await app.request("/api/users/active-count")
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.active5m).toBeGreaterThanOrEqual(2)
+    expect(data.active15m).toBeGreaterThanOrEqual(2)
+    expect(data.active1h).toBeGreaterThanOrEqual(2)
+  })
+
   // Cleanup all test records created in this test run
   afterAll(async () => {
     try {

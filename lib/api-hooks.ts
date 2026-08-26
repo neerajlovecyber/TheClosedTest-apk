@@ -949,10 +949,24 @@ export function useAdminStats() {
     activeMatches: number;
     totalProofs: number;
     pendingReports: number;
+    activeUsers?: number;
   }>({
     queryKey: ["adminStats"],
     queryFn: () => api.get("/api/admin/stats"),
     refetchInterval: 1000 * 15,
+  });
+}
+
+export function useActiveUsersCount() {
+  return useQuery<{
+    active5m: number;
+    active15m: number;
+    active1h: number;
+  }>({
+    queryKey: ["activeUsersCount"],
+    queryFn: () => api.get("/api/users/active-count"),
+    refetchInterval: 1000 * 30, // Poll gently every 30 seconds
+    staleTime: 1000 * 15,
   });
 }
 

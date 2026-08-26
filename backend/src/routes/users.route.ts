@@ -8,6 +8,7 @@ import { db } from "../db"
 import { apps, dailyActivity, users } from "../db/schema"
 import { isUserAdmin } from "../lib/constants"
 import { createRouter } from "../lib/create-app"
+import { presence } from "../lib/presence"
 import { authMiddleware } from "../middlewares/auth"
 
 const UserResponseSchema = z.object({
@@ -373,6 +374,37 @@ router.openapi(
       .returning()
 
     return c.json(updated, HttpStatusCodes.OK)
+  },
+)
+
+// 8. Get Active Online Users Count (Zero DB Load)
+router.openapi(
+  createRoute({
+    tags: ["Users"],
+    method: "get",
+    path: "/api/users/active-count",
+    summary: "Get Currently Active Users Count",
+    description: "Returns count of users active in the last 5, 15, and 60 minutes with zero database load",
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        z.object({
+          active5m: z.number(),
+          active15m: z.number(),
+          active1h: z.number(),
+        }),
+        "Active user counts",
+      ),
+    },
+  }),
+  (c) => {
+    return c.json(
+      {
+        active5m: presence.getActiveCount(5),
+        active15m: presence.getActiveCount(15),
+        active1h: presence.getActiveCount(60),
+      },
+      HttpStatusCodes.OK,
+    )
   },
 )
 

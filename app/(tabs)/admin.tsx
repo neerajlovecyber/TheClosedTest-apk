@@ -13,6 +13,7 @@ export default function AdminDashboardScreen() {
   const router = useRouter();
   const { data: stats } = useAdminStats();
   const totalUsersCount = stats?.totalUsers ?? 0;
+  const activeOnlineUsers = stats?.activeUsers ?? 0;
   const activeMatchesCount = stats?.activeMatches ?? 0;
   const totalAppsCount = stats?.totalApps ?? 0;
 
@@ -33,8 +34,11 @@ export default function AdminDashboardScreen() {
                 <View className="bg-blue-500/10 p-2 rounded-lg">
                   <Icon as={ActivityIcon} className="text-blue-500 size-5" />
                 </View>
-                <View className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-full">
-                  <Text className="text-blue-600 dark:text-blue-400 font-bold text-[10px] uppercase tracking-wider">Live</Text>
+                <View className="flex-row items-center gap-1 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                  <View className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <Text className="text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
+                    {activeOnlineUsers} online
+                  </Text>
                 </View>
               </View>
               <View>

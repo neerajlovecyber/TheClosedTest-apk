@@ -12,10 +12,7 @@ export const globalRateLimiter = rateLimiter<AppBindings>({
   skip: () => process.env.NODE_ENV === "test",
   keyGenerator: (c) => {
     return (
-      c.req.header("cf-connecting-ip") ||
-      c.req.header("x-forwarded-for") ||
-      c.req.header("x-real-ip") ||
-      "127.0.0.1"
+      c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1"
     )
   },
 })
@@ -31,11 +28,6 @@ export const sensitiveActionLimiter = rateLimiter<AppBindings>({
   skip: () => process.env.NODE_ENV === "test",
   keyGenerator: (c) => {
     const user = c.get("user")
-    return (
-      user?.id ||
-      c.req.header("cf-connecting-ip") ||
-      c.req.header("x-forwarded-for") ||
-      "127.0.0.1"
-    )
+    return user?.id || c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for") || "127.0.0.1"
   },
 })

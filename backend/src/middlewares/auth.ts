@@ -8,6 +8,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose"
 import { db } from "../db"
 import { users } from "../db/schema"
 import { isUserAdmin } from "../lib/constants"
+import { presence } from "../lib/presence"
 import type { AppBindings } from "../lib/types"
 
 const CLERK_PUBLISHABLE_KEY =
@@ -128,6 +129,9 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
   }
 
   const isAdminUser = isUserAdmin(user.email, user.isAdmin)
+
+  // Track active presence passively with 0 DB overhead
+  presence.record(user.id)
 
   c.set("user", {
     id: user.id,
