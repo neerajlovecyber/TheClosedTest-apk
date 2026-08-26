@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
-import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Modal, Dimensions, Pressable } from "react-native";
+import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Dimensions, Pressable } from "react-native";
 import { toast } from "@/lib/sonner";
 import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
@@ -16,13 +16,12 @@ import {
   CheckCircleIcon,
   ClockIcon,
   LockIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useCurrentUser, usePresignedUploadUrl, useSubmitProof } from "@/lib/api-hooks";
 import { uploadImageToR2 } from "@/utils/image-uploader";
+import { ImageViewerModal } from "@/components/ImageViewerModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -324,66 +323,12 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
 
   // Image viewer modal
   const imageViewerModal = (
-    <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)" }}>
-        <View style={{ paddingTop: 50, paddingBottom: 10, alignItems: "center" }}>
-          <Text className="text-white text-center font-medium">
-            {viewerIndex + 1} / {viewerImages.length}
-          </Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          contentOffset={{ x: viewerIndex * SCREEN_WIDTH, y: 0 }}
-          onMomentumScrollEnd={(e) => {
-            const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-            setViewerIndex(newIndex);
-          }}
-          style={{ flex: 1 }}
-        >
-          {viewerImages.map((url, i) => (
-            <View key={i} style={{ width: SCREEN_WIDTH, justifyContent: "center", alignItems: "center" }}>
-              <Image source={{ uri: url }} style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.7 }} contentFit="contain" transition={200} />
-            </View>
-          ))}
-        </ScrollView>
-
-        {viewerImages.length > 1 && (
-          <View style={{ position: "absolute", top: 0, bottom: 0, left: 10, justifyContent: "center" }} pointerEvents="none">
-            {viewerIndex > 0 && (
-              <View style={{ backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 20, padding: 8 }}>
-                <Icon as={ChevronLeftIcon} className="text-white/80 size-8" />
-              </View>
-            )}
-          </View>
-        )}
-        {viewerImages.length > 1 && (
-          <View style={{ position: "absolute", top: 0, bottom: 0, right: 10, justifyContent: "center" }} pointerEvents="none">
-            {viewerIndex < viewerImages.length - 1 && (
-              <View style={{ backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 20, padding: 8 }}>
-                <Icon as={ChevronRightIcon} className="text-white/80 size-8" />
-              </View>
-            )}
-          </View>
-        )}
-
-        <View style={{ paddingBottom: 40, paddingTop: 15, alignItems: "center" }}>
-          <Pressable
-            onPress={() => setViewerVisible(false)}
-            style={{
-              paddingVertical: 12,
-              paddingHorizontal: 30,
-              backgroundColor: "rgba(255,255,255,0.15)",
-              borderRadius: 25,
-            }}
-          >
-            <Text className="text-white font-medium">Close</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
+    <ImageViewerModal
+      visible={viewerVisible}
+      images={viewerImages}
+      initialIndex={viewerIndex}
+      onClose={() => setViewerVisible(false)}
+    />
   );
 
   if (isFuture) {

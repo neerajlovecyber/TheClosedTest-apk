@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { View, Pressable, TextInput, ScrollView, ActivityIndicator, Platform, Modal, Dimensions, TouchableOpacity } from "react-native";
+import { View, Pressable, TextInput, ScrollView, ActivityIndicator, Platform, Dimensions, TouchableOpacity } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { FlashList } from "@shopify/flash-list";
@@ -19,6 +19,7 @@ import {
   XIcon,
   LucideIcon,
 } from "lucide-react-native";
+import { ImageViewerModal } from "@/components/ImageViewerModal";
 
 export interface ChatMessageItem {
   id: string;
@@ -342,35 +343,11 @@ export function ChatView({
       </KeyboardAvoidingView>
 
       {/* Fullscreen Image Preview Modal */}
-      {previewImageUrl && (
-        <Modal
-          visible={Boolean(previewImageUrl)}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPreviewImageUrl(null)}
-        >
-          <View className="flex-1 bg-black/95 items-center justify-center">
-            <SafeAreaView className="absolute top-0 right-0 z-50 p-4">
-              <TouchableOpacity
-                onPress={() => setPreviewImageUrl(null)}
-                className="w-10 h-10 rounded-full bg-white/20 items-center justify-center active:bg-white/30"
-              >
-                <Icon as={XIcon} className="text-white size-6" />
-              </TouchableOpacity>
-            </SafeAreaView>
-
-            <Image
-              source={{ uri: previewImageUrl }}
-              style={{
-                width: Dimensions.get("window").width,
-                height: Dimensions.get("window").height * 0.85,
-              }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
-          </View>
-        </Modal>
-      )}
+      <ImageViewerModal
+        visible={Boolean(previewImageUrl)}
+        images={previewImageUrl ? [previewImageUrl] : []}
+        onClose={() => setPreviewImageUrl(null)}
+      />
     </SafeAreaView>
   );
 }

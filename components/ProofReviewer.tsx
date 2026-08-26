@@ -1,5 +1,5 @@
 import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { View, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Modal, FlatList, Pressable } from "react-native";
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, FlatList, Pressable } from "react-native";
 import { toast } from "@/lib/sonner";
 import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { CheckCircleIcon, XCircleIcon, ClockIcon, UserIcon, MessageSquareIcon, ImageIcon } from "lucide-react-native";
 import { useReviewProof } from "@/lib/api-hooks";
+import { ImageViewerModal } from "@/components/ImageViewerModal";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -106,25 +107,6 @@ function ProofReviewerComponent({ matchId, currentDay, isPast, isFuture, partner
   const handleCloseFullScreen = () => {
     setIsFullScreen(false);
   };
-
-  const handleScrollEnd = (event: any) => {
-    const contentOffset = event.nativeEvent.contentOffset;
-    const index = Math.round(contentOffset.x / SCREEN_WIDTH);
-    if (index !== currentImageIndex && index >= 0 && index < images.length) {
-      setCurrentImageIndex(index);
-    }
-  };
-
-  useEffect(() => {
-    if (isFullScreen && flatListRef.current && images.length > 0) {
-      const safeIndex = Math.min(currentImageIndex, images.length - 1);
-      setTimeout(() => {
-        if (safeIndex >= 0 && safeIndex < images.length) {
-          flatListRef.current?.scrollToIndex({ index: safeIndex, animated: false });
-        }
-      }, 100);
-    }
-  }, [isFullScreen, images.length, currentImageIndex]);
 
   if (isFuture) {
     return (
@@ -344,40 +326,12 @@ function ProofReviewerComponent({ matchId, currentDay, isPast, isFuture, partner
         </View>
       )}
 
-      <Modal visible={isFullScreen} transparent={true} animationType="fade" onRequestClose={handleCloseFullScreen}>
-        <View className="flex-1 bg-black">
-          <TouchableOpacity onPress={handleCloseFullScreen} className="absolute top-12 right-4 z-50 bg-black/50 p-2 rounded-full">
-            <Icon as={XCircleIcon} className="text-white size-8" />
-          </TouchableOpacity>
-
-          <View className="absolute top-12 left-4 z-50 bg-black/50 px-3 py-1 rounded-full">
-            <Text className="text-white font-bold">
-              {currentImageIndex + 1} / {images.length}
-            </Text>
-          </View>
-
-          <FlatList
-            ref={flatListRef}
-            data={images}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(_item: string, index: number) => index.toString()}
-            onMomentumScrollEnd={handleScrollEnd}
-            getItemLayout={(_data: any, index: number) => ({
-              length: SCREEN_WIDTH,
-              offset: SCREEN_WIDTH * index,
-              index,
-            })}
-            initialScrollIndex={currentImageIndex}
-            renderItem={({ item }: { item: string }) => (
-              <View style={{ width: SCREEN_WIDTH, height: "100%", justifyContent: "center" }}>
-                <Image source={{ uri: item }} style={{ width: "100%", height: "100%" }} contentFit="contain" cachePolicy="memory-disk" />
-              </View>
-            )}
-          />
-        </View>
-      </Modal>
+      <ImageViewerModal
+        visible={isFullScreen}
+        images={images}
+        initialIndex={currentImageIndex}
+        onClose={handleCloseFullScreen}
+      />
     </View>
   );
 }
