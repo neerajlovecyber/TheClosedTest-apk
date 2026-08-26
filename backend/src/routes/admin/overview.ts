@@ -31,6 +31,7 @@ router.openapi(
           totalProofs: z.number(),
           pendingReports: z.number(),
           activeUsers: z.number(),
+          activeUsers24h: z.number(),
         }),
         "Platform stats",
       ),
@@ -51,6 +52,7 @@ router.openapi(
         totalProofs: Number(proofCount.value),
         pendingReports: Number(reportCount.value),
         activeUsers: presence.getActiveCount(5),
+        activeUsers24h: presence.getActiveCount(1440),
       },
       HttpStatusCodes.OK,
     )

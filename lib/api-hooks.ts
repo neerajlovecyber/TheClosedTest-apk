@@ -950,6 +950,7 @@ export function useAdminStats() {
     totalProofs: number;
     pendingReports: number;
     activeUsers?: number;
+    activeUsers24h?: number;
   }>({
     queryKey: ["adminStats"],
     queryFn: () => api.get("/api/admin/stats"),

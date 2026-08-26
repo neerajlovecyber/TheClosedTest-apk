@@ -14,6 +14,7 @@ export default function AdminDashboardScreen() {
   const { data: stats } = useAdminStats();
   const totalUsersCount = stats?.totalUsers ?? 0;
   const activeOnlineUsers = stats?.activeUsers ?? 0;
+  const activeUsers24h = stats?.activeUsers24h ?? activeOnlineUsers;
   const activeMatchesCount = stats?.activeMatches ?? 0;
   const totalAppsCount = stats?.totalApps ?? 0;
 
@@ -42,8 +43,8 @@ export default function AdminDashboardScreen() {
                 </View>
               </View>
               <View>
-                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{totalUsersCount}</Text>
-                <Text className="text-xs text-muted-foreground font-medium mt-1">Total Users</Text>
+                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{activeUsers24h}</Text>
+                <Text className="text-xs text-muted-foreground font-medium mt-1">Active Today · {totalUsersCount} Total</Text>
               </View>
             </CardContent>
           </Card>
