@@ -52,15 +52,15 @@ export default function AdminDashboardScreen() {
             <CardContent className="p-4 flex-1 justify-between">
               <View className="flex-row items-start justify-between">
                 <View className="bg-emerald-500/10 p-2 rounded-lg">
-                  <Icon as={UserPlusIcon} className="text-emerald-500 size-5" />
+                  <Icon as={LayersIcon} className="text-emerald-500 size-5" />
                 </View>
                 <View className="bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                  <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">Active</Text>
+                  <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">Apps</Text>
                 </View>
               </View>
               <View>
-                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{activeMatchesCount}</Text>
-                <Text className="text-xs text-muted-foreground font-medium mt-1">Active Tests ({totalAppsCount} Apps)</Text>
+                <Text className="text-3xl font-extrabold text-foreground tracking-tight">{totalAppsCount}</Text>
+                <Text className="text-xs text-muted-foreground font-medium mt-1">Total Apps ({activeMatchesCount} Tests)</Text>
               </View>
             </CardContent>
           </Card>
