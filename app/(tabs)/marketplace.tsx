@@ -199,7 +199,7 @@ export default function MarketplaceScreen() {
       <ScreenScrollView
         contentContainerStyle={{ padding: 16 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}
+        onRefresh={onRefresh}
       >
         <View className="gap-3">
           <View className="mb-0 flex-row justify-between items-start">

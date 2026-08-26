@@ -147,8 +147,15 @@ export default function NotificationsScreen() {
     return result;
   }, [notifications]);
 
+  const [refreshing, setRefreshing] = React.useState(false);
+
   const onRefresh = React.useCallback(async () => {
-    await refetch();
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   }, [refetch]);
 
   const handleMarkAllRead = async () => {
@@ -211,7 +218,7 @@ export default function NotificationsScreen() {
     [handleNotificationPress],
   );
 
-  const refreshControl = <RefreshControl refreshing={isFetching} onRefresh={onRefresh} />;
+  const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />;
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-background">

@@ -153,7 +153,7 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
 export default function TestsScreen() {
   const router = useRouter();
   const { data: currentUser } = useCurrentUser();
-  const { data: activeMatches = [], refetch, isFetching, isError } = useMatches("active");
+  const { data: activeMatches = [], refetch, isError, isFetching } = useMatches("active");
 
   // Instant refresh when navigating or switching to Tests tab
   useRefreshOnFocus(
@@ -161,10 +161,6 @@ export default function TestsScreen() {
       await refetch();
     }, [refetch]),
   );
-
-  const onRefresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
 
   // Countdown timer state
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
@@ -260,7 +256,7 @@ export default function TestsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <ScreenScrollView className="flex-1" refreshControl={<RefreshControl refreshing={isFetching} onRefresh={onRefresh} />}>
+      <ScreenScrollView className="flex-1" onRefresh={refetch}>
         {/* Header */}
         <View className="px-6 py-4">
           <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>

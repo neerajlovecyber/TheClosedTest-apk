@@ -11,10 +11,20 @@ import { useAdminSupportChats, useAdminUsers, useGetOrCreateAdminUserChat } from
 
 export default function AdminChatsListScreen() {
   const router = useRouter();
-  const { data: chats, isLoading: isChatsLoading, refetch: refetchChats, isRefetching: isRefetchingChats } = useAdminSupportChats();
+  const { data: chats, isLoading: isChatsLoading, refetch: refetchChats } = useAdminSupportChats();
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { data: searchedUsers, isLoading: isUsersLoading } = useAdminUsers(searchQuery);
   const getOrCreateChat = useGetOrCreateAdminUserChat();
+
+  const handleManualRefresh = async () => {
+    setIsManualRefreshing(true);
+    try {
+      await refetchChats();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
 
   // Auto-refresh when navigating back to inbox
   useFocusEffect(
@@ -246,7 +256,7 @@ export default function AdminChatsListScreen() {
           )}
           renderItem={({ item, section }: { item: any; section: any }) => (section.type === "chat" ? renderChatItem({ item }) : renderUserItem({ item }))}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-          refreshControl={<RefreshControl refreshing={isRefetchingChats} onRefresh={refetchChats} />}
+          refreshControl={<RefreshControl refreshing={isManualRefreshing} onRefresh={handleManualRefresh} />}
         />
       )}
     </SafeAreaView>

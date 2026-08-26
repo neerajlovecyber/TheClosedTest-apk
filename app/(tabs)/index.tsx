@@ -208,7 +208,7 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <ScreenScrollView className="flex-1" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <ScreenScrollView className="flex-1" onRefresh={onRefresh}>
         {/* Header Section */}
         <View className="px-6 pt-8 pb-4">
           <View className="flex-row justify-between items-start mb-4">

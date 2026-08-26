@@ -285,7 +285,7 @@ export default function MatchDashboardScreen() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         style={!isWeb ? { width: SCREEN_WIDTH } : undefined}
-        refreshControl={<RefreshControl refreshing={isManualRefreshing || isFetchingMatch || isFetchingProofs} onRefresh={handleRefresh} />}
+        onRefresh={handleRefresh}
       >
         {/* Header Section */}
         <View className="px-4 pt-4 pb-2">

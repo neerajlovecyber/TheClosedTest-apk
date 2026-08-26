@@ -38,7 +38,17 @@ export default function AdminAppsListScreen() {
   const [banPackageOnDelete, setBanPackageOnDelete] = useState(false);
   const [showCleanDuplicatesModal, setShowCleanDuplicatesModal] = useState(false);
 
-  const { data: appsResponse, isLoading, refetch, isRefetching } = useAdminApps(debouncedSearch || undefined, undefined, 150, 0);
+  const { data: appsResponse, isLoading, refetch } = useAdminApps(debouncedSearch || undefined, undefined, 150, 0);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  const handleManualRefresh = async () => {
+    setIsManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
 
   const deleteAppMutation = useAdminDeleteApp();
   const cleanDuplicatesMutation = useAdminCleanDuplicates();
@@ -313,7 +323,7 @@ export default function AdminAppsListScreen() {
           renderItem={renderAppItem}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 60 }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+          refreshControl={<RefreshControl refreshing={isManualRefreshing} onRefresh={handleManualRefresh} />}
           ListEmptyComponent={
             <View className="items-center justify-center py-16">
               <Icon as={CheckCircleIcon} className="size-10 text-muted-foreground mb-2" />
