@@ -22,6 +22,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { useCurrentUser, usePresignedUploadUrl, useSubmitProof } from "@/lib/api-hooks";
 import { uploadImageToR2 } from "@/utils/image-uploader";
 import { ImageViewerModal } from "@/components/ImageViewerModal";
+import { RatingManager } from "@/lib/rating-manager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -215,6 +216,7 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
       setComment("");
       setIsEditingProof(false);
       onUploadComplete?.();
+      RatingManager.recordHappyMomentAndCheckReview("Proof Uploaded").catch(() => {});
     } catch (error: any) {
       console.error(error);
       toast.error("Upload failed", { description: error.message || "Please check your internet connection and retry." });

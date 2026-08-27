@@ -37,6 +37,7 @@ import {
 } from "@/lib/api-hooks";
 import { ErrorState } from "@/components/ErrorState";
 import { getMatchCurrentDay, getTimeUntilMidnightIST } from "@/lib/date-utils";
+import { RatingManager } from "@/lib/rating-manager";
 
 export default function HomeScreen() {
   const { user } = useUser();
@@ -112,10 +113,14 @@ export default function HomeScreen() {
       const isSameDay = now.getFullYear() === lastCheckIn.getFullYear() && now.getMonth() === lastCheckIn.getMonth() && now.getDate() === lastCheckIn.getDate();
 
       if (!isSameDay) {
-        checkIn.mutateAsync().catch(() => {});
+        checkIn.mutateAsync().then(() => {
+          if (currentUser.streak && currentUser.streak >= 3) {
+            RatingManager.recordHappyMomentAndCheckReview("Streak Milestone").catch(() => {});
+          }
+        }).catch(() => {});
       }
     }
-  }, [currentUser?.lastCheckInDate]);
+  }, [currentUser?.lastCheckInDate, currentUser?.streak]);
 
   // Format active matches into task objects
   const dueTasks = React.useMemo(() => {
@@ -183,6 +188,7 @@ export default function HomeScreen() {
     try {
       await acceptMatch.mutateAsync(matchId);
       toast.success("Success", { description: "Swap accepted! You can now start testing." });
+      RatingManager.recordHappyMomentAndCheckReview("Swap Accepted").catch(() => {});
     } catch (error: any) {
       toast.error("Error", { description: error.message || "Failed to accept swap." });
     }

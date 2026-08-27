@@ -38,6 +38,7 @@ import { useColorScheme } from "nativewind";
 import * as React from "react";
 import { Linking, View, Share, TouchableOpacity, Modal, Pressable } from "react-native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
+import { RatingManager } from "@/lib/rating-manager";
 import { ApiEnvSwitch } from "@/components/ApiEnvSwitch";
 import Constants from "expo-constants";
 import { useCurrentUser, useMySupportChat } from "@/lib/api-hooks";
@@ -157,7 +158,7 @@ export default function SettingsScreen() {
   };
 
   const handleRate = () => {
-    handleLink("https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest");
+    RatingManager.openPlayStoreListing();
   };
 
   const handleLink = (url: string) => {
