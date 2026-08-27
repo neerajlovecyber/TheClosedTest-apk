@@ -70,18 +70,13 @@ export const RatingManager = {
 
   /**
    * Direct manual navigation to Play Store review listing (e.g. from Settings > "Rate Us").
+   * Always launches the Play Store app directly (market://) with web fallback,
+   * guaranteeing that user intent is never blocked by in-app quota limits.
    */
   async openPlayStoreListing(): Promise<void> {
     try {
       await AsyncStorage.setItem(KEY_HAS_RATED, "true");
 
-      // Prefer native in-app review if available first
-      if (await StoreReview.isAvailableAsync()) {
-        await StoreReview.requestReview();
-        return;
-      }
-
-      // Fallback to store deep link or web browser
       if (Platform.OS === "android") {
         const canOpenMarket = await Linking.canOpenURL(PLAY_STORE_MARKET_URL);
         if (canOpenMarket) {
