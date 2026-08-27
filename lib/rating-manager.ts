@@ -1,6 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as StoreReview from "expo-store-review";
 import { Linking, Platform } from "react-native";
+
+// Safe wrapper to prevent crashing on older APK binaries without expo-store-review native module
+const getStoreReview = () => {
+  try {
+    return require("expo-store-review");
+  } catch {
+    return null;
+  }
+};
 
 const KEY_LAST_PROMPT_TIMESTAMP = "@theclosedtest_rating_last_prompt_ts";
 const KEY_ACTION_COUNT = "@theclosedtest_rating_action_count";
@@ -47,7 +55,12 @@ export const RatingManager = {
       }
 
       // Check if In-App Review API is available on this device/OS
-      const isAvailable = await StoreReview.isAvailableAsync();
+      const StoreReview = getStoreReview();
+      if (!StoreReview) {
+        return false;
+      }
+
+      const isAvailable = await StoreReview.isAvailableAsync().catch(() => false);
       if (!isAvailable) {
         return false;
       }
@@ -56,7 +69,7 @@ export const RatingManager = {
       await AsyncStorage.setItem(KEY_LAST_PROMPT_TIMESTAMP, now.toString());
 
       // Trigger native in-app review card (Google Play Core)
-      await StoreReview.requestReview();
+      await StoreReview.requestReview().catch(() => {});
 
       if (__DEV__) {
         console.log(`[RatingManager] In-App Review flow triggered successfully on "${reason}"`);
@@ -98,7 +111,16 @@ export const RatingManager = {
    */
   async testInAppReview(): Promise<{ success: boolean; isAvailable: boolean; message: string }> {
     try {
-      const isAvailable = await StoreReview.isAvailableAsync();
+      const StoreReview = getStoreReview();
+      if (!StoreReview) {
+        return {
+          success: false,
+          isAvailable: false,
+          message: "StoreReview module is not compiled into this binary build. (Direct fallback to store listing is active).",
+        };
+      }
+
+      const isAvailable = await StoreReview.isAvailableAsync().catch(() => false);
       if (!isAvailable) {
         return {
           success: false,
@@ -107,7 +129,7 @@ export const RatingManager = {
         };
       }
 
-      await StoreReview.requestReview();
+      await StoreReview.requestReview().catch(() => {});
       return {
         success: true,
         isAvailable: true,
