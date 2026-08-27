@@ -96,4 +96,58 @@ export const RatingManager = {
       Linking.openURL(PLAY_STORE_WEB_URL).catch(() => {});
     }
   },
+
+  /**
+   * Test tool for developers & admins to force trigger the In-App Review API immediately,
+   * bypassing action count and cooldown limits.
+   */
+  async testInAppReview(): Promise<{ success: boolean; isAvailable: boolean; message: string }> {
+    try {
+      const isAvailable = await StoreReview.isAvailableAsync();
+      if (!isAvailable) {
+        return {
+          success: false,
+          isAvailable: false,
+          message: "StoreReview API is not available in this environment (requires native Android/iOS build with Google Play).",
+        };
+      }
+
+      await StoreReview.requestReview();
+      return {
+        success: true,
+        isAvailable: true,
+        message: "Native In-App Review request dispatched to Google Play Core.",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        isAvailable: false,
+        message: error?.message || "Unknown error triggering StoreReview.",
+      };
+    }
+  },
+
+  /**
+   * Retrieves debug statistics from local storage.
+   */
+  async getDebugStats(): Promise<{ actionCount: number; lastPromptDate: string | null; hasRated: boolean }> {
+    const rawCount = await AsyncStorage.getItem(KEY_ACTION_COUNT);
+    const rawLastPrompt = await AsyncStorage.getItem(KEY_LAST_PROMPT_TIMESTAMP);
+    const hasRated = (await AsyncStorage.getItem(KEY_HAS_RATED)) === "true";
+
+    return {
+      actionCount: rawCount ? parseInt(rawCount, 10) : 0,
+      lastPromptDate: rawLastPrompt ? new Date(parseInt(rawLastPrompt, 10)).toLocaleString() : null,
+      hasRated,
+    };
+  },
+
+  /**
+   * Resets local counters for testing.
+   */
+  async resetDebugStats(): Promise<void> {
+    await AsyncStorage.removeItem(KEY_ACTION_COUNT);
+    await AsyncStorage.removeItem(KEY_LAST_PROMPT_TIMESTAMP);
+    await AsyncStorage.removeItem(KEY_HAS_RATED);
+  },
 };
