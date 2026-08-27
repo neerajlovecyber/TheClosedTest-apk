@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { CheckCircleIcon, XCircleIcon, ClockIcon, UserIcon, MessageSquareIcon, ImageIcon } from "lucide-react-native";
 import { useReviewProof } from "@/lib/api-hooks";
 import { ImageViewerModal } from "@/components/ImageViewerModal";
+import { RatingManager } from "@/lib/rating-manager";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -50,6 +51,7 @@ function ProofReviewerComponent({ matchId, currentDay, isPast, isFuture, partner
       });
       toast.success("Approved", { description: "You approved the proof!" });
       onReviewComplete?.();
+      RatingManager.recordHappyMomentAndCheckReview("Proof Approved").catch(() => {});
     } catch (error: any) {
       toast.error("Error", { description: error.message });
     } finally {

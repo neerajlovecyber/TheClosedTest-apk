@@ -5,11 +5,9 @@ import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@/components/ui/icon";
-import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon, LayersIcon, StarIcon } from "lucide-react-native";
+import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon, LayersIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAdminStats } from "@/lib/api-hooks";
-import { RatingManager } from "@/lib/rating-manager";
-import { toast } from "@/lib/sonner";
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
@@ -101,32 +99,6 @@ export default function AdminDashboardScreen() {
               </View>
             </View>
             <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
-          </TouchableOpacity>
-        </Card>
-
-        {/* In-App Review Diagnostics & Testing */}
-        <Card className="border-amber-200 bg-amber-50/40 dark:bg-amber-950/10 dark:border-amber-900/40 shadow-sm mb-4">
-          <TouchableOpacity
-            className="flex-row items-center justify-between p-4"
-            onPress={async () => {
-              const res = await RatingManager.testInAppReview();
-              if (res.success) {
-                toast.success("In-App Review Triggered", { description: res.message });
-              } else {
-                toast.info("StoreReview Status", { description: res.message });
-              }
-            }}
-          >
-            <View className="flex-row items-center flex-1 mr-2">
-              <View className="bg-amber-500/10 p-2.5 rounded-xl mr-3">
-                <Icon as={StarIcon} className="text-amber-600 size-5" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-amber-900 dark:text-amber-400">Test In-App Review Flow</Text>
-                <Text className="text-xs text-amber-700/80 dark:text-amber-400/70">Force triggers the native Google Play Review sheet</Text>
-              </View>
-            </View>
-            <Icon as={ChevronRightIcon} className="text-amber-500 size-5" />
           </TouchableOpacity>
         </Card>
 
