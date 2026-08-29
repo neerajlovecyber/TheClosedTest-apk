@@ -3,8 +3,8 @@ import { View, ScrollView, RefreshControl, TouchableOpacity } from "react-native
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { AppCard } from "@/components/AppCard";
 import { PendingRequestCard } from "@/components/PendingRequestCard";
-import { OpenSourceAnnouncementBanner } from "@/components/OpenSourceAnnouncementBanner";
 import { NotificationPermissionBanner } from "@/components/NotificationPermissionBanner";
+import { RateUsBanner } from "@/components/RateUsBanner";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
@@ -270,8 +270,8 @@ export default function HomeScreen() {
         {/* Soft Notification Permission Banner (if not enabled) */}
         <NotificationPermissionBanner />
 
-        {/* Open Source & Fresh Refresh Announcement Banner */}
-        <OpenSourceAnnouncementBanner />
+        {/* Custom Rate Us Banner */}
+        <RateUsBanner userStreak={streak} reputation={reputation} hasActiveMatches={activeMatches.length > 0} dueTasksCount={dueTasks.length} />
 
         {/* Attention Needed Section (Only shown when action is needed) */}
         {dueTasks.length > 0 && (
