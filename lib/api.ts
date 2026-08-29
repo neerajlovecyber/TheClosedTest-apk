@@ -62,11 +62,12 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>) {
 
 export interface ApiFetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  timeoutMs?: number;
 }
 
 export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   await loadApiEnv();
-  const { params, headers: customHeaders, ...fetchOptions } = options;
+  const { params, headers: customHeaders, timeoutMs = 15000, ...fetchOptions } = options;
 
   // Build Query String if params are provided
   let url = `${apiBaseUrl}${path}`;
@@ -100,10 +101,26 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     }
   }
 
-  const res = await fetch(url, {
-    ...fetchOptions,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...fetchOptions,
+      headers,
+      signal: fetchOptions.signal || controller.signal,
+    });
+  } catch (error: any) {
+    if (error?.name === "AbortError" || controller.signal.aborted) {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s. Please check your internet connection.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!res.ok) {
     let errorMessage = `API Error ${res.status}: ${res.statusText}`;

@@ -1,6 +1,22 @@
 import { rateLimiter } from "hono-rate-limiter"
 import type { AppBindings } from "../lib/types"
 
+function getClientIp(c: any): string {
+  const cfIp = c.req.header("cf-connecting-ip")
+  if (cfIp) return cfIp.trim()
+
+  const xRealIp = c.req.header("x-real-ip")
+  if (xRealIp) return xRealIp.trim()
+
+  const xForwardedFor = c.req.header("x-forwarded-for")
+  if (xForwardedFor) {
+    // Handle proxy chains where header is "client, proxy1, proxy2"
+    return xForwardedFor.split(",")[0].trim()
+  }
+
+  return "127.0.0.1"
+}
+
 /**
  * Global rate limiter: 300 requests per minute per IP address
  * (Generous to ensure users on shared Wi-Fi, offices, or mobile networks never experience throttling)
@@ -10,11 +26,7 @@ export const globalRateLimiter = rateLimiter<AppBindings>({
   limit: 300, // 300 requests per minute (~5 req/sec)
   standardHeaders: "draft-6",
   skip: () => process.env.NODE_ENV === "test",
-  keyGenerator: (c) => {
-    return (
-      c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1"
-    )
-  },
+  keyGenerator: (c) => getClientIp(c),
 })
 
 /**
@@ -28,6 +40,6 @@ export const sensitiveActionLimiter = rateLimiter<AppBindings>({
   skip: () => process.env.NODE_ENV === "test",
   keyGenerator: (c) => {
     const user = c.get("user")
-    return user?.id || c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for") || "127.0.0.1"
+    return user?.id ? `user:${user.id}` : `ip:${getClientIp(c)}`
   },
 })

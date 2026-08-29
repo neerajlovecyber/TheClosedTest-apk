@@ -464,42 +464,72 @@ export async function runDailyTestingReminders() {
   }
 }
 
+async function withAdvisoryLock(lockId: number, taskName: string, task: () => Promise<void>) {
+  try {
+    const lockResult = (await db.execute(sql`SELECT pg_try_advisory_lock(${lockId}) AS acquired`)) as unknown as Array<{
+      acquired: boolean
+    }>
+
+    const acquired = lockResult[0]?.acquired ?? false
+    if (!acquired) {
+      console.log(`🔒 [AdvisoryLock] Skipping ${taskName}: another server instance is already running this job.`)
+      return
+    }
+
+    try {
+      await task()
+    } finally {
+      await db.execute(sql`SELECT pg_advisory_unlock(${lockId})`).catch(() => {})
+    }
+  } catch (err) {
+    console.error(`❌ [AdvisoryLock] Error managing lock for ${taskName}:`, err)
+    // Fallback to running task directly
+    await task()
+  }
+}
+
 export function startCronJobs() {
   if (process.env.NODE_ENV === "test") return
 
-  console.log("🚀 Initializing Croner background schedulers (IST / Asia/Kolkata)...")
+  console.log("🚀 Initializing Croner background schedulers with PG Advisory Locks (Asia/Kolkata)...")
 
-  // 1. Midnight IST Streak Check & Penalty Maintenance (00:00 IST)
+  // 1. Midnight IST Streak Check & Penalty Maintenance (00:00 IST) - Lock 1001
   new Cron("0 0 * * *", { timezone: "Asia/Kolkata", name: "daily-streak" }, async () => {
     console.log("🌙 Triggering Midnight IST Streak Maintenance...")
-    await runDailyStreakMaintenance()
+    await withAdvisoryLock(1001, "Midnight IST Streak Maintenance", runDailyStreakMaintenance)
   })
 
-  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Every 2 hours)
+  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Every 2 hours) - Lock 1002
   new Cron("0 */2 * * *", { name: "match-maintenance" }, async () => {
     console.log("🔄 Triggering Match Progression & Ban Expirations...")
-    await runMatchProgressionAndCleanup()
-    await runExpiredBansCleanup()
+    await withAdvisoryLock(1002, "Match Progression & Ban Expirations", async () => {
+      await runMatchProgressionAndCleanup()
+      await runExpiredBansCleanup()
+    })
   })
 
-  // 3. Testing & Review Push Reminders (10:00 AM, 3:00 PM, and 8:00 PM IST)
+  // 3. Testing & Review Push Reminders (10:00 AM, 3:00 PM, and 8:00 PM IST) - Lock 1003
   new Cron("0 10,15,20 * * *", { timezone: "Asia/Kolkata", name: "daily-reminders" }, async () => {
     console.log("🔔 Triggering Daily Testing & Review Push Reminders...")
-    await runDailyTestingReminders()
+    await withAdvisoryLock(1003, "Daily Testing & Review Push Reminders", runDailyTestingReminders)
   })
 
-  // 4. Nightly DB Cleanups (Notifications >7d, Old Matches >60d) at 03:00 AM IST
+  // 4. Nightly DB Cleanups (Notifications >7d, Old Matches >60d) at 03:00 AM IST - Lock 1004
   new Cron("0 3 * * *", { timezone: "Asia/Kolkata", name: "db-cleanup" }, async () => {
     console.log("🧹 Triggering Nightly Database Cleanup...")
-    await runNotificationCleanup()
-    await runOldMatchesCleanup()
+    await withAdvisoryLock(1004, "Nightly Database Cleanup", async () => {
+      await runNotificationCleanup()
+      await runOldMatchesCleanup()
+    })
   })
 
-  // Initial maintenance checks on server boot (data cleanups only, NO notification spam)
-  runMatchProgressionAndCleanup()
-  runNotificationCleanup()
-  runExpiredBansCleanup()
-  runOldMatchesCleanup()
+  // Initial maintenance checks on server boot (data cleanups only, NO notification spam) - Lock 1005
+  withAdvisoryLock(1005, "Server Boot Cleanup", async () => {
+    await runMatchProgressionAndCleanup()
+    await runNotificationCleanup()
+    await runExpiredBansCleanup()
+    await runOldMatchesCleanup()
+  })
 }
 
 export const startBackgroundJobs = startCronJobs

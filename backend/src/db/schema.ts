@@ -204,6 +204,8 @@ export const matches = pgTable(
     index("matches_user2_idx").on(table.user2Id),
     index("matches_app1_idx").on(table.app1Id),
     index("matches_app2_idx").on(table.app2Id),
+    index("matches_app1_status_idx").on(table.app1Id, table.status),
+    index("matches_app2_status_idx").on(table.app2Id, table.status),
     index("matches_status_idx").on(table.status),
     index("matches_user1_status_idx").on(table.user1Id, table.status),
     index("matches_user2_status_idx").on(table.user2Id, table.status),

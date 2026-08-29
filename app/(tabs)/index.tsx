@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
+import { View, ScrollView, TouchableOpacity } from "react-native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { AppCard } from "@/components/AppCard";
 import { PendingRequestCard } from "@/components/PendingRequestCard";
@@ -36,7 +36,7 @@ import {
   MatchEntity,
 } from "@/lib/api-hooks";
 import { ErrorState } from "@/components/ErrorState";
-import { getMatchCurrentDay, getTimeUntilMidnightIST } from "@/lib/date-utils";
+import { getMatchCurrentDay } from "@/lib/date-utils";
 
 export default function HomeScreen() {
   const { user } = useUser();

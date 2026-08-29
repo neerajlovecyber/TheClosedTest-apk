@@ -7,9 +7,19 @@ import { authMiddleware } from "../middlewares/auth"
 import { sensitiveActionLimiter } from "../middlewares/rate-limiter"
 import { generateUploadUrl } from "../services/r2-storage"
 
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+] as const
+
 const StoragePresignedRequestSchema = z.object({
-  filename: z.string().min(1),
-  contentType: z.string().min(1),
+  filename: z.string().min(1).max(255),
+  contentType: z.enum(ALLOWED_IMAGE_MIME_TYPES),
   folder: z.enum(["proofs", "avatars", "icons", "messages", "reports"]).default("proofs"),
 })
 
