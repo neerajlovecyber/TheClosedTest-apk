@@ -8,6 +8,13 @@
       "when": 1787240288938,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787240500000,
+      "tag": "0001_add_pg_extensions_and_trgm_indexes",
+      "breakpoints": true
     }
   ]
 }

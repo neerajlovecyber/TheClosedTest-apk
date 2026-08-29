@@ -33,6 +33,8 @@ export const users = pgTable(
     index("users_token_identifier_idx").on(table.tokenIdentifier),
     index("users_email_idx").on(table.email),
     index("users_push_token_idx").on(table.pushToken),
+    index("users_name_trgm_idx").using("gin", sql`"name" gin_trgm_ops`),
+    index("users_email_trgm_idx").using("gin", sql`"email" gin_trgm_ops`),
   ],
 )
 
@@ -143,6 +145,8 @@ export const apps = pgTable(
     index("apps_package_name_idx").on(table.packageName),
     index("apps_user_status_idx").on(table.userId, table.status),
     index("apps_status_created_idx").on(table.status, table.createdAt),
+    index("apps_title_trgm_idx").using("gin", sql`"title" gin_trgm_ops`),
+    index("apps_package_name_trgm_idx").using("gin", sql`"package_name" gin_trgm_ops`),
   ],
 )
 

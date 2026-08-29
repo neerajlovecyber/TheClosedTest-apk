@@ -1,6 +1,8 @@
 import fs from "node:fs"
 import path from "node:path"
 import { PGlite } from "@electric-sql/pglite"
+import { pg_stat_statements } from "@electric-sql/pglite/contrib/pg_stat_statements"
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm"
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite"
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
@@ -12,19 +14,28 @@ export let pgliteInstance: PGlite | null = null
 
 function createDatabase() {
   if (env.NODE_ENV === "test" || process.env.NODE_ENV === "test") {
-    const pglite = new PGlite()
+    const pglite = new PGlite({
+      extensions: { pg_trgm, pg_stat_statements },
+    })
     pgliteInstance = pglite
     try {
-      const sqlPath = path.resolve(import.meta.dirname, "./migrations/0000_initial_schema.sql")
-      if (fs.existsSync(sqlPath)) {
-        const migrationSql = fs.readFileSync(sqlPath, "utf8")
-        const statements = migrationSql.split("--> statement-breakpoint")
-        for (const stmt of statements) {
-          const trimmed = stmt.trim()
-          if (trimmed) {
-            try {
-              pglite.exec(trimmed)
-            } catch {}
+      const migrationsDir = path.resolve(import.meta.dirname, "./migrations")
+      if (fs.existsSync(migrationsDir)) {
+        const migrationFiles = fs
+          .readdirSync(migrationsDir)
+          .filter((file) => file.endsWith(".sql"))
+          .sort()
+
+        for (const file of migrationFiles) {
+          const migrationSql = fs.readFileSync(path.join(migrationsDir, file), "utf8")
+          const statements = migrationSql.split("--> statement-breakpoint")
+          for (const stmt of statements) {
+            const trimmed = stmt.trim()
+            if (trimmed) {
+              try {
+                pglite.exec(trimmed).catch(() => {})
+              } catch {}
+            }
           }
         }
       }

@@ -37,12 +37,19 @@ async function runMigration() {
       DROP SCHEMA IF EXISTS "drizzle" CASCADE;
     `)
 
-    const sqlPath = path.resolve(import.meta.dirname, "./migrations/0000_initial_schema.sql")
-    const sqlContent = fs.readFileSync(sqlPath, "utf-8")
+    const migrationsDir = path.resolve(import.meta.dirname, "./migrations")
+    const migrationFiles = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
 
-    console.log("Applying initial schema SQL...")
-    await sql.unsafe(sqlContent)
-    console.log("✅ Schema migration executed successfully!")
+    for (const file of migrationFiles) {
+      console.log(`Applying migration ${file}...`)
+      const sqlContent = fs.readFileSync(path.join(migrationsDir, file), "utf-8")
+      await sql.unsafe(sqlContent)
+    }
+
+    console.log("✅ All schema migrations executed successfully!")
   } catch (error) {
     console.error("❌ Migration error:", error)
     process.exit(1)
