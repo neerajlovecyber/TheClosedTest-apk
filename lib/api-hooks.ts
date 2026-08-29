@@ -509,7 +509,59 @@ export function useReviewProof() {
   return useMutation({
     mutationFn: ({ proofId, status, rejectionReason }: { proofId: string; matchId: string; status: "approved" | "rejected"; rejectionReason?: string }) =>
       api.post<ProofEntity>(`/api/proofs/${proofId}/review`, { status, rejectionReason }),
-    onSuccess: (_, vars) => {
+    onMutate: async (vars) => {
+      // 1. Cancel in-flight queries
+      await queryClient.cancelQueries({ queryKey: ["proofs", vars.matchId] });
+      await queryClient.cancelQueries({ queryKey: ["match", vars.matchId] });
+
+      // 2. Snapshot current caches for rollback
+      const prevProofs = queryClient.getQueryData<ProofEntity[]>(["proofs", vars.matchId]);
+      const prevMatch = queryClient.getQueryData<MatchEntity>(["match", vars.matchId]);
+
+      // 3. Optimistically update proofs cache (0ms instant approval)
+      if (prevProofs) {
+        queryClient.setQueryData<ProofEntity[]>(["proofs", vars.matchId], (old = []) =>
+          old.map((p) =>
+            p.id === vars.proofId
+              ? {
+                  ...p,
+                  status: vars.status,
+                  rejectionReason: vars.rejectionReason || null,
+                  reviewedAt: new Date().toISOString(),
+                }
+              : p,
+          ),
+        );
+      }
+
+      // 4. Optimistically update match summary proof status
+      if (prevMatch) {
+        queryClient.setQueryData<MatchEntity>(["match", vars.matchId], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            user1LastProof: old.user1LastProof ? { ...old.user1LastProof, status: vars.status } : old.user1LastProof,
+            user2LastProof: old.user2LastProof ? { ...old.user2LastProof, status: vars.status } : old.user2LastProof,
+          };
+        });
+      }
+
+      return { prevProofs, prevMatch };
+    },
+    onError: (_err, vars, context) => {
+      if (context?.prevProofs) {
+        queryClient.setQueryData(["proofs", vars.matchId], context.prevProofs);
+      }
+      if (context?.prevMatch) {
+        queryClient.setQueryData(["match", vars.matchId], context.prevMatch);
+      }
+    },
+    onSuccess: (updatedProof, vars) => {
+      if (updatedProof) {
+        queryClient.setQueryData<ProofEntity[]>(["proofs", vars.matchId], (old = []) => old.map((p) => (p.id === updatedProof.id ? updatedProof : p)));
+      }
+    },
+    onSettled: (_, _err, vars) => {
       queryClient.invalidateQueries({ queryKey: ["proofs", vars.matchId] });
       queryClient.invalidateQueries({ queryKey: ["match", vars.matchId] });
       queryClient.invalidateQueries({ queryKey: ["matches"] });

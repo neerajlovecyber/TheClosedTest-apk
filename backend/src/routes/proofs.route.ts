@@ -321,15 +321,36 @@ router.openapi(
     await db.update(matches).set(updateFields).where(eq(matches.id, match.id))
 
     // Notify uploader of review result
-    await db.insert(notifications).values({
-      userId: proof.uploaderId,
-      type: "proof_update",
-      title: `Proof Day ${proof.day} ${status === "approved" ? "Approved!" : "Rejected"}`,
-      body:
-        status === "approved"
-          ? `Your Day ${proof.day} proof was approved by your partner!`
-          : `Your Day ${proof.day} proof was rejected: ${rejectionReason || "Please re-upload a clear screenshot"}`,
-      data: { matchId: match.id, proofId: proof.id },
+    const notificationTitle = `Proof Day ${proof.day} ${status === "approved" ? "Approved!" : "Rejected"}`
+    const notificationBody =
+      status === "approved"
+        ? `Your Day ${proof.day} proof was approved by your partner!`
+        : `Your Day ${proof.day} proof was rejected: ${rejectionReason || "Please re-upload a clear screenshot"}`
+
+    Promise.all([
+      db.insert(notifications).values({
+        userId: proof.uploaderId,
+        type: "proof_update",
+        title: notificationTitle,
+        body: notificationBody,
+        data: { matchId: match.id, proofId: proof.id, status },
+      }),
+      db.query.users
+        .findFirst({
+          where: (u, { eq }) => eq(u.id, proof.uploaderId),
+        })
+        .then((uploader) => {
+          if (uploader?.pushToken) {
+            sendExpoPushNotification({
+              to: uploader.pushToken,
+              title: notificationTitle,
+              body: notificationBody,
+              data: { matchId: match.id, proofId: proof.id, status },
+            }).catch(() => {})
+          }
+        }),
+    ]).catch((err) => {
+      console.error("Proof review notification error:", err)
     })
 
     return c.json(updatedProof, HttpStatusCodes.OK)

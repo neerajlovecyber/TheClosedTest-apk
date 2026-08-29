@@ -43,7 +43,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
-import { useUpdatePushToken } from "@/lib/api-hooks";
+import { useUpdatePushToken, useCurrentUser } from "@/lib/api-hooks";
 import { vexo, identifyDevice } from "vexo-analytics";
 
 const VEXO_API_KEY = process.env.EXPO_PUBLIC_VEXO_API_KEY || "4beaa20e-2695-4263-aa86-5ddaf7ff29ee";
@@ -66,6 +66,7 @@ function InitialLayout() {
 
   // Sync user with backend
   const syncedUserId = useStoreUserEffect();
+  const { data: currentUser } = useCurrentUser();
 
   /* eslint-disable react-hooks/exhaustive-deps */
   const { expoPushToken, notificationResponse } = usePushNotifications();
@@ -79,12 +80,15 @@ function InitialLayout() {
 
   React.useEffect(() => {
     if (expoPushToken && isSignedIn && syncedUserId) {
-      updatePushToken.mutateAsync(expoPushToken).catch((e) => console.error("Failed to save push token:", e));
+      // Auto-sync token if it has changed or hasn't been saved yet
+      if (!currentUser || currentUser.pushToken !== expoPushToken) {
+        updatePushToken.mutateAsync(expoPushToken).catch((e) => console.warn("Failed to auto-sync push token:", e));
+      }
     }
     if (syncedUserId) {
       identifyDevice(syncedUserId);
     }
-  }, [expoPushToken, isSignedIn, syncedUserId]);
+  }, [expoPushToken, isSignedIn, syncedUserId, currentUser?.pushToken]);
 
   React.useEffect(() => {
     if (!isLoaded || !rootNavigationState?.key) return;
