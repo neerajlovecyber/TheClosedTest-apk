@@ -47,6 +47,7 @@ export function ScreenScrollView({
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       {...props}
       refreshControl={activeRefreshControl}
       contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 95 }, contentContainerStyle]}

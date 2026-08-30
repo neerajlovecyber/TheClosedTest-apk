@@ -312,7 +312,7 @@ export default function AppDetailsScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
         {/* App Header Card */}
         <View className="px-4 py-4 mb-2">
           <Card className="border-0 overflow-hidden bg-blue-950 shadow-lg">

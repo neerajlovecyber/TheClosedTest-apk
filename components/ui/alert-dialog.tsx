@@ -95,12 +95,15 @@ type AlertDialogActionProps = AlertDialogPrimitive.ActionProps &
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   };
 
-function AlertDialogAction({ className, variant = "default", ...props }: AlertDialogActionProps) {
+function AlertDialogAction({ className, variant, ...props }: AlertDialogActionProps) {
+  const isDestructive = variant === "destructive" || className?.includes("bg-destructive") || className?.includes("bg-red");
+  const effectiveVariant = variant || (isDestructive ? "destructive" : "default");
+
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "default" })}>
+    <TextClassContext.Provider value={buttonTextVariants({ className, variant: effectiveVariant, size: "default" })}>
       <AlertDialogPrimitive.Action
         className={cn(
-          buttonVariants({ variant, size: "default" }),
+          buttonVariants({ variant: effectiveVariant, size: "default" }),
           "flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85",
           className,
         )}

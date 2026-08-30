@@ -44,7 +44,7 @@ const buttonVariants = cva(
   },
 );
 
-const buttonTextVariants = cva(cn("text-foreground text-sm font-medium", Platform.select({ web: "pointer-events-none transition-colors" })), {
+const buttonTextVariants = cva(cn("text-foreground text-sm font-medium pointer-events-none", Platform.select({ web: "transition-colors" })), {
   variants: {
     variant: {
       default: "text-primary-foreground",
@@ -70,9 +70,12 @@ const buttonTextVariants = cva(cn("text-foreground text-sm font-medium", Platfor
 type ButtonProps = React.ComponentProps<typeof Pressable> & React.RefAttributes<typeof Pressable> & VariantProps<typeof buttonVariants>;
 
 function Button({ className, variant, size, ...props }: ButtonProps) {
+  const isDestructive = variant === "destructive" || className?.includes("bg-destructive") || className?.includes("bg-red");
+  const effectiveVariant = variant || (isDestructive ? "destructive" : "default");
+
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ variant, size })}>
-      <Pressable className={cn(props.disabled && "opacity-50", buttonVariants({ variant, size }), className)} role="button" {...props} />
+    <TextClassContext.Provider value={buttonTextVariants({ variant: effectiveVariant, size })}>
+      <Pressable className={cn(props.disabled && "opacity-50", buttonVariants({ variant: effectiveVariant, size }), className)} role="button" {...props} />
     </TextClassContext.Provider>
   );
 }
