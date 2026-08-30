@@ -16,12 +16,12 @@ export const ReportSchema = z.object({
 })
 
 export const CreateReportSchema = z.object({
-  type: z.enum(["dispute", "app_spam", "toxic_user", "other", "app_broken", "app_not_visible", "user_unresponsive"]),
+  type: z.enum(["app_not_visible", "app_spam", "user_unresponsive"]),
   targetId: z.string(),
   matchId: z.string().optional(),
   reportedUserId: z.string().optional(),
   reportedAppId: z.string().optional(),
-  description: z.string().min(5),
+  description: z.string().optional().default("Community report"),
   screenshots: z.array(z.string()).default([]),
 })
 

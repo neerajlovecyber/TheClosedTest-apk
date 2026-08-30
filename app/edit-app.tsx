@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeftIcon, UploadIcon, Trash2Icon } from "lucide-react-native";
+import { ArrowLeftIcon, UploadIcon, Trash2Icon, AlertTriangleIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
@@ -203,6 +203,20 @@ export default function EditAppScreen() {
       </View>
 
       <KeyboardAwareScrollView bottomOffset={Platform.OS === "ios" ? 100 : 80} className="flex-1 p-4" contentContainerStyle={{ paddingBottom: 40 }}>
+        {app.visibilityStatus === "hidden" && (
+          <View className="mb-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
+            <View className="flex-row items-center gap-2 mb-1.5">
+              <Icon as={AlertTriangleIcon} className="size-5 text-red-600 dark:text-red-400" />
+              <Text className="text-sm font-bold text-red-600 dark:text-red-400">
+                App Hidden from Marketplace
+              </Text>
+            </View>
+            <Text className="text-xs text-muted-foreground leading-relaxed">
+              Testers reported issues accessing or downloading this app. Please verify your Google Group invite link and Play Store Closed Testing track, then tap "Save Changes" below to restore your app to the Marketplace immediately.
+            </Text>
+          </View>
+        )}
+
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>App Details</CardTitle>

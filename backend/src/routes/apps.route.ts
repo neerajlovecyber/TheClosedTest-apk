@@ -427,14 +427,22 @@ router.openapi(
       }
     }
 
+    // Self-healing: if app was hidden or flagged due to reports, updating it clears flags and restores visibility
+    const shouldResetFlags = existing.visibilityStatus === "hidden" || existing.flagCount > 0
+
     const [updated] = await db
       .update(apps)
       .set({
         ...body,
+        ...(shouldResetFlags ? { flagCount: 0, visibilityStatus: "unverified" } : {}),
         updatedAt: new Date(),
       })
       .where(eq(apps.id, id))
       .returning()
+
+    if (shouldResetFlags) {
+      memoryCache.delete("apps_list:")
+    }
 
     // If app status changed to completed, reward +20 reputation to the owner
     if (body.status === "completed" && existing.status !== "completed") {

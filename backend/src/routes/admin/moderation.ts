@@ -19,6 +19,7 @@ import {
   userWarnings,
 } from "../../db/schema"
 import { createRouter } from "../../lib/create-app"
+import { memoryCache } from "../../lib/cache"
 import { adminAuthMiddleware, authMiddleware } from "../../middlewares/auth"
 import { BanAppSchema, BanUserSchema, CreateReportSchema, ReportSchema } from "./schemas"
 
@@ -52,11 +53,38 @@ router.openapi(
         matchId: body.matchId,
         reportedUserId: body.reportedUserId,
         reportedAppId: body.reportedAppId,
-        description: body.description,
+        description: body.description?.trim() || `Reported as ${body.type.replace(/_/g, " ")}`,
         screenshots: body.screenshots,
         status: "pending",
       })
       .returning()
+
+    // Automated action: If an app is reported, increment its flagCount.
+    // If it reaches 3 or more reports, automatically hide the app from Marketplace.
+    const targetAppId =
+      body.reportedAppId ||
+      (["app_not_visible", "app_spam"].includes(body.type) ? body.targetId : undefined)
+
+    if (targetAppId) {
+      const targetApp = await db.query.apps.findFirst({
+        where: eq(apps.id, targetAppId),
+      })
+      if (targetApp) {
+        const newFlagCount = (targetApp.flagCount || 0) + 1
+        const newVisibility = newFlagCount >= 3 ? "hidden" : targetApp.visibilityStatus
+
+        await db
+          .update(apps)
+          .set({
+            flagCount: newFlagCount,
+            visibilityStatus: newVisibility,
+            updatedAt: new Date(),
+          })
+          .where(eq(apps.id, targetApp.id))
+
+        memoryCache.delete("apps_list:")
+      }
+    }
 
     return c.json(newReport, HttpStatusCodes.CREATED)
   },

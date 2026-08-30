@@ -1154,12 +1154,12 @@ export function useLeaderboard(limit = 20) {
 export function useSubmitReport() {
   return useMutation({
     mutationFn: (payload: {
-      type: "dispute" | "app_spam" | "toxic_user" | "other" | "app_broken" | "app_not_visible" | "user_unresponsive";
+      type: "app_not_visible" | "app_spam" | "user_unresponsive";
       targetId: string;
       matchId?: string;
       reportedUserId?: string;
       reportedAppId?: string;
-      description: string;
+      description?: string;
       screenshots?: string[];
     }) => api.post("/api/reports", payload),
   });

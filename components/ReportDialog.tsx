@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { View, TouchableOpacity, TextInput, Modal, ScrollView } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { View, TouchableOpacity, Modal, ScrollView } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { XIcon } from "lucide-react-native";
@@ -20,55 +19,38 @@ interface ReportDialogProps {
 }
 
 export function ReportDialog({ visible, onClose, reportType, targetId, matchId, reportedUserId, reportedAppId, targetName }: ReportDialogProps) {
-  const [selectedType, setSelectedType] = useState<"dispute" | "app_spam" | "toxic_user" | "other" | "app_broken" | "user_unresponsive" | "app_not_visible">(
-    "other",
+  const appReportTypes = [
+    {
+      value: "app_not_visible" as const,
+      label: "App Inaccessible or Broken Link",
+      description: "Google Group closed, Play Store 404, or country restricted",
+    },
+    {
+      value: "app_spam" as const,
+      label: "Spam, Fake or Harmful App",
+      description: "Malicious APK, deceptive listing, or scam",
+    },
+  ];
+
+  const matchReportTypes = [
+    {
+      value: "user_unresponsive" as const,
+      label: "Partner Inactive",
+      description: "Tester stopped submitting proofs (auto-cancelled after 72h)",
+    },
+  ];
+
+  const reportTypes = reportType === "app" ? appReportTypes : matchReportTypes;
+
+  const [selectedType, setSelectedType] = useState<"app_not_visible" | "app_spam" | "user_unresponsive">(
+    reportType === "app" ? "app_not_visible" : "user_unresponsive",
   );
-  const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const insets = useSafeAreaInsets();
 
   const submitReportMutation = useSubmitReport();
 
-  const reportTypes = [
-    {
-      value: "app_spam" as const,
-      label: "Spam or Fake App",
-      description: "App is fake, misleading, or spam",
-    },
-    {
-      value: "app_not_visible" as const,
-      label: "App Not Visible",
-      description: "Link broken or not available in country",
-    },
-    {
-      value: "app_broken" as const,
-      label: "App Crashing/Buggy",
-      description: "App crashes frequently or cannot install",
-    },
-    {
-      value: "toxic_user" as const,
-      label: "Toxic Behavior",
-      description: "Harassment, inappropriate language",
-    },
-    {
-      value: "user_unresponsive" as const,
-      label: "User Unresponsive",
-      description: "User not fulfilling test requirements",
-    },
-    {
-      value: "dispute" as const,
-      label: "Dispute / Conflict",
-      description: "Disagreement about testing or proofs",
-    },
-    { value: "other" as const, label: "Other Issue", description: "Something else" },
-  ];
-
   const handleSubmit = async () => {
-    if (!description.trim()) {
-      toast.error("Please provide a description");
-      return;
-    }
-
     setSubmitting(true);
     try {
       await submitReportMutation.mutateAsync({
@@ -77,10 +59,10 @@ export function ReportDialog({ visible, onClose, reportType, targetId, matchId, 
         matchId: matchId ?? undefined,
         reportedUserId: reportedUserId ?? undefined,
         reportedAppId: reportedAppId ?? undefined,
-        description: description.trim(),
       });
-      toast.success("Report submitted successfully");
-      setDescription("");
+      toast.success("Report submitted successfully", {
+        description: reportType === "app" ? "Community reports help keep marketplace apps working." : undefined,
+      });
       onClose();
     } catch (error: any) {
       toast.error("Failed to submit report", { description: error.message });
@@ -91,73 +73,58 @@ export function ReportDialog({ visible, onClose, reportType, targetId, matchId, 
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView className="flex-1" behavior="padding">
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-background rounded-t-3xl max-h-[85%]">
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
-              <View className="flex-1 mr-2">
-                <Text className="text-lg font-bold text-foreground">Report {reportType === "user" ? "User" : reportType === "app" ? "App" : "Issue"}</Text>
-                <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
-                  {targetName}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} className="p-1.5">
-                <Icon as={XIcon} className="text-muted-foreground size-5" />
-              </TouchableOpacity>
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-background rounded-t-3xl max-h-[85%]">
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
+            <View className="flex-1 mr-2">
+              <Text className="text-lg font-bold text-foreground">Report {reportType === "user" ? "User" : reportType === "app" ? "App" : "Issue"}</Text>
+              <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
+                {targetName}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} className="p-1.5">
+              <Icon as={XIcon} className="text-muted-foreground size-5" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            className="p-6"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+          >
+            <Text className="text-sm font-semibold text-foreground mb-3">Select Reason</Text>
+            <View className="gap-0 mb-4 bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+              {reportTypes.map((type, index) => (
+                <TouchableOpacity
+                  key={type.value}
+                  onPress={() => setSelectedType(type.value)}
+                  className={`flex-row items-center justify-between p-4 ${index !== reportTypes.length - 1 ? "border-b border-border" : ""} ${selectedType === type.value ? "bg-primary/5" : ""}`}
+                >
+                  <View className="flex-1 mr-3">
+                    <Text className="font-semibold text-foreground text-sm">{type.label}</Text>
+                    <Text className="text-xs text-muted-foreground mt-0.5">{type.description}</Text>
+                  </View>
+                  <View
+                    className={`h-5 w-5 rounded-full border items-center justify-center ${selectedType === type.value ? "border-primary bg-primary" : "border-muted-foreground"}`}
+                  >
+                    {selectedType === type.value && <View className="h-2 w-2 rounded-full bg-primary-foreground" />}
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            <ScrollView
-              className="p-6"
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={submitting}
+              className={`mt-4 mb-2 p-4 rounded-xl ${submitting ? "bg-muted" : "bg-primary"}`}
             >
-              <Text className="text-sm font-semibold text-foreground mb-3">Report Reason</Text>
-              <View className="gap-0 mb-4 bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-                {reportTypes.map((type, index) => (
-                  <TouchableOpacity
-                    key={type.value}
-                    onPress={() => setSelectedType(type.value)}
-                    className={`flex-row items-center justify-between p-4 ${index !== reportTypes.length - 1 ? "border-b border-border" : ""} ${selectedType === type.value ? "bg-primary/5" : ""}`}
-                  >
-                    <View className="flex-1">
-                      <Text className="font-semibold text-foreground text-sm">{type.label}</Text>
-                      <Text className="text-xs text-muted-foreground">{type.description}</Text>
-                    </View>
-                    <View
-                      className={`h-5 w-5 rounded-full border items-center justify-center ${selectedType === type.value ? "border-primary bg-primary" : "border-muted-foreground"}`}
-                    >
-                      {selectedType === type.value && <View className="h-2 w-2 rounded-full bg-primary-foreground" />}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text className="text-sm font-semibold text-foreground mb-3">Description *</Text>
-              <TextInput
-                className="bg-card border-2 border-border rounded-xl p-4 text-foreground min-h-[120px]"
-                placeholder="Please describe the issue..."
-                placeholderTextColor="#999"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                textAlignVertical="top"
-                style={{ fontSize: 16 }}
-              />
-
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={submitting || !description.trim()}
-                className={`mt-6 mb-4 p-4 rounded-xl ${submitting || !description.trim() ? "bg-muted" : "bg-primary"}`}
-              >
-                <Text className={`text-center font-bold ${submitting || !description.trim() ? "text-muted-foreground" : "text-primary-foreground"}`}>
-                  {submitting ? "Submitting..." : "Submit Report"}
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+              <Text className={`text-center font-bold ${submitting ? "text-muted-foreground" : "text-primary-foreground"}`}>
+                {submitting ? "Submitting..." : "Submit Report"}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

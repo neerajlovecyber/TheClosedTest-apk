@@ -307,22 +307,65 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
   // -------------------------------------------------------------------------
   // 7. Support & Reports Workflow
   // -------------------------------------------------------------------------
-  it("19. POST /api/reports creates user dispute ticket", async () => {
+  it("19. POST /api/reports creates partner inactivity report", async () => {
     const res = await app.request("/api/reports", {
       method: "POST",
       headers: { Authorization: `Bearer ${normalUser1Token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: "dispute",
+        type: "user_unresponsive",
         targetId: user2Id,
         matchId,
-        description: "Partner rejected valid proof without legitimate reason",
-        screenshots: ["https://cdn.theclosedtest.com/reports/proof.webp"],
+        description: "Partner has not submitted daily proof",
       }),
     })
     expect(res.status).toBe(201)
     const report = await res.json()
     expect(report.status).toBe("pending")
-    expect(report.type).toBe("dispute")
+    expect(report.type).toBe("user_unresponsive")
+  })
+
+  it("19b. 3 reports on an app automatically hide it from Marketplace, and editing it unhides it", async () => {
+    // Report app2 3 times
+    for (let i = 1; i <= 3; i++) {
+      const rep = await app.request("/api/reports", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${normalUser1Token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "app_not_visible",
+          targetId: app2Id,
+          reportedAppId: app2Id,
+          description: `Tester cannot access the download link report #${i}`,
+        }),
+      })
+      expect(rep.status).toBe(201)
+    }
+
+    // Verify app2 is now hidden in GET /api/apps feed
+    const listRes = await app.request("/api/apps", {
+      headers: { Authorization: `Bearer ${normalUser1Token}` },
+    })
+    expect(listRes.status).toBe(200)
+    const list = await listRes.json()
+    const foundApp2 = list.apps.find((a: any) => a.id === app2Id)
+    expect(foundApp2).toBeUndefined()
+
+    // Self-healing: Owner (User 2) edits/updates the app link
+    const updateRes = await app.request(`/api/apps/${app2Id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${normalUser2Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.user2.app&fixed=true",
+      }),
+    })
+    expect(updateRes.status).toBe(200)
+
+    // Verify app2 is immediately restored to the marketplace feed
+    const listResAfter = await app.request("/api/apps", {
+      headers: { Authorization: `Bearer ${normalUser1Token}` },
+    })
+    const listAfter = await listResAfter.json()
+    const restoredApp2 = listAfter.apps.find((a: any) => a.id === app2Id)
+    expect(restoredApp2).toBeDefined()
   })
 
   it("20. Admin can fetch all moderation reports via GET /api/admin/reports", async () => {
