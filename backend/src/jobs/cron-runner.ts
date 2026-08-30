@@ -39,6 +39,7 @@ export async function runMatchProgressionAndCleanup() {
   console.log("⏰ Running match completion, abandonment, and cleanup checks...")
 
   const now = new Date()
+  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
@@ -88,9 +89,9 @@ export async function runMatchProgressionAndCleanup() {
       // Use match.startDate as the anchor. If not set, fallback to updatedAt or now (NEVER stale createdAt)
       const matchStart = match.startDate ? new Date(match.startDate) : match.updatedAt ? new Date(match.updatedAt) : now
 
-      // Guard: If the match itself started less than 3 full days ago,
-      // it CANNOT be considered abandoned under any circumstances.
-      if (matchStart > threeDaysAgo) {
+      // Guard: If the match itself started less than 2 full days ago,
+      // it CANNOT be considered for warnings or abandonment under any circumstances.
+      if (matchStart > twoDaysAgo) {
         continue
       }
 
@@ -101,8 +102,8 @@ export async function runMatchProgressionAndCleanup() {
       const user1LastActive = user1Proofs[0] ? new Date(user1Proofs[0].submittedAt) : matchStart
       const user2LastActive = user2Proofs[0] ? new Date(user2Proofs[0].submittedAt) : matchStart
 
-      const user1Inactive = user1LastActive < threeDaysAgo
-      const user2Inactive = user2LastActive < threeDaysAgo
+      const user1Inactive = user1LastActive < threeDaysAgo && matchStart <= threeDaysAgo
+      const user2Inactive = user2LastActive < threeDaysAgo && matchStart <= threeDaysAgo
 
       if (user1Inactive || user2Inactive) {
         console.log(`⚠️ Match ${match.id} abandoned due to testing inactivity (>3 days). Cancelling...`)
@@ -212,6 +213,70 @@ export async function runMatchProgressionAndCleanup() {
               data: { matchId: match.id },
             },
           ])
+        }
+      } else {
+        // 2b. Urgent 48-hour Inactivity Warning (24 hours before 72-hour cancellation)
+        const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+        // Check User 1
+        if (user1LastActive < twoDaysAgo && matchStart <= twoDaysAgo) {
+          const alreadyWarned1 = await db.query.notifications.findFirst({
+            where: and(
+              eq(notifications.userId, match.user1Id),
+              eq(notifications.type, "reminder"),
+              sql`${notifications.data}->>'subtype' = 'inactivity_warning'`,
+              sql`${notifications.data}->>'matchId' = ${match.id}`,
+              sql`${notifications.createdAt} >= ${twentyFourHoursAgo}`,
+            ),
+          })
+          if (!alreadyWarned1) {
+            await db.insert(notifications).values({
+              userId: match.user1Id,
+              type: "reminder",
+              title: "⚠️ Urgent: Testing Match In Danger",
+              body: "You haven't submitted test proof in 48 hours. Please upload proof within 24 hours to prevent your match from being cancelled with a -10 reputation penalty.",
+              data: { matchId: match.id, subtype: "inactivity_warning" },
+            })
+            if (match.user1?.pushToken) {
+              sendExpoPushNotification({
+                to: match.user1.pushToken,
+                title: "⚠️ Urgent: Testing Match In Danger",
+                body: "You haven't submitted test proof in 48 hours. Upload proof within 24h to avoid match cancellation.",
+                data: { matchId: match.id },
+              }).catch(() => {})
+            }
+          }
+        }
+
+        // Check User 2
+        if (user2LastActive < twoDaysAgo && matchStart <= twoDaysAgo) {
+          const alreadyWarned2 = await db.query.notifications.findFirst({
+            where: and(
+              eq(notifications.userId, match.user2Id),
+              eq(notifications.type, "reminder"),
+              sql`${notifications.data}->>'subtype' = 'inactivity_warning'`,
+              sql`${notifications.data}->>'matchId' = ${match.id}`,
+              sql`${notifications.createdAt} >= ${twentyFourHoursAgo}`,
+            ),
+          })
+          if (!alreadyWarned2) {
+            await db.insert(notifications).values({
+              userId: match.user2Id,
+              type: "reminder",
+              title: "⚠️ Urgent: Testing Match In Danger",
+              body: "You haven't submitted test proof in 48 hours. Please upload proof within 24 hours to prevent your match from being cancelled with a -10 reputation penalty.",
+              data: { matchId: match.id, subtype: "inactivity_warning" },
+            })
+            if (match.user2?.pushToken) {
+              sendExpoPushNotification({
+                to: match.user2.pushToken,
+                title: "⚠️ Urgent: Testing Match In Danger",
+                body: "You haven't submitted test proof in 48 hours. Upload proof within 24h to avoid match cancellation.",
+                data: { matchId: match.id },
+              }).catch(() => {})
+            }
+          }
         }
       }
     }
@@ -499,9 +564,9 @@ export function startCronJobs() {
     await withAdvisoryLock(1001, "Midnight IST Streak Maintenance", runDailyStreakMaintenance)
   })
 
-  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Every 2 hours) - Lock 1002
-  new Cron("0 */2 * * *", { name: "match-maintenance" }, async () => {
-    console.log("🔄 Triggering Match Progression & Ban Expirations...")
+  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Daily at 11:00 PM IST) - Lock 1002
+  new Cron("0 23 * * *", { timezone: "Asia/Kolkata", name: "match-maintenance" }, async () => {
+    console.log("🔄 Triggering Nightly Match Progression & Inactivity Check (11:00 PM IST)...")
     await withAdvisoryLock(1002, "Match Progression & Ban Expirations", async () => {
       await runMatchProgressionAndCleanup()
       await runExpiredBansCleanup()
@@ -523,9 +588,8 @@ export function startCronJobs() {
     })
   })
 
-  // Initial maintenance checks on server boot (data cleanups only, NO notification spam) - Lock 1005
+  // Initial maintenance checks on server boot (data cleanups only, NO mid-day match cancellation) - Lock 1005
   withAdvisoryLock(1005, "Server Boot Cleanup", async () => {
-    await runMatchProgressionAndCleanup()
     await runNotificationCleanup()
     await runExpiredBansCleanup()
     await runOldMatchesCleanup()

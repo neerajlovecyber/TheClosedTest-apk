@@ -464,6 +464,43 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     await db.delete(matches).where(eq(matches.id, recentMatch.id))
   })
 
+  it("26b. Match inactive for 50 hours receives 48-hour warning and is not cancelled", async () => {
+    const fiftyHoursAgo = new Date(Date.now() - 50 * 60 * 60 * 1000)
+
+    const [warningMatch] = await db
+      .insert(matches)
+      .values({
+        app1Id,
+        app2Id,
+        user1Id,
+        user2Id,
+        status: "active",
+        startDate: fiftyHoursAgo,
+      })
+      .returning()
+
+    // Run cron
+    await runMatchProgressionAndCleanup()
+
+    // Verify match is still active
+    const matchCheck = await db.query.matches.findFirst({ where: (m, { eq }) => eq(m.id, warningMatch.id) })
+    expect(matchCheck?.status).toBe("active")
+
+    // Verify user2 received an inactivity warning notification
+    const warnNotif = await db.query.notifications.findFirst({
+      where: (n, { and, eq }) => and(eq(n.userId, user2Id), eq(n.type, "reminder")),
+      orderBy: (n, { desc }) => [desc(n.createdAt)],
+    })
+    expect(warnNotif).toBeDefined()
+    expect(warnNotif?.title).toContain("Urgent")
+
+    // Cleanup
+    if (warnNotif) {
+      await db.delete(notifications).where(eq(notifications.id, warnNotif.id))
+    }
+    await db.delete(matches).where(eq(matches.id, warningMatch.id))
+  })
+
   it("27. Match active for 4 days with user2 inactive IS cancelled and user2 is penalized -10", async () => {
     const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
