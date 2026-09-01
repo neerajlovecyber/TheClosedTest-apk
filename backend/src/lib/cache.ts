@@ -60,3 +60,4 @@ class SimpleMemoryCache {
 }
 
 export const memoryCache = new SimpleMemoryCache()
+export const userAuthCache = new SimpleMemoryCache()

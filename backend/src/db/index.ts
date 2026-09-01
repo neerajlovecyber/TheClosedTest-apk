@@ -12,6 +12,8 @@ import * as schema from "./schema"
 
 export let pgliteInstance: PGlite | null = null
 
+export let pgClient: postgres.Sql | null = null
+
 function createDatabase() {
   if (env.NODE_ENV === "test" || process.env.NODE_ENV === "test") {
     const pglite = new PGlite({
@@ -49,8 +51,19 @@ function createDatabase() {
     idle_timeout: 20,
     connect_timeout: 30,
   })
+  pgClient = client
 
   return drizzlePg(client, { schema })
 }
 
 export const db = createDatabase()
+
+export async function closeDatabase() {
+  if (pgClient) {
+    console.log("🔌 Closing PostgreSQL connection pool...")
+    await pgClient.end({ timeout: 5 }).catch(() => {})
+  }
+  if (pgliteInstance) {
+    await pgliteInstance.close().catch(() => {})
+  }
+}

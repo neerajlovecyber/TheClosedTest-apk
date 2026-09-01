@@ -2,6 +2,7 @@ import { and, count, eq, not } from "drizzle-orm"
 
 import { db } from "../db"
 import { apps, dailyActivity, users } from "../db/schema"
+import { userAuthCache } from "../lib/cache"
 import { isUserAdmin } from "../lib/constants"
 
 export interface SyncUserDTO {
@@ -53,6 +54,8 @@ export class UserService {
         .from(apps)
         .where(and(eq(apps.userId, existingUser.id), not(eq(apps.status, "archived"))))
 
+      userAuthCache.delete(dto.tokenIdentifier)
+
       return { user: { ...updated, appsCount: activeApps?.count ?? 0 }, isNew: false }
     }
 
@@ -73,6 +76,8 @@ export class UserService {
         unlockedAppSlots: 3,
       })
       .returning()
+
+    userAuthCache.delete(dto.tokenIdentifier)
 
     return { user: newUser, isNew: true }
   }
@@ -156,6 +161,10 @@ export class UserService {
       })
       .where(eq(users.id, user.id))
 
+    if (user.tokenIdentifier) {
+      userAuthCache.delete(user.tokenIdentifier)
+    }
+
     return {
       streak: newStreak,
       bestStreak,
@@ -168,14 +177,28 @@ export class UserService {
    * Registers an Expo push token for notifications.
    */
   static async updatePushToken(userId: string, pushToken: string) {
-    await db.update(users).set({ pushToken, updatedAt: new Date() }).where(eq(users.id, userId))
+    const [updated] = await db
+      .update(users)
+      .set({ pushToken, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning({ tokenIdentifier: users.tokenIdentifier })
+    if (updated?.tokenIdentifier) {
+      userAuthCache.delete(updated.tokenIdentifier)
+    }
   }
 
   /**
    * Marks Google Group membership verified.
    */
   static async confirmGoogleGroup(userId: string) {
-    await db.update(users).set({ isGroupMember: true, updatedAt: new Date() }).where(eq(users.id, userId))
+    const [updated] = await db
+      .update(users)
+      .set({ isGroupMember: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning({ tokenIdentifier: users.tokenIdentifier })
+    if (updated?.tokenIdentifier) {
+      userAuthCache.delete(updated.tokenIdentifier)
+    }
   }
 
   /**
@@ -192,6 +215,10 @@ export class UserService {
       .where(eq(users.id, userId))
       .returning()
 
+    if (updated?.tokenIdentifier) {
+      userAuthCache.delete(updated.tokenIdentifier)
+    }
+
     return updated
   }
 
@@ -207,6 +234,10 @@ export class UserService {
       })
       .where(eq(users.id, userId))
       .returning()
+
+    if (updated?.tokenIdentifier) {
+      userAuthCache.delete(updated.tokenIdentifier)
+    }
 
     return updated
   }

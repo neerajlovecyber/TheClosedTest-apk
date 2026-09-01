@@ -7,6 +7,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose"
 
 import { db } from "../db"
 import { users } from "../db/schema"
+import { userAuthCache } from "../lib/cache"
 import { isUserAdmin } from "../lib/constants"
 import { presence } from "../lib/presence"
 import type { AppBindings } from "../lib/types"
@@ -83,42 +84,51 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
 
   const tokenIdentifier = tokenPayload.sub
 
-  // Strictly look up user by verified tokenIdentifier
-  let user = await db.query.users.findFirst({
-    where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
-  })
+  // Check in-memory LRU cache first (avoids DB query for rapid requests)
+  let user: typeof users.$inferSelect | null | undefined = userAuthCache.get<typeof users.$inferSelect>(tokenIdentifier)
 
-  // Auto-provision user if not already present for verified token
   if (!user) {
-    try {
-      const fallbackEmail = tokenPayload.email || `${tokenIdentifier}@theclosedtest.app`
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          tokenIdentifier,
-          name: "Developer",
-          email: fallbackEmail,
-          avatarUrl: `https://ui-avatars.com/api/?name=Developer&background=random`,
-          reputation: 100,
-          appsCount: 0,
-          isGroupMember: false,
-          streak: 0,
-          bestStreak: 0,
-          unlockedAppSlots: 3,
-        })
-        .onConflictDoNothing()
-        .returning()
+    // Strictly look up user by verified tokenIdentifier
+    user = await db.query.users.findFirst({
+      where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
+    })
 
-      user =
-        newUser ||
-        (await db.query.users.findFirst({
+    // Auto-provision user if not already present for verified token
+    if (!user) {
+      try {
+        const fallbackEmail = tokenPayload.email || `${tokenIdentifier}@theclosedtest.app`
+        const [newUser] = await db
+          .insert(users)
+          .values({
+            tokenIdentifier,
+            name: "Developer",
+            email: fallbackEmail,
+            avatarUrl: `https://ui-avatars.com/api/?name=Developer&background=random`,
+            reputation: 100,
+            appsCount: 0,
+            isGroupMember: false,
+            streak: 0,
+            bestStreak: 0,
+            unlockedAppSlots: 3,
+          })
+          .onConflictDoNothing()
+          .returning()
+
+        user =
+          newUser ||
+          (await db.query.users.findFirst({
+            where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
+          }))
+      } catch {
+        // Re-fetch on conflict
+        user = await db.query.users.findFirst({
           where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
-        }))
-    } catch {
-      // Re-fetch on conflict
-      user = await db.query.users.findFirst({
-        where: (u, { eq }) => eq(u.tokenIdentifier, tokenIdentifier),
-      })
+        })
+      }
+    }
+
+    if (user) {
+      userAuthCache.set(tokenIdentifier, user, 60) // Cache for 60 seconds
     }
   }
 
