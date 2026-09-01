@@ -45,8 +45,7 @@ export function TestingCommitmentModal({
           </View>
         </DialogHeader>
 
-        {/* 3 Simple, Short Points */}
-        <View className="py-3 gap-3">
+        <View className="gap-3">
           <View className="flex-row items-center gap-3">
             <View className="w-8 h-8 rounded-xl bg-blue-500/10 items-center justify-center">
               <Icon as={CameraIcon} className="size-4 text-blue-600 dark:text-blue-400" />
@@ -78,7 +77,7 @@ export function TestingCommitmentModal({
           </View>
         </View>
 
-        <DialogFooter className="pt-2">
+        <DialogFooter>
           <Button
             size="lg"
             className="w-full"

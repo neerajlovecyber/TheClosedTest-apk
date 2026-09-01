@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -49,20 +50,20 @@ export function ReasonDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <View className="py-2">
-          <Textarea
-            placeholder={placeholder}
-            value={reason}
-            onChangeText={setReason}
-            className="min-h-[100px]"
-            autoFocus
-          />
-        </View>
+        <Textarea
+          placeholder={placeholder}
+          value={reason}
+          onChangeText={setReason}
+          className="min-h-[100px]"
+          autoFocus
+        />
 
-        <DialogFooter className="flex-row justify-end gap-2 pt-2">
-          <Button variant="outline" onPress={onClose}>
-            <Text>Cancel</Text>
-          </Button>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">
+              <Text>Cancel</Text>
+            </Button>
+          </DialogClose>
           <Button onPress={handleConfirm} disabled={!reason.trim()}>
             <Text>{confirmText}</Text>
           </Button>

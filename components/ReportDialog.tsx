@@ -4,6 +4,7 @@ import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -74,12 +75,7 @@ export function ReportDialog({
         reportedUserId: reportedUserId ?? undefined,
         reportedAppId: reportedAppId ?? undefined,
       });
-      toast.success("Report submitted successfully", {
-        description:
-          reportType === "app"
-            ? "Community reports help keep marketplace apps working."
-            : undefined,
-      });
+      toast.success("Report submitted successfully");
       onClose();
     } catch (error: any) {
       toast.error("Failed to submit report", { description: error.message });
@@ -98,18 +94,17 @@ export function ReportDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            Report {reportType === "user" ? "User" : reportType === "app" ? "App" : "Issue"}
+            Report {reportType === "app" ? "App" : "Issue"}
           </DialogTitle>
           <Text className="text-xs text-muted-foreground" numberOfLines={1}>
             {targetName}
           </Text>
         </DialogHeader>
 
-        <View className="py-2">
-          <Text className="text-sm font-semibold text-foreground mb-3">
+        <View className="gap-2">
+          <Text className="text-sm font-semibold text-foreground">
             Select Reason
           </Text>
-
           <RadioGroup
             value={selectedType}
             onValueChange={(val) =>
@@ -124,9 +119,7 @@ export function ReportDialog({
                   key={type.value}
                   onPress={() => setSelectedType(type.value)}
                   className={`flex-row items-center justify-between p-3.5 rounded-xl border ${
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-card"
+                    isSelected ? "border-primary bg-primary/5" : "border-border bg-card"
                   }`}
                 >
                   <View className="flex-1 mr-3">
@@ -144,10 +137,12 @@ export function ReportDialog({
           </RadioGroup>
         </View>
 
-        <DialogFooter className="flex-row justify-end gap-2 pt-2">
-          <Button variant="outline" onPress={onClose} disabled={submitting}>
-            <Text>Cancel</Text>
-          </Button>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" disabled={submitting}>
+              <Text>Cancel</Text>
+            </Button>
+          </DialogClose>
           <Button onPress={handleSubmit} disabled={submitting}>
             <Text>{submitting ? "Submitting..." : "Submit Report"}</Text>
           </Button>

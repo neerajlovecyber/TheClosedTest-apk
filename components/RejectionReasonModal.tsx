@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { View, Pressable } from "react-native";
+import { View, Pressable, ScrollView, Dimensions } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -71,10 +73,6 @@ export function RejectionReasonModal({
     }
   };
 
-  const handleQuickReason = (quickReason: string) => {
-    setReason(quickReason);
-  };
-
   return (
     <Dialog
       open={visible}
@@ -90,54 +88,56 @@ export function RejectionReasonModal({
           </View>
         </DialogHeader>
 
-        <View className="gap-3 py-1">
-          <Text className="text-sm text-muted-foreground">
-            Please provide a reason for rejection. This helps your partner understand what went wrong.
-          </Text>
+        <ScrollView
+          style={{ maxHeight: Dimensions.get("window").height * 0.55 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="gap-3">
+            <Text className="text-sm text-muted-foreground">
+              Provide a reason so your partner understands what went wrong.
+            </Text>
 
-          {/* Quick Suggestions */}
-          <Text className="text-xs font-semibold text-muted-foreground">
-            Quick reasons:
-          </Text>
-          <View className="flex-row flex-wrap gap-1.5">
-            {QUICK_REASONS.map((quickReason, index) => {
-              const isSelected = reason === quickReason;
-              return (
-                <Pressable
-                  key={index}
-                  onPress={() => handleQuickReason(quickReason)}
-                  className={`px-3 py-1.5 rounded-full border ${
-                    isSelected
-                      ? "bg-destructive border-destructive"
-                      : "bg-secondary border-border"
-                  }`}
-                >
-                  <Text
-                    className={`text-xs ${
+            <Text className="text-xs font-semibold text-muted-foreground">
+              Quick reasons:
+            </Text>
+            <View className="flex-row flex-wrap gap-1.5">
+              {QUICK_REASONS.map((quickReason, index) => {
+                const isSelected = reason === quickReason;
+                return (
+                  <Pressable
+                    key={index}
+                    onPress={() => setReason(quickReason)}
+                    className={`px-3 py-1.5 rounded-full border ${
                       isSelected
-                        ? "text-destructive-foreground font-semibold"
-                        : "text-secondary-foreground"
+                        ? "bg-destructive border-destructive"
+                        : "bg-secondary border-border"
                     }`}
                   >
-                    {quickReason}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <Text
+                      className={`text-xs ${
+                        isSelected
+                          ? "text-destructive-foreground font-semibold"
+                          : "text-secondary-foreground"
+                      }`}
+                    >
+                      {quickReason}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-          {/* Custom Reason Input */}
-          <Text className="text-xs font-semibold text-muted-foreground mt-1">
-            Or write your own:
-          </Text>
-          <Textarea
-            placeholder="Explain why you're rejecting this proof..."
-            value={reason}
-            onChangeText={setReason}
-            className="min-h-[90px]"
-          />
+            <Text className="text-xs font-semibold text-muted-foreground">
+              Or write your own:
+            </Text>
+            <Textarea
+              placeholder="Explain why you're rejecting this proof..."
+              value={reason}
+              onChangeText={setReason}
+              className="min-h-[80px]"
+            />
 
-          <View className="flex-row items-center justify-between">
             <Text
               className={`text-xs ${
                 reason.length < 10 ? "text-destructive" : "text-muted-foreground"
@@ -145,26 +145,24 @@ export function RejectionReasonModal({
             >
               {reason.length}/10 minimum characters
             </Text>
-            <Text className="text-[11px] text-muted-foreground italic">
-              Cannot be undone
-            </Text>
           </View>
+        </ScrollView>
 
-          {/* Action Buttons */}
-          <View className="flex-row justify-end gap-2 pt-2">
-            <Button variant="outline" onPress={onClose} disabled={isSubmitting}>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" disabled={isSubmitting}>
               <Text>Cancel</Text>
             </Button>
-            <Button
-              variant="destructive"
-              onPress={handleSubmit}
-              disabled={isSubmitting || reason.trim().length < 10}
-            >
-              <Icon as={SendIcon} className="text-white size-4 mr-1.5" />
-              <Text>{isSubmitting ? "Submitting..." : "Submit Rejection"}</Text>
-            </Button>
-          </View>
-        </View>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            onPress={handleSubmit}
+            disabled={isSubmitting || reason.trim().length < 10}
+          >
+            <Icon as={SendIcon} className="text-white size-4 mr-1.5" />
+            <Text>{isSubmitting ? "Submitting..." : "Submit Rejection"}</Text>
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
