@@ -1,0 +1,13 @@
+{
+  "skills": [
+    {
+      "source": "mattpocock/skills",
+      "skills": [
+        "implement",
+        "improve-codebase-architecture",
+        "tdd",
+        "wayfinder"
+      ]
+    }
+  ]
+}
