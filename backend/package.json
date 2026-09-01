@@ -30,7 +30,7 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "bun run src/db/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
