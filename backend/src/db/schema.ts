@@ -523,6 +523,26 @@ export const boostLeaderboard = pgTable(
   ],
 )
 
+export const reputationLogs = pgTable(
+  "reputation_logs",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    referenceId: text("reference_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("reputation_logs_user_idx").on(table.userId),
+    index("reputation_logs_created_idx").on(table.createdAt),
+  ],
+)
+
 // ---------------------------------------------------------------------------
 // 10. Relations
 // ---------------------------------------------------------------------------
@@ -537,6 +557,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   warnings: many(userWarnings),
   sessions: many(session),
   accounts: many(account),
+  reputationLogs: many(reputationLogs),
 }))
 
 export const appsRelations = relations(apps, ({ one, many }) => ({

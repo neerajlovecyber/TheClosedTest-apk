@@ -144,12 +144,15 @@ Protected routes use `authMiddleware` / `adminAuthMiddleware` from `src/middlewa
 
 ```
 src/
-├── index.ts           # Server entry point
-├── app.ts             # App creation, route mounting
-├── routes/            # Hono route definitions + tests
-├── db/                # Database schema & connection
-├── middlewares/       # Auth middleware (Clerk)
-└── utils/             # Helpers (datetime, cache)
+├── index.ts           # Server entry point & startup
+├── app.ts             # App creation, middleware & route mounting
+├── routes/            # OpenAPI route contracts & schemas
+├── controllers/       # HTTP request transport & response handling
+├── services/          # Domain services, ACID transactions & business logic
+├── db/                # Drizzle schema, relations & connection pool
+├── jobs/              # Modular cron workers & advisory lock scheduler
+├── middlewares/       # Auth (Clerk), rate limiter, logger
+└── lib/               # App factory, presence, cache, constants, types
 ```
 
 ## Environment Variables

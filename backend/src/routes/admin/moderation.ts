@@ -62,8 +62,7 @@ router.openapi(
     // Automated action: If an app is reported, increment its flagCount.
     // If it reaches 3 or more reports, automatically hide the app from Marketplace.
     const targetAppId =
-      body.reportedAppId ||
-      (["app_not_visible", "app_spam"].includes(body.type) ? body.targetId : undefined)
+      body.reportedAppId || (["app_not_visible", "app_spam"].includes(body.type) ? body.targetId : undefined)
 
     if (targetAppId) {
       const targetApp = await db.query.apps.findFirst({
