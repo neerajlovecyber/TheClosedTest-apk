@@ -1,14 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { asc, desc, eq, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
-import { db } from "../db"
-import { matches, messages, notifications, users } from "../db/schema"
+import { MessagesController } from "../controllers/messages.controller"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
-import { sendExpoPushNotification } from "../services/expo-push"
 
 const MessageSchema = z.object({
   id: z.string(),
@@ -49,31 +46,7 @@ router.openapi(
       [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
-  async (c) => {
-    const { matchId } = c.req.valid("param")
-    const { limit, offset } = c.req.valid("query")
-    const userVar = c.get("user")!
-
-    const match = await db.query.matches.findFirst({
-      where: (m, { eq }) => eq(m.id, matchId),
-    })
-
-    if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
-      return c.json({ message: "Forbidden: Not part of match" }, HttpStatusCodes.FORBIDDEN)
-    }
-
-    const items = await db.query.messages.findMany({
-      where: (m, { eq }) => eq(m.matchId, matchId),
-      with: {
-        sender: true,
-      },
-      orderBy: [asc(messages.sentAt)],
-      limit,
-      offset,
-    })
-
-    return c.json(items, HttpStatusCodes.OK)
-  },
+  MessagesController.getHistory,
 )
 
 // 2. Send Message
@@ -93,64 +66,7 @@ router.openapi(
       [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
-  async (c) => {
-    const { matchId } = c.req.valid("param")
-    const userVar = c.get("user")!
-    const body = c.req.valid("json")
-
-    const match = await db.query.matches.findFirst({
-      where: (m, { eq }) => eq(m.id, matchId),
-    })
-
-    if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
-      return c.json({ message: "Forbidden: Not part of match" }, HttpStatusCodes.FORBIDDEN)
-    }
-
-    const isUser1 = match.user1Id === userVar.id
-    const partnerId = isUser1 ? match.user2Id : match.user1Id
-    const now = new Date()
-
-    const [newMessage] = await db
-      .insert(messages)
-      .values({
-        matchId,
-        senderId: userVar.id,
-        content: body.content,
-        type: body.type,
-        storageUrl: body.storageUrl,
-      })
-      .returning()
-
-    // Update match lastActivity & lastRead for sender
-    await db
-      .update(matches)
-      .set({
-        lastActivity: now,
-        ...(isUser1 ? { lastRead1: now } : { lastRead2: now }),
-      })
-      .where(eq(matches.id, matchId))
-
-    // Send push notification to partner in background
-    db.query.users
-      .findFirst({
-        where: (u, { eq }) => eq(u.id, partnerId),
-      })
-      .then((partner) => {
-        if (partner?.pushToken) {
-          sendExpoPushNotification({
-            to: partner.pushToken,
-            title: `Message from ${userVar.name || "Testing Partner"}`,
-            body: body.type === "text" ? body.content : "Sent an attachment",
-            data: { matchId, messageId: newMessage.id },
-          }).catch(() => {})
-        }
-      })
-      .catch((err) => {
-        console.error("Message push error:", err)
-      })
-
-    return c.json(newMessage, HttpStatusCodes.CREATED)
-  },
+  MessagesController.sendMessage,
 )
 
 // 3. Mark Chat as Read
@@ -169,28 +85,7 @@ router.openapi(
       [HttpStatusCodes.FORBIDDEN]: jsonContent(createMessageObjectSchema("Forbidden"), "Forbidden"),
     },
   }),
-  async (c) => {
-    const { matchId } = c.req.valid("param")
-    const userVar = c.get("user")!
-
-    const match = await db.query.matches.findFirst({
-      where: (m, { eq }) => eq(m.id, matchId),
-    })
-
-    if (!match || (match.user1Id !== userVar.id && match.user2Id !== userVar.id)) {
-      return c.json({ message: "Forbidden: Not part of match" }, HttpStatusCodes.FORBIDDEN)
-    }
-
-    const isUser1 = match.user1Id === userVar.id
-    const now = new Date()
-
-    await db
-      .update(matches)
-      .set(isUser1 ? { lastRead1: now } : { lastRead2: now })
-      .where(eq(matches.id, matchId))
-
-    return c.json({ message: "Chat marked as read" }, HttpStatusCodes.OK)
-  },
+  MessagesController.markRead,
 )
 
 export default router

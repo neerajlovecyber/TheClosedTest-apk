@@ -2,10 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers"
 
+import { StorageController } from "../controllers/storage.controller"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 import { sensitiveActionLimiter } from "../middlewares/rate-limiter"
-import { generateUploadUrl } from "../services/r2-storage"
 
 export const ALLOWED_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -45,11 +45,7 @@ router.openapi(
       [HttpStatusCodes.OK]: jsonContent(StoragePresignedResponseSchema, "Presigned upload URL details"),
     },
   }),
-  async (c) => {
-    const body = c.req.valid("json")
-    const result = await generateUploadUrl(body)
-    return c.json(result, HttpStatusCodes.OK)
-  },
+  StorageController.getPresignedUrl,
 )
 
 export default router

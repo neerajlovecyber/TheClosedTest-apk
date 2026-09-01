@@ -76,4 +76,63 @@ export class NotificationService {
       console.error(`Push notification failed for user ${userId}:`, error)
     }
   }
+
+  /**
+   * Retrieves user notifications list and unread count.
+   */
+  static async getUserNotifications(userId: string, limit = 50) {
+    const { desc } = await import("drizzle-orm")
+    const items = await db.query.notifications.findMany({
+      where: (n, { eq }) => eq(n.userId, userId),
+      orderBy: [desc(notifications.createdAt)],
+      limit,
+    })
+
+    const formatted = items.map((n) => ({
+      ...n,
+      isRead: n.read,
+    }))
+
+    const unreadCount = formatted.filter((n) => !n.read).length
+
+    return {
+      notifications: formatted,
+      unreadCount,
+    }
+  }
+
+  /**
+   * Marks a single notification as read.
+   */
+  static async markAsRead(id: string, userId: string) {
+    const { and, eq } = await import("drizzle-orm")
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+  }
+
+  /**
+   * Marks all user notifications as read.
+   */
+  static async markAllAsRead(userId: string) {
+    const { eq } = await import("drizzle-orm")
+    await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId))
+  }
+
+  /**
+   * Clears all notifications for a user.
+   */
+  static async clearAll(userId: string) {
+    const { eq } = await import("drizzle-orm")
+    await db.delete(notifications).where(eq(notifications.userId, userId))
+  }
+
+  /**
+   * Deletes a single notification.
+   */
+  static async deleteNotification(id: string, userId: string) {
+    const { and, eq } = await import("drizzle-orm")
+    await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+  }
 }

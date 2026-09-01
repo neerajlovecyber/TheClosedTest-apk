@@ -1,11 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, desc, eq, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
 
-import { db } from "../db"
-import { notifications } from "../db/schema"
+import { NotificationsController } from "../controllers/notifications.controller"
 import { createRouter } from "../lib/create-app"
 import { authMiddleware } from "../middlewares/auth"
 
@@ -41,30 +39,7 @@ router.openapi(
       ),
     },
   }),
-  async (c) => {
-    const userVar = c.get("user")!
-
-    const items = await db.query.notifications.findMany({
-      where: (n, { eq }) => eq(n.userId, userVar.id),
-      orderBy: [desc(notifications.createdAt)],
-      limit: 50,
-    })
-
-    const formatted = items.map((n) => ({
-      ...n,
-      isRead: n.read,
-    }))
-
-    const unreadCount = formatted.filter((n) => !n.read).length
-
-    return c.json(
-      {
-        notifications: formatted,
-        unreadCount,
-      },
-      HttpStatusCodes.OK,
-    )
-  },
+  NotificationsController.list,
 )
 
 // 2. Mark Single Notification as Read
@@ -82,17 +57,7 @@ router.openapi(
       [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Notification marked as read"), "Marked as read"),
     },
   }),
-  async (c) => {
-    const { id } = c.req.valid("param")
-    const userVar = c.get("user")!
-
-    await db
-      .update(notifications)
-      .set({ read: true })
-      .where(and(eq(notifications.id, id), eq(notifications.userId, userVar.id)))
-
-    return c.json({ message: "Notification marked as read" }, HttpStatusCodes.OK)
-  },
+  NotificationsController.markRead,
 )
 
 // 3. Mark All Notifications as Read
@@ -110,13 +75,7 @@ router.openapi(
       ),
     },
   }),
-  async (c) => {
-    const userVar = c.get("user")!
-
-    await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userVar.id))
-
-    return c.json({ message: "All notifications marked as read" }, HttpStatusCodes.OK)
-  },
+  NotificationsController.markAllRead,
 )
 
 // 4. Delete All Notifications (Clear Inbox)
@@ -134,13 +93,7 @@ router.openapi(
       ),
     },
   }),
-  async (c) => {
-    const userVar = c.get("user")!
-
-    await db.delete(notifications).where(eq(notifications.userId, userVar.id))
-
-    return c.json({ message: "All notifications deleted" }, HttpStatusCodes.OK)
-  },
+  NotificationsController.clearAll,
 )
 
 router.openapi(
@@ -157,13 +110,7 @@ router.openapi(
       ),
     },
   }),
-  async (c) => {
-    const userVar = c.get("user")!
-
-    await db.delete(notifications).where(eq(notifications.userId, userVar.id))
-
-    return c.json({ message: "All notifications deleted" }, HttpStatusCodes.OK)
-  },
+  NotificationsController.clearAll,
 )
 
 // 5. Delete Single Notification
@@ -181,14 +128,7 @@ router.openapi(
       [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("Notification deleted"), "Notification deleted"),
     },
   }),
-  async (c) => {
-    const { id } = c.req.valid("param")
-    const userVar = c.get("user")!
-
-    await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.userId, userVar.id)))
-
-    return c.json({ message: "Notification deleted" }, HttpStatusCodes.OK)
-  },
+  NotificationsController.deleteOne,
 )
 
 export default router
