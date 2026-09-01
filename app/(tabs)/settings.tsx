@@ -284,14 +284,14 @@ export default function SettingsScreen() {
           </View>
 
           {/* Logout Button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            className="w-full flex-row items-center justify-center gap-2.5 h-14 rounded-2xl bg-red-500/10 dark:bg-red-500/15 border border-red-500/20 active:bg-red-500/25"
+          <Button
+            variant="destructive"
+            className="w-full flex-row items-center justify-center gap-2 h-14 rounded-2xl shadow-sm active:opacity-90"
             onPress={() => setShowLogoutConfirm(true)}
           >
-            <Icon as={LogOutIcon} className="text-red-600 dark:text-red-400 size-5" />
-            <Text className="text-red-600 dark:text-red-400 font-bold text-base">Log Out</Text>
-          </TouchableOpacity>
+            <Icon as={LogOutIcon} className="text-white size-5 mr-1" />
+            <Text className="text-white font-bold text-base">Log Out</Text>
+          </Button>
         </View>
       </View>
 
@@ -344,7 +344,6 @@ export default function SettingsScreen() {
                 setShowLogoutConfirm(false);
                 signOut();
               }}
-              className="bg-red-600 active:bg-red-700"
             >
               <Text className="text-white font-bold">Yes, Log Out</Text>
             </AlertDialogAction>

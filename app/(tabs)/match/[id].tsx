@@ -492,13 +492,15 @@ export default function MatchDashboardScreen() {
 
         {!isCompleted && !isCancelled && (
           <View className="px-4 mt-2">
-            <TouchableOpacity
+            <Button
+              variant="destructive"
+              size="lg"
               onPress={handleLeaveMatch}
-              className="flex-row items-center justify-center p-3.5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/50 w-full mb-6"
+              className="w-full flex-row items-center justify-center rounded-2xl mb-6 shadow-sm"
             >
-              <Icon as={XCircleIcon} className="text-red-500 size-4 mr-2" />
-              <Text className="text-red-600 dark:text-red-400 font-medium">Stop Testing with {partner?.name?.split(" ")[0] || "Partner"}</Text>
-            </TouchableOpacity>
+              <Icon as={XCircleIcon} className="text-white size-5 mr-2" />
+              <Text className="text-white font-bold">Stop Testing with {partner?.name?.split(" ")[0] || "Partner"}</Text>
+            </Button>
           </View>
         )}
       </ScreenScrollView>
@@ -561,8 +563,8 @@ export default function MatchDashboardScreen() {
             <AlertDialogCancel onPress={() => setShowLeaveConfirm(false)}>
               <Text>Cancel</Text>
             </AlertDialogCancel>
-            <AlertDialogAction onPress={confirmLeaveMatch}>
-              <Text>Stop Testing</Text>
+            <AlertDialogAction variant="destructive" onPress={confirmLeaveMatch}>
+              <Text className="text-white font-bold">Stop Testing</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
