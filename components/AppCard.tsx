@@ -99,34 +99,27 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                 {/* Variant Specific Badges */}
                 {variant === "marketplace" && (
                   <>
-                    {isFilled ? (
+                    {matchStatus === "active" ? (
+                      <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                        <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">Active</Text>
+                      </View>
+                    ) : matchStatus === "pending" || matchStatus === "pending_sent" ? (
+                      <View className="bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                        <Text className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Pending</Text>
+                      </View>
+                    ) : matchStatus === "pending_received" ? (
+                      <View className="bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
+                        <Text className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Request</Text>
+                      </View>
+                    ) : isFilled ? (
                       <View className="bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
                         <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase">Filled</Text>
                       </View>
-                    ) : (
-                      <>
-                        {matchStatus === "active" && (
-                          <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                            <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">Active</Text>
-                          </View>
-                        )}
-                        {matchStatus === "pending_sent" && (
-                          <View className="bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
-                            <Text className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Req Sent</Text>
-                          </View>
-                        )}
-                        {matchStatus === "pending_received" && (
-                          <View className="bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
-                            <Text className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Request</Text>
-                          </View>
-                        )}
-                        {!matchStatus && item.isNew && (
-                          <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                            <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
-                          </View>
-                        )}
-                      </>
-                    )}
+                    ) : item.isNew ? (
+                      <View className="bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                        <Text className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase">New</Text>
+                      </View>
+                    ) : null}
                   </>
                 )}
                 {isMyApp && (

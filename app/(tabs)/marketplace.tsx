@@ -80,11 +80,30 @@ export default function MarketplaceScreen() {
   const matchStatusMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const m of allMatches) {
-      if (m.app1Id) map.set(m.app1Id, m.status);
-      if (m.app2Id) map.set(m.app2Id, m.status);
+      if (m.status !== "active" && m.status !== "pending") continue;
+
+      const setStatus = (appId: string, status: string) => {
+        const current = map.get(appId);
+        // "active" takes priority over "pending"
+        if (!current || (current !== "active" && status === "active")) {
+          map.set(appId, status);
+        }
+      };
+
+      if (m.status === "active") {
+        if (m.app1Id) setStatus(m.app1Id, "active");
+        if (m.app2Id) setStatus(m.app2Id, "active");
+      } else if (m.status === "pending") {
+        const isUser1 = user?.id && m.user1Id === user.id;
+        const targetAppId = isUser1 ? m.app2Id : m.app1Id;
+        const pendingStatus = isUser1 ? "pending" : "pending_received";
+        if (targetAppId) setStatus(targetAppId, pendingStatus);
+        const myAppId = isUser1 ? m.app1Id : m.app2Id;
+        if (myAppId) setStatus(myAppId, "pending");
+      }
     }
     return map;
-  }, [allMatches]);
+  }, [allMatches, user?.id]);
 
   // 1. Latest Opportunities: strictly sorted by latest (newest createdAt first)
   const latestOpportunities = useMemo(() => {
