@@ -3,6 +3,7 @@
     {
       "source": "mattpocock/skills",
       "skills": [
+        "diagnosing-bugs",
         "implement",
         "improve-codebase-architecture",
         "tdd",
