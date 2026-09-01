@@ -1,6 +1,9 @@
 import React, { useState } from "react";
-import { View, TextInput, TouchableOpacity, Platform } from "react-native";
+import { View, Pressable, Platform } from "react-native";
 import { Text } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { toast } from "@/lib/sonner";
@@ -8,6 +11,7 @@ import { Icon } from "@/components/ui/icon";
 import { ArrowLeftIcon } from "lucide-react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useMySupportChat, useSendSupportMessage } from "@/lib/api-hooks";
+import { cn } from "@/lib/utils";
 
 export default function CreateTicketScreen() {
   const router = useRouter();
@@ -50,57 +54,65 @@ export default function CreateTicketScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <View className="flex-row items-center px-4 py-3 border-b border-border">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3">
+        <Pressable onPress={() => router.back()} className="mr-3 p-1">
           <Icon as={ArrowLeftIcon} className="size-6 text-foreground" />
-        </TouchableOpacity>
+        </Pressable>
         <Text className="text-xl font-bold text-foreground">New Support Ticket</Text>
       </View>
 
       <KeyboardAwareScrollView bottomOffset={Platform.OS === "ios" ? 100 : 80} className="flex-1 p-6">
-        <View className="mb-6">
+        <View className="mb-5">
           <Text className="text-sm font-semibold text-foreground mb-2">Subject</Text>
-          <TextInput
-            className="bg-card border border-border rounded-xl p-4 text-foreground text-base"
+          <Input
             placeholder="Brief summary of issue..."
-            placeholderTextColor="#999"
             value={subject}
             onChangeText={setSubject}
           />
         </View>
 
-        <View className="mb-6">
+        <View className="mb-5">
           <Text className="text-sm font-semibold text-foreground mb-2">Priority</Text>
           <View className="flex-row gap-3">
-            {(["low", "medium", "high"] as const).map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => setPriority(p)}
-                className={`flex-1 py-3 items-center rounded-xl border ${priority === p ? "bg-primary border-primary" : "bg-card border-border"}`}
-              >
-                <Text className={`font-semibold capitalize ${priority === p ? "text-primary-foreground" : "text-foreground"}`}>{p}</Text>
-              </TouchableOpacity>
-            ))}
+            {(["low", "medium", "high"] as const).map((p) => {
+              const isSelected = priority === p;
+              return (
+                <Pressable
+                  key={p}
+                  onPress={() => setPriority(p)}
+                  className={cn(
+                    "flex-1 py-3 items-center rounded-xl border",
+                    isSelected ? "bg-primary border-primary" : "bg-card border-border",
+                  )}
+                >
+                  <Text
+                    className={cn(
+                      "font-semibold capitalize",
+                      isSelected ? "text-primary-foreground" : "text-foreground",
+                    )}
+                  >
+                    {p}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
         <View className="mb-8">
           <Text className="text-sm font-semibold text-foreground mb-2">Message</Text>
-          <TextInput
-            className="bg-card border border-border rounded-xl p-4 text-foreground text-base min-h-[150px]"
+          <Textarea
             placeholder="Describe your issue in detail..."
-            placeholderTextColor="#999"
             value={message}
             onChangeText={setMessage}
-            multiline
-            textAlignVertical="top"
+            className="min-h-[150px]"
           />
         </View>
 
-        <TouchableOpacity onPress={handleSubmit} disabled={submitting} className={`p-4 rounded-xl ${submitting ? "bg-muted" : "bg-primary"}`}>
-          <Text className={`text-center font-bold text-lg ${submitting ? "text-muted-foreground" : "text-primary-foreground"}`}>
+        <Button size="lg" onPress={handleSubmit} disabled={submitting} className="w-full">
+          <Text className="font-bold text-primary-foreground">
             {submitting ? "Creating Ticket..." : "Submit Ticket"}
           </Text>
-        </TouchableOpacity>
+        </Button>
       </KeyboardAwareScrollView>
     </SafeAreaView>
   );

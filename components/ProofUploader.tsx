@@ -2,9 +2,11 @@ import React, { useState, useCallback, memo } from "react";
 import { View, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Dimensions, Pressable } from "react-native";
 import { toast } from "@/lib/sonner";
 import { Image } from "expo-image";
-import { Text } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Text } from "@/components/ui/text";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CameraIcon,
   UploadIcon,
@@ -282,23 +284,21 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
 
         {/* Comment Input */}
         <View className="mb-4">
-          <TextInput
-            className="bg-secondary p-4 rounded-xl text-foreground"
+          <Textarea
             placeholder="Add a note (e.g., Tested feature X today...)"
-            placeholderTextColor="#9ca3af"
             value={comment}
             onChangeText={setComment}
-            multiline
-            numberOfLines={2}
+            className="min-h-[70px]"
           />
         </View>
 
         {/* Submit Button */}
         {selectedImages.length > 0 && (
-          <TouchableOpacity
+          <Button
+            size="lg"
             onPress={handleUpload}
             disabled={isUploading}
-            className={`bg-primary p-4 rounded-xl flex-row items-center justify-center ${isUploading ? "opacity-75" : ""}`}
+            className="w-full"
           >
             {isUploading ? (
               <View className="flex-row items-center gap-2">
@@ -310,12 +310,12 @@ function ProofUploaderComponent({ matchId, currentDay, todayProof, onUploadCompl
             ) : (
               <>
                 <Icon as={SendIcon} className="text-primary-foreground size-5 mr-2" />
-                <Text className="text-primary-foreground font-bold text-lg">
+                <Text className="text-primary-foreground font-bold text-base">
                   Submit Day {currentDay} Proof
                 </Text>
               </>
             )}
-          </TouchableOpacity>
+          </Button>
         )}
       </View>
     );

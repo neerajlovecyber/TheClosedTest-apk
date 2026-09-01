@@ -1,6 +1,7 @@
 import React, { memo, useMemo, useRef, useEffect } from "react";
 import { View, Pressable, useWindowDimensions, ScrollView } from "react-native";
 import { Text } from "@/components/ui/text";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Icon } from "@/components/ui/icon";
 import { CheckCircle2Icon, XCircleIcon, ClockIcon, LockIcon, AlertCircleIcon } from "lucide-react-native";
 
@@ -164,31 +165,29 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
 
       {/* Warning Banner for Your Pending Previous Days */}
       {hasMyPendingPreviousDays && (
-        <View className="mx-4 mb-3 p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-900/50">
-          <View className="flex-row items-center">
-            <Icon as={AlertCircleIcon} className="size-4 text-orange-600 dark:text-orange-400 mr-2" />
-            <View className="flex-1">
-              <Text className="text-xs font-bold text-orange-900 dark:text-orange-200">
-                Partner hasn't approved {myPendingPreviousDays.length} old {myPendingPreviousDays.length === 1 ? "screenshot" : "screenshots"}
-              </Text>
-              <Text className="text-[10px] text-orange-700 dark:text-orange-300 mt-0.5">Follow up with them or wait for review</Text>
-            </View>
-          </View>
+        <View className="mx-4 mb-3">
+          <Alert icon={AlertCircleIcon} iconClassName="text-orange-500" className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-900/50">
+            <AlertTitle className="text-orange-900 dark:text-orange-200">
+              Partner hasn't approved {myPendingPreviousDays.length} old {myPendingPreviousDays.length === 1 ? "screenshot" : "screenshots"}
+            </AlertTitle>
+            <AlertDescription className="text-orange-700 dark:text-orange-300">
+              Follow up with them or wait for review
+            </AlertDescription>
+          </Alert>
         </View>
       )}
 
       {/* Warning Banner for Partner's Pending Previous Days */}
       {hasPartnerPendingPreviousDays && (
-        <View className="mx-4 mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50">
-          <View className="flex-row items-center">
-            <Icon as={AlertCircleIcon} className="size-4 text-blue-600 dark:text-blue-400 mr-2" />
-            <View className="flex-1">
-              <Text className="text-xs font-bold text-blue-900 dark:text-blue-200">
-                You need to approve {partnerPendingPreviousDays.length} old {partnerPendingPreviousDays.length === 1 ? "screenshot" : "screenshots"}
-              </Text>
-              <Text className="text-[10px] text-blue-700 dark:text-blue-300 mt-0.5">Tap day cards below to review and approve</Text>
-            </View>
-          </View>
+        <View className="mx-4 mb-3">
+          <Alert icon={AlertCircleIcon} iconClassName="text-blue-500" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/50">
+            <AlertTitle className="text-blue-900 dark:text-blue-200">
+              You need to approve {partnerPendingPreviousDays.length} old {partnerPendingPreviousDays.length === 1 ? "screenshot" : "screenshots"}
+            </AlertTitle>
+            <AlertDescription className="text-blue-700 dark:text-blue-300">
+              Tap day cards below to review and approve
+            </AlertDescription>
+          </Alert>
         </View>
       )}
 

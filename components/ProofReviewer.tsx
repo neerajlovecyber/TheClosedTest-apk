@@ -2,9 +2,10 @@ import React, { memo, useState, useCallback, useMemo, useRef, useEffect } from "
 import { View, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, FlatList, Pressable } from "react-native";
 import { toast } from "@/lib/sonner";
 import { Image } from "expo-image";
-import { Text } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Text } from "@/components/ui/text";
 import { CheckCircleIcon, XCircleIcon, ClockIcon, UserIcon, MessageSquareIcon, ImageIcon } from "lucide-react-native";
 import { useReviewProof } from "@/lib/api-hooks";
 import { ImageViewerModal } from "@/components/ImageViewerModal";
@@ -296,28 +297,31 @@ function ProofReviewerComponent({ matchId, currentDay, isPast, isFuture, partner
           )}
 
           <View className="flex-row gap-3">
-            <TouchableOpacity
+            <Button
+              size="lg"
               onPress={handleApprove}
               disabled={isReviewing}
-              className="flex-1 bg-green-500 p-4 rounded-xl flex-row items-center justify-center"
+              className="flex-1 bg-green-600 active:bg-green-700"
             >
               {isReviewing ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color="white" size="small" />
               ) : (
                 <>
                   <Icon as={CheckCircleIcon} className="text-white size-5 mr-2" />
-                  <Text className="text-white font-bold text-lg">Accept</Text>
+                  <Text className="text-white font-bold text-base">Accept</Text>
                 </>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Button>
+            <Button
+              size="lg"
+              variant="destructive"
               onPress={handleRejectPress}
               disabled={isReviewing}
-              className="flex-1 bg-red-500 p-4 rounded-xl flex-row items-center justify-center"
+              className="flex-1"
             >
               <Icon as={XCircleIcon} className="text-white size-5 mr-2" />
-              <Text className="text-white font-bold text-lg">Reject</Text>
-            </TouchableOpacity>
+              <Text className="text-white font-bold text-base">Reject</Text>
+            </Button>
           </View>
 
           <Text className="text-xs text-muted-foreground text-center mt-3">

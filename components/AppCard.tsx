@@ -1,9 +1,11 @@
 import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
-import { Text } from "@/components/ui/text";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
+import { Progress } from "@/components/ui/progress";
+import { Text } from "@/components/ui/text";
 import { StarIcon, MessageSquareIcon } from "lucide-react-native";
 
 export interface AppItem {
@@ -164,11 +166,11 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
           {variant === "marketplace" && (
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-3">
-                <View className="bg-secondary/50 px-2 py-1 rounded-md">
+                <Badge variant="secondary" className="px-2 py-0.5 rounded-md">
                   <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
                     {item.ownerName || "Developer"}
                   </Text>
-                </View>
+                </Badge>
                 {/* Reputation (Moved back to bottom) */}
                 <View className="flex-row items-center gap-1">
                   <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
@@ -178,39 +180,36 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
 
               {/* Flag Warning */}
               {isFlagged && (
-                <View className="flex-row items-center bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded text-[10px]">
-                  <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold">{isHidden ? "⚠️ Not Visible" : "⚠️ Check Info"}</Text>
-                </View>
+                <Badge variant="destructive" className="px-1.5 py-0.5 rounded">
+                  <Text className="text-[10px] text-white font-bold">{isHidden ? "⚠️ Not Visible" : "⚠️ Check Info"}</Text>
+                </Badge>
               )}
             </View>
           )}
 
           {isMyApp && item.status !== "completed" && (
-            <View className="h-2 bg-secondary rounded-full overflow-hidden w-full">
-              <View
-                className={`h-full ${isFilled ? "bg-green-500" : "bg-primary"}`}
-                style={{
-                  width: `${Math.min(100, ((item.currentTesters || 0) / (item.requiredTesters || 12)) * 100)}%`,
-                }}
-              />
-            </View>
+            <Progress
+              value={Math.min(100, ((item.currentTesters || 0) / (item.requiredTesters || 12)) * 100)}
+              indicatorClassName={isFilled ? "bg-green-500" : "bg-primary"}
+              className="h-2 w-full"
+            />
           )}
 
           {/* Hidden Warning for My App (Below Progress Bar) */}
           {isMyApp && isHidden && (
-            <View className="flex-row items-center gap-1.5 mt-2 bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded self-start">
-              <Text className="text-[10px] text-red-600 dark:text-red-400 font-bold">⚠️ App reported not visible to testers</Text>
-            </View>
+            <Badge variant="destructive" className="mt-2 self-start px-2 py-1 rounded">
+              <Text className="text-[10px] text-white font-bold">⚠️ App reported not visible to testers</Text>
+            </Badge>
           )}
 
           {isTesting && (
             <View className="flex-row items-center gap-1.5">
               {/* Simple Day Indicator */}
-              <View className="bg-secondary/50 px-2 py-1 rounded-md">
+              <Badge variant="secondary" className="px-2 py-0.5 rounded-md">
                 <Text className="text-xs font-medium text-foreground">
                   Day {item.day || 1} of {item.totalDays || 14}
                 </Text>
-              </View>
+              </Badge>
             </View>
           )}
         </View>

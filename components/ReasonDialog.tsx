@@ -1,9 +1,15 @@
 import React, { useState } from "react";
-import { View, Modal, TextInput, TouchableOpacity } from "react-native";
-import { Text } from "@/components/ui/text";
+import { View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Text } from "@/components/ui/text";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ReasonDialogProps {
   visible: boolean;
@@ -15,7 +21,15 @@ interface ReasonDialogProps {
   initialValue?: string;
 }
 
-export function ReasonDialog({ visible, onClose, onConfirm, title, placeholder = "Reason...", confirmText = "Confirm", initialValue = "" }: ReasonDialogProps) {
+export function ReasonDialog({
+  visible,
+  onClose,
+  onConfirm,
+  title,
+  placeholder = "Reason...",
+  confirmText = "Confirm",
+  initialValue = "",
+}: ReasonDialogProps) {
   const [reason, setReason] = useState(initialValue);
 
   const handleConfirm = () => {
@@ -24,36 +38,36 @@ export function ReasonDialog({ visible, onClose, onConfirm, title, placeholder =
   };
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior="padding" className="flex-1">
-        <View className="flex-1 bg-black/80 items-center justify-center p-4">
-          <Card className="w-full max-w-sm bg-background">
-            <CardHeader className="pb-2">
-              <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="gap-4">
-              <TextInput
-                className="bg-muted p-3 rounded-md text-foreground min-h-[100px] text-base"
-                placeholder={placeholder}
-                placeholderTextColor="#999"
-                value={reason}
-                onChangeText={setReason}
-                multiline
-                textAlignVertical="top"
-                autoFocus
-              />
-              <View className="flex-row justify-end gap-3 mt-2">
-                <TouchableOpacity onPress={onClose} className="p-3">
-                  <Text className="font-semibold text-muted-foreground">Cancel</Text>
-                </TouchableOpacity>
-                <Button onPress={handleConfirm} disabled={!reason.trim()} className="bg-primary">
-                  <Text className="text-primary-foreground font-bold">{confirmText}</Text>
-                </Button>
-              </View>
-            </CardContent>
-          </Card>
+    <Dialog
+      open={visible}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+
+        <View className="py-2">
+          <Textarea
+            placeholder={placeholder}
+            value={reason}
+            onChangeText={setReason}
+            className="min-h-[100px]"
+            autoFocus
+          />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <DialogFooter className="flex-row justify-end gap-2 pt-2">
+          <Button variant="outline" onPress={onClose}>
+            <Text>Cancel</Text>
+          </Button>
+          <Button onPress={handleConfirm} disabled={!reason.trim()}>
+            <Text>{confirmText}</Text>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

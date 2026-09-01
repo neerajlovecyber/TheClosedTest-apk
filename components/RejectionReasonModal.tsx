@@ -1,9 +1,18 @@
 import React, { useState } from "react";
-import { View, TouchableOpacity, TextInput, Modal, Pressable, KeyboardAvoidingView, Platform } from "react-native";
-import { Text } from "react-native";
+import { View, Pressable } from "react-native";
+import { Text } from "@/components/ui/text";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
-import { XIcon, AlertTriangleIcon, SendIcon } from "lucide-react-native";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertTriangleIcon, SendIcon } from "lucide-react-native";
 import { useReviewProof } from "@/lib/api-hooks";
+import { toast } from "@/lib/sonner";
 
 interface RejectionReasonModalProps {
   visible: boolean;
@@ -12,9 +21,20 @@ interface RejectionReasonModalProps {
   onRejected?: () => void;
 }
 
-const QUICK_REASONS = ["Screenshot is not clear", "Wrong app shown", "Not enough proof of usage", "Looks like a fake screenshot", "App not opened properly"];
+const QUICK_REASONS = [
+  "Screenshot is not clear",
+  "Wrong app shown",
+  "Not enough proof of usage",
+  "Looks like a fake screenshot",
+  "App not opened properly",
+];
 
-export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: RejectionReasonModalProps) {
+export function RejectionReasonModal({
+  visible,
+  proofId,
+  onClose,
+  onRejected,
+}: RejectionReasonModalProps) {
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,7 +42,9 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
 
   const handleSubmit = async () => {
     if (reason.trim().length < 10) {
-      alert("Please provide a reason with at least 10 characters");
+      toast.error("Reason too short", {
+        description: "Please provide a reason with at least 10 characters",
+      });
       return;
     }
 
@@ -37,10 +59,13 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
         rejectionReason: reason.trim(),
       });
       setReason("");
+      toast.success("Proof rejected", {
+        description: "Your partner has been notified with your feedback.",
+      });
       onClose();
       onRejected?.();
     } catch (error: any) {
-      alert(error.message);
+      toast.error("Failed to reject proof", { description: error.message });
     } finally {
       setIsSubmitting(false);
     }
@@ -51,71 +76,96 @@ export function RejectionReasonModal({ visible, proofId, onClose, onRejected }: 
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
-        <Pressable className="flex-1 bg-black/50 justify-end" onPress={onClose}>
-          <Pressable className="bg-background rounded-t-3xl" onPress={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <View className="flex-row items-center justify-between p-4 border-b border-border">
-              <View className="flex-row items-center">
-                <Icon as={AlertTriangleIcon} className="text-red-500 size-6 mr-2" />
-                <Text className="text-lg font-bold">Reject Proof</Text>
-              </View>
-              <TouchableOpacity onPress={onClose} className="p-2">
-                <Icon as={XIcon} className="text-muted-foreground size-5" />
-              </TouchableOpacity>
-            </View>
+    <Dialog
+      open={visible}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <View className="flex-row items-center gap-2">
+            <Icon as={AlertTriangleIcon} className="text-destructive size-5" />
+            <DialogTitle>Reject Proof</DialogTitle>
+          </View>
+        </DialogHeader>
 
-            {/* Content */}
-            <View className="p-4">
-              <Text className="text-muted-foreground mb-4">Please provide a reason for rejection. This helps your partner understand what went wrong.</Text>
+        <View className="gap-3 py-1">
+          <Text className="text-sm text-muted-foreground">
+            Please provide a reason for rejection. This helps your partner understand what went wrong.
+          </Text>
 
-              {/* Quick Suggestions */}
-              <Text className="text-sm font-medium mb-2 text-muted-foreground">Quick reasons:</Text>
-              <View className="flex-row flex-wrap gap-2 mb-4">
-                {QUICK_REASONS.map((quickReason, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => handleQuickReason(quickReason)}
-                    className={`px-3 py-2 rounded-full ${reason === quickReason ? "bg-red-500" : "bg-secondary"}`}
+          {/* Quick Suggestions */}
+          <Text className="text-xs font-semibold text-muted-foreground">
+            Quick reasons:
+          </Text>
+          <View className="flex-row flex-wrap gap-1.5">
+            {QUICK_REASONS.map((quickReason, index) => {
+              const isSelected = reason === quickReason;
+              return (
+                <Pressable
+                  key={index}
+                  onPress={() => handleQuickReason(quickReason)}
+                  className={`px-3 py-1.5 rounded-full border ${
+                    isSelected
+                      ? "bg-destructive border-destructive"
+                      : "bg-secondary border-border"
+                  }`}
+                >
+                  <Text
+                    className={`text-xs ${
+                      isSelected
+                        ? "text-destructive-foreground font-semibold"
+                        : "text-secondary-foreground"
+                    }`}
                   >
-                    <Text className={`text-xs ${reason === quickReason ? "text-white font-bold" : "text-foreground"}`}>{quickReason}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {quickReason}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-              {/* Custom Reason Input */}
-              <Text className="text-sm font-medium mb-2 text-muted-foreground">Or write your own:</Text>
-              <TextInput
-                className="bg-secondary p-4 rounded-xl text-foreground mb-4"
-                placeholder="Explain why you're rejecting this proof..."
-                placeholderTextColor="#9ca3af"
-                value={reason}
-                onChangeText={setReason}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
+          {/* Custom Reason Input */}
+          <Text className="text-xs font-semibold text-muted-foreground mt-1">
+            Or write your own:
+          </Text>
+          <Textarea
+            placeholder="Explain why you're rejecting this proof..."
+            value={reason}
+            onChangeText={setReason}
+            className="min-h-[90px]"
+          />
 
-              {/* Character count */}
-              <Text className={`text-xs mb-4 ${reason.length < 10 ? "text-red-500" : "text-muted-foreground"}`}>{reason.length}/10 minimum characters</Text>
+          <View className="flex-row items-center justify-between">
+            <Text
+              className={`text-xs ${
+                reason.length < 10 ? "text-destructive" : "text-muted-foreground"
+              }`}
+            >
+              {reason.length}/10 minimum characters
+            </Text>
+            <Text className="text-[11px] text-muted-foreground italic">
+              Cannot be undone
+            </Text>
+          </View>
 
-              {/* Submit Button */}
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={isSubmitting || reason.trim().length < 10}
-                className={`bg-red-500 p-4 rounded-xl flex-row items-center justify-center ${isSubmitting || reason.trim().length < 10 ? "opacity-50" : ""}`}
-              >
-                <Icon as={SendIcon} className="text-white size-5 mr-2" />
-                <Text className="text-white font-bold text-lg">{isSubmitting ? "Submitting..." : "Submit Rejection"}</Text>
-              </TouchableOpacity>
-
-              {/* Warning */}
-              <Text className="text-xs text-muted-foreground text-center mt-3">This action cannot be undone. Your partner will be notified.</Text>
-            </View>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+          {/* Action Buttons */}
+          <View className="flex-row justify-end gap-2 pt-2">
+            <Button variant="outline" onPress={onClose} disabled={isSubmitting}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button
+              variant="destructive"
+              onPress={handleSubmit}
+              disabled={isSubmitting || reason.trim().length < 10}
+            >
+              <Icon as={SendIcon} className="text-white size-4 mr-1.5" />
+              <Text>{isSubmitting ? "Submitting..." : "Submit Rejection"}</Text>
+            </Button>
+          </View>
+        </View>
+      </DialogContent>
+    </Dialog>
   );
 }
