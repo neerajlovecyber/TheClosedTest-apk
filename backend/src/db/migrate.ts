@@ -26,21 +26,19 @@ async function runMigration() {
     const appliedNames = new Set(appliedRows.map((r) => r.name))
 
     // 3. Auto-bootstrap baseline: if existing tables are present, mark baseline migrations as applied
-    if (!appliedNames.has("0000_initial_schema.sql")) {
+    if (!appliedNames.has("0000_dizzy_medusa.sql")) {
       const checkUsers = await sql`
         SELECT table_name FROM information_schema.tables 
         WHERE table_schema = 'public' AND table_name = 'users'
       `
       if (checkUsers.length > 0) {
-        console.log("Existing production schema detected. Registering baseline migrations...")
+        console.log("Existing production schema detected. Registering baseline migration...")
         await sql.unsafe(`
           INSERT INTO "__drizzle_migrations" ("name") VALUES 
-            ('0000_initial_schema.sql'),
-            ('0001_add_pg_extensions_and_trgm_indexes.sql')
+            ('0000_dizzy_medusa.sql')
           ON CONFLICT ("name") DO NOTHING;
         `)
-        appliedNames.add("0000_initial_schema.sql")
-        appliedNames.add("0001_add_pg_extensions_and_trgm_indexes.sql")
+        appliedNames.add("0000_dizzy_medusa.sql")
       }
     }
 
