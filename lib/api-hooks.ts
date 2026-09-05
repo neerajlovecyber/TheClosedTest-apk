@@ -101,11 +101,43 @@ export interface MatchEntity {
   lastActivity: string;
   createdAt: string;
   updatedAt?: string | null;
+  isUser1?: boolean;
+  myApp?: AppEntity | null;
+  partnerApp?: AppEntity | null;
+  partnerUser?: UserProfile | null;
   app1?: AppEntity;
   app2?: AppEntity;
   user1?: UserProfile;
   user2?: UserProfile;
   proofs?: ProofEntity[];
+}
+
+/**
+ * Safely extracts the partner app to be tested from a match,
+ * preventing any race condition where the current user's own app is erroneously displayed.
+ */
+export function getMatchTargetApp(
+  m: MatchEntity,
+  currentUserId?: string | null,
+  myAppIds?: string[]
+): AppEntity | undefined {
+  if (m.partnerApp) return m.partnerApp;
+
+  if (typeof m.isUser1 === "boolean") {
+    return m.isUser1 ? m.app2 : m.app1;
+  }
+
+  if (myAppIds && myAppIds.length > 0) {
+    if (myAppIds.includes(m.app1Id)) return m.app2;
+    if (myAppIds.includes(m.app2Id)) return m.app1;
+  }
+
+  if (currentUserId) {
+    const isUser1 = m.user1Id === currentUserId;
+    return isUser1 ? m.app2 : m.app1;
+  }
+
+  return m.app2 || m.app1;
 }
 
 export interface ProofEntity {

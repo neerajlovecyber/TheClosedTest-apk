@@ -97,7 +97,7 @@ export default function MatchDashboardScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const isUser1 = match?.user1Id === currentUserId;
+  const isUser1 = typeof match?.isUser1 === "boolean" ? match.isUser1 : match?.user1Id === currentUserId;
   const myLastRead = isUser1 ? match?.lastRead1 : match?.lastRead2;
 
   const hasUnreadChat = useMemo(() => {
@@ -137,9 +137,9 @@ export default function MatchDashboardScreen() {
     );
   }
 
-  const partner = isUser1 ? match.user2 : match.user1;
-  const partnerApp = isUser1 ? match.app2 : match.app1;
-  const myApp = isUser1 ? match.app1 : match.app2;
+  const partner = match.partnerUser || (isUser1 ? match.user2 : match.user1);
+  const partnerApp = match.partnerApp || (isUser1 ? match.app2 : match.app1);
+  const myApp = match.myApp || (isUser1 ? match.app1 : match.app2);
 
   const partnerUserId = isUser1 ? match.user2Id : match.user1Id;
   const myUserId = isUser1 ? match.user1Id : match.user2Id;

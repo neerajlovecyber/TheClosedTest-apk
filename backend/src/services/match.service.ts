@@ -177,10 +177,20 @@ export class MatchService {
         (!myLastRead || new Date(latestMsg.sentAt).getTime() > new Date(myLastRead).getTime()),
       )
 
+      const resolvedApp1 = m.app1 ? appMap.get(m.app1.id) || m.app1 : null
+      const resolvedApp2 = m.app2 ? appMap.get(m.app2.id) || m.app2 : null
+      const myApp = isUser1 ? resolvedApp1 : resolvedApp2
+      const partnerApp = isUser1 ? resolvedApp2 : resolvedApp1
+      const partnerUser = isUser1 ? m.user2 : m.user1
+
       return {
         ...m,
-        app1: m.app1 ? appMap.get(m.app1.id) || m.app1 : null,
-        app2: m.app2 ? appMap.get(m.app2.id) || m.app2 : null,
+        isUser1,
+        myApp,
+        partnerApp,
+        partnerUser,
+        app1: resolvedApp1,
+        app2: resolvedApp2,
         hasUnreadMessages,
         latestMessage: latestMsg
           ? {
@@ -239,8 +249,17 @@ export class MatchService {
     const app1 = enrichedApp1 || match.app1
     const app2 = enrichedApp2 || match.app2
 
+    const isUser1 = match.user1Id === userId
+    const myApp = isUser1 ? app1 : app2
+    const partnerApp = isUser1 ? app2 : app1
+    const partnerUser = isUser1 ? match.user2 : match.user1
+
     const enrichedMatch = {
       ...match,
+      isUser1,
+      myApp,
+      partnerApp,
+      partnerUser,
       app1,
       app2,
       user1LastProof: user1LatestProof
@@ -265,6 +284,10 @@ export class MatchService {
       app2,
       user1: match.user1,
       user2: match.user2,
+      isUser1,
+      myApp,
+      partnerApp,
+      partnerUser,
     }
   }
 

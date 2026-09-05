@@ -117,12 +117,25 @@ export default function HomeScreen() {
     }
   }, [currentUser?.lastCheckInDate]);
 
+  const myAppIds = React.useMemo(() => myApps.map((a) => a.id), [myApps]);
+
   // Format active matches into task objects
   const dueTasks = React.useMemo(() => {
     return activeMatches
       .map((m: MatchEntity) => {
-        const isUser1 = m.user1Id === currentUser?.id;
-        const partnerApp = isUser1 ? m.app2 : m.app1;
+        const isUser1 =
+          typeof m.isUser1 === "boolean"
+            ? m.isUser1
+            : myAppIds.includes(m.app1Id)
+              ? true
+              : myAppIds.includes(m.app2Id)
+                ? false
+                : currentUser?.id
+                  ? m.user1Id === currentUser.id
+                  : true;
+
+        const partnerApp = m.partnerApp || (isUser1 ? m.app2 : m.app1);
+        const partnerUser = m.partnerUser || (isUser1 ? m.user2 : m.user1);
         const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
         const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
@@ -144,7 +157,7 @@ export default function HomeScreen() {
         return {
           id: m.id,
           name: partnerApp?.title || "Testing App",
-          owner: partnerApp?.user?.name || "Partner",
+          owner: partnerUser?.name || partnerApp?.user?.name || "Partner",
           day: currentDay,
           totalDays: 14,
           iconUrl: partnerApp?.iconUrl,
@@ -164,7 +177,7 @@ export default function HomeScreen() {
         if (!a.isReviewPending && b.isReviewPending) return 1;
         return 0;
       });
-  }, [activeMatches, currentUser?.id]);
+  }, [activeMatches, currentUser?.id, myAppIds]);
 
   const incomingRequests = React.useMemo(() => {
     return pendingMatches.filter((m) => m.user2Id === currentUser?.id);

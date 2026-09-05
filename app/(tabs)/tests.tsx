@@ -8,7 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon, MessageSquareIcon, HistoryIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/button";
-import { useCurrentUser, useMatches, useRefreshOnFocus, MatchEntity } from "@/lib/api-hooks";
+import { useCurrentUser, useMyApps, useMatches, useRefreshOnFocus, MatchEntity } from "@/lib/api-hooks";
 import { ErrorState } from "@/components/ErrorState";
 import { getTimeUntilMidnightIST, getMatchCurrentDay } from "@/lib/date-utils";
 import { TestingHistoryModal } from "@/components/TestingHistoryModal";
@@ -154,7 +154,10 @@ const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) =>
 export default function TestsScreen() {
   const router = useRouter();
   const { data: currentUser } = useCurrentUser();
+  const { data: myApps = [] } = useMyApps();
   const { data: activeMatches = [], refetch, isError, isFetching } = useMatches("active");
+
+  const myAppIds = useMemo(() => myApps.map((a) => a.id), [myApps]);
 
   // Instant refresh when navigating or switching to Tests tab
   useRefreshOnFocus(
@@ -178,9 +181,19 @@ export default function TestsScreen() {
 
   const testingApps = useMemo(() => {
     return activeMatches.map((m: MatchEntity) => {
-      const isUser1 = m.user1Id === currentUser?.id;
-      const partnerApp = isUser1 ? m.app2 : m.app1;
-      const myApp = isUser1 ? m.app1 : m.app2;
+      const isUser1 =
+        typeof m.isUser1 === "boolean"
+          ? m.isUser1
+          : myAppIds.includes(m.app1Id)
+            ? true
+            : myAppIds.includes(m.app2Id)
+              ? false
+              : currentUser?.id
+                ? m.user1Id === currentUser.id
+                : true;
+
+      const partnerApp = m.partnerApp || (isUser1 ? m.app2 : m.app1);
+      const partnerUser = m.partnerUser || (isUser1 ? m.user2 : m.user1);
       const myLastProof = isUser1 ? m.user1LastProof : m.user2LastProof;
       const partnerLastProof = isUser1 ? m.user2LastProof : m.user1LastProof;
 
@@ -220,11 +233,11 @@ export default function TestsScreen() {
 
       return {
         id: m.id,
-        name: partnerApp?.title || myApp?.title || "Testing App",
-        owner: partnerApp?.user?.name || "Partner",
+        name: partnerApp?.title || "Testing App",
+        owner: partnerUser?.name || partnerApp?.user?.name || "Partner",
         day: currentDay,
         totalDays: 14,
-        iconUrl: partnerApp?.iconUrl || myApp?.iconUrl,
+        iconUrl: partnerApp?.iconUrl,
         myProofStatus,
         partnerProofStatus,
         isReviewPending,
@@ -232,7 +245,7 @@ export default function TestsScreen() {
         hasUnread: Boolean(m.hasUnreadMessages),
       };
     });
-  }, [activeMatches, currentUser?.id]);
+  }, [activeMatches, currentUser?.id, myAppIds]);
 
   // Memoize the split between pending and completed tasks
   const { pendingTasks, completedTasks } = useMemo(
@@ -265,11 +278,10 @@ export default function TestsScreen() {
           <TouchableOpacity
             onPress={() => setShowHistory(true)}
             activeOpacity={0.7}
-            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/80 border border-border"
+            className="w-10 h-10 rounded-full bg-secondary/80 border border-border items-center justify-center active:opacity-70"
             accessibilityLabel="Testing History"
           >
-            <Icon as={HistoryIcon} className="size-4 text-foreground" />
-            <Text className="text-xs font-semibold text-foreground">History</Text>
+            <Icon as={HistoryIcon} className="size-5 text-foreground" />
           </TouchableOpacity>
         </View>
 

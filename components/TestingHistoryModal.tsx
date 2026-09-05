@@ -17,10 +17,9 @@ import {
   CheckCircle2Icon,
   SparklesIcon,
   CalendarIcon,
-  ShieldCheckIcon,
   HistoryIcon,
 } from "lucide-react-native";
-import { useCurrentUser, useMatches, MatchEntity } from "@/lib/api-hooks";
+import { useCurrentUser, useMyApps, useMatches, MatchEntity } from "@/lib/api-hooks";
 
 interface TestingHistoryModalProps {
   visible: boolean;
@@ -30,46 +29,55 @@ interface TestingHistoryModalProps {
 export function TestingHistoryModal({ visible, onClose }: TestingHistoryModalProps) {
   const insets = useSafeAreaInsets();
   const { data: currentUser } = useCurrentUser();
+  const { data: myApps = [] } = useMyApps();
   const { data: matches = [], isLoading, isRefetching, refetch } = useMatches("completed");
+
+  const myAppIds = useMemo(() => myApps.map((a) => a.id), [myApps]);
 
   const completedList = useMemo(() => {
     return matches.map((m: MatchEntity) => {
-      const isUser1 = m.user1Id === currentUser?.id;
-      const myApp = isUser1 ? m.app1 : m.app2;
-      const partnerApp = isUser1 ? m.app2 : m.app1;
-      const partnerUser = isUser1 ? m.user2 : m.user1;
+      const isUser1 =
+        typeof m.isUser1 === "boolean"
+          ? m.isUser1
+          : myAppIds.includes(m.app1Id)
+            ? true
+            : myAppIds.includes(m.app2Id)
+              ? false
+              : currentUser?.id
+                ? m.user1Id === currentUser.id
+                : true;
 
-      // Approved counts
-      const myApproved = isUser1 ? m.user1ApprovedCount : m.user2ApprovedCount;
-      const partnerApproved = isUser1 ? m.user2ApprovedCount : m.user1ApprovedCount;
+      const partnerApp = m.partnerApp || (isUser1 ? m.app2 : m.app1);
+      const partnerUser = m.partnerUser || (isUser1 ? m.user2 : m.user1);
+      const myApp = m.myApp || (isUser1 ? m.app1 : m.app2);
 
-      const completionDate = m.completedAt
-        ? new Date(m.completedAt).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : m.updatedAt
-          ? new Date(m.updatedAt).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })
-          : "Completed";
+      const formatDate = (d?: string | Date | null) => {
+        if (!d) return null;
+        return new Date(d).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      };
+
+      const startDateFormatted = formatDate(m.startDate || m.createdAt);
+      const endDateFormatted = formatDate(m.completedAt || m.updatedAt);
+      const dateRange =
+        startDateFormatted && endDateFormatted
+          ? `${startDateFormatted} – ${endDateFormatted}`
+          : endDateFormatted || "Completed";
 
       return {
         id: m.id,
-        appName: partnerApp?.title || myApp?.title || "Testing App",
-        appIcon: partnerApp?.iconUrl || myApp?.iconUrl || "https://github.com/shadcn.png",
+        appName: partnerApp?.title || "Testing App",
+        appIcon: partnerApp?.iconUrl || "https://github.com/shadcn.png",
         myAppName: myApp?.title,
         partnerName: partnerUser?.name || "Peer Tester",
-        myApproved: myApproved ?? 14,
-        partnerApproved: partnerApproved ?? 14,
-        completionDate,
+        dateRange,
         status: m.status,
       };
     });
-  }, [matches, currentUser?.id]);
+  }, [matches, currentUser?.id, myAppIds]);
 
   if (!visible) return null;
 
@@ -143,22 +151,16 @@ export function TestingHistoryModal({ visible, onClose }: TestingHistoryModalPro
               />
             }
             ListHeaderComponent={
-              <View className="mb-3 px-1 flex-row items-center justify-between">
+              <View className="mb-3 px-1">
                 <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Verified Cycles ({completedList.length})
+                  Completed Tests ({completedList.length})
                 </Text>
-                <View className="flex-row items-center gap-1">
-                  <Icon as={ShieldCheckIcon} className="size-3.5 text-green-600 dark:text-green-400" />
-                  <Text className="text-xs font-medium text-green-600 dark:text-green-400">
-                    All tests verified
-                  </Text>
-                </View>
               </View>
             }
             renderItem={({ item }) => (
               <Card className="mb-3 p-4 bg-card border border-border rounded-xl">
                 <View className="flex-col gap-3">
-                  {/* Top Row: App Icon + App Info + Verified Pill */}
+                  {/* Top Row: App Icon + App Info + Completed Pill */}
                   <View className="flex-row items-center gap-3">
                     <Image
                       source={{ uri: item.appIcon }}
@@ -186,27 +188,20 @@ export function TestingHistoryModal({ visible, onClose }: TestingHistoryModalPro
                   {/* Divider */}
                   <View className="h-[1px] bg-border/60" />
 
-                  {/* Bottom Row: Metrics & Reward */}
+                  {/* Bottom Row: Starting to Ending Date Range & Reward */}
                   <View className="flex-row items-center justify-between gap-2">
-                    <View className="flex-row items-center gap-1.5">
-                      <Icon as={CalendarIcon} className="size-3.5 text-muted-foreground" />
-                      <Text className="text-xs text-muted-foreground font-medium">
-                        {item.completionDate}
+                    <View className="flex-row items-center gap-1.5 flex-1 mr-2">
+                      <Icon as={CalendarIcon} className="size-3.5 text-muted-foreground shrink-0" />
+                      <Text className="text-xs text-muted-foreground font-medium shrink" numberOfLines={1}>
+                        {item.dateRange}
                       </Text>
                     </View>
 
-                    <View className="flex-row items-center gap-2">
-                      <View className="bg-secondary px-2.5 py-0.5 rounded-md">
-                        <Text className="text-xs font-semibold text-foreground">
-                          {item.myApproved}/14 Days
-                        </Text>
-                      </View>
-                      <View className="bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md flex-row items-center gap-1">
-                        <Icon as={SparklesIcon} className="size-3 text-amber-500" />
-                        <Text className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                          +20 Rep
-                        </Text>
-                      </View>
+                    <View className="bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-md flex-row items-center gap-1 shrink-0">
+                      <Icon as={SparklesIcon} className="size-3 text-amber-500" />
+                      <Text className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                        +20 Rep
+                      </Text>
                     </View>
                   </View>
                 </View>

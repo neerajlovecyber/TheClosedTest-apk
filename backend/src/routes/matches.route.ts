@@ -27,6 +27,10 @@ export const MatchSchema = z.object({
   app2: z.any().optional(),
   user1: z.any().optional(),
   user2: z.any().optional(),
+  isUser1: z.boolean().optional(),
+  myApp: z.any().optional(),
+  partnerApp: z.any().optional(),
+  partnerUser: z.any().optional(),
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
 })
