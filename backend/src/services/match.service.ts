@@ -130,7 +130,11 @@ export class MatchService {
     const conditions = [or(eq(matches.user1Id, userId), eq(matches.user2Id, userId))]
 
     if (status !== "all") {
-      conditions.push(eq(matches.status, status as any))
+      if (status === "completed") {
+        conditions.push(or(eq(matches.status, "completed"), eq(matches.status, "archived")))
+      } else {
+        conditions.push(eq(matches.status, status as any))
+      }
     }
 
     const items = await db.query.matches.findMany({

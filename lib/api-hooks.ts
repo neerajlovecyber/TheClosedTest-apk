@@ -100,6 +100,7 @@ export interface MatchEntity {
   } | null;
   lastActivity: string;
   createdAt: string;
+  updatedAt?: string | null;
   app1?: AppEntity;
   app2?: AppEntity;
   user1?: UserProfile;

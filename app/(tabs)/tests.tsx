@@ -5,12 +5,13 @@ import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon, MessageSquareIcon } from "lucide-react-native";
+import { CheckCircleIcon, ClockIcon, AlertCircleIcon, StarIcon, SearchIcon, XCircleIcon, MessageSquareIcon, HistoryIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser, useMatches, useRefreshOnFocus, MatchEntity } from "@/lib/api-hooks";
 import { ErrorState } from "@/components/ErrorState";
 import { getTimeUntilMidnightIST, getMatchCurrentDay } from "@/lib/date-utils";
+import { TestingHistoryModal } from "@/components/TestingHistoryModal";
 
 // Memoized TaskCard component
 const TaskCard = memo(({ item, onPress }: { item: any; onPress: () => void }) => {
@@ -164,6 +165,7 @@ export default function TestsScreen() {
 
   // Countdown timer state
   const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilMidnightIST());
+  const [showHistory, setShowHistory] = useState(false);
 
   // Update countdown every second
   useEffect(() => {
@@ -258,8 +260,17 @@ export default function TestsScreen() {
     <View className="flex-1 bg-background">
       <ScreenScrollView className="flex-1" onRefresh={refetch}>
         {/* Header */}
-        <View className="px-6 py-4">
+        <View className="px-6 py-4 flex-row items-center justify-between">
           <Text className="text-3xl font-extrabold text-foreground tracking-tight">My Tasks</Text>
+          <TouchableOpacity
+            onPress={() => setShowHistory(true)}
+            activeOpacity={0.7}
+            className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/80 border border-border"
+            accessibilityLabel="Testing History"
+          >
+            <Icon as={HistoryIcon} className="size-4 text-foreground" />
+            <Text className="text-xs font-semibold text-foreground">History</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Daily Reset Countdown Card */}
@@ -391,6 +402,7 @@ export default function TestsScreen() {
           )}
         </View>
       </ScreenScrollView>
+      <TestingHistoryModal visible={showHistory} onClose={() => setShowHistory(false)} />
     </View>
   );
 }
