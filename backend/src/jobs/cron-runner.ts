@@ -44,10 +44,10 @@ export function startCronJobs() {
     }),
   )
 
-  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Daily at 11:00 PM IST)
+  // 2. Active Match Progression, Inactivity Auto-Cancellation, and Expired Bans (Daily at 12:10 AM IST)
   activeCrons.push(
-    new Cron("0 23 * * *", { timezone: "Asia/Kolkata", name: "match-maintenance" }, async () => {
-      console.log("🔄 Triggering Nightly Match Progression & Inactivity Check (11:00 PM IST)...")
+    new Cron("10 0 * * *", { timezone: "Asia/Kolkata", name: "match-maintenance" }, async () => {
+      console.log("🔄 Triggering Match Progression & Inactivity Check (12:10 AM IST)...")
       await withAdvisoryLock(CRON_LOCKS.MATCH_MAINTENANCE, "Match Progression & Ban Expirations", async () => {
         await runMatchProgressionAndCleanup()
         await runExpiredBansCleanup()

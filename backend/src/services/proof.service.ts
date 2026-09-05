@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 
 import { db } from "../db"
 import { matches, proofs } from "../db/schema"
@@ -195,6 +195,20 @@ export class ProofService {
         updatedAt: now,
       }
 
+      const user1Approved = isUser1Uploader
+        ? dto.status === "approved"
+          ? match.user1ApprovedCount + 1
+          : match.user1ApprovedCount
+        : match.user1ApprovedCount
+      const user2Approved = !isUser1Uploader
+        ? dto.status === "approved"
+          ? match.user2ApprovedCount + 1
+          : match.user2ApprovedCount
+        : match.user2ApprovedCount
+
+      updateFields.user1ApprovedCount = user1Approved
+      updateFields.user2ApprovedCount = user2Approved
+
       if (dto.status === "approved") {
         // Reward uploader +1 reputation
         await ReputationService.changeReputation({
@@ -204,33 +218,6 @@ export class ProofService {
           referenceId: proof.id,
           tx,
         })
-
-        const user1Approved = isUser1Uploader ? match.user1ApprovedCount + 1 : match.user1ApprovedCount
-        const user2Approved = !isUser1Uploader ? match.user2ApprovedCount + 1 : match.user2ApprovedCount
-        const bothCompleted = user1Approved >= 14 && user2Approved >= 14
-
-        updateFields.user1ApprovedCount = user1Approved
-        updateFields.user2ApprovedCount = user2Approved
-        updateFields.status = bothCompleted ? "completed" : match.status
-        updateFields.completedAt = bothCompleted ? now : match.completedAt
-
-        // If completed 14 days, reward both users +20 reputation
-        if (bothCompleted) {
-          await ReputationService.changeReputation({
-            userId: match.user1Id,
-            delta: 20,
-            reason: "match_completed",
-            referenceId: match.id,
-            tx,
-          })
-          await ReputationService.changeReputation({
-            userId: match.user2Id,
-            delta: 20,
-            reason: "match_completed",
-            referenceId: match.id,
-            tx,
-          })
-        }
       } else if (dto.status === "rejected") {
         // Deduct 5 reputation for rejected proof (clamped at 0)
         await ReputationService.changeReputation({
@@ -238,6 +225,46 @@ export class ProofService {
           delta: -5,
           reason: "proof_rejected",
           referenceId: proof.id,
+          tx,
+        })
+      }
+
+      const allProofs = await tx.query.proofs.findMany({
+        where: eq(proofs.matchId, match.id),
+      })
+
+      const matchStart = match.startDate ? new Date(match.startDate) : match.createdAt ? new Date(match.createdAt) : now
+      const fourteenDaysElapsed = now.getTime() - matchStart.getTime() >= 14 * 24 * 60 * 60 * 1000
+
+      const user1ReachedDay14 = isUser1Uploader
+        ? proof.day >= 14
+        : allProofs.some((p) => p.uploaderId === match.user1Id && p.day >= 14)
+      const user2ReachedDay14 = !isUser1Uploader
+        ? proof.day >= 14
+        : allProofs.some((p) => p.uploaderId === match.user2Id && p.day >= 14)
+      const hasOtherPending = allProofs.some((p) => p.id !== proof.id && p.status === "pending")
+
+      const both14Approved = user1Approved >= 14 && user2Approved >= 14
+      const cycleConcluded = !hasOtherPending && (fourteenDaysElapsed || (user1ReachedDay14 && user2ReachedDay14))
+      const bothCompleted = both14Approved || cycleConcluded
+
+      updateFields.status = bothCompleted ? "completed" : match.status
+      updateFields.completedAt = bothCompleted ? now : match.completedAt
+
+      // If completed 14-day cycle, reward both users +20 reputation
+      if (bothCompleted && match.status !== "completed") {
+        await ReputationService.changeReputation({
+          userId: match.user1Id,
+          delta: 20,
+          reason: "match_completed",
+          referenceId: match.id,
+          tx,
+        })
+        await ReputationService.changeReputation({
+          userId: match.user2Id,
+          delta: 20,
+          reason: "match_completed",
+          referenceId: match.id,
           tx,
         })
       }

@@ -665,4 +665,104 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     }
     expect(err).toBeNull()
   })
+
+  it("32. runMatchProgressionAndCleanup auto-completes 14-day match with missed days and does not abandon", async () => {
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
+
+    const [concludedMatch] = await db
+      .insert(matches)
+      .values({
+        app1Id,
+        app2Id,
+        user1Id,
+        user2Id,
+        status: "active",
+        startDate: fifteenDaysAgo,
+        user1ApprovedCount: 14,
+        user2ApprovedCount: 13, // Missed 1 day
+        createdAt: fifteenDaysAgo,
+        updatedAt: fifteenDaysAgo,
+      })
+      .returning()
+
+    // Add day 14 proofs for both users (approved)
+    await db.insert(proofs).values([
+      {
+        matchId: concludedMatch.id,
+        uploaderId: user1Id,
+        day: 14,
+        status: "approved",
+        storageUrls: ["https://example.com/p14-1.png"],
+      },
+      {
+        matchId: concludedMatch.id,
+        uploaderId: user2Id,
+        day: 14,
+        status: "approved",
+        storageUrls: ["https://example.com/p14-2.png"],
+      },
+    ])
+
+    await runMatchProgressionAndCleanup()
+
+    const matchCheck = await db.query.matches.findFirst({
+      where: (m, { eq }) => eq(m.id, concludedMatch.id),
+    })
+
+    expect(matchCheck?.status).toBe("completed")
+    expect(matchCheck?.completedAt).not.toBeNull()
+
+    // Cleanup
+    await db.delete(proofs).where(eq(proofs.matchId, concludedMatch.id))
+    await db.delete(matches).where(eq(matches.id, concludedMatch.id))
+  })
+
+  it("33. Day 15 auto-approves pending proofs and completes match without waiting", async () => {
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
+
+    const [unreviewedMatch] = await db
+      .insert(matches)
+      .values({
+        app1Id,
+        app2Id,
+        user1Id,
+        user2Id,
+        status: "active",
+        startDate: fifteenDaysAgo,
+        user1ApprovedCount: 14,
+        user2ApprovedCount: 13,
+        createdAt: fifteenDaysAgo,
+        updatedAt: fifteenDaysAgo,
+      })
+      .returning()
+
+    // Add a pending proof for user2 that was never reviewed
+    const [pendingProof] = await db
+      .insert(proofs)
+      .values({
+        matchId: unreviewedMatch.id,
+        uploaderId: user2Id,
+        day: 14,
+        status: "pending",
+        storageUrls: ["https://example.com/p14-unreviewed.png"],
+      })
+      .returning()
+
+    await runMatchProgressionAndCleanup()
+
+    const proofCheck = await db.query.proofs.findFirst({
+      where: (p, { eq }) => eq(p.id, pendingProof.id),
+    })
+    expect(proofCheck?.status).toBe("approved")
+
+    const matchCheck = await db.query.matches.findFirst({
+      where: (m, { eq }) => eq(m.id, unreviewedMatch.id),
+    })
+    expect(matchCheck?.status).toBe("completed")
+    expect(matchCheck?.user2ApprovedCount).toBe(14)
+
+    // Cleanup
+    await db.delete(proofs).where(eq(proofs.matchId, unreviewedMatch.id))
+    await db.delete(matches).where(eq(matches.id, unreviewedMatch.id))
+  })
 })
