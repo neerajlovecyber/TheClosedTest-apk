@@ -80,10 +80,31 @@ export default function AppDetailsScreen() {
   const [activeAlert, setActiveAlert] = useState<null | "no_apps" | "reject" | "complete" | "delete">(null);
   const [reportDialogVisible, setReportDialogVisible] = useState(false);
 
-  // Find match for this app if exists
-  const currentMatch = allMatches.find((m: MatchEntity) => (m.app1Id === appId || m.app2Id === appId) && (m.user1Id === user?.id || m.user2Id === user?.id));
+  // Find match for this app if exists (prioritize active/pending over historical)
+  const currentMatch =
+    allMatches.find(
+      (m: MatchEntity) =>
+        (m.app1Id === appId || m.app2Id === appId) &&
+        (m.user1Id === user?.id || m.user2Id === user?.id) &&
+        (m.status === "active" || m.status === "pending"),
+    ) ||
+    allMatches.find(
+      (m: MatchEntity) =>
+        (m.app1Id === appId || m.app2Id === appId) &&
+        (m.user1Id === user?.id || m.user2Id === user?.id),
+    );
 
-  const isMine = user?.id && app?.userId === user.id;
+  const isMine = Boolean(user?.id && app?.userId === user.id);
+
+  // Incoming request: the other developer requested a swap with your app
+  const isIncomingRequest = Boolean(
+    currentMatch?.status === "pending" &&
+      (currentMatch.user2Id === user?.id ||
+        (currentMatch.isUser1 === false && currentMatch.user1Id !== user?.id) ||
+        myAppsRaw.some((a) => a.id === currentMatch.app2Id)),
+  );
+
+  const isOutgoingRequest = Boolean(currentMatch?.status === "pending" && !isIncomingRequest);
 
   // Initial selection logic
   React.useEffect(() => {
@@ -96,6 +117,27 @@ export default function AppDetailsScreen() {
   }, [myApps, currentMatch, user?.id]);
 
   const isLocked = currentMatch?.status === "active" || currentMatch?.status === "pending";
+
+  const handleAcceptSwap = async () => {
+    if (!currentMatch?.id) return;
+    try {
+      setIsSubmitting(true);
+      await acceptMatch.mutateAsync(currentMatch.id);
+      toast.success("Swap Accepted! 🎉", {
+        description: "You can now start testing each other's apps.",
+      });
+      router.push({
+        pathname: "/(tabs)/match/[id]",
+        params: { id: currentMatch.id },
+      } as any);
+    } catch (error: any) {
+      toast.error("Failed to Accept Swap", {
+        description: error?.message || "Could not accept swap request.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleOpenApp = async () => {
     if (!app) return;
@@ -212,9 +254,9 @@ export default function AppDetailsScreen() {
       try {
         setIsSubmitting(true);
         await rejectMatch.mutateAsync(currentMatch.id);
-        toast.success("Rejected");
+        toast.success(isIncomingRequest ? "Swap Declined" : "Request Cancelled");
       } catch (error: any) {
-        toast.error("Error", { description: "Failed to reject swap." });
+        toast.error("Error", { description: "Failed to update swap request." });
       } finally {
         setIsSubmitting(false);
       }
@@ -313,6 +355,25 @@ export default function AppDetailsScreen() {
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+        {/* Incoming Swap Request Banner */}
+        {isIncomingRequest && (
+          <View className="px-4 pt-4 mb-1">
+            <Card className="border-orange-500/40 bg-orange-500/10">
+              <CardContent className="p-4 flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-full bg-orange-500/20 items-center justify-center">
+                  <Icon as={RocketIcon} className="size-5 text-orange-500" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-bold text-sm text-foreground">Incoming Swap Request!</Text>
+                  <Text className="text-xs text-muted-foreground mt-0.5">
+                    This developer requested to peer-test with your app. Accept or decline below.
+                  </Text>
+                </View>
+              </CardContent>
+            </Card>
+          </View>
+        )}
+
         {/* App Header Card */}
         <View className="px-4 py-4 mb-2">
           <Card className="border-0 overflow-hidden bg-blue-950 shadow-lg">
@@ -495,10 +556,50 @@ export default function AppDetailsScreen() {
           >
             <Text className="font-bold text-lg text-white">Active Swap - Go to Details</Text>
           </Button>
-        ) : currentMatch?.status === "pending" || hasSentRequest ? (
-          <Button size="lg" variant="outline" className="w-full rounded-xl opacity-80" disabled={true}>
-            <Text className="font-bold text-lg">Swap Pending</Text>
-          </Button>
+        ) : isIncomingRequest ? (
+          <View className="flex-row gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              onPress={() => setActiveAlert("reject")}
+              className="flex-1 rounded-xl border-destructive/50"
+              disabled={isSubmitting}
+            >
+              <Text className="font-bold text-base text-destructive">Decline</Text>
+            </Button>
+            <Button
+              size="lg"
+              onPress={handleAcceptSwap}
+              className="flex-1 rounded-xl bg-green-600 active:bg-green-700"
+              disabled={isSubmitting}
+            >
+              <Text className="font-bold text-base text-white">
+                {isSubmitting ? "Accepting..." : "Accept Swap"}
+              </Text>
+            </Button>
+          </View>
+        ) : isOutgoingRequest || hasSentRequest ? (
+          <View className="flex-row gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              className="flex-1 rounded-xl opacity-80"
+              disabled={true}
+            >
+              <Text className="font-bold text-base">Request Sent (Pending)</Text>
+            </Button>
+            {currentMatch?.id && (
+              <Button
+                size="lg"
+                variant="destructive"
+                onPress={() => setActiveAlert("reject")}
+                className="rounded-xl px-4"
+                disabled={isSubmitting}
+              >
+                <Text className="font-bold text-white">Cancel</Text>
+              </Button>
+            )}
+          </View>
         ) : isFilled ? (
           <View className="w-full py-4 items-center justify-center bg-red-100 dark:bg-red-900/30 rounded-xl">
             <Text className="text-red-600 dark:text-red-400 font-bold text-lg">Filled - Not Accepting Requests</Text>
@@ -588,13 +689,16 @@ export default function AppDetailsScreen() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {activeAlert === "no_apps" && "No Apps Found"}
-              {activeAlert === "reject" && "Reject Request"}
+              {activeAlert === "reject" && (isIncomingRequest ? "Decline Swap Request?" : "Cancel Swap Request?")}
               {activeAlert === "complete" && "🚀 Mark as Completed?"}
               {activeAlert === "delete" && "Delete App"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {activeAlert === "no_apps" && "You need to add an app first to request a swap."}
-              {activeAlert === "reject" && "Are you sure you want to reject this request?"}
+              {activeAlert === "reject" &&
+                (isIncomingRequest
+                  ? "Are you sure you want to decline this swap request? The other developer will be notified."
+                  : "Are you sure you want to cancel your swap request?")}
               {activeAlert === "complete" && "This will mark your testing as completed!"}
               {activeAlert === "delete" && "Are you sure? This will remove your app from testing."}
             </AlertDialogDescription>
@@ -605,7 +709,7 @@ export default function AppDetailsScreen() {
             </AlertDialogCancel>
             <AlertDialogAction onPress={handleConfirmAction} className={activeAlert === "reject" || activeAlert === "delete" ? "bg-destructive" : ""}>
               <Text className={activeAlert === "reject" || activeAlert === "delete" ? "text-white font-bold" : "font-bold"}>
-                {activeAlert === "no_apps" ? "Add App" : activeAlert === "reject" ? "Reject" : activeAlert === "delete" ? "Delete" : "Confirm"}
+                {activeAlert === "no_apps" ? "Add App" : activeAlert === "reject" ? (isIncomingRequest ? "Decline" : "Cancel Request") : activeAlert === "delete" ? "Delete" : "Confirm"}
               </Text>
             </AlertDialogAction>
           </AlertDialogFooter>
