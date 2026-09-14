@@ -20,10 +20,6 @@ sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls-ring", "postg
 uuid = { version = "1", features = ["v4", "serde"] }
 time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
 
-# OpenAPI & Docs
-utoipa = { version = "5", features = ["axum_extras", "time", "uuid"] }
-utoipa-swagger-ui = { version = "9", features = ["axum"] }
-utoipa-axum = "0.2"
 
 # Logging & Observability
 tracing = "0.1"
