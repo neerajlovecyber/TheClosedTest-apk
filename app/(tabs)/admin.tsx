@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon, LayersIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAdminStats } from "@/lib/api-hooks";
+import { AdminServerUrlCard } from "@/components/AdminServerUrlCard";
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
@@ -101,6 +102,10 @@ export default function AdminDashboardScreen() {
             <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
           </TouchableOpacity>
         </Card>
+
+        {/* Server & Environment Configuration */}
+        <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Server &amp; Environment</Text>
+        <AdminServerUrlCard />
 
         {/* System Maintenance & Dangerous Actions */}
         <Text className="text-xs font-bold text-red-500 uppercase tracking-wider mb-3 px-1">System &amp; Maintenance</Text>

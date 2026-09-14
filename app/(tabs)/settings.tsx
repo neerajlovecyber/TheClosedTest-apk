@@ -170,7 +170,7 @@ export default function SettingsScreen() {
       <View className="px-6 py-4 flex-row items-center justify-between">
         <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
         <View className="flex-row items-center gap-2">
-          {__DEV__ && isAdmin && <ApiEnvSwitch />}
+          {isAdmin && <ApiEnvSwitch />}
           {isAdmin && (
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/admin" as any)}

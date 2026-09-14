@@ -1,0 +1,312 @@
+import React, { useState, useEffect } from "react";
+import { View, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { ServerIcon, CheckCircle2Icon, AlertCircleIcon, RefreshCwIcon, GlobeIcon, RotateCcwIcon } from "lucide-react-native";
+import { Text } from "@/components/ui/text";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
+import Toast from "react-native-toast-message";
+import { getApiBaseUrl, getApiEnv, setCustomApiUrl, setApiEnv, PROD_API_URL, LOCAL_API_URL, type ApiEnv } from "@/lib/api";
+
+export function AdminServerUrlCard() {
+  const queryClient = useQueryClient();
+  const [currentUrl, setCurrentUrl] = useState<string>(getApiBaseUrl());
+  const [inputUrl, setInputUrl] = useState<string>(getApiBaseUrl());
+  const [env, setEnv] = useState<ApiEnv>(getApiEnv());
+  const [isTesting, setIsTesting] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; latency?: number } | null>(null);
+
+  useEffect(() => {
+    const active = getApiBaseUrl();
+    setCurrentUrl(active);
+    setInputUrl(active);
+    setEnv(getApiEnv());
+  }, []);
+
+  const handleTestConnection = async (targetUrl?: string) => {
+    const urlToTest = (targetUrl || inputUrl).trim().replace(/\/+$/, "");
+    if (!urlToTest.startsWith("http://") && !urlToTest.startsWith("https://")) {
+      setTestResult({
+        success: false,
+        message: "URL must start with http:// or https://",
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    const start = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      // Try /health or /api/health
+      let res: Response;
+      try {
+        res = await fetch(`${urlToTest}/api/health`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+      } catch {
+        res = await fetch(`${urlToTest}/health`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const latency = Date.now() - start;
+
+      if (res.ok) {
+        let label = "Online";
+        try {
+          const json = await res.json();
+          if (json.status) label = json.status.toUpperCase();
+          if (json.service) label += ` (${json.service})`;
+        } catch {
+          // ignore json parse error
+        }
+
+        setTestResult({
+          success: true,
+          message: `Reachable [${res.status}] · ${label}`,
+          latency,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `Server returned HTTP ${res.status}: ${res.statusText}`,
+          latency,
+        });
+      }
+    } catch (err: any) {
+      const latency = Date.now() - start;
+      const isTimeout = err?.name === "AbortError";
+      setTestResult({
+        success: false,
+        message: isTimeout ? "Timed out after 6s (Unreachable)" : (err?.message || "Connection refused"),
+        latency,
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleApplyUrl = async (newUrl: string) => {
+    const cleaned = newUrl.trim().replace(/\/+$/, "");
+    if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+      Alert.alert("Invalid URL", "Please enter a valid URL starting with http:// or https://");
+      return;
+    }
+
+    await setCustomApiUrl(cleaned);
+    const updated = getApiBaseUrl();
+    setCurrentUrl(updated);
+    setInputUrl(updated);
+    setEnv(getApiEnv());
+    setTestResult(null);
+
+    await queryClient.invalidateQueries();
+
+    Toast.show({
+      type: "success",
+      text1: "API Server Switched",
+      text2: updated,
+    });
+  };
+
+  const handlePreset = async (presetUrl: string, presetEnv: ApiEnv) => {
+    setInputUrl(presetUrl);
+    await setApiEnv(presetEnv);
+    const updated = getApiBaseUrl();
+    setCurrentUrl(updated);
+    setEnv(getApiEnv());
+    setTestResult(null);
+
+    await queryClient.invalidateQueries();
+
+    Toast.show({
+      type: "success",
+      text1: `Switched to ${presetEnv === "prod" ? "Production" : "Local"}`,
+      text2: updated,
+    });
+  };
+
+  const handleReset = async () => {
+    await handlePreset(PROD_API_URL, "prod");
+  };
+
+  const isCustom = env === "custom";
+  const isLocal = env === "local";
+
+  return (
+    <Card className="border-border shadow-sm mb-4 bg-card">
+      <CardContent className="p-4">
+        {/* Header */}
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center gap-2">
+            <View className="bg-sky-500/10 p-2 rounded-xl">
+              <Icon as={ServerIcon} className="text-sky-500 size-5" />
+            </View>
+            <View>
+              <Text className="font-bold text-foreground">API Server URL</Text>
+              <Text className="text-xs text-muted-foreground">Switch backend target live without rebuilding APK</Text>
+            </View>
+          </View>
+          <Badge
+            variant={isLocal ? "secondary" : isCustom ? "outline" : "default"}
+            className={
+              isLocal
+                ? "bg-amber-500/10 border border-amber-500/30"
+                : isCustom
+                ? "bg-purple-500/10 border border-purple-500/30"
+                : "bg-emerald-500/10 border border-emerald-500/30"
+            }
+          >
+            <Text
+              className={`text-[10px] font-bold uppercase tracking-wider ${
+                isLocal
+                  ? "text-amber-600 dark:text-amber-400"
+                  : isCustom
+                  ? "text-purple-600 dark:text-purple-400"
+                  : "text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {isLocal ? "Local" : isCustom ? "Custom" : "Production"}
+            </Text>
+          </Badge>
+        </View>
+
+        {/* Current Active URL Display */}
+        <View className="bg-muted/40 dark:bg-muted/20 border border-border/70 rounded-lg p-2.5 mb-3">
+          <Text className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Active Endpoint</Text>
+          <Text className="text-xs font-mono text-foreground select-all" numberOfLines={2}>
+            {currentUrl}
+          </Text>
+        </View>
+
+        {/* Presets */}
+        <View className="flex-row items-center gap-2 mb-3">
+          <TouchableOpacity
+            onPress={() => void handlePreset(PROD_API_URL, "prod")}
+            className={`flex-1 py-1.5 px-2 rounded-md border items-center ${
+              env === "prod"
+                ? "bg-emerald-500/15 border-emerald-500/40"
+                : "bg-background border-border/70 active:bg-muted/50"
+            }`}
+          >
+            <Text
+              className={`text-xs font-semibold ${
+                env === "prod" ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"
+              }`}
+            >
+              Prod Server
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => void handlePreset(LOCAL_API_URL, "local")}
+            className={`flex-1 py-1.5 px-2 rounded-md border items-center ${
+              env === "local"
+                ? "bg-amber-500/15 border-amber-500/40"
+                : "bg-background border-border/70 active:bg-muted/50"
+            }`}
+          >
+            <Text
+              className={`text-xs font-semibold ${
+                env === "local" ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"
+              }`}
+            >
+              Local (:9000)
+            </Text>
+          </TouchableOpacity>
+
+          {isCustom && (
+            <TouchableOpacity
+              onPress={() => void handleReset()}
+              className="p-2 rounded-md border border-border/70 bg-background items-center justify-center active:bg-muted/50"
+              accessibilityLabel="Reset to Default"
+            >
+              <Icon as={RotateCcwIcon} className="size-4 text-muted-foreground" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Custom Input */}
+        <View className="mb-3">
+          <Text className="text-xs font-semibold text-foreground mb-1.5">Custom Backend URL</Text>
+          <Input
+            value={inputUrl}
+            onChangeText={setInputUrl}
+            placeholder="https://..."
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            className="text-xs font-mono h-10 px-3"
+          />
+        </View>
+
+        {/* Ping result alert */}
+        {testResult && (
+          <View
+            className={`p-2.5 rounded-lg border flex-row items-center gap-2 mb-3 ${
+              testResult.success
+                ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800"
+                : "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800"
+            }`}
+          >
+            <Icon
+              as={testResult.success ? CheckCircle2Icon : AlertCircleIcon}
+              className={`size-4 shrink-0 ${
+                testResult.success ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              }`}
+            />
+            <View className="flex-1">
+              <Text
+                className={`text-xs font-medium ${
+                  testResult.success ? "text-emerald-800 dark:text-emerald-300" : "text-red-800 dark:text-red-300"
+                }`}
+                numberOfLines={2}
+              >
+                {testResult.message}
+              </Text>
+              {testResult.latency !== undefined && (
+                <Text className="text-[10px] text-muted-foreground">Ping: {testResult.latency}ms</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Actions */}
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={() => void handleTestConnection()}
+            disabled={isTesting}
+            className="flex-1 py-2 px-3 rounded-lg border border-border bg-muted/40 active:bg-muted flex-row items-center justify-center gap-1.5"
+          >
+            {isTesting ? (
+              <ActivityIndicator size="small" color="#0284c7" />
+            ) : (
+              <Icon as={GlobeIcon} className="size-4 text-sky-600 dark:text-sky-400" />
+            )}
+            <Text className="text-xs font-semibold text-foreground">
+              {isTesting ? "Testing..." : "Test Connection"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => void handleApplyUrl(inputUrl)}
+            className="flex-1 py-2 px-3 rounded-lg bg-primary active:opacity-90 flex-row items-center justify-center gap-1.5 shadow-sm"
+          >
+            <Icon as={RefreshCwIcon} className="size-4 text-primary-foreground" />
+            <Text className="text-xs font-semibold text-primary-foreground">Save &amp; Switch</Text>
+          </TouchableOpacity>
+        </View>
+      </CardContent>
+    </Card>
+  );
+}

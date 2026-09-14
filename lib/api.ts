@@ -5,23 +5,32 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run";
-const LOCAL_API_URL = process.env.EXPO_PUBLIC_LOCAL_API_URL || "http://192.168.1.4:9000";
+export const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run";
+export const LOCAL_API_URL = process.env.EXPO_PUBLIC_LOCAL_API_URL || "http://192.168.1.4:9000";
 
 const API_ENV_STORAGE_KEY = "api_env_override";
+const API_CUSTOM_URL_STORAGE_KEY = "api_custom_url_override";
 
-export type ApiEnv = "prod" | "local";
+export type ApiEnv = "prod" | "local" | "custom";
 
 let apiBaseUrl = PROD_API_URL;
 let envLoaded = false;
 
-async function loadApiEnv(): Promise<void> {
+export async function loadApiEnv(): Promise<void> {
   if (envLoaded) return;
   envLoaded = true;
   try {
+    const custom = await AsyncStorage.getItem(API_CUSTOM_URL_STORAGE_KEY);
+    if (custom && custom.trim().length > 0) {
+      apiBaseUrl = custom.trim().replace(/\/+$/, "");
+      return;
+    }
+
     const saved = await AsyncStorage.getItem(API_ENV_STORAGE_KEY);
-    if (__DEV__ && saved === "local") {
+    if (saved === "local") {
       apiBaseUrl = LOCAL_API_URL;
+    } else {
+      apiBaseUrl = PROD_API_URL;
     }
   } catch {
     // Fall back to default URL if storage is unavailable
@@ -29,7 +38,9 @@ async function loadApiEnv(): Promise<void> {
 }
 
 export function getApiEnv(): ApiEnv {
-  return apiBaseUrl === LOCAL_API_URL ? "local" : "prod";
+  if (apiBaseUrl === LOCAL_API_URL) return "local";
+  if (apiBaseUrl === PROD_API_URL) return "prod";
+  return "custom";
 }
 
 export function getApiBaseUrl(): string {
@@ -37,12 +48,35 @@ export function getApiBaseUrl(): string {
 }
 
 export async function setApiEnv(env: ApiEnv): Promise<void> {
-  apiBaseUrl = env === "local" ? LOCAL_API_URL : PROD_API_URL;
   try {
     if (env === "prod") {
+      apiBaseUrl = PROD_API_URL;
+      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
       await AsyncStorage.removeItem(API_ENV_STORAGE_KEY);
-    } else {
+    } else if (env === "local") {
+      apiBaseUrl = LOCAL_API_URL;
+      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
       await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "local");
+    }
+  } catch {
+    // Ignore storage failures
+  }
+}
+
+export async function setCustomApiUrl(url: string | null): Promise<void> {
+  try {
+    const cleaned = url ? url.trim().replace(/\/+$/, "") : "";
+    if (!cleaned || cleaned === PROD_API_URL) {
+      apiBaseUrl = PROD_API_URL;
+      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
+      await AsyncStorage.removeItem(API_ENV_STORAGE_KEY);
+    } else if (cleaned === LOCAL_API_URL) {
+      apiBaseUrl = LOCAL_API_URL;
+      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "local");
+    } else {
+      apiBaseUrl = cleaned;
+      await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, cleaned);
     }
   } catch {
     // Ignore storage failures
