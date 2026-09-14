@@ -225,7 +225,8 @@ export default function ManageAccountScreen() {
           <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Session</Text>
           <Button
             variant="outline"
-            className="w-full flex-row items-center justify-center gap-2 h-13 rounded-2xl border-border bg-card shadow-sm active:bg-secondary/60"
+            size="lg"
+            className="w-full flex-row items-center justify-center gap-2 h-14 rounded-2xl border-border bg-card shadow-sm active:bg-secondary/60"
             onPress={() => setShowLogoutConfirm(true)}
             disabled={isDeleting}
           >
@@ -253,7 +254,8 @@ export default function ManageAccountScreen() {
 
               <Button
                 variant="destructive"
-                className="w-full flex-row items-center justify-center gap-2 h-13 rounded-2xl mt-1 shadow-sm bg-destructive active:bg-destructive/90"
+                size="lg"
+                className="w-full flex-row items-center justify-center gap-2 h-14 rounded-2xl mt-1 shadow-sm bg-destructive active:bg-destructive/90"
                 onPress={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
               >

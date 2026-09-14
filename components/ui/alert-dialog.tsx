@@ -1,10 +1,10 @@
-import { buttonTextVariants, buttonVariants } from "@/components/ui/button";
+import { Button, buttonTextVariants, buttonVariants } from "@/components/ui/button";
 import { NativeOnlyAnimatedView } from "@/components/ui/native-only-animated-view";
 import { TextClassContext } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import * as AlertDialogPrimitive from "@rn-primitives/alert-dialog";
 import * as React from "react";
-import { Platform, View, type ViewProps } from "react-native";
+import { Platform, Text, View, type ViewProps } from "react-native";
 import { FadeIn, FadeOut } from "react-native-reanimated";
 import { FullWindowOverlay as RNFullWindowOverlay } from "react-native-screens";
 
@@ -95,21 +95,20 @@ type AlertDialogActionProps = AlertDialogPrimitive.ActionProps &
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   };
 
-function AlertDialogAction({ className, variant, ...props }: AlertDialogActionProps) {
+function AlertDialogAction({ className, variant, children, ...props }: AlertDialogActionProps) {
   const isDestructive = variant === "destructive" || className?.includes("bg-destructive") || className?.includes("bg-red");
   const effectiveVariant = variant || (isDestructive ? "destructive" : "default");
 
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant: effectiveVariant, size: "lg" })}>
-      <AlertDialogPrimitive.Action
-        className={cn(
-          buttonVariants({ variant: effectiveVariant, size: "lg" }),
-          "flex-1 h-14 px-4 rounded-2xl items-center justify-center font-bold active:opacity-85 shadow-sm",
-          className,
-        )}
-        {...props}
-      />
-    </TextClassContext.Provider>
+    <AlertDialogPrimitive.Action asChild {...props}>
+      <Button
+        variant={effectiveVariant}
+        size="lg"
+        className={cn("flex-1 h-14 rounded-2xl items-center justify-center font-bold active:opacity-85 shadow-sm", className)}
+      >
+        {typeof children === "string" ? <Text className="font-bold text-base">{children}</Text> : children}
+      </Button>
+    </AlertDialogPrimitive.Action>
   );
 }
 
@@ -118,18 +117,20 @@ type AlertDialogCancelProps = AlertDialogPrimitive.CancelProps &
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   };
 
-function AlertDialogCancel({ className, variant = "outline", ...props }: AlertDialogCancelProps) {
+function AlertDialogCancel({ className, variant = "outline", children, ...props }: AlertDialogCancelProps) {
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "lg" })}>
-      <AlertDialogPrimitive.Cancel
+    <AlertDialogPrimitive.Cancel asChild {...props}>
+      <Button
+        variant={variant}
+        size="lg"
         className={cn(
-          buttonVariants({ variant, size: "lg" }),
-          "flex-1 h-14 px-4 rounded-2xl items-center justify-center border-border/80 bg-background active:opacity-85 shadow-sm",
+          "flex-1 h-14 rounded-2xl items-center justify-center border-border/80 bg-background font-bold active:opacity-85 shadow-sm",
           className,
         )}
-        {...props}
-      />
-    </TextClassContext.Provider>
+      >
+        {typeof children === "string" ? <Text className="font-bold text-base">{children}</Text> : children}
+      </Button>
+    </AlertDialogPrimitive.Cancel>
   );
 }
 

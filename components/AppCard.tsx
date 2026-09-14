@@ -181,7 +181,7 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                 {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
               </Text>
             )}
-            {appAge ? (
+            {variant !== "marketplace" && appAge ? (
               <Text className="text-xs text-muted-foreground font-medium shrink-0 ml-2">{appAge}</Text>
             ) : null}
           </View>
@@ -204,12 +204,17 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                 </View>
               </View>
 
-              {/* Flag Warning */}
-              {isFlagged && (
-                <Badge variant="destructive" className="px-1.5 py-0.5 rounded shrink-0">
-                  <Text className="text-[10px] text-white font-bold">{isHidden ? "⚠️ Not Visible" : "⚠️ Check Info"}</Text>
-                </Badge>
-              )}
+              {/* Right: Flag Warning & App Age */}
+              <View className="flex-row items-center gap-1.5 shrink-0">
+                {isFlagged && (
+                  <Badge variant="destructive" className="px-1.5 py-0.5 rounded shrink-0">
+                    <Text className="text-[10px] text-white font-bold">{isHidden ? "⚠️ Not Visible" : "⚠️ Check Info"}</Text>
+                  </Badge>
+                )}
+                {appAge ? (
+                  <Text className="text-xs text-muted-foreground font-medium shrink-0">{appAge}</Text>
+                ) : null}
+              </View>
             </View>
           )}
 
