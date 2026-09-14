@@ -869,3 +869,59 @@ async fn test_jsonwebtoken_crypto_provider_no_panic() {
     assert!(res.is_none());
 }
 
+#[test]
+fn test_user_summary_and_admin_app_serialization_camel_case() {
+    use backend_rs::db::models::UserSummary;
+    use backend_rs::routes::admin::AdminAppItem;
+
+    let summary = UserSummary {
+        id: "u1".into(),
+        name: Some("Test User".into()),
+        email: Some("test@example.com".into()),
+        avatar_url: Some("https://example.com/avatar.png".into()),
+        reputation: Some(10),
+    };
+
+    let summary_val = serde_json::to_value(&summary).unwrap();
+    assert_eq!(summary_val.get("avatarUrl").and_then(|v| v.as_str()), Some("https://example.com/avatar.png"));
+    assert!(summary_val.get("avatar_url").is_none(), "Must not serialize as snake_case avatar_url");
+
+    let app_item = AdminAppItem {
+        id: "a1".into(),
+        user_id: "u1".into(),
+        title: "Test App".into(),
+        package_name: "com.test.app".into(),
+        play_store_url: "https://play.google.com".into(),
+        icon_url: "https://example.com/icon.png".into(),
+        instructions: "Test instructions".into(),
+        required_testers: 20,
+        current_testers: 5,
+        status: "testing".into(),
+        completed_at: None,
+        flag_count: 0,
+        visibility_status: Some("public".into()),
+        positive_votes: 2,
+        negative_votes: 0,
+        voters: vec![],
+        created_at: "2026-01-01T00:00:00Z".into(),
+        updated_at: "2026-01-01T00:00:00Z".into(),
+        is_duplicate: false,
+        user: Some(summary),
+    };
+
+    let app_val = serde_json::to_value(&app_item).unwrap();
+    assert_eq!(app_val.get("iconUrl").and_then(|v| v.as_str()), Some("https://example.com/icon.png"));
+    assert_eq!(app_val.get("packageName").and_then(|v| v.as_str()), Some("com.test.app"));
+    assert_eq!(app_val.get("playStoreUrl").and_then(|v| v.as_str()), Some("https://play.google.com"));
+    assert_eq!(app_val.get("requiredTesters").and_then(|v| v.as_i64()), Some(20));
+    assert_eq!(app_val.get("currentTesters").and_then(|v| v.as_i64()), Some(5));
+    assert_eq!(app_val.get("isDuplicate").and_then(|v| v.as_bool()), Some(false));
+    assert!(app_val.get("icon_url").is_none());
+    assert!(app_val.get("package_name").is_none());
+
+    let user_in_app = app_val.get("user").unwrap();
+    assert_eq!(user_in_app.get("avatarUrl").and_then(|v| v.as_str()), Some("https://example.com/avatar.png"));
+    assert!(user_in_app.get("avatar_url").is_none());
+}
+
+

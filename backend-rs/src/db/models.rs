@@ -5,22 +5,31 @@ use time::OffsetDateTime;
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: String,
+    #[serde(rename = "tokenIdentifier")]
     pub token_identifier: Option<String>,
     pub name: String,
     pub email: String,
+    #[serde(rename = "avatarUrl")]
     pub avatar_url: Option<String>,
     pub reputation: i32,
+    #[serde(rename = "appsCount")]
     pub apps_count: i32,
+    #[serde(rename = "pushToken")]
     pub push_token: Option<String>,
+    #[serde(rename = "isGroupMember")]
     pub is_group_member: bool,
+    #[serde(rename = "isAdmin")]
     pub is_admin: bool,
     pub streak: i32,
+    #[serde(rename = "bestStreak")]
     pub best_streak: i32,
+    #[serde(rename = "lastCheckInDate")]
     pub last_check_in_date: Option<String>,
+    #[serde(rename = "unlockedAppSlots")]
     pub unlocked_app_slots: i32,
-    #[serde(with = "time::serde::iso8601")]
+    #[serde(with = "time::serde::iso8601", rename = "createdAt")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::iso8601")]
+    #[serde(with = "time::serde::iso8601", rename = "updatedAt")]
     pub updated_at: OffsetDateTime,
 }
 
@@ -29,6 +38,7 @@ pub struct UserSummary {
     pub id: String,
     pub name: Option<String>,
     pub email: Option<String>,
+    #[serde(rename = "avatarUrl")]
     pub avatar_url: Option<String>,
     pub reputation: Option<i32>,
 }

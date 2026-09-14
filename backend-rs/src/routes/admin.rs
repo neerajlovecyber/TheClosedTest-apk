@@ -9,7 +9,6 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::auth::{AdminUser, AuthUser};
-use crate::db::models::AppRecord;
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -110,8 +109,46 @@ pub struct AdminAppsQuery {
 }
 
 #[derive(Serialize)]
+pub struct AdminAppItem {
+    pub id: String,
+    #[serde(rename = "userId")]
+    pub user_id: String,
+    pub title: String,
+    #[serde(rename = "packageName")]
+    pub package_name: String,
+    #[serde(rename = "playStoreUrl")]
+    pub play_store_url: String,
+    #[serde(rename = "iconUrl")]
+    pub icon_url: String,
+    pub instructions: String,
+    #[serde(rename = "requiredTesters")]
+    pub required_testers: i32,
+    #[serde(rename = "currentTesters")]
+    pub current_testers: i32,
+    pub status: String,
+    #[serde(rename = "completedAt")]
+    pub completed_at: Option<String>,
+    #[serde(rename = "flagCount")]
+    pub flag_count: i32,
+    #[serde(rename = "visibilityStatus")]
+    pub visibility_status: Option<String>,
+    #[serde(rename = "positiveVotes")]
+    pub positive_votes: i32,
+    #[serde(rename = "negativeVotes")]
+    pub negative_votes: i32,
+    pub voters: Vec<String>,
+    #[serde(rename = "createdAt")]
+    pub created_at: String,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: String,
+    #[serde(rename = "isDuplicate")]
+    pub is_duplicate: bool,
+    pub user: Option<crate::db::models::UserSummary>,
+}
+
+#[derive(Serialize)]
 pub struct AdminAppsResponse {
-    pub apps: Vec<AppRecord>,
+    pub apps: Vec<AdminAppItem>,
     pub total: usize,
     #[serde(rename = "duplicatePackagesCount")]
     pub duplicate_packages_count: usize,
@@ -624,30 +661,134 @@ async fn list_admin_apps(
     _admin: AdminUser,
     Query(params): Query<AdminAppsQuery>,
 ) -> Result<Json<AdminAppsResponse>, AppError> {
-    let limit = params.limit.unwrap_or(50).clamp(1, 100);
+    let limit = params.limit.unwrap_or(50).clamp(1, 200);
     let offset = params.offset.unwrap_or(0).max(0);
 
-    let apps = sqlx::query_as::<_, AppRecord>(
-        "SELECT * FROM apps ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+    #[derive(sqlx::FromRow)]
+    struct AdminAppQueryRow {
+        id: String,
+        user_id: String,
+        title: String,
+        package_name: String,
+        play_store_url: String,
+        icon_url: String,
+        instructions: String,
+        required_testers: i32,
+        status: String,
+        completed_at: Option<OffsetDateTime>,
+        flag_count: i32,
+        visibility_status: Option<String>,
+        positive_votes: i32,
+        negative_votes: i32,
+        voters: serde_json::Value,
+        created_at: OffsetDateTime,
+        updated_at: OffsetDateTime,
+        u_id: Option<String>,
+        u_name: Option<String>,
+        u_email: Option<String>,
+        u_avatar_url: Option<String>,
+        u_reputation: Option<i32>,
+        current_testers: Option<i32>,
+    }
+
+    let search_term = params.search.as_ref().map(|s| format!("%{}%", s.trim()));
+    let status_filter = params.status.as_deref().filter(|s| *s != "all");
+
+    let rows = sqlx::query_as::<_, AdminAppQueryRow>(
+        r#"
+        SELECT 
+            a.id, a.user_id, a.title, a.package_name, a.play_store_url, a.icon_url,
+            a.instructions, a.required_testers, a.status, a.completed_at, a.flag_count,
+            a.visibility_status, a.positive_votes, a.negative_votes, a.voters,
+            a.created_at, a.updated_at,
+            u.id as u_id, u.name as u_name, u.email as u_email, u.avatar_url as u_avatar_url, u.reputation as u_reputation,
+            COALESCE((
+                SELECT COUNT(*)::int FROM matches m
+                WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status != 'rejected'
+            ), 0) as current_testers
+        FROM apps a
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE ($1::text IS NULL OR a.status = $1)
+          AND ($2::text IS NULL OR (
+                a.title ILIKE $2 
+                OR a.package_name ILIKE $2 
+                OR u.name ILIKE $2 
+                OR u.email ILIKE $2
+              ))
+        ORDER BY a.created_at DESC
+        LIMIT $3 OFFSET $4
+        "#,
     )
+    .bind(status_filter)
+    .bind(search_term)
     .bind(limit)
     .bind(offset)
     .fetch_all(&state.pool)
     .await
     .map_err(AppError::Database)?;
 
-    let duplicate_rows = sqlx::query_as::<_, (String, i64)>(
-        "SELECT LOWER(TRIM(package_name)), COUNT(*) FROM apps WHERE status != 'archived' GROUP BY LOWER(TRIM(package_name)) HAVING COUNT(*) > 1",
+    let all_active_packages = sqlx::query_as::<_, (String,)>(
+        "SELECT LOWER(TRIM(package_name)) FROM apps WHERE status != 'archived'",
     )
     .fetch_all(&state.pool)
     .await
     .unwrap_or_default();
 
-    let count = apps.len();
+    let mut pkg_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (pkg,) in &all_active_packages {
+        *pkg_counts.entry(pkg.clone()).or_insert(0) += 1;
+    }
+
+    let duplicate_packages_count = pkg_counts.values().filter(|&&c| c > 1).count();
+
+    let apps = rows
+        .into_iter()
+        .map(|r| {
+            let is_duplicate = pkg_counts
+                .get(&r.package_name.trim().to_lowercase())
+                .copied()
+                .unwrap_or(0)
+                > 1;
+
+            let voters: Vec<String> = serde_json::from_value(r.voters).unwrap_or_default();
+            let user = r.u_id.map(|uid| crate::db::models::UserSummary {
+                id: uid,
+                name: r.u_name,
+                email: r.u_email,
+                avatar_url: r.u_avatar_url,
+                reputation: r.u_reputation,
+            });
+
+            AdminAppItem {
+                id: r.id,
+                user_id: r.user_id,
+                title: r.title,
+                package_name: r.package_name,
+                play_store_url: r.play_store_url,
+                icon_url: r.icon_url,
+                instructions: r.instructions,
+                required_testers: r.required_testers,
+                current_testers: r.current_testers.unwrap_or(0),
+                status: r.status,
+                completed_at: r.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+                flag_count: r.flag_count,
+                visibility_status: r.visibility_status,
+                positive_votes: r.positive_votes,
+                negative_votes: r.negative_votes,
+                voters,
+                created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
+                updated_at: r.updated_at.format(&Rfc3339).unwrap_or_default(),
+                is_duplicate,
+                user,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let total = apps.len();
     Ok(Json(AdminAppsResponse {
         apps,
-        total: count,
-        duplicate_packages_count: duplicate_rows.len(),
+        total,
+        duplicate_packages_count,
     }))
 }
 
