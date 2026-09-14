@@ -8,6 +8,11 @@ use backend_rs::db;
 use backend_rs::routes;
 use backend_rs::state::AppState;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
@@ -40,6 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_headers(Any);
 
     let app = routes::app_router()
+        .layer(tower_http::compression::CompressionLayer::new().gzip(true))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             backend_rs::middleware::rate_limit::rate_limiter_middleware,
