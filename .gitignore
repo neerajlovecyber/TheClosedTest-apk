@@ -51,4 +51,9 @@ expo-env.d.ts
 # @end expo-cli
 .env.local
 
+# Rust build artifacts
 backend-rs/target/
+target/
+**/target/
+**/*.rs.bk
+backend-rs/.env

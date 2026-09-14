@@ -1,0 +1,46 @@
+[package]
+name = "backend-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+
+# Serialization & Validation
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+validator = { version = "0.21", features = ["derive"] }
+thiserror = "2.0"
+
+# Database (Latest SQLx 0.9 + modern time crate)
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls-ring", "postgres", "macros", "uuid", "time", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
+
+
+# Logging & Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Configuration & Utilities
+dotenvy = "0.15"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+moka = { version = "0.12.16", features = ["future"] }
+base64 = "0.23.1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+postgresql_embedded = "0.21"
+
+
+# Maximum Performance Profile (No compromises on speed)
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
