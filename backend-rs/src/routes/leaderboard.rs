@@ -3,14 +3,17 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use sea_orm::{EntityTrait, QueryOrder, QuerySelect};
 use serde::{Deserialize, Serialize};
 
+use crate::entities::prelude::*;
+use crate::entities::users;
 use crate::error::AppError;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct LeaderboardQuery {
-    pub limit: Option<i64>,
+    pub limit: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -49,7 +52,7 @@ async fn get_leaderboard(
     let limit = params.limit.unwrap_or(20).clamp(1, 50);
     let cache_key = format!("leaderboard:limit:{}", limit);
 
-    // 1. Return from in-memory RAM cache if present (0 DB queries, sub-millisecond response)
+    // 1. Return from in-memory RAM cache if present
     if let Some(cached_val) = state.api_cache.get(&cache_key).await {
         if let Ok(cached_res) = serde_json::from_value::<LeaderboardResponse>(cached_val) {
             return Ok(Json(cached_res));
@@ -57,26 +60,25 @@ async fn get_leaderboard(
     }
 
     // 2. Fetch top users by reputation and streak
-    let top_users = sqlx::query_as::<_, (String, String, Option<String>, i32, i32)>(
-        "SELECT id, name, avatar_url, reputation, streak FROM users ORDER BY reputation DESC, streak DESC LIMIT $1",
-    )
-    .bind(limit)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let top_users = Users::find()
+        .order_by_desc(users::Column::Reputation)
+        .order_by_desc(users::Column::Streak)
+        .limit(limit)
+        .all(&state.db)
+        .await?;
 
     let leaderboard = top_users
         .into_iter()
-        .map(|(id, name, avatar_url, reputation, streak)| LeaderboardItem {
-            id: id.clone(),
-            user_id: id,
+        .map(|u| LeaderboardItem {
+            id: u.id.clone(),
+            user_id: u.id,
             app_id: None,
-            boost_score: reputation * 10 + streak * 5,
+            boost_score: u.reputation * 10 + u.streak * 5,
             user: Some(LeaderboardUserSummary {
-                name,
-                avatar_url,
-                reputation,
-                streak,
+                name: u.name,
+                avatar_url: u.avatar_url,
+                reputation: u.reputation,
+                streak: u.streak,
             }),
         })
         .collect();

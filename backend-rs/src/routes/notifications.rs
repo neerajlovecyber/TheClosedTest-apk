@@ -3,11 +3,17 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set,
+    sea_query::Expr,
+};
 use serde::Serialize;
 use time::format_description::well_known::Rfc3339;
 
 use crate::auth::AuthUser;
 use crate::db::models::NotificationRecord;
+use crate::entities::notifications;
+use crate::entities::prelude::*;
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -43,6 +49,22 @@ impl From<NotificationRecord> for NotificationResponse {
     }
 }
 
+impl From<notifications::Model> for NotificationResponse {
+    fn from(n: notifications::Model) -> Self {
+        Self {
+            id: n.id,
+            user_id: n.user_id,
+            r#type: n.r#type,
+            title: n.title,
+            body: n.body,
+            data: n.data,
+            read: n.read,
+            is_read: n.read,
+            created_at: n.created_at.format(&Rfc3339).unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct NotificationsListResponse {
     pub notifications: Vec<NotificationResponse>,
@@ -60,27 +82,24 @@ async fn list_notifications(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<NotificationsListResponse>, AppError> {
-    let records = sqlx::query_as::<_, NotificationRecord>(
-        "SELECT id, user_id, type, title, body, data, read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50",
-    )
-    .bind(&user.id)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let records = Notifications::find()
+        .filter(notifications::Column::UserId.eq(&user.id))
+        .order_by_desc(notifications::Column::CreatedAt)
+        .limit(50)
+        .all(&state.db)
+        .await?;
 
-    let unread_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*)::bigint FROM notifications WHERE user_id = $1 AND read = false",
-    )
-    .bind(&user.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let unread_count = Notifications::find()
+        .filter(notifications::Column::UserId.eq(&user.id))
+        .filter(notifications::Column::Read.eq(false))
+        .count(&state.db)
+        .await? as i64;
 
     let notifications = records.into_iter().map(NotificationResponse::from).collect();
 
     Ok(Json(NotificationsListResponse {
         notifications,
-        unread_count: unread_count.0,
+        unread_count,
     }))
 }
 
@@ -90,12 +109,16 @@ async fn mark_notification_read(
     AuthUser(user): AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query("UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2")
-        .bind(id)
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    let notif = Notifications::find_by_id(&id)
+        .filter(notifications::Column::UserId.eq(&user.id))
+        .one(&state.db)
+        .await?;
+
+    if let Some(n) = notif {
+        let mut n_act: notifications::ActiveModel = n.into();
+        n_act.read = Set(true);
+        n_act.update(&state.db).await?;
+    }
 
     Ok(Json(GenericMessageResponse {
         message: "Notification marked as read".to_string(),
@@ -107,11 +130,12 @@ async fn mark_all_read(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query("UPDATE notifications SET read = true WHERE user_id = $1 AND read = false")
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    notifications::Entity::update_many()
+        .filter(notifications::Column::UserId.eq(&user.id))
+        .filter(notifications::Column::Read.eq(false))
+        .col_expr(notifications::Column::Read, Expr::value(true))
+        .exec(&state.db)
+        .await?;
 
     Ok(Json(GenericMessageResponse {
         message: "All notifications marked as read".to_string(),
@@ -123,11 +147,10 @@ async fn clear_all(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query("DELETE FROM notifications WHERE user_id = $1")
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    notifications::Entity::delete_many()
+        .filter(notifications::Column::UserId.eq(&user.id))
+        .exec(&state.db)
+        .await?;
 
     Ok(Json(GenericMessageResponse {
         message: "All notifications deleted".to_string(),
@@ -140,12 +163,11 @@ async fn delete_one(
     AuthUser(user): AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query("DELETE FROM notifications WHERE id = $1 AND user_id = $2")
-        .bind(id)
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    notifications::Entity::delete_many()
+        .filter(notifications::Column::Id.eq(id))
+        .filter(notifications::Column::UserId.eq(&user.id))
+        .exec(&state.db)
+        .await?;
 
     Ok(Json(GenericMessageResponse {
         message: "Notification deleted".to_string(),
@@ -157,6 +179,6 @@ pub fn router() -> Router<AppState> {
         .route("/api/notifications", get(list_notifications))
         .route("/api/notifications/{id}/read", patch(mark_notification_read))
         .route("/api/notifications/read-all", post(mark_all_read))
-        .route("/api/notifications/clear-all", delete(clear_all).post(clear_all))
+        .route("/api/notifications/clear-all", delete(clear_all))
         .route("/api/notifications/{id}", delete(delete_one))
 }

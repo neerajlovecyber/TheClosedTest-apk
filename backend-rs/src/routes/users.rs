@@ -3,11 +3,14 @@ use axum::{
     routing::{get, patch, post},
     Json, Router,
 };
+use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::auth::AuthUser;
 use crate::db::models::{User, UserSummary};
+use crate::entities::prelude::*;
+use crate::entities::users;
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -46,6 +49,30 @@ pub struct UserResponse {
 
 impl From<User> for UserResponse {
     fn from(u: User) -> Self {
+        Self {
+            id: u.id,
+            token_identifier: u.token_identifier,
+            name: u.name,
+            email: u.email,
+            avatar_url: u.avatar_url,
+            reputation: u.reputation,
+            apps_count: u.apps_count,
+            push_token: u.push_token,
+            is_group_member: u.is_group_member,
+            google_group_confirmed: u.is_group_member,
+            is_admin: u.is_admin,
+            streak: u.streak,
+            best_streak: u.best_streak,
+            last_check_in_date: u.last_check_in_date,
+            unlocked_app_slots: u.unlocked_app_slots,
+            created_at: u.created_at.format(&Rfc3339).unwrap_or_default(),
+            updated_at: u.updated_at.format(&Rfc3339).unwrap_or_default(),
+        }
+    }
+}
+
+impl From<users::Model> for UserResponse {
+    fn from(u: users::Model) -> Self {
         Self {
             id: u.id,
             token_identifier: u.token_identifier,
@@ -128,28 +155,27 @@ async fn sync_user(
     AuthUser(user): AuthUser,
     Json(payload): Json<SyncUserRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let name = payload.name.unwrap_or(user.name);
-    let email = payload.email.unwrap_or(user.email);
-    let avatar_url = payload.avatar_url.or(user.avatar_url);
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    let updated = sqlx::query_as::<_, User>(
-        r#"UPDATE users
-           SET name = $1, email = $2, avatar_url = $3, updated_at = NOW()
-           WHERE id = $4
-           RETURNING id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                     push_token, is_group_member, is_admin, streak, best_streak,
-                     last_check_in_date, unlocked_app_slots, created_at, updated_at"#,
-    )
-    .bind(name)
-    .bind(email)
-    .bind(avatar_url)
-    .bind(user.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let now = OffsetDateTime::now_utc();
+    let mut u_act: users::ActiveModel = user_row.into();
+    if let Some(name) = payload.name {
+        u_act.name = Set(name);
+    }
+    if let Some(email) = payload.email {
+        u_act.email = Set(email.to_lowercase());
+    }
+    if let Some(avatar) = payload.avatar_url {
+        u_act.avatar_url = Set(Some(avatar));
+    }
+    u_act.updated_at = Set(now);
+    let updated = u_act.update(&state.db).await?;
 
     if let Some(token_id) = &updated.token_identifier {
-        state.user_cache.insert(token_id.clone(), updated.clone()).await;
+        state.user_cache.insert(token_id.clone(), updated.clone().into()).await;
     }
 
     Ok(Json(updated.into()))
@@ -160,14 +186,19 @@ async fn checkin(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<CheckinResponse>, AppError> {
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
     let now = OffsetDateTime::now_utc();
     let today_str = format!("{:04}-{:02}-{:02}", now.year(), now.month() as u8, now.day());
 
-    if let Some(ref last) = user.last_check_in_date {
+    if let Some(ref last) = user_row.last_check_in_date {
         if last == &today_str {
             return Ok(Json(CheckinResponse {
-                streak: user.streak,
-                best_streak: user.best_streak,
+                streak: user_row.streak,
+                best_streak: user_row.best_streak,
                 already_checked_in: true,
                 message: "You have already checked in today. Keep up the momentum tomorrow!".to_string(),
             }));
@@ -177,9 +208,9 @@ async fn checkin(
     let yesterday = now - time::Duration::days(1);
     let yesterday_str = format!("{:04}-{:02}-{:02}", yesterday.year(), yesterday.month() as u8, yesterday.day());
 
-    let new_streak = if let Some(ref last) = user.last_check_in_date {
+    let new_streak = if let Some(ref last) = user_row.last_check_in_date {
         if last == &yesterday_str {
-            user.streak + 1
+            user_row.streak + 1
         } else {
             1
         }
@@ -187,28 +218,19 @@ async fn checkin(
         1
     };
 
-    let new_best = new_streak.max(user.best_streak);
-    let new_rep = user.reputation + 1;
+    let new_best = new_streak.max(user_row.best_streak);
+    let new_rep = user_row.reputation + 1;
 
-    let updated = sqlx::query_as::<_, User>(
-        r#"UPDATE users
-           SET streak = $1, best_streak = $2, reputation = $3, last_check_in_date = $4, updated_at = NOW()
-           WHERE id = $5
-           RETURNING id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                     push_token, is_group_member, is_admin, streak, best_streak,
-                     last_check_in_date, unlocked_app_slots, created_at, updated_at"#,
-    )
-    .bind(new_streak)
-    .bind(new_best)
-    .bind(new_rep)
-    .bind(&today_str)
-    .bind(&user.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let mut u_act: users::ActiveModel = user_row.into();
+    u_act.streak = Set(new_streak);
+    u_act.best_streak = Set(new_best);
+    u_act.reputation = Set(new_rep);
+    u_act.last_check_in_date = Set(Some(today_str));
+    u_act.updated_at = Set(now);
+    let updated = u_act.update(&state.db).await?;
 
     if let Some(token_id) = &updated.token_identifier {
-        state.user_cache.insert(token_id.clone(), updated).await;
+        state.user_cache.insert(token_id.clone(), updated.clone().into()).await;
     }
 
     Ok(Json(CheckinResponse {
@@ -225,14 +247,18 @@ async fn update_push_token(
     AuthUser(user): AuthUser,
     Json(payload): Json<UpdatePushTokenRequest>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query("UPDATE users SET push_token = $1, updated_at = NOW() WHERE id = $2")
-        .bind(payload.push_token)
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    if let Some(token_id) = &user.token_identifier {
+    let now = OffsetDateTime::now_utc();
+    let mut u_act: users::ActiveModel = user_row.clone().into();
+    u_act.push_token = Set(Some(payload.push_token));
+    u_act.updated_at = Set(now);
+    u_act.update(&state.db).await?;
+
+    if let Some(token_id) = &user_row.token_identifier {
         state.user_cache.invalidate(token_id).await;
     }
 
@@ -246,13 +272,18 @@ async fn confirm_google_group(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query("UPDATE users SET is_group_member = true, updated_at = NOW() WHERE id = $1")
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    if let Some(token_id) = &user.token_identifier {
+    let now = OffsetDateTime::now_utc();
+    let mut u_act: users::ActiveModel = user_row.clone().into();
+    u_act.is_group_member = Set(true);
+    u_act.updated_at = Set(now);
+    u_act.update(&state.db).await?;
+
+    if let Some(token_id) = &user_row.token_identifier {
         state.user_cache.invalidate(token_id).await;
     }
 
@@ -267,26 +298,24 @@ async fn update_profile(
     AuthUser(user): AuthUser,
     Json(payload): Json<UpdateProfileRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let name = payload.name.unwrap_or(user.name);
-    let avatar_url = payload.avatar_url.or(user.avatar_url);
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    let updated = sqlx::query_as::<_, User>(
-        r#"UPDATE users
-           SET name = $1, avatar_url = $2, updated_at = NOW()
-           WHERE id = $3
-           RETURNING id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                     push_token, is_group_member, is_admin, streak, best_streak,
-                     last_check_in_date, unlocked_app_slots, created_at, updated_at"#,
-    )
-    .bind(name)
-    .bind(avatar_url)
-    .bind(&user.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let now = OffsetDateTime::now_utc();
+    let mut u_act: users::ActiveModel = user_row.into();
+    if let Some(name) = payload.name {
+        u_act.name = Set(name);
+    }
+    if let Some(avatar) = payload.avatar_url {
+        u_act.avatar_url = Set(Some(avatar));
+    }
+    u_act.updated_at = Set(now);
+    let updated = u_act.update(&state.db).await?;
 
     if let Some(token_id) = &updated.token_identifier {
-        state.user_cache.insert(token_id.clone(), updated.clone()).await;
+        state.user_cache.insert(token_id.clone(), updated.clone().into()).await;
     }
 
     Ok(Json(updated.into()))
@@ -297,21 +326,19 @@ async fn unlock_slots(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<UserResponse>, AppError> {
-    let updated = sqlx::query_as::<_, User>(
-        r#"UPDATE users
-           SET unlocked_app_slots = 3, updated_at = NOW()
-           WHERE id = $1
-           RETURNING id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                     push_token, is_group_member, is_admin, streak, best_streak,
-                     last_check_in_date, unlocked_app_slots, created_at, updated_at"#,
-    )
-    .bind(&user.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    let now = OffsetDateTime::now_utc();
+    let mut u_act: users::ActiveModel = user_row.into();
+    u_act.unlocked_app_slots = Set(3);
+    u_act.updated_at = Set(now);
+    let updated = u_act.update(&state.db).await?;
 
     if let Some(token_id) = &updated.token_identifier {
-        state.user_cache.insert(token_id.clone(), updated.clone()).await;
+        state.user_cache.insert(token_id.clone(), updated.clone().into()).await;
     }
 
     Ok(Json(updated.into()))
@@ -334,19 +361,19 @@ async fn delete_account(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    // Cascade delete user data
-    let _ = sqlx::query("DELETE FROM proofs WHERE uploader_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM messages WHERE sender_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM reports WHERE reporter_id = $1 OR target_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM apps WHERE user_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM notifications WHERE user_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM user_bans WHERE user_id = $1").bind(&user.id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1").bind(&user.id).execute(&state.pool).await;
+    let user_row = Users::find_by_id(&user.id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    if let Some(token_id) = &user.token_identifier {
+    // Foreign key CASCADE in PostgreSQL handles matches, apps, proofs, etc.
+    let u_act: users::ActiveModel = user_row.clone().into();
+    u_act.delete(&state.db).await?;
+
+    if let Some(token_id) = &user_row.token_identifier {
         state.user_cache.invalidate(token_id).await;
     }
+    state.api_cache.invalidate_all();
 
     Ok(Json(GenericMessageResponse {
         message: "Account and all associated data permanently deleted".to_string(),
@@ -358,24 +385,17 @@ async fn get_user_profile(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<UserSummary>, AppError> {
-    let user = sqlx::query_as::<_, User>(
-        r#"SELECT id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                  push_token, is_group_member, is_admin, streak, best_streak,
-                  last_check_in_date, unlocked_app_slots, created_at, updated_at
-           FROM users WHERE id = $1"#,
-    )
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    let u = Users::find_by_id(&id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     Ok(Json(UserSummary {
-        id: user.id,
-        name: Some(user.name),
+        id: u.id,
+        name: Some(u.name),
         email: None,
-        avatar_url: user.avatar_url,
-        reputation: Some(user.reputation),
+        avatar_url: u.avatar_url,
+        reputation: Some(u.reputation),
     }))
 }
 

@@ -33,6 +33,29 @@ pub struct User {
     pub updated_at: OffsetDateTime,
 }
 
+impl From<crate::entities::users::Model> for User {
+    fn from(u: crate::entities::users::Model) -> Self {
+        Self {
+            id: u.id,
+            token_identifier: u.token_identifier,
+            name: u.name,
+            email: u.email,
+            avatar_url: u.avatar_url,
+            reputation: u.reputation,
+            apps_count: u.apps_count,
+            push_token: u.push_token,
+            is_group_member: u.is_group_member,
+            is_admin: u.is_admin,
+            streak: u.streak,
+            best_streak: u.best_streak,
+            last_check_in_date: u.last_check_in_date,
+            unlocked_app_slots: u.unlocked_app_slots,
+            created_at: u.created_at,
+            updated_at: u.updated_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSummary {
     pub id: String,
