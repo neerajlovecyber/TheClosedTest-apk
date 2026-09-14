@@ -492,10 +492,188 @@ async fn vote_app(
     }))
 }
 
+#[derive(Deserialize)]
+pub struct UpdateAppRequest {
+    pub title: Option<String>,
+    #[serde(rename = "packageName")]
+    pub package_name: Option<String>,
+    #[serde(rename = "playStoreUrl")]
+    pub play_store_url: Option<String>,
+    #[serde(rename = "iconUrl")]
+    pub icon_url: Option<String>,
+    pub instructions: Option<String>,
+    #[serde(rename = "requiredTesters")]
+    pub required_testers: Option<i32>,
+    pub status: Option<String>,
+    #[serde(rename = "isMarketplaceVisible")]
+    pub is_marketplace_visible: Option<bool>,
+}
+
+// PATCH /api/apps/:id
+async fn update_app(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateAppRequest>,
+) -> Result<Json<AppResponse>, AppError> {
+    let existing = sqlx::query_as::<_, AppRecord>("SELECT * FROM apps WHERE id = $1")
+        .bind(&id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
+
+    if existing.user_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
+        return Err(AppError::Forbidden("Forbidden: Not owner of this app".to_string()));
+    }
+
+    let title = payload.title.unwrap_or(existing.title);
+    let package_name = payload.package_name.unwrap_or(existing.package_name);
+    let play_store_url = payload.play_store_url.clone().unwrap_or(existing.play_store_url);
+    let icon_url = payload.icon_url.unwrap_or(existing.icon_url);
+    let instructions = payload.instructions.unwrap_or(existing.instructions);
+    let required_testers = payload.required_testers.unwrap_or(existing.required_testers);
+
+    let mut status = payload.status.unwrap_or(existing.status);
+    let mut visibility_status = existing.visibility_status;
+
+    if let Some(visible) = payload.is_marketplace_visible {
+        if !visible {
+            status = "paused".to_string();
+        } else {
+            status = "recruiting".to_string();
+            // Restore visibility if hidden
+            if visibility_status.as_deref() == Some("hidden") {
+                visibility_status = Some("visible".to_string());
+            }
+        }
+    }
+
+    // Self-healing: if playStoreUrl changed and app was hidden, restore it
+    if payload.play_store_url.is_some() && visibility_status.as_deref() == Some("hidden") {
+        visibility_status = Some("visible".to_string());
+        if status == "paused" {
+            status = "recruiting".to_string();
+        }
+    }
+
+    let updated = sqlx::query_as::<_, AppRecord>(
+        r#"
+        UPDATE apps
+        SET title = $1, package_name = $2, play_store_url = $3, icon_url = $4,
+            instructions = $5, required_testers = $6, status = $7, visibility_status = $8,
+            updated_at = NOW()
+        WHERE id = $9
+        RETURNING id, user_id, title, package_name, play_store_url, icon_url, instructions,
+                  required_testers, status, completed_at, flag_count, visibility_status,
+                  positive_votes, negative_votes, voters, created_at, updated_at
+        "#,
+    )
+    .bind(title)
+    .bind(package_name)
+    .bind(play_store_url)
+    .bind(icon_url)
+    .bind(instructions)
+    .bind(required_testers)
+    .bind(status)
+    .bind(visibility_status)
+    .bind(&id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    let voters_vec: Vec<String> = serde_json::from_value(updated.voters).unwrap_or_default();
+
+    Ok(Json(AppResponse {
+        id: updated.id,
+        user_id: updated.user_id,
+        title: updated.title,
+        package_name: updated.package_name,
+        play_store_url: updated.play_store_url,
+        icon_url: updated.icon_url,
+        instructions: updated.instructions,
+        required_testers: updated.required_testers,
+        current_testers: 0,
+        status: updated.status,
+        completed_at: updated.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+        flag_count: updated.flag_count,
+        visibility_status: updated.visibility_status,
+        positive_votes: updated.positive_votes,
+        negative_votes: updated.negative_votes,
+        voters: voters_vec,
+        created_at: updated.created_at.format(&Rfc3339).unwrap_or_default(),
+        updated_at: updated.updated_at.format(&Rfc3339).unwrap_or_default(),
+        user: Some(UserSummary {
+            id: user.id,
+            name: Some(user.name),
+            email: Some(user.email),
+            avatar_url: user.avatar_url,
+            reputation: Some(user.reputation),
+        }),
+    }))
+}
+
+// DELETE /api/apps/:id
+async fn delete_app(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    Path(id): Path<String>,
+) -> Result<Json<GenericMessageResponse>, AppError> {
+    let existing = sqlx::query_as::<_, AppRecord>("SELECT * FROM apps WHERE id = $1")
+        .bind(&id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
+
+    if existing.user_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
+        return Err(AppError::Forbidden("Forbidden: Not owner of this app".to_string()));
+    }
+
+    // Cascade delete associated matches, proofs, and messages
+    let _ = sqlx::query(
+        "DELETE FROM proofs WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)",
+    )
+    .bind(&id)
+    .execute(&state.pool)
+    .await;
+
+    let _ = sqlx::query(
+        "DELETE FROM messages WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)",
+    )
+    .bind(&id)
+    .execute(&state.pool)
+    .await;
+
+    let _ = sqlx::query("DELETE FROM matches WHERE app1_id = $1 OR app2_id = $1")
+        .bind(&id)
+        .execute(&state.pool)
+        .await;
+
+    let _ = sqlx::query("DELETE FROM reports WHERE target_id = $1").bind(&id).execute(&state.pool).await;
+
+    // Delete the app
+    sqlx::query("DELETE FROM apps WHERE id = $1")
+        .bind(&id)
+        .execute(&state.pool)
+        .await
+        .map_err(AppError::Database)?;
+
+    // Decrement user apps count
+    let _ = sqlx::query("UPDATE users SET apps_count = GREATEST(0, apps_count - 1) WHERE id = $1")
+        .bind(&existing.user_id)
+        .execute(&state.pool)
+        .await;
+
+    Ok(Json(GenericMessageResponse {
+        message: "App deleted successfully".to_string(),
+    }))
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/apps", get(list_public_apps).post(create_app))
         .route("/api/apps/my", get(list_my_apps))
-        .route("/api/apps/:id", get(get_app_by_id))
-        .route("/api/apps/:id/vote", post(vote_app))
+        .route("/api/apps/{id}", get(get_app_by_id).patch(update_app).delete(delete_app))
+        .route("/api/apps/{id}/vote", post(vote_app))
 }

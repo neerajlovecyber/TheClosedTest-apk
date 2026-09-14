@@ -21,9 +21,13 @@ pub struct ListMatchesQuery {
 #[derive(Deserialize)]
 pub struct RequestMatchRequest {
     #[serde(rename = "app1Id")]
-    pub app1_id: String,
+    pub app1_id: Option<String>,
+    #[serde(rename = "myAppId")]
+    pub my_app_id: Option<String>,
     #[serde(rename = "targetAppId")]
-    pub target_app_id: String,
+    pub target_app_id: Option<String>,
+    #[serde(rename = "app2Id")]
+    pub app2_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -71,10 +75,16 @@ pub struct MatchDetailResponse {
     pub user2_last_proof: Option<serde_json::Value>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+    pub match_obj: Option<MatchRecordSummary>,
     pub app1: Option<MatchAppSummary>,
     pub app2: Option<MatchAppSummary>,
     pub user1: Option<MatchUserSummary>,
     pub user2: Option<MatchUserSummary>,
+}
+
+#[derive(Serialize)]
+pub struct MatchRecordSummary {
+    pub id: String,
 }
 
 #[derive(FromRow)]
@@ -143,7 +153,7 @@ async fn list_matches(
     let results = records
         .into_iter()
         .map(|r| MatchDetailResponse {
-            id: r.id,
+            id: r.id.clone(),
             user1_id: r.user1_id,
             app1_id: r.app1_id.clone(),
             user2_id: r.user2_id.clone(),
@@ -156,6 +166,7 @@ async fn list_matches(
             user1_last_proof: r.user1_last_proof,
             user2_last_proof: r.user2_last_proof,
             created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
+            match_obj: Some(MatchRecordSummary { id: r.id }),
             app1: Some(MatchAppSummary {
                 id: r.app1_id,
                 title: r.a1_title,
@@ -210,7 +221,7 @@ async fn get_match(
         WHERE m.id = $1
         "#,
     )
-    .bind(id)
+    .bind(&id)
     .fetch_optional(&state.pool)
     .await
     .map_err(AppError::Database)?
@@ -222,7 +233,7 @@ async fn get_match(
     }
 
     Ok(Json(MatchDetailResponse {
-        id: r.id,
+        id: r.id.clone(),
         user1_id: r.user1_id.clone(),
         app1_id: r.app1_id.clone(),
         user2_id: r.user2_id.clone(),
@@ -235,6 +246,7 @@ async fn get_match(
         user1_last_proof: r.user1_last_proof,
         user2_last_proof: r.user2_last_proof,
         created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
+        match_obj: Some(MatchRecordSummary { id: r.id }),
         app1: Some(MatchAppSummary {
             id: r.app1_id,
             title: r.a1_title,
@@ -268,15 +280,28 @@ async fn request_match(
     AuthUser(user): AuthUser,
     Json(payload): Json<RequestMatchRequest>,
 ) -> Result<Json<MatchRecord>, AppError> {
+    let app1_id = payload.app1_id.or(payload.my_app_id).ok_or_else(|| {
+        AppError::BadRequest("App 1 ID (app1Id or myAppId) is required".to_string())
+    })?;
+
+    let target_app_id = payload.target_app_id.or(payload.app2_id).ok_or_else(|| {
+        AppError::BadRequest("Target App ID (targetAppId or app2Id) is required".to_string())
+    })?;
+
+    // Self-match check
+    if app1_id == target_app_id {
+        return Err(AppError::BadRequest("Cannot request a match with your own app".to_string()));
+    }
+
     // 1. Verify app1 belongs to user
     let app1: (String, String, String) = sqlx::query_as(
         "SELECT id, user_id, status FROM apps WHERE id = $1",
     )
-    .bind(&payload.app1_id)
+    .bind(&app1_id)
     .fetch_optional(&state.pool)
     .await
     .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Your selected app was not found".to_string()))?;
+    .ok_or_else(|| AppError::BadRequest("Your selected app was not found".to_string()))?;
 
     if app1.1 != user.id {
         return Err(AppError::Forbidden("You do not own the app you are requesting swap with".to_string()));
@@ -286,14 +311,20 @@ async fn request_match(
     let app2: (String, String, String) = sqlx::query_as(
         "SELECT id, user_id, status FROM apps WHERE id = $1",
     )
-    .bind(&payload.target_app_id)
+    .bind(&target_app_id)
     .fetch_optional(&state.pool)
     .await
     .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Target app not found".to_string()))?;
+    .ok_or_else(|| AppError::BadRequest("Target app not found".to_string()))?;
 
     if app2.1 == user.id {
-        return Err(AppError::BadRequest("Cannot request a test swap with your own app".to_string()));
+        return Err(AppError::BadRequest("Cannot request a match with your own app".to_string()));
+    }
+
+    if app2.2 == "paused" {
+        return Err(AppError::BadRequest(
+            "Target app is currently paused and cannot accept new test swaps right now.".to_string(),
+        ));
     }
 
     // 3. Verify no existing pending or active match
@@ -304,14 +335,14 @@ async fn request_match(
           AND status IN ('pending', 'active')
         "#,
     )
-    .bind(&payload.app1_id)
-    .bind(&payload.target_app_id)
+    .bind(&app1_id)
+    .bind(&target_app_id)
     .fetch_optional(&state.pool)
     .await
     .map_err(AppError::Database)?;
 
     if existing.is_some() {
-        return Err(AppError::Conflict("A match request or active test already exists between these apps".to_string()));
+        return Err(AppError::BadRequest("A match request or active test already exists between these apps".to_string()));
     }
 
     let new_id = Uuid::new_v4().to_string();
@@ -396,12 +427,12 @@ async fn accept_match(
     Ok(Json(updated))
 }
 
-// POST /api/matches/:id/cancel
-async fn cancel_match(
+// POST /api/matches/:id/reject or /cancel
+async fn cancel_or_reject_match(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(id): Path<String>,
-) -> Result<Json<GenericMessageResponse>, AppError> {
+) -> Result<Json<MatchRecord>, AppError> {
     let match_row = sqlx::query_as::<_, MatchRecord>(
         "SELECT id, user1_id, app1_id, user2_id, app2_id, status, start_date, last_activity, last_read1, last_read2, completed_at, user1_approved_count, user2_approved_count, user1_last_proof, user2_last_proof, created_at, updated_at FROM matches WHERE id = $1",
     )
@@ -416,11 +447,21 @@ async fn cancel_match(
         return Err(AppError::Forbidden("You are not authorized to cancel this match".to_string()));
     }
 
-    sqlx::query("UPDATE matches SET status = 'cancelled', updated_at = NOW() WHERE id = $1")
-        .bind(&id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    let updated = sqlx::query_as::<_, MatchRecord>(
+        r#"
+        UPDATE matches
+        SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, user1_id, app1_id, user2_id, app2_id, status,
+                  start_date, last_activity, last_read1, last_read2, completed_at,
+                  user1_approved_count, user2_approved_count,
+                  user1_last_proof, user2_last_proof, created_at, updated_at
+        "#,
+    )
+    .bind(&id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
 
     // Notify other user
     let other_user_id = if match_row.user1_id == user.id { match_row.user2_id } else { match_row.user1_id };
@@ -435,16 +476,15 @@ async fn cancel_match(
     .execute(&state.pool)
     .await;
 
-    Ok(Json(GenericMessageResponse {
-        message: "Match cancelled successfully".to_string(),
-    }))
+    Ok(Json(updated))
 }
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/matches", get(list_matches))
         .route("/api/matches/request", post(request_match))
-        .route("/api/matches/:id", get(get_match))
-        .route("/api/matches/:id/accept", post(accept_match))
-        .route("/api/matches/:id/cancel", post(cancel_match))
+        .route("/api/matches/{id}", get(get_match))
+        .route("/api/matches/{id}/accept", post(accept_match))
+        .route("/api/matches/{id}/cancel", post(cancel_or_reject_match))
+        .route("/api/matches/{id}/reject", post(cancel_or_reject_match))
 }

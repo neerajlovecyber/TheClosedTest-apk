@@ -14,8 +14,8 @@ pub struct TokenPayload {
 
 /// Verifies or decodes a raw Bearer token from Clerk
 pub async fn verify_token_payload(raw_token: &str, app_env: &str) -> Option<TokenPayload> {
-    // 1. Fixture tokens for test environment
-    if (app_env == "test" || app_env == "development") && raw_token.starts_with("test-clerk-") {
+    // 1. Fixture tokens strictly for test environment
+    if app_env == "test" && raw_token.starts_with("test-clerk-") {
         return Some(TokenPayload {
             sub: raw_token.to_string(),
             email: Some(format!("{}@example.com", raw_token)),

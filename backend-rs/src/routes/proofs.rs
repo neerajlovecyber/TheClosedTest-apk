@@ -244,7 +244,7 @@ async fn review_proof(
     .await
     .map_err(AppError::Database)?;
 
-    // If approved, update approved count on match
+    // If approved, update approved count on match and reward uploader with +1 reputation
     if new_status == "approved" {
         if proof.uploader_id == u1_id {
             sqlx::query("UPDATE matches SET user1_approved_count = user1_approved_count + 1, last_activity = NOW() WHERE id = $1")
@@ -259,6 +259,11 @@ async fn review_proof(
                 .await
                 .map_err(AppError::Database)?;
         }
+
+        let _ = sqlx::query("UPDATE users SET reputation = reputation + 1, updated_at = NOW() WHERE id = $1")
+            .bind(&proof.uploader_id)
+            .execute(&state.pool)
+            .await;
     }
 
     Ok(Json(updated.into()))
@@ -267,6 +272,6 @@ async fn review_proof(
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/proofs", post(submit_proof))
-        .route("/api/proofs/match/:match_id", get(list_match_proofs))
-        .route("/api/proofs/:id/review", post(review_proof))
+        .route("/api/proofs/match/{match_id}", get(list_match_proofs))
+        .route("/api/proofs/{id}/review", post(review_proof))
 }

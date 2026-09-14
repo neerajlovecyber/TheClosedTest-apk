@@ -1,6 +1,10 @@
 use std::env;
 
-pub const ADMIN_EMAILS: &[&str] = &["neerajlovecyber@gmail.com", "futureaistudio41@gmail.com"];
+pub const ADMIN_EMAILS: &[&str] = &[
+    "neerajlovecyber@gmail.com",
+    "futureaistudio41@gmail.com",
+    "theneerajsec@gmail.com",
+];
 
 #[derive(Debug, Clone)]
 pub struct Config {

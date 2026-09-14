@@ -196,6 +196,6 @@ async fn mark_read(
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/messages/:match_id", get(get_chat_history).post(send_message))
-        .route("/api/messages/:match_id/read", post(mark_read))
+        .route("/api/messages/{match_id}", get(get_chat_history).post(send_message))
+        .route("/api/messages/{match_id}/read", post(mark_read))
 }

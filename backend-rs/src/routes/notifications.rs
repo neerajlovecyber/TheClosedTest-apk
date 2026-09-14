@@ -155,8 +155,8 @@ async fn delete_one(
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/notifications", get(list_notifications))
-        .route("/api/notifications/:id/read", patch(mark_notification_read))
+        .route("/api/notifications/{id}/read", patch(mark_notification_read))
         .route("/api/notifications/read-all", post(mark_all_read))
         .route("/api/notifications/clear-all", delete(clear_all).post(clear_all))
-        .route("/api/notifications/:id", delete(delete_one))
+        .route("/api/notifications/{id}", delete(delete_one))
 }
