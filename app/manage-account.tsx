@@ -27,7 +27,6 @@ import {
   SmartphoneIcon,
   AlertTriangleIcon,
   CheckCircleIcon,
-  InfoIcon,
 } from "lucide-react-native";
 import { toast } from "@/lib/sonner";
 import { useCurrentUser, useDeleteAccount } from "@/lib/api-hooks";
@@ -207,12 +206,6 @@ export default function ManageAccountScreen() {
           </CardHeader>
           <CardContent className="gap-3">
             <View className="flex-row justify-between items-center py-1 border-b border-border/40">
-              <Text className="text-sm text-muted-foreground">User ID</Text>
-              <Text className="text-xs text-foreground font-mono" numberOfLines={1}>
-                {dbUser?.id ? `${dbUser.id.slice(0, 14)}...` : "—"}
-              </Text>
-            </View>
-            <View className="flex-row justify-between items-center py-1 border-b border-border/40">
               <Text className="text-sm text-muted-foreground">Active App Slots</Text>
               <Text className="text-sm font-semibold text-foreground">{dbUser?.unlockedAppSlots ?? 3} slots</Text>
             </View>
@@ -227,45 +220,64 @@ export default function ManageAccountScreen() {
           </CardContent>
         </Card>
 
-        {/* Privacy Note */}
-        <View className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex-row gap-3">
-          <Icon as={InfoIcon} className="size-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-          <Text className="text-xs text-blue-900 dark:text-blue-200 leading-relaxed flex-1">
-            In compliance with Google Play Developer Policies and data protection standards, you have the full right to delete your account and all associated personal and app testing records at any time.
-          </Text>
+        {/* Session Management */}
+        <View className="gap-2 mb-6">
+          <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Session</Text>
+          <Card className="border-border/70 overflow-hidden">
+            <CardContent className="p-4 flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-foreground">Sign Out</Text>
+                <Text className="text-xs text-muted-foreground mt-0.5">
+                  Sign out on this device. You can log back in anytime.
+                </Text>
+              </View>
+              <Button
+                variant="outline"
+                className="flex-row items-center gap-1.5 h-11 px-4 rounded-xl border-border/80 bg-background"
+                onPress={() => setShowLogoutConfirm(true)}
+                disabled={isDeleting}
+              >
+                <Icon as={LogOutIcon} className="size-4 text-foreground" />
+                <Text className="text-foreground font-semibold text-sm">Log Out</Text>
+              </Button>
+            </CardContent>
+          </Card>
         </View>
 
-        {/* Account Actions Section */}
-        <View className="gap-3">
-          <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Account Actions</Text>
+        {/* Danger Zone: Account Deletion */}
+        <View className="gap-2 mb-4">
+          <Text className="text-xs font-bold text-destructive px-2 uppercase tracking-widest">Danger Zone</Text>
+          <Card className="border-destructive/30 bg-destructive/5 overflow-hidden">
+            <CardContent className="p-4 gap-3">
+              <View className="flex-row items-start gap-3">
+                <View className="h-9 w-9 rounded-full bg-destructive/15 items-center justify-center shrink-0 mt-0.5">
+                  <Icon as={AlertTriangleIcon} className="size-4 text-destructive" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-destructive">Delete Account</Text>
+                  <Text className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Permanently delete your account, listed apps, testing pairs, and all testing history. This action cannot be undone.
+                  </Text>
+                </View>
+              </View>
 
-          {/* Log Out Button */}
-          <Button
-            variant="outline"
-            className="w-full flex-row items-center justify-center gap-2 h-13 rounded-2xl border-border bg-card shadow-sm"
-            onPress={() => setShowLogoutConfirm(true)}
-            disabled={isDeleting}
-          >
-            <Icon as={LogOutIcon} className="size-5 text-foreground mr-1" />
-            <Text className="text-foreground font-bold text-base">Log Out</Text>
-          </Button>
-
-          {/* Delete Account Button */}
-          <Button
-            variant="destructive"
-            className="w-full flex-row items-center justify-center gap-2 h-13 rounded-2xl shadow-sm bg-destructive/90 active:bg-destructive"
-            onPress={() => setShowDeleteConfirm(true)}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <>
-                <Icon as={Trash2Icon} className="size-5 text-white mr-1" />
-                <Text className="text-white font-bold text-base">Delete Account</Text>
-              </>
-            )}
-          </Button>
+              <Button
+                variant="destructive"
+                className="w-full flex-row items-center justify-center gap-2 h-12 rounded-xl mt-1 shadow-sm bg-destructive active:bg-destructive/90"
+                onPress={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Icon as={Trash2Icon} className="size-4 text-white" />
+                    <Text className="text-white font-bold text-sm">Delete My Account Permanently</Text>
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </View>
       </ScrollView>
 
@@ -280,10 +292,10 @@ export default function ManageAccountScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onPress={() => setShowLogoutConfirm(false)}>
-              <Text>Cancel</Text>
+              <Text className="text-foreground font-semibold text-sm">Cancel</Text>
             </AlertDialogCancel>
             <AlertDialogAction onPress={handleLogout}>
-              <Text className="text-white font-bold">Log Out</Text>
+              <Text className="text-white font-bold text-sm">Log Out</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -309,17 +321,17 @@ export default function ManageAccountScreen() {
               {"\n"}• Chat messages, streak history & reputation
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
+          <AlertDialogFooter className="mt-3">
             <AlertDialogCancel onPress={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
-              <Text>Keep My Account</Text>
+              <Text className="text-foreground font-semibold text-sm">Keep Account</Text>
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive"
               onPress={handleDeleteAccount}
               disabled={isDeleting}
             >
-              <Text className="text-white font-bold">
-                {isDeleting ? "Deleting..." : "Permanently Delete"}
+              <Text className="text-white font-bold text-sm">
+                {isDeleting ? "Deleting..." : "Delete Permanently"}
               </Text>
             </AlertDialogAction>
           </AlertDialogFooter>

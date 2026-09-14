@@ -104,7 +104,7 @@ function AlertDialogAction({ className, variant, ...props }: AlertDialogActionPr
       <AlertDialogPrimitive.Action
         className={cn(
           buttonVariants({ variant: effectiveVariant, size: "default" }),
-          "flex-1 h-12 rounded-2xl items-center justify-center font-semibold active:opacity-85",
+          "flex-1 h-13 py-0 px-3 rounded-2xl items-center justify-center font-semibold active:opacity-85",
           className,
         )}
         {...props}
@@ -124,7 +124,7 @@ function AlertDialogCancel({ className, variant = "outline", ...props }: AlertDi
       <AlertDialogPrimitive.Cancel
         className={cn(
           buttonVariants({ variant, size: "default" }),
-          "flex-1 h-12 rounded-2xl items-center justify-center border-border/80 active:opacity-85",
+          "flex-1 h-13 py-0 px-3 rounded-2xl items-center justify-center border-border/80 active:opacity-85",
           className,
         )}
         {...props}
