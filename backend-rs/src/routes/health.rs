@@ -39,9 +39,13 @@ pub async fn health_check(
     State(state): State<AppState>,
 ) -> Result<Json<HealthResponse>, (StatusCode, Json<serde_json::Value>)> {
     let start = Instant::now();
-    let db_status = match sqlx::query("SELECT 1").execute(&state.pool).await {
-        Ok(_) => "connected".to_string(),
-        Err(_) => {
+    let ping_fut = tokio::time::timeout(
+        std::time::Duration::from_millis(500),
+        sqlx::query("SELECT 1").execute(&state.pool),
+    );
+    let db_status = match ping_fut.await {
+        Ok(Ok(_)) => "connected".to_string(),
+        _ => {
             return Err((
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(serde_json::json!({ "message": "Database disconnected" })),

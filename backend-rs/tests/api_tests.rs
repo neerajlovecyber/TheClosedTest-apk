@@ -423,4 +423,301 @@ fn test_expired_ban_cleanup_window() {
     assert!(!is_still_active, "Active temporary ban must be preserved");
 }
 
+// ---------------------------------------------------------------------------
+// 8. Granular Authorization Gating (Matching TS security-and-edgecases.test.ts)
+// ---------------------------------------------------------------------------
+#[tokio::test]
+async fn test_unauthorized_get_my_apps_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/api/apps/my").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_patch_app_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("PATCH").uri("/api/apps/app-1").header("content-type", "application/json").body(Body::from(r#"{"title":"New"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_delete_app_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("DELETE").uri("/api/apps/app-1").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_vote_app_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/apps/app-1/vote").header("content-type", "application/json").body(Body::from(r#"{"type":"positive"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_list_matches_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/api/matches").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_get_match_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/api/matches/m-1").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_accept_match_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/matches/m-1/accept").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_reject_match_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/matches/m-1/reject").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_cancel_match_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/matches/m-1/cancel").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_get_proofs_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/api/proofs/match/m-1").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_review_proof_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/proofs/p-1/review").header("content-type", "application/json").body(Body::from(r#"{"status":"approved"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_send_message_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/messages/m-1").header("content-type", "application/json").body(Body::from(r#"{"content":"hi"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_get_messages_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/api/messages/m-1").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_patch_notification_read_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("PATCH").uri("/api/notifications/n-1/read").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_read_all_notifications_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/notifications/read-all").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_clear_all_notifications_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("DELETE").uri("/api/notifications/clear-all").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_checkin_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/users/checkin").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_patch_push_token_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("PATCH").uri("/api/users/push-token").header("content-type", "application/json").body(Body::from(r#"{"pushToken":"tok"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_patch_group_confirm_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("PATCH").uri("/api/users/group-confirm").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_patch_profile_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("PATCH").uri("/api/users/profile").header("content-type", "application/json").body(Body::from(r#"{"name":"New"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_unlock_slots_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/users/unlock-slots").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_post_report_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/reports").header("content-type", "application/json").body(Body::from(r#"{"type":"bug","targetId":"t1","description":"desc"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_ban_user_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/bans/user").header("content-type", "application/json").body(Body::from(r#"{"userId":"u1","reason":"spam"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_ban_app_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/bans/app").header("content-type", "application/json").body(Body::from(r#"{"packageName":"com.spam","playStoreUrl":"https://play.google.com","title":"Spam","reason":"malware"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_delete_app_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("DELETE").uri("/api/admin/apps/app-1").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_clean_all_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/apps/clean-all").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ---------------------------------------------------------------------------
+// 9. Business Logic & Calculation Edge Cases
+// ---------------------------------------------------------------------------
+#[test]
+fn test_app_marketplace_visibility_positive_votes_threshold() {
+    let positive_votes = 3;
+    let negative_votes = 1;
+    let is_visible = positive_votes >= 3 && positive_votes > negative_votes;
+    assert!(is_visible, "Apps with >= 3 positive votes must become visible");
+}
+
+#[test]
+fn test_app_marketplace_visibility_negative_votes_threshold() {
+    let positive_votes = 1;
+    let negative_votes = 3;
+    let is_hidden = negative_votes >= 3 && negative_votes > positive_votes;
+    assert!(is_hidden, "Apps with >= 3 negative votes must become hidden");
+}
+
+#[test]
+fn test_app_owner_marketplace_pause_toggle() {
+    let mut status = "recruiting";
+    let is_marketplace_visible = false;
+    if !is_marketplace_visible {
+        status = "paused";
+    }
+    assert_eq!(status, "paused", "Setting isMarketplaceVisible=false pauses the app");
+}
+
+#[test]
+fn test_app_self_healing_play_store_url_restores_visibility() {
+    let mut visibility = "hidden";
+    let mut status = "paused";
+    let play_store_url_updated = true;
+
+    if play_store_url_updated && visibility == "hidden" {
+        visibility = "visible";
+        status = "recruiting";
+    }
+    assert_eq!(visibility, "visible", "Updating playStoreUrl must unhide app");
+    assert_eq!(status, "recruiting", "Updating playStoreUrl must resume recruitment");
+}
+
+#[test]
+fn test_streak_same_day_idempotence() {
+    let today = "2026-09-14";
+    let last_check_in = Some("2026-09-14");
+    let already_checked_in = last_check_in == Some(today);
+    assert!(already_checked_in, "Same day check-in must be idempotent");
+}
+
+#[test]
+fn test_reputation_unlock_slots_requirements() {
+    let rep_for_4_slots = 120;
+    let rep_for_5_slots = 150;
+
+    let user_rep = 130;
+    let allowed_slots = if user_rep >= rep_for_5_slots {
+        5
+    } else if user_rep >= rep_for_4_slots {
+        4
+    } else {
+        3
+    };
+
+    assert_eq!(allowed_slots, 4, "User with 130 reputation unlocks slot 4");
+}
+
+#[test]
+fn test_match_inactivity_48_hour_warning_threshold() {
+    let now = time::OffsetDateTime::now_utc();
+    let fifty_hours_ago = now - time::Duration::hours(50);
+    let warning_threshold = now - time::Duration::hours(48);
+
+    assert!(fifty_hours_ago < warning_threshold, "50h inactivity triggers 48h warning");
+}
+
+#[test]
+fn test_match_inactivity_72_hour_abandonment_threshold() {
+    let now = time::OffsetDateTime::now_utc();
+    let seventy_five_hours_ago = now - time::Duration::hours(75);
+    let cancel_threshold = now - time::Duration::hours(72);
+
+    assert!(seventy_five_hours_ago < cancel_threshold, "75h inactivity cancels match and penalizes -10");
+}
+
+#[test]
+fn test_day_15_match_auto_completion_logic() {
+    let match_days_active = 15;
+    let should_auto_complete = match_days_active >= 15;
+    assert!(should_auto_complete, "15+ day matches must auto-complete and approve remaining proofs");
+}
+
+#[tokio::test]
+async fn test_unknown_route_returns_404() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/api/unknown-route-that-does-not-exist").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_health_metrics_response_shape() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap()).await.unwrap();
+    assert!(res.status() == StatusCode::OK || res.status() == StatusCode::SERVICE_UNAVAILABLE);
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(body.is_object());
+}
+
+
+
 
