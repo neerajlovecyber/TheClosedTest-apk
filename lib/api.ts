@@ -5,13 +5,15 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || "https://p01--tester--7tlh8kl746cq.code.run";
+export const TS_PROD_URL = "https://p01--tester--7tlh8kl746cq.code.run";
+export const RUST_PROD_URL = "https://p01--backend-rs--7tlh8kl746cq.code.run";
+export const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || TS_PROD_URL;
 export const LOCAL_API_URL = process.env.EXPO_PUBLIC_LOCAL_API_URL || "http://192.168.1.4:9000";
 
 const API_ENV_STORAGE_KEY = "api_env_override";
 const API_CUSTOM_URL_STORAGE_KEY = "api_custom_url_override";
 
-export type ApiEnv = "prod" | "local" | "custom";
+export type ApiEnv = "rust" | "ts" | "local" | "custom";
 
 let apiBaseUrl = PROD_API_URL;
 let envLoaded = false;
@@ -27,7 +29,9 @@ export async function loadApiEnv(): Promise<void> {
     }
 
     const saved = await AsyncStorage.getItem(API_ENV_STORAGE_KEY);
-    if (saved === "local") {
+    if (saved === "rust") {
+      apiBaseUrl = RUST_PROD_URL;
+    } else if (saved === "local") {
       apiBaseUrl = LOCAL_API_URL;
     } else {
       apiBaseUrl = PROD_API_URL;
@@ -38,8 +42,10 @@ export async function loadApiEnv(): Promise<void> {
 }
 
 export function getApiEnv(): ApiEnv {
-  if (apiBaseUrl === LOCAL_API_URL) return "local";
-  if (apiBaseUrl === PROD_API_URL) return "prod";
+  const current = apiBaseUrl.trim().replace(/\/+$/, "");
+  if (current === RUST_PROD_URL) return "rust";
+  if (current === TS_PROD_URL || current === PROD_API_URL) return "ts";
+  if (current === LOCAL_API_URL) return "local";
   return "custom";
 }
 
@@ -49,13 +55,17 @@ export function getApiBaseUrl(): string {
 
 export async function setApiEnv(env: ApiEnv): Promise<void> {
   try {
-    if (env === "prod") {
-      apiBaseUrl = PROD_API_URL;
-      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
-      await AsyncStorage.removeItem(API_ENV_STORAGE_KEY);
+    if (env === "rust") {
+      apiBaseUrl = RUST_PROD_URL;
+      await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, RUST_PROD_URL);
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "rust");
+    } else if (env === "ts") {
+      apiBaseUrl = TS_PROD_URL;
+      await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, TS_PROD_URL);
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "ts");
     } else if (env === "local") {
       apiBaseUrl = LOCAL_API_URL;
-      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
+      await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, LOCAL_API_URL);
       await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "local");
     }
   } catch {
@@ -66,17 +76,22 @@ export async function setApiEnv(env: ApiEnv): Promise<void> {
 export async function setCustomApiUrl(url: string | null): Promise<void> {
   try {
     const cleaned = url ? url.trim().replace(/\/+$/, "") : "";
-    if (!cleaned || cleaned === PROD_API_URL) {
-      apiBaseUrl = PROD_API_URL;
+    if (!cleaned || cleaned === TS_PROD_URL || cleaned === PROD_API_URL) {
+      apiBaseUrl = TS_PROD_URL;
       await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
-      await AsyncStorage.removeItem(API_ENV_STORAGE_KEY);
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "ts");
+    } else if (cleaned === RUST_PROD_URL) {
+      apiBaseUrl = RUST_PROD_URL;
+      await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, RUST_PROD_URL);
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "rust");
     } else if (cleaned === LOCAL_API_URL) {
       apiBaseUrl = LOCAL_API_URL;
-      await AsyncStorage.removeItem(API_CUSTOM_URL_STORAGE_KEY);
+      await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, LOCAL_API_URL);
       await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "local");
     } else {
       apiBaseUrl = cleaned;
       await AsyncStorage.setItem(API_CUSTOM_URL_STORAGE_KEY, cleaned);
+      await AsyncStorage.setItem(API_ENV_STORAGE_KEY, "custom");
     }
   } catch {
     // Ignore storage failures

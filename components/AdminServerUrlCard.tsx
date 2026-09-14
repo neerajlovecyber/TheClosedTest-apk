@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
-import { ServerIcon, CheckCircle2Icon, AlertCircleIcon, RefreshCwIcon, GlobeIcon, RotateCcwIcon } from "lucide-react-native";
+import { ServerIcon, CheckCircle2Icon, AlertCircleIcon, RefreshCwIcon, GlobeIcon, RotateCcwIcon, ZapIcon } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
-import { getApiBaseUrl, getApiEnv, setCustomApiUrl, setApiEnv, PROD_API_URL, LOCAL_API_URL, type ApiEnv } from "@/lib/api";
+import { getApiBaseUrl, getApiEnv, setCustomApiUrl, setApiEnv, TS_PROD_URL, RUST_PROD_URL, LOCAL_API_URL, type ApiEnv } from "@/lib/api";
 
 export function AdminServerUrlCard() {
   const queryClient = useQueryClient();
@@ -112,9 +112,10 @@ export function AdminServerUrlCard() {
 
     await queryClient.invalidateQueries();
 
+    const isRustNow = updated.replace(/\/+$/, "") === RUST_PROD_URL;
     Toast.show({
       type: "success",
-      text1: "API Server Switched",
+      text1: isRustNow ? "Connected to Rust Backend 🦀" : "Connected to Server",
       text2: updated,
     });
   };
@@ -131,15 +132,13 @@ export function AdminServerUrlCard() {
 
     Toast.show({
       type: "success",
-      text1: `Switched to ${presetEnv === "prod" ? "Production" : "Local"}`,
+      text1: presetEnv === "rust" ? "Switched to Rust Backend 🦀" : presetEnv === "ts" ? "Switched to TypeScript Backend" : "Switched to Local Server",
       text2: updated,
     });
   };
 
-  const handleReset = async () => {
-    await handlePreset(PROD_API_URL, "prod");
-  };
-
+  const isRust = env === "rust";
+  const isTs = env === "ts";
   const isCustom = env === "custom";
   const isLocal = env === "local";
 
@@ -149,100 +148,111 @@ export function AdminServerUrlCard() {
         {/* Header */}
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-2">
-            <View className="bg-sky-500/10 p-2 rounded-xl">
-              <Icon as={ServerIcon} className="text-sky-500 size-5" />
+            <View className={`p-2 rounded-xl ${isRust ? "bg-orange-500/15" : "bg-sky-500/10"}`}>
+              <Icon as={isRust ? ZapIcon : ServerIcon} className={`size-5 ${isRust ? "text-orange-500" : "text-sky-500"}`} />
             </View>
             <View>
-              <Text className="font-bold text-foreground">API Server URL</Text>
-              <Text className="text-xs text-muted-foreground">Switch backend target live without rebuilding APK</Text>
+              <Text className="font-bold text-foreground">Backend Server Endpoint</Text>
+              <Text className="text-xs text-muted-foreground">Switch between hosted Rust &amp; TS backends live</Text>
             </View>
           </View>
           <Badge
-            variant={isLocal ? "secondary" : isCustom ? "outline" : "default"}
+            variant={isRust ? "default" : isCustom ? "outline" : "secondary"}
             className={
-              isLocal
+              isRust
+                ? "bg-orange-500/15 border border-orange-500/40"
+                : isTs
+                ? "bg-sky-500/10 border border-sky-500/30"
+                : isLocal
                 ? "bg-amber-500/10 border border-amber-500/30"
-                : isCustom
-                ? "bg-purple-500/10 border border-purple-500/30"
-                : "bg-emerald-500/10 border border-emerald-500/30"
+                : "bg-purple-500/10 border border-purple-500/30"
             }
           >
             <Text
               className={`text-[10px] font-bold uppercase tracking-wider ${
-                isLocal
+                isRust
+                  ? "text-orange-600 dark:text-orange-400"
+                  : isTs
+                  ? "text-sky-600 dark:text-sky-400"
+                  : isLocal
                   ? "text-amber-600 dark:text-amber-400"
-                  : isCustom
-                  ? "text-purple-600 dark:text-purple-400"
-                  : "text-emerald-600 dark:text-emerald-400"
+                  : "text-purple-600 dark:text-purple-400"
               }`}
             >
-              {isLocal ? "Local" : isCustom ? "Custom" : "Production"}
+              {isRust ? "🦀 Rust (Live)" : isTs ? "TS Backend" : isLocal ? "Local" : "Custom"}
             </Text>
           </Badge>
         </View>
 
         {/* Current Active URL Display */}
         <View className="bg-muted/40 dark:bg-muted/20 border border-border/70 rounded-lg p-2.5 mb-3">
-          <Text className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Active Endpoint</Text>
+          <Text className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Active Target</Text>
           <Text className="text-xs font-mono text-foreground select-all" numberOfLines={2}>
             {currentUrl}
           </Text>
         </View>
 
-        {/* Presets */}
+        {/* Presets: Rust vs TS vs Local */}
         <View className="flex-row items-center gap-2 mb-3">
+          {/* Rust Backend Button */}
           <TouchableOpacity
-            onPress={() => void handlePreset(PROD_API_URL, "prod")}
-            className={`flex-1 py-1.5 px-2 rounded-md border items-center ${
-              env === "prod"
-                ? "bg-emerald-500/15 border-emerald-500/40"
+            onPress={() => void handlePreset(RUST_PROD_URL, "rust")}
+            className={`flex-1 py-2 px-2.5 rounded-lg border items-center justify-center flex-row gap-1.5 ${
+              isRust
+                ? "bg-orange-500/15 border-orange-500/50 shadow-sm"
                 : "bg-background border-border/70 active:bg-muted/50"
             }`}
           >
             <Text
-              className={`text-xs font-semibold ${
-                env === "prod" ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"
+              className={`text-xs font-bold ${
+                isRust ? "text-orange-600 dark:text-orange-400" : "text-foreground"
               }`}
             >
-              Prod Server
+              🦀 Rust Backend
             </Text>
           </TouchableOpacity>
 
+          {/* TS Backend Button */}
+          <TouchableOpacity
+            onPress={() => void handlePreset(TS_PROD_URL, "ts")}
+            className={`flex-1 py-2 px-2.5 rounded-lg border items-center justify-center flex-row gap-1.5 ${
+              isTs
+                ? "bg-sky-500/15 border-sky-500/50 shadow-sm"
+                : "bg-background border-border/70 active:bg-muted/50"
+            }`}
+          >
+            <Text
+              className={`text-xs font-bold ${
+                isTs ? "text-sky-600 dark:text-sky-400" : "text-muted-foreground"
+              }`}
+            >
+              TS Backend
+            </Text>
+          </TouchableOpacity>
+
+          {/* Reset / Local button */}
           <TouchableOpacity
             onPress={() => void handlePreset(LOCAL_API_URL, "local")}
-            className={`flex-1 py-1.5 px-2 rounded-md border items-center ${
-              env === "local"
-                ? "bg-amber-500/15 border-amber-500/40"
+            className={`py-2 px-2.5 rounded-lg border items-center justify-center ${
+              isLocal
+                ? "bg-amber-500/15 border-amber-500/50"
                 : "bg-background border-border/70 active:bg-muted/50"
             }`}
+            accessibilityLabel="Local Dev Server"
           >
-            <Text
-              className={`text-xs font-semibold ${
-                env === "local" ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"
-              }`}
-            >
-              Local (:9000)
+            <Text className={`text-xs font-semibold ${isLocal ? "text-amber-600" : "text-muted-foreground"}`}>
+              Local
             </Text>
           </TouchableOpacity>
-
-          {isCustom && (
-            <TouchableOpacity
-              onPress={() => void handleReset()}
-              className="p-2 rounded-md border border-border/70 bg-background items-center justify-center active:bg-muted/50"
-              accessibilityLabel="Reset to Default"
-            >
-              <Icon as={RotateCcwIcon} className="size-4 text-muted-foreground" />
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Custom Input */}
+        {/* Custom URL Input */}
         <View className="mb-3">
-          <Text className="text-xs font-semibold text-foreground mb-1.5">Custom Backend URL</Text>
+          <Text className="text-xs font-semibold text-foreground mb-1.5">Custom Endpoint Link</Text>
           <Input
             value={inputUrl}
             onChangeText={setInputUrl}
-            placeholder="https://..."
+            placeholder="https://p01--backend-rs--..."
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -289,7 +299,7 @@ export function AdminServerUrlCard() {
             className="flex-1 py-2 px-3 rounded-lg border border-border bg-muted/40 active:bg-muted flex-row items-center justify-center gap-1.5"
           >
             {isTesting ? (
-              <ActivityIndicator size="small" color="#0284c7" />
+              <ActivityIndicator size="small" color="#ea580c" />
             ) : (
               <Icon as={GlobeIcon} className="size-4 text-sky-600 dark:text-sky-400" />
             )}
