@@ -162,12 +162,15 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
           </View>
         </View>
 
-        {/* Middle Row: Subtitle / Stats */}
+        {/* Middle Row: Subtitle / Stats & App Age */}
         {isTesting ? (
-          <View>
-            <Text className="text-muted-foreground text-sm" numberOfLines={1}>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-muted-foreground text-sm shrink" numberOfLines={1}>
               {item.ownerName ? `By ${item.ownerName}` : "Testing in Progress"}
             </Text>
+            {appAge ? (
+              <Text className="text-xs text-muted-foreground font-medium shrink-0 ml-2">{appAge}</Text>
+            ) : null}
           </View>
         ) : (
           <View className="flex-row items-center justify-between">
@@ -178,8 +181,8 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                 {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
               </Text>
             )}
-            {isMyApp && appAge ? (
-              <Text className="text-xs text-muted-foreground font-medium">{appAge}</Text>
+            {appAge ? (
+              <Text className="text-xs text-muted-foreground font-medium shrink-0 ml-2">{appAge}</Text>
             ) : null}
           </View>
         )}
@@ -188,28 +191,22 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
         <View className="mt-1">
           {variant === "marketplace" && (
             <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2.5">
-                <Badge variant="secondary" className="px-2 py-0.5 rounded-md">
+              <View className="flex-1 flex-row items-center gap-2 mr-2">
+                <Badge variant="secondary" className="px-2 py-0.5 rounded-md shrink">
                   <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
                     {item.ownerName || "Developer"}
                   </Text>
                 </Badge>
-                {/* Reputation (Moved back to bottom) */}
-                <View className="flex-row items-center gap-1">
+                {/* Reputation */}
+                <View className="flex-row items-center gap-1 shrink-0">
                   <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
                   <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
                 </View>
-                {/* App Age */}
-                {appAge ? (
-                  <Text className="text-[11px] text-muted-foreground font-medium">
-                    • {appAge}
-                  </Text>
-                ) : null}
               </View>
 
               {/* Flag Warning */}
               {isFlagged && (
-                <Badge variant="destructive" className="px-1.5 py-0.5 rounded">
+                <Badge variant="destructive" className="px-1.5 py-0.5 rounded shrink-0">
                   <Text className="text-[10px] text-white font-bold">{isHidden ? "⚠️ Not Visible" : "⚠️ Check Info"}</Text>
                 </Badge>
               )}

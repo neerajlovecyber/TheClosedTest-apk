@@ -42,18 +42,18 @@ export class AppService {
     if (appItems.length === 0) return []
     const appIds = appItems.map((a) => a.id)
 
-    const activeOrCompleted = or(eq(matches.status, "active"), eq(matches.status, "completed"))
+    const activeOnly = eq(matches.status, "active")
 
     const [asApp1, asApp2] = await Promise.all([
       db
         .select({ appId: matches.app1Id, count: sql<number>`count(*)::int` })
         .from(matches)
-        .where(and(inArray(matches.app1Id, appIds), activeOrCompleted))
+        .where(and(inArray(matches.app1Id, appIds), activeOnly))
         .groupBy(matches.app1Id),
       db
         .select({ appId: matches.app2Id, count: sql<number>`count(*)::int` })
         .from(matches)
-        .where(and(inArray(matches.app2Id, appIds), activeOrCompleted))
+        .where(and(inArray(matches.app2Id, appIds), activeOnly))
         .groupBy(matches.app2Id),
     ])
 
@@ -138,7 +138,7 @@ export class AppService {
         sql`CASE WHEN (
           SELECT COUNT(*)::int FROM matches m
           WHERE (m.app1_id = ${apps.id} OR m.app2_id = ${apps.id})
-            AND m.status IN ('active', 'completed')
+            AND m.status = 'active'
         ) >= LEAST(12, GREATEST(1, COALESCE(${apps.requiredTesters}, 12)))
           OR ${apps.status} = 'filled' THEN 1 ELSE 0 END`,
         desc(users.reputation),

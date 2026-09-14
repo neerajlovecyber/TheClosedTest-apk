@@ -979,4 +979,91 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     const foundAfter = listAfter.apps.find((a: any) => a.id === inactiveApp.id)
     expect(foundAfter).toBeDefined()
   })
+
+  // -------------------------------------------------------------------------
+  // 14. Active Testers Count (Completed Tests Excluded)
+  // -------------------------------------------------------------------------
+  it("36. GET /api/apps does not count completed testing matches in active currentTesters", async () => {
+    // 1. Create a fresh test app
+    const tempUserToken = `test-clerk-active-count-${crypto.randomUUID()}`
+    const syncRes = await app.request("/api/users/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tempUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tokenIdentifier: tempUserToken,
+        name: "Capacity Developer",
+        email: `capacity-${Date.now()}@test.com`,
+      }),
+    })
+    const tempUser = await syncRes.json()
+
+    const appRes = await app.request("/api/apps", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tempUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Capacity App",
+        packageName: `com.capacity.app.${Date.now()}`,
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.capacity.app",
+        iconUrl: "https://example.com/icon.png",
+        instructions: "Capacity testing instructions",
+        requiredTesters: 2,
+      }),
+    })
+    const capacityApp = await appRes.json()
+    expect(capacityApp.currentTesters).toBe(0)
+
+    // 2. Insert one active match and one completed match
+    const partnerUserToken = `test-clerk-partner-${crypto.randomUUID()}`
+    const partnerSyncRes = await app.request("/api/users/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${partnerUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tokenIdentifier: partnerUserToken,
+        name: "Partner Developer",
+        email: `partner-${Date.now()}@test.com`,
+      }),
+    })
+    const partnerUser = await partnerSyncRes.json()
+
+    const partnerAppRes = await app.request("/api/apps", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${partnerUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Partner App",
+        packageName: `com.partner.app.${Date.now()}`,
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.partner.app",
+        iconUrl: "https://example.com/icon.png",
+        instructions: "Partner testing instructions",
+      }),
+    })
+    const partnerApp = await partnerAppRes.json()
+
+    // Match 1: Active
+    await db.insert(matches).values({
+      user1Id: tempUser.id,
+      app1Id: capacityApp.id,
+      user2Id: partnerUser.id,
+      app2Id: partnerApp.id,
+      status: "active",
+      startDate: new Date(),
+    })
+
+    // Match 2: Completed (Testing finished)
+    await db.insert(matches).values({
+      user1Id: tempUser.id,
+      app1Id: capacityApp.id,
+      user2Id: partnerUser.id,
+      app2Id: partnerApp.id,
+      status: "completed",
+      startDate: new Date(Date.now() - 15 * 86400000),
+      endDate: new Date(),
+    })
+
+    // 3. Fetch app details and verify currentTesters ONLY counts the 1 active match, NOT the completed one
+    const getAppRes = await app.request(`/api/apps/${capacityApp.id}`)
+    expect(getAppRes.status).toBe(200)
+    const enrichedCapacityApp = await getAppRes.json()
+    expect(enrichedCapacityApp.currentTesters).toBe(1)
+    expect(enrichedCapacityApp.status).toBe("recruiting")
+  })
 })
