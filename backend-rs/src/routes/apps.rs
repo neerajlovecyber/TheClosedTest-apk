@@ -21,7 +21,7 @@ pub struct ListAppsQuery {
     pub offset: Option<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ListAppsResponse {
     pub apps: Vec<AppResponse>,
     pub total: i64,
@@ -116,6 +116,14 @@ async fn list_public_apps(
     let limit = params.limit.unwrap_or(20).clamp(1, 100);
     let offset = params.offset.unwrap_or(0).max(0);
     let search_pattern = params.search.as_ref().map(|s| format!("%{}%", s));
+    let cache_key = format!("apps_list:{}:{}:{}", params.search.as_deref().unwrap_or(""), limit, offset);
+
+    // 1. Check in-memory RAM cache (0 DB queries, 10s TTL)
+    if let Some(cached_val) = state.api_cache.get(&cache_key).await {
+        if let Ok(cached_res) = serde_json::from_value::<ListAppsResponse>(cached_val) {
+            return Ok(Json(cached_res));
+        }
+    }
 
     let records = sqlx::query_as::<_, AppListRow>(
         r#"
@@ -198,10 +206,17 @@ async fn list_public_apps(
         })
         .collect();
 
-    Ok(Json(ListAppsResponse {
+    let response = ListAppsResponse {
         apps,
         total: total_count.0,
-    }))
+    };
+
+    // Store in RAM cache for 10 seconds
+    if let Ok(json_val) = serde_json::to_value(&response) {
+        state.api_cache.insert(cache_key, json_val).await;
+    }
+
+    Ok(Json(response))
 }
 
 // GET /api/apps/my
@@ -355,6 +370,9 @@ async fn create_app(
         .await
         .map_err(AppError::Database)?;
 
+    // Invalidate public apps list RAM cache
+    state.api_cache.invalidate_all();
+
     Ok(Json(AppResponse {
         id: app.id,
         user_id: app.user_id,
@@ -487,6 +505,9 @@ async fn vote_app(
     .await
     .map_err(AppError::Database)?;
 
+    // Invalidate public apps list RAM cache
+    state.api_cache.invalidate_all();
+
     Ok(Json(GenericMessageResponse {
         message: "Vote recorded successfully".to_string(),
     }))
@@ -582,6 +603,9 @@ async fn update_app(
     .await
     .map_err(AppError::Database)?;
 
+    // Invalidate public apps list RAM cache
+    state.api_cache.invalidate_all();
+
     let voters_vec: Vec<String> = serde_json::from_value(updated.voters).unwrap_or_default();
 
     Ok(Json(AppResponse {
@@ -664,6 +688,9 @@ async fn delete_app(
         .bind(&existing.user_id)
         .execute(&state.pool)
         .await;
+
+    // Invalidate public apps list RAM cache
+    state.api_cache.invalidate_all();
 
     Ok(Json(GenericMessageResponse {
         message: "App deleted successfully".to_string(),

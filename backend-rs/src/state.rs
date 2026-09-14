@@ -17,6 +17,7 @@ pub struct AppState {
     pub presence_cache: Cache<String, OffsetDateTime>,
     pub rate_limiter: Cache<String, Arc<AtomicU32>>,
     pub jwks_cache: Cache<String, jsonwebtoken::jwk::JwkSet>,
+    pub api_cache: Cache<String, serde_json::Value>,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -48,6 +49,11 @@ impl AppState {
             .max_capacity(10)
             .build();
 
+        let api_cache = Cache::builder()
+            .time_to_live(Duration::from_secs(10))
+            .max_capacity(2000)
+            .build();
+
         Self {
             pool,
             http_client,
@@ -56,6 +62,7 @@ impl AppState {
             presence_cache,
             rate_limiter,
             jwks_cache,
+            api_cache,
         }
     }
 }

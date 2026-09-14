@@ -13,7 +13,7 @@ pub struct LeaderboardQuery {
     pub limit: Option<i64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LeaderboardUserSummary {
     pub name: String,
     #[serde(rename = "avatarUrl")]
@@ -22,7 +22,7 @@ pub struct LeaderboardUserSummary {
     pub streak: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LeaderboardItem {
     pub id: String,
     #[serde(rename = "userId")]
@@ -34,7 +34,7 @@ pub struct LeaderboardItem {
     pub user: Option<LeaderboardUserSummary>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LeaderboardResponse {
     pub leaderboard: Vec<LeaderboardItem>,
     #[serde(rename = "cycleEnd")]
@@ -47,8 +47,16 @@ async fn get_leaderboard(
     Query(params): Query<LeaderboardQuery>,
 ) -> Result<Json<LeaderboardResponse>, AppError> {
     let limit = params.limit.unwrap_or(20).clamp(1, 50);
+    let cache_key = format!("leaderboard:limit:{}", limit);
 
-    // Fetch top users by reputation and streak
+    // 1. Return from in-memory RAM cache if present (0 DB queries, sub-millisecond response)
+    if let Some(cached_val) = state.api_cache.get(&cache_key).await {
+        if let Ok(cached_res) = serde_json::from_value::<LeaderboardResponse>(cached_val) {
+            return Ok(Json(cached_res));
+        }
+    }
+
+    // 2. Fetch top users by reputation and streak
     let top_users = sqlx::query_as::<_, (String, String, Option<String>, i32, i32)>(
         "SELECT id, name, avatar_url, reputation, streak FROM users ORDER BY reputation DESC, streak DESC LIMIT $1",
     )
@@ -73,10 +81,17 @@ async fn get_leaderboard(
         })
         .collect();
 
-    Ok(Json(LeaderboardResponse {
+    let response = LeaderboardResponse {
         leaderboard,
         cycle_end: None,
-    }))
+    };
+
+    // Store in RAM cache
+    if let Ok(json_val) = serde_json::to_value(&response) {
+        state.api_cache.insert(cache_key, json_val).await;
+    }
+
+    Ok(Json(response))
 }
 
 pub fn router() -> Router<AppState> {
