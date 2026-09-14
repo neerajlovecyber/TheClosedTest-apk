@@ -116,7 +116,7 @@ async fn submit_proof(
         INSERT INTO proofs (
             id, match_id, uploader_id, day, type, storage_urls, status, comment, submitted_at
         )
-        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, NOW())
         RETURNING id, match_id, uploader_id, day, type, storage_urls, status, comment, rejection_reason,
                   submitted_at, reviewed_at
         "#,

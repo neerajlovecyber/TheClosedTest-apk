@@ -46,7 +46,7 @@ async fn get_clerk_jwks(state: &AppState, force_refresh: bool) -> Option<JwkSet>
 /// In "test" environment, fixture tokens starting with "test-clerk-" or synthetic JWTs decode immediately.
 pub async fn verify_token_payload(raw_token: &str, state: &AppState) -> Option<TokenPayload> {
     // 1. Fixture tokens strictly for test environment
-    if state.config.app_env == "test" && raw_token.starts_with("test-clerk-") {
+    if state.config.app_env == "test" && (raw_token.starts_with("test-clerk-") || raw_token.starts_with("fixture_token_")) {
         return Some(TokenPayload {
             sub: raw_token.to_string(),
             email: Some(format!("{}@example.com", raw_token)),

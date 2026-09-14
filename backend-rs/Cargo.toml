@@ -42,7 +42,6 @@ mimalloc = "0.1.52"
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
-postgresql_embedded = "0.21"
 
 
 # Maximum Performance Profile (No compromises on speed)
