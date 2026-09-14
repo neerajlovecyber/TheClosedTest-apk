@@ -71,10 +71,16 @@ pub async fn create_test_context() -> TestContext {
         database_url: "postgres://localhost:5432/theclosedtest_test".to_string(),
         port: 9000,
         clerk_secret_key: None,
+        clerk_jwt_key: None,
         clerk_frontend_api: "clerk.theclosedtest.com".to_string(),
         app_env: "test".to_string(),
         rate_limit_per_minute: 300,
         rate_limit_enabled: false,
+        r2_access_key_id: None,
+        r2_secret_access_key: None,
+        r2_bucket_name: "test-bucket".to_string(),
+        r2_account_id: None,
+        r2_public_url: "https://test.example.com".to_string(),
     };
     let state = AppState::new(pool.clone(), config);
     TestContext {
