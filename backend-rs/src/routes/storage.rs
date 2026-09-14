@@ -41,9 +41,10 @@ async fn get_presigned_url(
         .unwrap_or("bin");
 
     let unique_key = format!("{}/{}.{}", payload.folder, Uuid::new_v4(), extension);
-    let public_base_url = "https://assets.theclosedtest.com";
-    let public_url = format!("{}/{}", public_base_url, unique_key);
-    let upload_url = format!("{}/upload/{}", public_base_url, unique_key);
+    let public_base_url = std::env::var("CLOUDFLARE_R2_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://theclosedtest.neerajlovecyber.com".to_string());
+    let public_url = format!("{}/{}", public_base_url.trim_end_matches('/'), unique_key);
+    let upload_url = format!("{}/upload/{}", public_base_url.trim_end_matches('/'), unique_key);
 
     Ok(Json(PresignedUploadResponse {
         upload_url,

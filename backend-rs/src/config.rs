@@ -18,6 +18,8 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self, String> {
         let database_url = env::var("DATABASE_URL")
+            .or_else(|_| env::var("NF_TESTERDB_POSTGRES_URI"))
+            .or_else(|_| env::var("NF_TESTERDB_EXTERNAL_POSTGRES_URI"))
             .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/closedtest".to_string());
 
         let port = env::var("PORT")
