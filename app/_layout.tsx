@@ -162,6 +162,7 @@ function InitialLayout() {
         <Stack.Screen name="boost-hub" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="notifications" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="edit-app" options={{ headerShown: false, animation: "none" }} />
+        <Stack.Screen name="manage-account" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="help" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="about-us" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="playstore-guide" options={{ headerShown: false, animation: "none" }} />

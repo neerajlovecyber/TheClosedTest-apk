@@ -86,4 +86,15 @@ export class UsersController {
       HttpStatusCodes.OK,
     )
   }
+
+  static async deleteAccount(c: Context<AppBindings>) {
+    const userVar = c.get("user")!
+    const result = await UserService.deleteUser(userVar.id)
+
+    if (result.notFound) {
+      return c.json({ message: "User not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    return c.json({ message: "Account and all associated data permanently deleted" }, HttpStatusCodes.OK)
+  }
 }

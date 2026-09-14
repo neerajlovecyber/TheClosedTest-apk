@@ -198,4 +198,24 @@ router.openapi(
   UsersController.activeCount,
 )
 
+// 9. Delete Current User Account & All Data
+router.openapi(
+  createRoute({
+    tags: ["Users"],
+    method: "delete",
+    path: "/api/users/me",
+    summary: "Delete User Account & All Data",
+    description: "Permanently deletes user account, apps, matches, proofs, and all related data",
+    middleware: [authMiddleware] as const,
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(
+        createMessageObjectSchema("Account and all associated data permanently deleted"),
+        "Account deleted",
+      ),
+      [HttpStatusCodes.NOT_FOUND]: jsonContent(createMessageObjectSchema("User not found"), "User not found"),
+    },
+  }),
+  UsersController.deleteAccount,
+)
+
 export default router

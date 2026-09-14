@@ -2,7 +2,7 @@ import { and, count, eq, not } from "drizzle-orm"
 
 import { db } from "../db"
 import { apps, dailyActivity, users } from "../db/schema"
-import { userAuthCache } from "../lib/cache"
+import { memoryCache, userAuthCache } from "../lib/cache"
 import { isUserAdmin } from "../lib/constants"
 
 export interface SyncUserDTO {
@@ -240,5 +240,29 @@ export class UserService {
     }
 
     return updated
+  }
+
+  /**
+   * Permanently deletes a user account and cascades all associated data.
+   */
+  static async deleteUser(userId: string) {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    })
+
+    if (!user) {
+      return { notFound: true }
+    }
+
+    // Delete user from DB (foreign keys ON DELETE CASCADE will clean up apps, matches, proofs, etc.)
+    await db.delete(users).where(eq(users.id, userId))
+
+    // Invalidate caches
+    if (user.tokenIdentifier) {
+      userAuthCache.delete(user.tokenIdentifier)
+    }
+    memoryCache.delete("apps_list:")
+
+    return { success: true }
   }
 }

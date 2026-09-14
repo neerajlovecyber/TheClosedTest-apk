@@ -834,4 +834,60 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     await db.delete(proofs).where(eq(proofs.matchId, unreviewedMatch.id))
     await db.delete(matches).where(eq(matches.id, unreviewedMatch.id))
   })
+
+  it("34. DELETE /api/users/me permanently deletes user account and cascades all associated apps, matches, and data", async () => {
+    // 1. Verify 401 without auth
+    const unauthRes = await app.request("/api/users/me", { method: "DELETE" })
+    expect(unauthRes.status).toBe(401)
+
+    // 2. Setup temporary user with an app
+    const tempUserToken = `test-clerk-delete-${crypto.randomUUID()}`
+    const syncRes = await app.request("/api/users/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tempUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tokenIdentifier: tempUserToken,
+        name: "Delete Me User",
+        email: `delete-user-${Date.now()}@test.com`,
+      }),
+    })
+    expect([200, 201]).toContain(syncRes.status)
+    const tempUser = await syncRes.json()
+
+    // Create an app for this user
+    const appRes = await app.request("/api/apps", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tempUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "App To Be Deleted",
+        packageName: `com.delete.user.${Date.now()}`,
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.delete.user",
+        iconUrl: "https://example.com/icon.png",
+        instructions: "Test instructions for deletion test app",
+      }),
+    })
+    expect(appRes.status).toBe(201)
+    const createdApp = await appRes.json()
+
+    // 3. Delete user account via DELETE /api/users/me
+    const deleteRes = await app.request("/api/users/me", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${tempUserToken}` },
+    })
+    expect(deleteRes.status).toBe(200)
+    const deleteJson = await deleteRes.json()
+    expect(deleteJson.message).toContain("permanently deleted")
+
+    // 4. Verify user record is gone from DB
+    const dbUserCheck = await db.query.users.findFirst({
+      where: (u, { eq }) => eq(u.id, tempUser.id),
+    })
+    expect(dbUserCheck).toBeUndefined()
+
+    // 5. Verify cascading deletion of user's app
+    const dbAppCheck = await db.query.apps.findFirst({
+      where: (a, { eq }) => eq(a.id, createdApp.id),
+    })
+    expect(dbAppCheck).toBeUndefined()
+  })
 })

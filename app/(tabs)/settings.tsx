@@ -21,7 +21,6 @@ import {
   CheckCircleIcon,
   ChevronRightIcon,
   InfoIcon,
-  LogOutIcon,
   MessageSquareIcon,
   MoonIcon,
   Share2Icon,
@@ -33,6 +32,7 @@ import {
   SendIcon,
   UsersIcon,
   Code2Icon,
+  UserCogIcon,
 } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import * as React from "react";
@@ -143,7 +143,6 @@ export default function SettingsScreen() {
   const { data: mySupportChat } = useMySupportChat();
   const hasUnreadFromAdmin = mySupportChat?.hasUnreadUser ?? false;
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const [showGroupModal, setShowGroupModal] = React.useState(false);
 
   const handleShare = async () => {
@@ -198,6 +197,22 @@ export default function SettingsScreen() {
 
         {/* Settings Groups */}
         <View className="px-4 gap-6">
+          {/* Account Section */}
+          <View className="gap-3">
+            <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Account</Text>
+            <Card className="overflow-hidden p-0 gap-0 border-0">
+              <CardContent className="p-0 gap-0">
+                <SettingItem
+                  icon={UserCogIcon}
+                  label="Manage Account"
+                  subtitle="Profile, sign out & account deletion"
+                  onPress={() => router.push("/manage-account" as any)}
+                  iconColor="bg-violet-500"
+                />
+              </CardContent>
+            </Card>
+          </View>
+
           {/* Community Section */}
           <View className="gap-3">
             <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Community</Text>
@@ -282,16 +297,6 @@ export default function SettingsScreen() {
               </CardContent>
             </Card>
           </View>
-
-          {/* Logout Button */}
-          <Button
-            variant="destructive"
-            className="w-full flex-row items-center justify-center gap-2 h-14 rounded-2xl shadow-sm active:opacity-90"
-            onPress={() => setShowLogoutConfirm(true)}
-          >
-            <Icon as={LogOutIcon} className="text-white size-5 mr-1" />
-            <Text className="text-white font-bold text-base">Log Out</Text>
-          </Button>
         </View>
       </View>
 
@@ -324,32 +329,6 @@ export default function SettingsScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* Logout Confirmation Dialog */}
-      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Log Out of Your Account?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to log out of The Closed Test? You can log back in at any time to resume your active test cycles.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onPress={() => setShowLogoutConfirm(false)}>
-              <Text>Cancel</Text>
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onPress={() => {
-                setShowLogoutConfirm(false);
-                signOut();
-              }}
-            >
-              <Text className="text-white font-bold">Yes, Log Out</Text>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </ScreenScrollView>
   );
 }

@@ -272,6 +272,16 @@ export function useUnlockSlots() {
   });
 }
 
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<{ message: string }>("/api/users/me"),
+    onSuccess: () => {
+      queryClient.clear();
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 2. Apps Feed & Management Hooks
 // ---------------------------------------------------------------------------
