@@ -73,6 +73,8 @@ pub async fn create_test_context() -> TestContext {
         clerk_secret_key: None,
         clerk_frontend_api: "clerk.theclosedtest.com".to_string(),
         app_env: "test".to_string(),
+        rate_limit_per_minute: 300,
+        rate_limit_enabled: false,
     };
     let state = AppState::new(pool.clone(), config);
     TestContext {

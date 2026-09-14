@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 use moka::future::Cache;
@@ -14,6 +15,7 @@ pub struct AppState {
     pub config: Config,
     pub user_cache: Cache<String, User>,
     pub presence_cache: Cache<String, OffsetDateTime>,
+    pub rate_limiter: Cache<String, Arc<AtomicU32>>,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -35,12 +37,18 @@ impl AppState {
             .max_capacity(10000)
             .build();
 
+        let rate_limiter = Cache::builder()
+            .time_to_live(Duration::from_secs(120))
+            .max_capacity(50000)
+            .build();
+
         Self {
             pool,
             http_client,
             config,
             user_cache,
             presence_cache,
+            rate_limiter,
         }
     }
 }

@@ -40,6 +40,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_headers(Any);
 
     let app = routes::app_router()
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            backend_rs::middleware::rate_limit::rate_limiter_middleware,
+        ))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state);

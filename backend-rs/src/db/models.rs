@@ -162,3 +162,27 @@ pub struct NotificationRecord {
     #[serde(with = "time::serde::iso8601")]
     pub created_at: OffsetDateTime,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct AdminChatRecord {
+    pub id: String,
+    pub user_id: String,
+    pub admin_id: Option<String>,
+    pub last_message: String,
+    #[serde(with = "time::serde::iso8601")]
+    pub updated_at: OffsetDateTime,
+    pub has_unread_user: bool,
+    pub has_unread_admin: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct AdminMessageRecord {
+    pub id: String,
+    pub chat_id: String,
+    pub sender_id: String,
+    pub content: String,
+    pub r#type: String,
+    pub is_admin: bool,
+    #[serde(with = "time::serde::iso8601")]
+    pub sent_at: OffsetDateTime,
+}

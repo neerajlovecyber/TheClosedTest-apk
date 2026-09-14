@@ -7,6 +7,7 @@ pub mod messages;
 pub mod notifications;
 pub mod proofs;
 pub mod storage;
+pub mod support;
 pub mod users;
 
 use axum::Router;
@@ -24,4 +25,5 @@ pub fn app_router() -> Router<AppState> {
         .merge(storage::router())
         .merge(leaderboard::router())
         .merge(admin::router())
+        .merge(support::router())
 }

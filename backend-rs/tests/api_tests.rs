@@ -22,6 +22,8 @@ fn test_config(env: &str) -> Config {
         clerk_secret_key: None,
         clerk_frontend_api: "clerk.theclosedtest.com".to_string(),
         app_env: env.to_string(),
+        rate_limit_per_minute: 300,
+        rate_limit_enabled: false,
     }
 }
 
@@ -718,6 +720,105 @@ async fn test_health_metrics_response_shape() {
     assert!(body.is_object());
 }
 
+#[tokio::test]
+async fn test_unauthorized_support_my_chat_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/support/my-chat").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
 
+#[tokio::test]
+async fn test_unauthorized_support_chat_details_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("GET").uri("/api/support/chats/c123").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
 
+#[tokio::test]
+async fn test_unauthorized_support_send_message_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/support/chats/c123/messages").header("content-type", "application/json").body(Body::from(r#"{"content":"hi"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
 
+#[tokio::test]
+async fn test_unauthorized_admin_support_chats_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("GET").uri("/api/admin/support/chats").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_support_user_chat_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/support/chats/user/u123").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_users_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("GET").uri("/api/admin/users").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_user_details_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("GET").uri("/api/admin/users/u123/details").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_clean_duplicates_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/apps/clean-duplicates").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_unauthorized_admin_clean_test_users_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/users/clean-test-users").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn test_rate_limiter_middleware_enforcement() {
+    use axum::middleware;
+
+    let mut cfg = test_config("test");
+    cfg.rate_limit_enabled = true;
+    cfg.rate_limit_per_minute = 3;
+
+    let pool = PgPoolOptions::new().connect_lazy("postgres://postgres:postgres@localhost:5432/theclosedtest_test").unwrap();
+    let state = AppState::new(pool, cfg);
+
+    let app = app_router()
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            backend_rs::middleware::rate_limit::rate_limiter_middleware,
+        ))
+        .with_state(state);
+
+    for _ in 0..3 {
+        let req = Request::builder()
+            .uri("/api/test-limiter-endpoint")
+            .header("cf-connecting-ip", "203.0.113.195")
+            .body(Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_ne!(res.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(res.headers().contains_key("x-ratelimit-remaining"));
+    }
+
+    let req = Request::builder()
+        .uri("/api/test-limiter-endpoint")
+        .header("cf-connecting-ip", "203.0.113.195")
+        .body(Body::empty())
+        .unwrap();
+    let res = app.oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(res.headers().get("x-ratelimit-remaining").unwrap(), "0");
+    assert!(res.headers().contains_key("retry-after"));
+}

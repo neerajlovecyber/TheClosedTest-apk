@@ -13,6 +13,8 @@ pub struct Config {
     pub clerk_secret_key: Option<String>,
     pub clerk_frontend_api: String,
     pub app_env: String,
+    pub rate_limit_per_minute: u32,
+    pub rate_limit_enabled: bool,
 }
 
 impl Config {
@@ -34,12 +36,23 @@ impl Config {
             .or_else(|_| env::var("APP_ENV"))
             .unwrap_or_else(|_| "development".to_string());
 
+        let rate_limit_per_minute = env::var("RATE_LIMIT_PER_MINUTE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(300);
+
+        let rate_limit_enabled = env::var("RATE_LIMIT_ENABLED")
+            .map(|v| v != "false" && v != "0")
+            .unwrap_or_else(|_| app_env != "test");
+
         Ok(Self {
             database_url,
             port,
             clerk_secret_key,
             clerk_frontend_api,
             app_env,
+            rate_limit_per_minute,
+            rate_limit_enabled,
         })
     }
 

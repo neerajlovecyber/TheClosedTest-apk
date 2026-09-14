@@ -385,7 +385,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/users/sync", post(sync_user))
         .route("/api/users/checkin", post(checkin))
         .route("/api/users/push-token", patch(update_push_token))
-        .route("/api/users/group-confirm", patch(confirm_google_group))
+        .route("/api/users/group-confirm", patch(confirm_google_group).post(confirm_google_group))
         .route("/api/users/profile", patch(update_profile))
         .route("/api/users/unlock-slots", post(unlock_slots))
         .route("/api/users/active-count", get(active_count))
