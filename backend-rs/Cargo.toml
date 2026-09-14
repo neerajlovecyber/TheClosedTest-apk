@@ -28,6 +28,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Configuration & Utilities
 dotenvy = "0.15"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+jsonwebtoken = "11.0.0"
+moka = { version = "0.12.16", features = ["future"] }
+base64 = "0.23.1"
 
 # Maximum Performance Profile (No compromises on speed)
 [profile.release]
