@@ -381,6 +381,90 @@ async fn get_or_create_user_chat_admin(
     Ok(Json(new_chat.into()))
 }
 
+// POST /api/admin/support/chats/{userId}/messages & /admin/support/chats/{userId}/messages (Admin only)
+async fn send_admin_user_support_message(
+    State(state): State<AppState>,
+    admin: AdminUser,
+    Path(target_user_id): Path<String>,
+    Json(payload): Json<SendMessageRequest>,
+) -> Result<(StatusCode, Json<AdminMessageResponse>), AppError> {
+    let target_user = sqlx::query_as::<_, (String, Option<String>)>(
+        "SELECT id, token_identifier FROM users WHERE id = $1 OR token_identifier = $1",
+    )
+    .bind(&target_user_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(AppError::Database)?
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    let token_id = target_user.1.as_deref().unwrap_or("");
+    let existing_chat = sqlx::query_as::<_, AdminChatRecord>(
+        "SELECT * FROM admin_chats WHERE user_id = $1 OR ($2 != '' AND user_id = $2) LIMIT 1",
+    )
+    .bind(&target_user.0)
+    .bind(token_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    let chat = match existing_chat {
+        Some(c) => c,
+        None => {
+            let chat_id = Uuid::new_v4().to_string();
+            sqlx::query_as::<_, AdminChatRecord>(
+                r#"
+                INSERT INTO admin_chats (id, user_id, admin_id, last_message, updated_at, has_unread_user, has_unread_admin)
+                VALUES ($1, $2, $3, '', NOW(), false, false)
+                RETURNING *
+                "#,
+            )
+            .bind(chat_id)
+            .bind(&target_user.0)
+            .bind(&admin.id)
+            .fetch_one(&state.pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+    };
+
+    let msg_id = Uuid::new_v4().to_string();
+    let new_msg = sqlx::query_as::<_, AdminMessageRecord>(
+        r#"
+        INSERT INTO admin_messages (id, chat_id, sender_id, content, type, is_admin, sent_at)
+        VALUES ($1, $2, $3, $4, $5, true, NOW())
+        RETURNING *
+        "#,
+    )
+    .bind(&msg_id)
+    .bind(&chat.id)
+    .bind(&admin.id)
+    .bind(&payload.content)
+    .bind(&payload.r#type)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    sqlx::query(
+        r#"
+        UPDATE admin_chats
+        SET last_message = $1,
+            has_unread_user = true,
+            has_unread_admin = false,
+            admin_id = $2,
+            updated_at = NOW()
+        WHERE id = $3
+        "#,
+    )
+    .bind(&payload.content)
+    .bind(&admin.id)
+    .bind(&chat.id)
+    .execute(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    Ok((StatusCode::CREATED, Json(new_msg.into())))
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/support/my-chat", post(get_or_create_my_chat))
@@ -393,5 +477,13 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/admin/support/chats/user/{userId}",
             post(get_or_create_user_chat_admin),
+        )
+        .route(
+            "/api/admin/support/chats/{userId}/messages",
+            post(send_admin_user_support_message),
+        )
+        .route(
+            "/admin/support/chats/{userId}/messages",
+            post(send_admin_user_support_message),
         )
 }

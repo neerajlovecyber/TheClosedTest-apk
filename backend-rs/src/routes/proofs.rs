@@ -155,6 +155,53 @@ async fn submit_proof(
             .map_err(AppError::Database)?;
     }
 
+    let partner_id = if is_user1 { u2_id } else { u1_id };
+
+    // Send in-app notification to partner
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({
+        "matchId": m_id,
+        "proofId": record.id,
+        "day": payload.day,
+    });
+    let notif_title = format!("Day {} Proof Uploaded!", payload.day);
+    let notif_body = format!("{} uploaded testing proof for Day {}. Please review it.", user.name, payload.day);
+    let _ = sqlx::query(
+        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'proof_update', $3, $4, $5, false, NOW())",
+    )
+    .bind(notif_id)
+    .bind(&partner_id)
+    .bind(&notif_title)
+    .bind(&notif_body)
+    .bind(&notif_data)
+    .execute(&state.pool)
+    .await;
+
+    // Send push notification to partner
+    let partner_push_token: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT push_token FROM users WHERE id = $1",
+    )
+    .bind(&partner_id)
+    .fetch_optional(&state.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some((Some(push_token),)) = partner_push_token {
+        let push_client = reqwest::Client::new();
+        let push_title = notif_title;
+        let push_body = format!("{} uploaded proof for Day {}. Review it now!", user.name, payload.day);
+        let push_data = notif_data;
+        tokio::spawn(async move {
+            crate::services::push::send_push_notification(
+                &push_client,
+                &push_token,
+                push_title,
+                push_body,
+                push_data,
+            ).await;
+        });
+    }
+
     Ok(Json(record.into()))
 }
 
@@ -238,32 +285,119 @@ async fn review_proof(
         "#,
     )
     .bind(new_status)
-    .bind(payload.rejection_reason)
+    .bind(payload.rejection_reason.as_deref())
     .bind(&id)
     .fetch_one(&state.pool)
     .await
     .map_err(AppError::Database)?;
 
-    // If approved, update approved count on match and reward uploader with +1 reputation
-    if new_status == "approved" {
-        if proof.uploader_id == u1_id {
-            sqlx::query("UPDATE matches SET user1_approved_count = user1_approved_count + 1, last_activity = NOW() WHERE id = $1")
-                .bind(&proof.match_id)
-                .execute(&state.pool)
-                .await
-                .map_err(AppError::Database)?;
-        } else {
-            sqlx::query("UPDATE matches SET user2_approved_count = user2_approved_count + 1, last_activity = NOW() WHERE id = $1")
-                .bind(&proof.match_id)
-                .execute(&state.pool)
-                .await
-                .map_err(AppError::Database)?;
-        }
+    let is_user1_uploader = proof.uploader_id == u1_id;
 
+    // 1. Update match snapshot with reviewed status
+    let proof_summary = serde_json::json!({
+        "day": proof.day,
+        "status": new_status,
+        "updatedAt": updated.reviewed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()).unwrap_or_default()
+    });
+
+    if is_user1_uploader {
+        let query = if new_status == "approved" {
+            "UPDATE matches SET user1_last_proof = $1, user1_approved_count = user1_approved_count + 1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+        } else {
+            "UPDATE matches SET user1_last_proof = $1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+        };
+        let _ = sqlx::query(query)
+            .bind(proof_summary)
+            .bind(&proof.match_id)
+            .execute(&state.pool)
+            .await;
+    } else {
+        let query = if new_status == "approved" {
+            "UPDATE matches SET user2_last_proof = $1, user2_approved_count = user2_approved_count + 1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+        } else {
+            "UPDATE matches SET user2_last_proof = $1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+        };
+        let _ = sqlx::query(query)
+            .bind(proof_summary)
+            .bind(&proof.match_id)
+            .execute(&state.pool)
+            .await;
+    }
+
+    // 2. Adjust reputation: +1 for approved, -5 for rejected (minimum 0)
+    if new_status == "approved" {
         let _ = sqlx::query("UPDATE users SET reputation = reputation + 1, updated_at = NOW() WHERE id = $1")
             .bind(&proof.uploader_id)
             .execute(&state.pool)
             .await;
+    } else {
+        let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 5), updated_at = NOW() WHERE id = $1")
+            .bind(&proof.uploader_id)
+            .execute(&state.pool)
+            .await;
+    }
+
+    // 3. Notify uploader about review outcome
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({
+        "matchId": proof.match_id,
+        "proofId": proof.id,
+        "day": proof.day,
+        "status": new_status,
+    });
+    let (notif_type, notif_title, notif_body) = if new_status == "approved" {
+        (
+            "proof_approved",
+            "Proof Approved!",
+            format!("Your Day {} proof was approved by your partner!", proof.day),
+        )
+    } else {
+        (
+            "proof_rejected",
+            "Proof Rejected",
+            format!(
+                "Your Day {} proof was rejected: {}",
+                proof.day,
+                payload.rejection_reason.as_deref().unwrap_or("No reason provided")
+            ),
+        )
+    };
+
+    let _ = sqlx::query(
+        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, $3, $4, $5, $6, false, NOW())",
+    )
+    .bind(notif_id)
+    .bind(&proof.uploader_id)
+    .bind(notif_type)
+    .bind(notif_title)
+    .bind(&notif_body)
+    .bind(&notif_data)
+    .execute(&state.pool)
+    .await;
+
+    // Send push notification to uploader
+    let uploader_push_token: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT push_token FROM users WHERE id = $1",
+    )
+    .bind(&proof.uploader_id)
+    .fetch_optional(&state.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some((Some(push_token),)) = uploader_push_token {
+        let push_client = reqwest::Client::new();
+        let push_title = notif_title.to_string();
+        let push_body = notif_body;
+        let push_data = notif_data;
+        tokio::spawn(async move {
+            crate::services::push::send_push_notification(
+                &push_client,
+                &push_token,
+                push_title,
+                push_body,
+                push_data,
+            ).await;
+        });
     }
 
     Ok(Json(updated.into()))

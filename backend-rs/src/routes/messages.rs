@@ -146,12 +146,53 @@ async fn send_message(
     .await
     .map_err(AppError::Database)?;
 
-    // Update match last activity
-    sqlx::query("UPDATE matches SET last_activity = NOW(), updated_at = NOW() WHERE id = $1")
-        .bind(&match_id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    let is_user1 = u1_id == user.id;
+    let partner_id = if is_user1 { u2_id } else { u1_id };
+
+    // Update match last activity and sender's last read timestamp
+    if is_user1 {
+        let _ = sqlx::query("UPDATE matches SET last_activity = NOW(), last_read1 = NOW(), updated_at = NOW() WHERE id = $1")
+            .bind(&match_id)
+            .execute(&state.pool)
+            .await;
+    } else {
+        let _ = sqlx::query("UPDATE matches SET last_activity = NOW(), last_read2 = NOW(), updated_at = NOW() WHERE id = $1")
+            .bind(&match_id)
+            .execute(&state.pool)
+            .await;
+    }
+
+    // Send push notification to peer partner
+    let partner_push_token: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT push_token FROM users WHERE id = $1",
+    )
+    .bind(&partner_id)
+    .fetch_optional(&state.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some((Some(push_token),)) = partner_push_token {
+        let push_client = reqwest::Client::new();
+        let push_title = format!("Message from {}", user.name);
+        let push_body = if record.r#type == "text" {
+            record.content.clone()
+        } else {
+            "Sent an attachment".to_string()
+        };
+        let push_data = serde_json::json!({
+            "matchId": match_id,
+            "messageId": record.id,
+        });
+        tokio::spawn(async move {
+            crate::services::push::send_push_notification(
+                &push_client,
+                &push_token,
+                push_title,
+                push_body,
+                push_data,
+            ).await;
+        });
+    }
 
     Ok(Json(record.into()))
 }

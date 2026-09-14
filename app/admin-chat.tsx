@@ -78,7 +78,7 @@ export default function AdminChatScreen() {
   const handleSend = async (text: string) => {
     try {
       if (currentUser?.isAdmin && userId) {
-        await api.post(`/admin/support/chats/${userId}/messages`, {
+        await api.post(`/api/admin/support/chats/${userId}/messages`, {
           content: text,
         });
       } else {
