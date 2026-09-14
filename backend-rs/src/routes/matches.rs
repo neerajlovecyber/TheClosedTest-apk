@@ -424,6 +424,9 @@ async fn accept_match(
     .execute(&state.pool)
     .await;
 
+    // Invalidate public apps list RAM cache so marketplace current_testers updates immediately
+    state.api_cache.invalidate_all();
+
     Ok(Json(updated))
 }
 
