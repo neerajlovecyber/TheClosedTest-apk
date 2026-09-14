@@ -34,4 +34,4 @@ EXPOSE 9000
 # Run as non-root user for security
 USER bun
 
-CMD ["bun", "dist/index.js"]
+CMD ["bun", "--smol", "dist/index.js"]

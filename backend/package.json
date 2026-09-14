@@ -16,9 +16,9 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "bun --hot src/index.ts",
+    "dev": "bun --hot --smol src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
-    "start": "bun dist/index.js",
+    "start": "bun --smol dist/index.js",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt ./src",

@@ -3,7 +3,7 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "bun run dist/index.js"
+startCommand = "bun --smol dist/index.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
