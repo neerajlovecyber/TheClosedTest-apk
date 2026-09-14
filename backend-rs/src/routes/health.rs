@@ -118,5 +118,6 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(root_check))
         .route("/health", get(health_check))
+        .route("/api/health", get(health_check))
 }
 
