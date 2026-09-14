@@ -39,6 +39,7 @@ import {
 import { ReportDialog } from "@/components/ReportDialog";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
 import { TestingCommitmentModal } from "@/components/TestingCommitmentModal";
+import { formatAppAge, formatFullDate } from "@/lib/date-utils";
 import {
   useAppDetails,
   useMyApps,
@@ -426,10 +427,19 @@ export default function AppDetailsScreen() {
                 </View>
               </View>
 
-              <View className="px-5 py-4 flex-row items-center justify-between border-t border-white/10">
+              <View className="px-5 py-3.5 flex-row items-center justify-between border-t border-white/10">
                 <Text className="text-xs font-semibold text-blue-100 uppercase tracking-widest">Status</Text>
                 <Text className="text-sm font-bold text-white uppercase">{app.status}</Text>
               </View>
+
+              {app.createdAt && (
+                <View className="px-5 py-3 flex-row items-center justify-between border-t border-white/10 bg-black/15">
+                  <Text className="text-xs font-semibold text-blue-100 uppercase tracking-widest">Listed On</Text>
+                  <Text className="text-xs font-semibold text-white">
+                    {formatFullDate(app.createdAt)} ({formatAppAge(app.createdAt)})
+                  </Text>
+                </View>
+              )}
             </CardContent>
           </Card>
         </View>

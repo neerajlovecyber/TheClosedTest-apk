@@ -396,6 +396,7 @@ export default function HomeScreen() {
                 currentTesters: app.currentTesters,
                 requiredTesters: app.requiredTesters,
                 status: app.status,
+                createdAt: app.createdAt,
               }}
               variant="my-app"
               onPress={() =>

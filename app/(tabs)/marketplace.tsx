@@ -174,6 +174,7 @@ export default function MarketplaceScreen() {
           status: item.status,
           ownerName: item.user?.name || item.user?.email?.split("@")[0] || "Community Developer",
           reputation: item.user?.reputation ?? 100,
+          createdAt: item.createdAt,
         }}
         onPress={() => handleAppPress(item.id)}
         onReport={() => handleReportApp(item)}
@@ -200,6 +201,7 @@ export default function MarketplaceScreen() {
               status: app.status,
               ownerName: app.user?.name || app.user?.email?.split("@")[0] || "Community Developer",
               reputation: app.user?.reputation ?? 100,
+              createdAt: app.createdAt,
             }}
             onPress={() => handleAppPress(app.id)}
             onReport={() => handleReportApp(app)}

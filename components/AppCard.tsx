@@ -7,10 +7,12 @@ import { Icon } from "@/components/ui/icon";
 import { Progress } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
 import { StarIcon, MessageSquareIcon } from "lucide-react-native";
+import { formatAppAge } from "@/lib/date-utils";
 
 export interface AppItem {
   _id: string;
   title: string;
+  createdAt?: string | Date;
   iconUrl?: string;
   currentTesters?: number;
   requiredTesters?: number;
@@ -50,6 +52,8 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
 
   // Determine if filled (either from flag or by comparing testers)
   const isFilled = item.isFilled || (item.currentTesters !== undefined && item.requiredTesters !== undefined && item.currentTesters >= item.requiredTesters);
+
+  const appAge = formatAppAge(item.createdAt);
 
   // Show warning if flagged multiple times or visibility is hidden
   const isHidden = item.visibility?.status === "hidden";
@@ -166,7 +170,7 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
             </Text>
           </View>
         ) : (
-          <View>
+          <View className="flex-row items-center justify-between">
             {item.status === "completed" ? (
               <Text className="text-green-600 dark:text-green-400 text-sm font-medium">Live in Production 🚀</Text>
             ) : (
@@ -174,6 +178,9 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                 {item.currentTesters || 0} / {item.requiredTesters || 12} Testers
               </Text>
             )}
+            {isMyApp && appAge ? (
+              <Text className="text-xs text-muted-foreground font-medium">{appAge}</Text>
+            ) : null}
           </View>
         )}
 
@@ -181,7 +188,7 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
         <View className="mt-1">
           {variant === "marketplace" && (
             <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-3">
+              <View className="flex-row items-center gap-2.5">
                 <Badge variant="secondary" className="px-2 py-0.5 rounded-md">
                   <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
                     {item.ownerName || "Developer"}
@@ -192,6 +199,12 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                   <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
                   <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
                 </View>
+                {/* App Age */}
+                {appAge ? (
+                  <Text className="text-[11px] text-muted-foreground font-medium">
+                    • {appAge}
+                  </Text>
+                ) : null}
               </View>
 
               {/* Flag Warning */}
