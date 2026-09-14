@@ -329,13 +329,19 @@ export async function runMatchProgressionAndCleanup() {
       }
     }
 
-    // 3. Auto-expire stale pending requests older than 7 days
+    // 3. Auto-expire stale pending requests older than 3 days (72 hours)
     const stalePendingMatches = await db.query.matches.findMany({
-      where: and(eq(matches.status, "pending"), lt(matches.createdAt, sevenDaysAgo)),
+      where: and(eq(matches.status, "pending"), lt(matches.createdAt, threeDaysAgo)),
+      with: {
+        user1: true,
+        user2: true,
+        app1: true,
+        app2: true,
+      },
     })
 
     if (stalePendingMatches.length > 0) {
-      console.log(`🧹 Expiring ${stalePendingMatches.length} stale pending match requests (>7 days)...`)
+      console.log(`🧹 Expiring ${stalePendingMatches.length} stale pending match requests (>3 days / 72 hours)...`)
 
       for (const pendingMatch of stalePendingMatches) {
         await db
@@ -346,13 +352,47 @@ export async function runMatchProgressionAndCleanup() {
           })
           .where(eq(matches.id, pendingMatch.id))
 
+        if (pendingMatch.app1Id) memoryCache.delete(`app:${pendingMatch.app1Id}`)
+        if (pendingMatch.app2Id) memoryCache.delete(`app:${pendingMatch.app2Id}`)
+
+        const targetAppTitle = pendingMatch.app2?.title || "the app"
+        const sourceAppTitle = pendingMatch.app1?.title || "an app"
+
+        // Notify requester (User 1)
         await db.insert(notifications).values({
           userId: pendingMatch.user1Id,
           type: "match_cancelled",
-          title: "Match Request Expired",
-          body: "Your match request expired after 7 days without response.",
+          title: "Swap Request Expired",
+          body: `Your swap request for ${targetAppTitle} expired after 3 days without response from the developer. You can now request tests with other active apps!`,
           data: { matchId: pendingMatch.id },
         })
+
+        if (pendingMatch.user1?.pushToken) {
+          sendExpoPushNotification({
+            to: pendingMatch.user1.pushToken,
+            title: "Swap Request Expired",
+            body: `Your swap request for ${targetAppTitle} expired after 3 days without response.`,
+            data: { matchId: pendingMatch.id },
+          }).catch(() => {})
+        }
+
+        // Notify receiver (User 2)
+        await db.insert(notifications).values({
+          userId: pendingMatch.user2Id,
+          type: "match_cancelled",
+          title: "Swap Request Expired",
+          body: `A swap request from ${sourceAppTitle} expired after 3 days without response.`,
+          data: { matchId: pendingMatch.id },
+        })
+
+        if (pendingMatch.user2?.pushToken) {
+          sendExpoPushNotification({
+            to: pendingMatch.user2.pushToken,
+            title: "Swap Request Expired",
+            body: `A swap request from ${sourceAppTitle} expired after 3 days without response.`,
+            data: { matchId: pendingMatch.id },
+          }).catch(() => {})
+        }
       }
     }
 

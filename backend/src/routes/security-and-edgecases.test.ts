@@ -1066,4 +1066,103 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     expect(enrichedCapacityApp.currentTesters).toBe(1)
     expect(enrichedCapacityApp.status).toBe("recruiting")
   })
+
+  // -------------------------------------------------------------------------
+  // 15. Stale Pending Match Requests Auto-Cancellation (3 Days / 72 Hours)
+  // -------------------------------------------------------------------------
+  it("37. runMatchProgressionAndCleanup auto-cancels pending match requests older than 3 days", async () => {
+    const user1Token = `test-clerk-pending-u1-${crypto.randomUUID()}`
+    const u1Sync = await app.request("/api/users/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user1Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tokenIdentifier: user1Token,
+        name: "Pending Requester",
+        email: `pending-u1-${Date.now()}@test.com`,
+      }),
+    })
+    const u1 = await u1Sync.json()
+
+    const user2Token = `test-clerk-pending-u2-${crypto.randomUUID()}`
+    const u2Sync = await app.request("/api/users/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user2Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tokenIdentifier: user2Token,
+        name: "Pending Target",
+        email: `pending-u2-${Date.now()}@test.com`,
+      }),
+    })
+    const u2 = await u2Sync.json()
+
+    // 1. App 1 & App 2
+    const app1Res = await app.request("/api/apps", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user1Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Requester App",
+        packageName: `com.req.app.${Date.now()}`,
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.req.app",
+        iconUrl: "https://example.com/icon.png",
+        instructions: "Instructions",
+      }),
+    })
+    const app1 = await app1Res.json()
+
+    const app2Res = await app.request("/api/apps", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user2Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Target App",
+        packageName: `com.target.app.${Date.now()}`,
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.target.app",
+        iconUrl: "https://example.com/icon.png",
+        instructions: "Instructions",
+      }),
+    })
+    const app2 = await app2Res.json()
+
+    // 2. Insert match 1: pending 4 days ago (should be cancelled)
+    const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+    const [staleMatch] = await db
+      .insert(matches)
+      .values({
+        user1Id: u1.id,
+        app1Id: app1.id,
+        user2Id: u2.id,
+        app2Id: app2.id,
+        status: "pending",
+        createdAt: fourDaysAgo,
+      })
+      .returning()
+
+    // 3. Insert match 2: pending 1 day ago (should remain pending)
+    const oneDayAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+    const [freshMatch] = await db
+      .insert(matches)
+      .values({
+        user1Id: u1.id,
+        app1Id: app1.id,
+        user2Id: u2.id,
+        app2Id: app2.id,
+        status: "pending",
+        createdAt: oneDayAgo,
+      })
+      .returning()
+
+    // 4. Run cron check
+    await runMatchProgressionAndCleanup()
+
+    // 5. Verify stale match is cancelled
+    const staleAfter = await db.query.matches.findFirst({
+      where: eq(matches.id, staleMatch.id),
+    })
+    expect(staleAfter?.status).toBe("cancelled")
+
+    // 6. Verify fresh match is still pending
+    const freshAfter = await db.query.matches.findFirst({
+      where: eq(matches.id, freshMatch.id),
+    })
+    expect(freshAfter?.status).toBe("pending")
+  })
 })
