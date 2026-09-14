@@ -34,6 +34,8 @@ base64 = "0.23.1"
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+postgresql_embedded = "0.21"
+
 
 # Maximum Performance Profile (No compromises on speed)
 [profile.release]
