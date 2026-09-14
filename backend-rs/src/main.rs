@@ -31,6 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let state = AppState::new(pool, config);
 
+    // Launch background worker for streaks and match reminders
+    backend_rs::jobs::start_background_jobs(state.pool.clone(), state.http_client.clone());
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
