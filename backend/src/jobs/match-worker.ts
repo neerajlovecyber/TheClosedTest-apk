@@ -1,7 +1,7 @@
 import { and, desc, eq, lt, or, sql } from "drizzle-orm"
 
 import { db } from "../db"
-import { matches, notifications, proofs, users } from "../db/schema"
+import { apps, matches, notifications, proofs, users } from "../db/schema"
 import { memoryCache } from "../lib/cache"
 import { sendExpoPushNotification } from "../services/expo-push"
 
@@ -352,6 +352,48 @@ export async function runMatchProgressionAndCleanup() {
           title: "Match Request Expired",
           body: "Your match request expired after 7 days without response.",
           data: { matchId: pendingMatch.id },
+        })
+      }
+    }
+
+    // 4. Auto-pause recruiting apps after 72 hours (3 days) of owner inactivity
+    const threeDaysAgoStr = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+
+    const inactiveOwnerApps = await db
+      .select({
+        id: apps.id,
+        title: apps.title,
+        userId: apps.userId,
+      })
+      .from(apps)
+      .innerJoin(users, eq(apps.userId, users.id))
+      .where(
+        and(
+          eq(apps.status, "recruiting"),
+          lt(apps.createdAt, threeDaysAgo),
+          sql`(${users.lastCheckInDate} IS NULL OR ${users.lastCheckInDate} < ${threeDaysAgoStr})`,
+          lt(users.updatedAt, threeDaysAgo),
+        ),
+      )
+
+    if (inactiveOwnerApps.length > 0) {
+      console.log(`⏸️ Auto-pausing ${inactiveOwnerApps.length} recruiting apps due to 72h owner inactivity...`)
+
+      for (const inactiveApp of inactiveOwnerApps) {
+        await db
+          .update(apps)
+          .set({
+            status: "paused",
+            updatedAt: now,
+          })
+          .where(eq(apps.id, inactiveApp.id))
+
+        await db.insert(notifications).values({
+          userId: inactiveApp.userId,
+          type: "app_paused_inactivity",
+          title: "App Listing Paused",
+          body: `Your app "${inactiveApp.title}" was paused due to 3 days of inactivity. Tap to resume whenever you're ready!`,
+          data: { appId: inactiveApp.id },
         })
       }
     }

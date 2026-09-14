@@ -307,6 +307,8 @@ export class AppService {
       } else if (existing.status === "paused") {
         fieldsToUpdate.status = "recruiting"
       }
+    } else if (shouldResetFlags && !fieldsToUpdate.status && existing.status === "paused") {
+      fieldsToUpdate.status = "recruiting"
     }
 
     let updatedApp: any

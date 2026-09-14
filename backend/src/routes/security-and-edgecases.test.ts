@@ -890,4 +890,93 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     })
     expect(dbAppCheck).toBeUndefined()
   })
+
+  // -------------------------------------------------------------------------
+  // 13. Owner Inactivity Auto-Pause (72 hours / 3 days)
+  // -------------------------------------------------------------------------
+  it("35. runMatchProgressionAndCleanup auto-pauses recruiting apps when owner is inactive for 72 hours", async () => {
+    // 1. Setup inactive developer and their recruiting app
+    const inactiveUserToken = `test-clerk-inactive-${crypto.randomUUID()}`
+    const syncRes = await app.request("/api/users/sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${inactiveUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tokenIdentifier: inactiveUserToken,
+        name: "Inactive Developer",
+        email: `inactive-${Date.now()}@test.com`,
+      }),
+    })
+    const inactiveUser = await syncRes.json()
+
+    const appRes = await app.request("/api/apps", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${inactiveUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Inactive Abandoned App",
+        packageName: `com.inactive.app.${Date.now()}`,
+        playStoreUrl: "https://play.google.com/store/apps/details?id=com.inactive.app",
+        iconUrl: "https://example.com/icon.png",
+        instructions: "Test instructions",
+      }),
+    })
+    const inactiveApp = await appRes.json()
+    expect(inactiveApp.status).toBe("recruiting")
+
+    // 2. Simulate 4 days elapsed with no user login or check-in
+    const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+    await db
+      .update(users)
+      .set({
+        updatedAt: fourDaysAgo,
+        lastCheckInDate: null,
+      })
+      .where(eq(users.id, inactiveUser.id))
+
+    await db
+      .update(apps)
+      .set({
+        createdAt: fourDaysAgo,
+        updatedAt: fourDaysAgo,
+      })
+      .where(eq(apps.id, inactiveApp.id))
+
+    // 3. Run cron worker
+    await runMatchProgressionAndCleanup()
+
+    // 4. Verify app status transitioned to 'paused'
+    const appAfterCron = await db.query.apps.findFirst({
+      where: (a, { eq }) => eq(a.id, inactiveApp.id),
+    })
+    expect(appAfterCron).toBeDefined()
+    expect(appAfterCron?.status).toBe("paused")
+
+    // 5. Verify it is excluded from the public marketplace feed
+    const listRes = await app.request("/api/apps", {
+      headers: { Authorization: `Bearer ${normalUser1Token}` },
+    })
+    const list = await listRes.json()
+    const foundInMarketplace = list.apps.find((a: any) => a.id === inactiveApp.id)
+    expect(foundInMarketplace).toBeUndefined()
+
+    // 6. Owner returns and unpauses their app via PATCH /api/apps/:id
+    const unpauseRes = await app.request(`/api/apps/${inactiveApp.id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${inactiveUserToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        isMarketplaceVisible: true,
+      }),
+    })
+    expect(unpauseRes.status).toBe(200)
+    const unpausedApp = await unpauseRes.json()
+    expect(unpausedApp.status).toBe("recruiting")
+    expect(unpausedApp.isMarketplaceVisible).toBe(true)
+
+    // Verify it is back in the marketplace feed
+    const listResAfter = await app.request("/api/apps", {
+      headers: { Authorization: `Bearer ${normalUser1Token}` },
+    })
+    const listAfter = await listResAfter.json()
+    const foundAfter = listAfter.apps.find((a: any) => a.id === inactiveApp.id)
+    expect(foundAfter).toBeDefined()
+  })
 })

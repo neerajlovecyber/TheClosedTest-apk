@@ -70,13 +70,16 @@ router.openapi(
       })
       if (targetApp) {
         const newFlagCount = (targetApp.flagCount || 0) + 1
-        const newVisibility = newFlagCount >= 3 ? "hidden" : targetApp.visibilityStatus
+        const shouldHide = newFlagCount >= 3
+        const newVisibility = shouldHide ? "hidden" : targetApp.visibilityStatus
+        const newStatus = shouldHide ? "paused" : targetApp.status
 
         await db
           .update(apps)
           .set({
             flagCount: newFlagCount,
             visibilityStatus: newVisibility,
+            status: newStatus,
             updatedAt: new Date(),
           })
           .where(eq(apps.id, targetApp.id))
