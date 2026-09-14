@@ -45,11 +45,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_headers(Any);
 
     let app = routes::app_router()
+        // 1. Defend against massive payloads (2 MB limit)
+        .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024))
+        // 2. Cut off hanging requests after 30 seconds
+        .layer(tower_http::timeout::TimeoutLayer::with_status_code(
+            axum::http::StatusCode::REQUEST_TIMEOUT,
+            std::time::Duration::from_secs(30),
+        ))
+        // 3. Redact Authorization Bearer headers from logs
+        .layer(tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer::new(std::iter::once(
+            axum::http::header::AUTHORIZATION,
+        )))
+        // 4. Ultra-lightweight Gzip response compression
         .layer(tower_http::compression::CompressionLayer::new().gzip(true))
+        // 5. Sliding-window IP rate limiter
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             backend_rs::middleware::rate_limit::rate_limiter_middleware,
         ))
+        // 6. Tracing & CORS
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state);
