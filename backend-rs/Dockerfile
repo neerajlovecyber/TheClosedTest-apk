@@ -1,15 +1,15 @@
 # ==============================================================================
-# 1. Builder Stage
+# 1. Builder Stage (Debian-based to avoid musl/ring/nasm compilation issues)
 # ==============================================================================
-FROM rust:1.85-alpine AS builder
+FROM rust:1.85-bookworm AS builder
 
 WORKDIR /app
 
-# Install build dependencies:
-# - musl-dev, gcc, make: standard musl toolchain
-# - perl: required by the `ring` crate (used by rustls/sqlx TLS)
-# - openssl-dev, openssl-libs-static: needed by some TLS deps on musl
-RUN apk add --no-cache musl-dev gcc make perl openssl-dev openssl-libs-static
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests for caching
 COPY Cargo.toml Cargo.lock ./
@@ -24,20 +24,23 @@ RUN mkdir src && \
 COPY src ./src
 COPY migrations ./migrations
 
-# Build the release binary with full optimizations (opt-level = 3, lto = "fat")
+# Build the release binary
 RUN touch src/main.rs && cargo build --release
 
 # ==============================================================================
-# 2. Production Runtime Stage (Ultra-minimal Alpine container ~25MB)
+# 2. Production Runtime Stage
 # ==============================================================================
-FROM alpine:3.21 AS runner
+FROM debian:bookworm-slim AS runner
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Run as non-root user for maximum security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Run as non-root user for security
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
 # Copy the compiled binary and migrations from builder
