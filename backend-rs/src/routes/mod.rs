@@ -1,6 +1,10 @@
 pub mod apps;
 pub mod health;
 pub mod matches;
+pub mod messages;
+pub mod notifications;
+pub mod proofs;
+pub mod storage;
 pub mod users;
 
 use axum::Router;
@@ -12,4 +16,8 @@ pub fn app_router() -> Router<AppState> {
         .merge(users::router())
         .merge(apps::router())
         .merge(matches::router())
+        .merge(proofs::router())
+        .merge(messages::router())
+        .merge(notifications::router())
+        .merge(storage::router())
 }

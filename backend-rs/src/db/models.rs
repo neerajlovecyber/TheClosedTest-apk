@@ -122,6 +122,35 @@ pub struct MatchRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ProofRecord {
+    pub id: String,
+    pub match_id: String,
+    pub uploader_id: String,
+    pub day: i32,
+    pub r#type: String,
+    pub storage_urls: serde_json::Value,
+    pub status: String,
+    pub comment: Option<String>,
+    pub rejection_reason: Option<String>,
+    #[serde(with = "time::serde::iso8601")]
+    pub submitted_at: OffsetDateTime,
+    #[serde(with = "time::serde::iso8601::option", default)]
+    pub reviewed_at: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct MessageRecord {
+    pub id: String,
+    pub match_id: String,
+    pub sender_id: String,
+    pub content: String,
+    pub r#type: String,
+    pub storage_url: Option<String>,
+    #[serde(with = "time::serde::iso8601")]
+    pub sent_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct NotificationRecord {
     pub id: String,
     pub user_id: String,

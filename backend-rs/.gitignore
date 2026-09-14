@@ -1,4 +1,5 @@
-/target
+target/
+target*
 .env
 .env.*
 !.env.example
