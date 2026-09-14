@@ -47,7 +47,7 @@ function createDatabase() {
 
   const client = postgres(env.DATABASE_URL, {
     ssl: env.DATABASE_URL.includes("sslmode=require") ? "require" : undefined,
-    max: 10,
+    max: 50,
     idle_timeout: 20,
     connect_timeout: 30,
   })
