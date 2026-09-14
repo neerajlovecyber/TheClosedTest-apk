@@ -38,6 +38,7 @@ chrono-tz = "0.9"
 jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
 rust-s3 = { version = "0.37.2", default-features = false, features = ["with-tokio", "fail-on-err", "tokio-rustls-tls"] }
 mimalloc = "0.1.52"
+sea-orm = { version = "2.0", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-time", "with-uuid", "with-json"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

@@ -4,7 +4,7 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use time::format_description::well_known::Rfc3339;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
@@ -100,60 +100,82 @@ async fn submit_proof(
     let (m_id, u1_id, u2_id, status) = match_info
         .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
-    if status != "active" {
-        return Err(AppError::BadRequest("Cannot submit proofs for a match that is not active".to_string()));
+    if status != "active" && status != "pending" {
+        return Err(AppError::BadRequest("Match is not active or does not exist".to_string()));
     }
+
+    // Auto-activate match if it was still pending (parity with TS proof.service.ts)
+    if status == "pending" {
+        let _ = sqlx::query("UPDATE matches SET status = 'active', start_date = NOW(), updated_at = NOW() WHERE id = $1")
+            .bind(&m_id)
+            .execute(&state.pool)
+            .await;
+    }
+
     if u1_id != user.id && u2_id != user.id {
         return Err(AppError::Forbidden("You are not a participant in this match".to_string()));
     }
 
     let is_user1 = u1_id == user.id;
-    let new_id = Uuid::new_v4().to_string();
     let urls_json = serde_json::to_value(&payload.storage_urls).unwrap_or_default();
 
-    let record = sqlx::query_as::<_, ProofRecord>(
-        r#"
-        INSERT INTO proofs (
-            id, match_id, uploader_id, day, type, storage_urls, status, comment, submitted_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, NOW())
-        RETURNING id, match_id, uploader_id, day, type, storage_urls, status, comment, rejection_reason,
-                  submitted_at, reviewed_at
-        "#,
+    // Check if proof exists for this day to replace (parity with TS proof.service.ts)
+    let existing_proof: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND day = $3",
     )
-    .bind(new_id)
     .bind(&m_id)
     .bind(&user.id)
     .bind(payload.day)
-    .bind(payload.r#type)
-    .bind(urls_json)
-    .bind(payload.comment)
-    .fetch_one(&state.pool)
+    .fetch_optional(&state.pool)
     .await
     .map_err(AppError::Database)?;
 
-    // Update match last activity and last proof snapshot
-    let proof_summary = serde_json::json!({
-        "day": payload.day,
-        "status": "pending",
-        "updatedAt": record.submitted_at.format(&Rfc3339).unwrap_or_default()
-    });
-
-    if is_user1 {
-        sqlx::query("UPDATE matches SET user1_last_proof = $1, last_activity = NOW(), updated_at = NOW() WHERE id = $2")
-            .bind(proof_summary)
-            .bind(&m_id)
-            .execute(&state.pool)
-            .await
-            .map_err(AppError::Database)?;
+    let record = if let Some((existing_id,)) = existing_proof {
+        sqlx::query_as::<_, ProofRecord>(
+            r#"
+            UPDATE proofs
+            SET storage_urls = $1, status = 'pending', comment = $2, type = $3, rejection_reason = NULL, submitted_at = NOW(), reviewed_at = NULL
+            WHERE id = $4
+            RETURNING id, match_id, uploader_id, day, type, storage_urls, status, comment, rejection_reason,
+                      submitted_at, reviewed_at
+            "#,
+        )
+        .bind(urls_json)
+        .bind(payload.comment)
+        .bind(payload.r#type)
+        .bind(existing_id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(AppError::Database)?
     } else {
-        sqlx::query("UPDATE matches SET user2_last_proof = $1, last_activity = NOW(), updated_at = NOW() WHERE id = $2")
-            .bind(proof_summary)
-            .bind(&m_id)
-            .execute(&state.pool)
-            .await
-            .map_err(AppError::Database)?;
-    }
+        let new_id = Uuid::new_v4().to_string();
+        sqlx::query_as::<_, ProofRecord>(
+            r#"
+            INSERT INTO proofs (
+                id, match_id, uploader_id, day, type, storage_urls, status, comment, submitted_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, NOW())
+            RETURNING id, match_id, uploader_id, day, type, storage_urls, status, comment, rejection_reason,
+                      submitted_at, reviewed_at
+            "#,
+        )
+        .bind(new_id)
+        .bind(&m_id)
+        .bind(&user.id)
+        .bind(payload.day)
+        .bind(payload.r#type)
+        .bind(urls_json)
+        .bind(payload.comment)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(AppError::Database)?
+    };
+
+    // Update match last activity
+    let _ = sqlx::query("UPDATE matches SET last_activity = NOW(), updated_at = NOW() WHERE id = $1")
+        .bind(&m_id)
+        .execute(&state.pool)
+        .await;
 
     let partner_id = if is_user1 { u2_id } else { u1_id };
 
@@ -293,32 +315,24 @@ async fn review_proof(
 
     let is_user1_uploader = proof.uploader_id == u1_id;
 
-    // 1. Update match snapshot with reviewed status
-    let proof_summary = serde_json::json!({
-        "day": proof.day,
-        "status": new_status,
-        "updatedAt": updated.reviewed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()).unwrap_or_default()
-    });
-
+    // 1. Update match approval count and last activity
     if is_user1_uploader {
         let query = if new_status == "approved" {
-            "UPDATE matches SET user1_last_proof = $1, user1_approved_count = user1_approved_count + 1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+            "UPDATE matches SET user1_approved_count = user1_approved_count + 1, last_activity = NOW(), updated_at = NOW() WHERE id = $1"
         } else {
-            "UPDATE matches SET user1_last_proof = $1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+            "UPDATE matches SET last_activity = NOW(), updated_at = NOW() WHERE id = $1"
         };
         let _ = sqlx::query(query)
-            .bind(proof_summary)
             .bind(&proof.match_id)
             .execute(&state.pool)
             .await;
     } else {
         let query = if new_status == "approved" {
-            "UPDATE matches SET user2_last_proof = $1, user2_approved_count = user2_approved_count + 1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+            "UPDATE matches SET user2_approved_count = user2_approved_count + 1, last_activity = NOW(), updated_at = NOW() WHERE id = $1"
         } else {
-            "UPDATE matches SET user2_last_proof = $1, last_activity = NOW(), updated_at = NOW() WHERE id = $2"
+            "UPDATE matches SET last_activity = NOW(), updated_at = NOW() WHERE id = $1"
         };
         let _ = sqlx::query(query)
-            .bind(proof_summary)
             .bind(&proof.match_id)
             .execute(&state.pool)
             .await;
@@ -335,6 +349,62 @@ async fn review_proof(
             .bind(&proof.uploader_id)
             .execute(&state.pool)
             .await;
+    }
+
+    // 3. Match completion check & +20 reputation reward (parity with TS proof.service.ts lines 220-259)
+    if new_status == "approved" {
+        let all_proofs = sqlx::query_as::<_, ProofRecord>(
+            "SELECT id, match_id, uploader_id, day, type, storage_urls, status, comment, rejection_reason, submitted_at, reviewed_at FROM proofs WHERE match_id = $1"
+        )
+        .bind(&proof.match_id)
+        .fetch_all(&state.pool)
+        .await
+        .unwrap_or_default();
+
+        let match_full: Option<(Option<OffsetDateTime>, OffsetDateTime, String, i32, i32)> = sqlx::query_as(
+            "SELECT start_date, created_at, status, user1_approved_count, user2_approved_count FROM matches WHERE id = $1"
+        )
+        .bind(&proof.match_id)
+        .fetch_optional(&state.pool)
+        .await
+        .unwrap_or(None);
+
+        if let Some((start_date, created_at, current_match_status, u1_appr, u2_appr)) = match_full {
+            let now = OffsetDateTime::now_utc();
+            let match_start = start_date.unwrap_or(created_at);
+            let fourteen_days_elapsed = (now - match_start).whole_days() >= 14;
+
+            let user1_reached_day14 = if is_user1_uploader {
+                proof.day >= 14
+            } else {
+                all_proofs.iter().any(|p| p.uploader_id == u1_id && p.day >= 14)
+            };
+
+            let user2_reached_day14 = if !is_user1_uploader {
+                proof.day >= 14
+            } else {
+                all_proofs.iter().any(|p| p.uploader_id == u2_id && p.day >= 14)
+            };
+
+            let has_other_pending = all_proofs.iter().any(|p| p.id != proof.id && p.status == "pending");
+
+            let both_14_approved = u1_appr >= 14 && u2_appr >= 14;
+            let cycle_concluded = !has_other_pending && (fourteen_days_elapsed || (user1_reached_day14 && user2_reached_day14));
+            let both_completed = both_14_approved || cycle_concluded;
+
+            if both_completed && current_match_status != "completed" {
+                let _ = sqlx::query("UPDATE matches SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1")
+                    .bind(&proof.match_id)
+                    .execute(&state.pool)
+                    .await;
+
+                let _ = sqlx::query("UPDATE users SET reputation = reputation + 20, updated_at = NOW() WHERE id IN ($1, $2)")
+                    .bind(&u1_id)
+                    .bind(&u2_id)
+                    .execute(&state.pool)
+                    .await;
+            }
+        }
     }
 
     // 3. Notify uploader about review outcome

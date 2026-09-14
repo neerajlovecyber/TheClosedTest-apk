@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 use moka::future::Cache;
+use sea_orm::{DatabaseConnection, SqlxPostgresConnector};
 use sqlx::PgPool;
 use time::OffsetDateTime;
 
@@ -11,6 +12,7 @@ use crate::db::models::User;
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
+    pub db: DatabaseConnection,
     pub http_client: reqwest::Client,
     pub config: Config,
     pub user_cache: Cache<String, User>,
@@ -54,8 +56,11 @@ impl AppState {
             .max_capacity(2000)
             .build();
 
+        let db = SqlxPostgresConnector::from_sqlx_postgres_pool(pool.clone());
+
         Self {
             pool,
+            db,
             http_client,
             config,
             user_cache,

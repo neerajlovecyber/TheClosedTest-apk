@@ -171,7 +171,7 @@ export class MatchService {
       const user1LatestProof = matchProofs.find((p) => p.uploaderId === m.user1Id)
       const user2LatestProof = matchProofs.find((p) => p.uploaderId === m.user2Id)
       const latestMsg = m.messages?.[0]
-      const isUser1 = m.user1Id === userId || (tokenIdentifier && m.user1Id === tokenIdentifier)
+      const isUser1 = Boolean(m.user1Id === userId || (tokenIdentifier && m.user1Id === tokenIdentifier))
       const myLastRead = isUser1 ? m.lastRead1 : m.lastRead2
       const isMsgFromMe =
         latestMsg &&
@@ -213,14 +213,14 @@ export class MatchService {
               status: user1LatestProof.status,
               updatedAt: String(user1LatestProof.submittedAt),
             }
-          : m.user1LastProof,
+          : null,
         user2LastProof: user2LatestProof
           ? {
               day: user2LatestProof.day,
               status: user2LatestProof.status,
               updatedAt: String(user2LatestProof.submittedAt),
             }
-          : m.user2LastProof,
+          : null,
       }
     })
   }
@@ -276,14 +276,14 @@ export class MatchService {
             status: user1LatestProof.status,
             updatedAt: String(user1LatestProof.submittedAt),
           }
-        : match.user1LastProof,
+        : null,
       user2LastProof: user2LatestProof
         ? {
             day: user2LatestProof.day,
             status: user2LatestProof.status,
             updatedAt: String(user2LatestProof.submittedAt),
           }
-        : match.user2LastProof,
+        : null,
     }
 
     return {

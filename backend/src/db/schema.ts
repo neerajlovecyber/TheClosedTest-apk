@@ -119,16 +119,6 @@ export const matches = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     user1ApprovedCount: integer("user1_approved_count").default(0).notNull(),
     user2ApprovedCount: integer("user2_approved_count").default(0).notNull(),
-    user1LastProof: jsonb("user1_last_proof").$type<{
-      day: number
-      status: string
-      updatedAt: string
-    }>(),
-    user2LastProof: jsonb("user2_last_proof").$type<{
-      day: number
-      status: string
-      updatedAt: string
-    }>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

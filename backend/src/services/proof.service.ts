@@ -93,16 +93,10 @@ export class ProofService {
     }
 
     const now = new Date()
-    const proofSummary = {
-      day: dto.day,
-      status: "pending",
-      updatedAt: now.toISOString(),
-    }
 
     await db
       .update(matches)
       .set({
-        ...(isUser1 ? { user1LastProof: proofSummary } : { user2LastProof: proofSummary }),
         lastActivity: now,
         updatedAt: now,
       })
@@ -183,14 +177,7 @@ export class ProofService {
 
       updatedProof = updated
 
-      const proofSummary = {
-        day: proof.day,
-        status: dto.status,
-        updatedAt: now.toISOString(),
-      }
-
       const updateFields: any = {
-        ...(isUser1Uploader ? { user1LastProof: proofSummary } : { user2LastProof: proofSummary }),
         lastActivity: now,
         updatedAt: now,
       }

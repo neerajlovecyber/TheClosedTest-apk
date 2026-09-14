@@ -31,6 +31,9 @@ pub enum AppError {
 
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
+
+    #[error("SeaORM Database error: {0}")]
+    SeaOrm(#[from] sea_orm::DbErr),
 }
 
 #[derive(Serialize)]
@@ -56,6 +59,10 @@ impl IntoResponse for AppError {
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::Database(err) => {
                 tracing::error!("Database error: {:?}", err);
+                (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
+            }
+            AppError::SeaOrm(err) => {
+                tracing::error!("SeaORM database error: {:?}", err);
                 (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
             }
         };
