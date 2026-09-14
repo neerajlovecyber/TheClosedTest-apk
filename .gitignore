@@ -50,3 +50,10 @@ cloudflare-expo-ota-updates/**/dist/
 expo-env.d.ts
 # @end expo-cli
 .env.local
+
+# Rust build artifacts
+target/
+**/target/
+**/*.rs.bk
+backend-rs/.env
+
