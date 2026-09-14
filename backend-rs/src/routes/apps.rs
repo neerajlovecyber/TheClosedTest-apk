@@ -3,22 +3,28 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, Set,
+};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use std::collections::HashMap;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use uuid::Uuid;
 use validator::Validate;
 
 use crate::auth::AuthUser;
-use crate::db::models::{AppRecord, AppResponse, UserSummary};
+use crate::db::models::{AppResponse, UserSummary};
+use crate::entities::prelude::*;
+use crate::entities::{app_bans, apps, matches, messages, proofs, users};
 use crate::error::AppError;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct ListAppsQuery {
     pub search: Option<String>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+    pub limit: Option<u64>,
+    pub offset: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -60,52 +66,70 @@ pub struct GenericMessageResponse {
     pub message: String,
 }
 
-#[derive(FromRow)]
-struct AppListRow {
-    id: String,
-    user_id: String,
-    title: String,
-    package_name: String,
-    play_store_url: String,
-    icon_url: String,
-    instructions: String,
-    required_testers: i32,
-    status: String,
-    completed_at: Option<OffsetDateTime>,
-    flag_count: i32,
-    visibility_status: Option<String>,
-    positive_votes: i32,
-    negative_votes: i32,
-    voters: serde_json::Value,
-    created_at: OffsetDateTime,
-    updated_at: OffsetDateTime,
-    user_name: Option<String>,
-    user_email: Option<String>,
-    user_avatar_url: Option<String>,
-    user_reputation: Option<i32>,
-    current_testers: Option<i32>,
+#[derive(Deserialize)]
+pub struct UpdateAppRequest {
+    pub title: Option<String>,
+    #[serde(rename = "packageName")]
+    pub package_name: Option<String>,
+    #[serde(rename = "playStoreUrl")]
+    pub play_store_url: Option<String>,
+    #[serde(rename = "iconUrl")]
+    pub icon_url: Option<String>,
+    pub instructions: Option<String>,
+    #[serde(rename = "requiredTesters")]
+    pub required_testers: Option<i32>,
+    pub status: Option<String>,
+    #[serde(rename = "isMarketplaceVisible")]
+    pub is_marketplace_visible: Option<bool>,
 }
 
-#[derive(FromRow)]
-struct MyAppRow {
-    id: String,
-    user_id: String,
-    title: String,
-    package_name: String,
-    play_store_url: String,
-    icon_url: String,
-    instructions: String,
-    required_testers: i32,
-    status: String,
-    completed_at: Option<OffsetDateTime>,
-    flag_count: i32,
-    visibility_status: Option<String>,
-    positive_votes: i32,
-    negative_votes: i32,
-    voters: serde_json::Value,
-    created_at: OffsetDateTime,
-    updated_at: OffsetDateTime,
-    current_testers: Option<i32>,
+pub async fn count_active_testers_for_app(db: &DatabaseConnection, app_id: &str) -> Result<i32, AppError> {
+    let count = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(matches::Column::App1Id.eq(app_id))
+                        .add(matches::Column::App2Id.eq(app_id)),
+                )
+                .add(matches::Column::Status.eq("active")),
+        )
+        .count(db)
+        .await? as i32;
+    Ok(count)
+}
+
+pub async fn get_active_tester_counts(
+    db: &DatabaseConnection,
+    app_ids: &[String],
+) -> HashMap<String, i32> {
+    let mut map = HashMap::new();
+    if app_ids.is_empty() {
+        return map;
+    }
+    let active_matches = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(matches::Column::App1Id.is_in(app_ids.to_vec()))
+                        .add(matches::Column::App2Id.is_in(app_ids.to_vec())),
+                )
+                .add(matches::Column::Status.eq("active")),
+        )
+        .all(db)
+        .await
+        .unwrap_or_default();
+
+    for m in active_matches {
+        if app_ids.contains(&m.app1_id) {
+            *map.entry(m.app1_id).or_insert(0) += 1;
+        }
+        if app_ids.contains(&m.app2_id) {
+            *map.entry(m.app2_id).or_insert(0) += 1;
+        }
+    }
+    map
 }
 
 // GET /api/apps
@@ -114,9 +138,9 @@ async fn list_public_apps(
     Query(params): Query<ListAppsQuery>,
 ) -> Result<Json<ListAppsResponse>, AppError> {
     let limit = params.limit.unwrap_or(20).clamp(1, 100);
-    let offset = params.offset.unwrap_or(0).max(0);
-    let search_pattern = params.search.as_ref().map(|s| format!("%{}%", s));
-    let cache_key = format!("apps_list:{}:{}:{}", params.search.as_deref().unwrap_or(""), limit, offset);
+    let offset = params.offset.unwrap_or(0);
+    let search_str = params.search.as_deref().unwrap_or("").trim();
+    let cache_key = format!("apps_list:{}:{}:{}", search_str, limit, offset);
 
     // 1. Check in-memory RAM cache (0 DB queries, 10s TTL)
     if let Some(cached_val) = state.api_cache.get(&cache_key).await {
@@ -125,93 +149,104 @@ async fn list_public_apps(
         }
     }
 
-    let records = sqlx::query_as::<_, AppListRow>(
-        r#"
-        SELECT 
-            a.id, a.user_id, a.title, a.package_name, a.play_store_url, a.icon_url,
-            a.instructions, a.required_testers, a.status, a.completed_at, a.flag_count,
-            a.visibility_status, a.positive_votes, a.negative_votes, a.voters,
-            a.created_at, a.updated_at,
-            u.name as user_name, u.email as user_email, u.avatar_url as user_avatar_url, u.reputation as user_reputation,
-            COALESCE((
-                SELECT COUNT(*)::int FROM matches m
-                WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status = 'active'
-            ), 0) as current_testers
-        FROM apps a
-        LEFT JOIN users u ON a.user_id = u.id
-        WHERE a.status NOT IN ('archived', 'paused', 'completed')
-          AND (a.visibility_status IN ('visible', 'unverified') OR a.visibility_status IS NULL)
-          AND ($1::text IS NULL OR a.title ILIKE $1 OR a.package_name ILIKE $1)
-        ORDER BY 
-            CASE WHEN COALESCE((
-                SELECT COUNT(*)::int FROM matches m
-                WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status = 'active'
-            ), 0) >= a.required_testers THEN 1 ELSE 0 END ASC,
-            u.reputation DESC,
-            a.created_at DESC
-        LIMIT $2 OFFSET $3
-        "#,
-    )
-    .bind(search_pattern.clone())
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let mut query = Apps::find()
+        .filter(apps::Column::Status.is_not_in(["archived", "paused", "completed"]))
+        .filter(
+            sea_orm::Condition::any()
+                .add(apps::Column::VisibilityStatus.is_in(["visible", "unverified"]))
+                .add(apps::Column::VisibilityStatus.is_null()),
+        );
 
-    let total_count: (i64,) = sqlx::query_as(
-        r#"
-        SELECT COUNT(*)::bigint FROM apps a
-        WHERE a.status NOT IN ('archived', 'paused', 'completed')
-          AND (a.visibility_status IN ('visible', 'unverified') OR a.visibility_status IS NULL)
-          AND ($1::text IS NULL OR a.title ILIKE $1 OR a.package_name ILIKE $1)
-        "#,
-    )
-    .bind(search_pattern)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    if !search_str.is_empty() {
+        let pat = format!("%{}%", search_str);
+        query = query.filter(
+            sea_orm::Condition::any()
+                .add(apps::Column::Title.like(&pat))
+                .add(apps::Column::PackageName.like(&pat)),
+        );
+    }
 
-    let apps: Vec<AppResponse> = records
+    let total_count = query.clone().count(&state.db).await? as i64;
+
+    let app_models = query.all(&state.db).await?;
+    let app_ids: Vec<String> = app_models.iter().map(|a| a.id.clone()).collect();
+    let counts_map = get_active_tester_counts(&state.db, &app_ids).await;
+
+    let user_ids: Vec<String> = app_models.iter().map(|a| a.user_id.clone()).collect();
+    let users_map: HashMap<String, users::Model> = Users::find()
+        .filter(users::Column::Id.is_in(user_ids))
+        .all(&state.db)
+        .await?
         .into_iter()
-        .map(|r| {
-            let voters_vec: Vec<String> = serde_json::from_value(r.voters).unwrap_or_default();
+        .map(|u| (u.id.clone(), u))
+        .collect();
+
+    let mut app_responses: Vec<AppResponse> = app_models
+        .into_iter()
+        .map(|a| {
+            let current_testers = counts_map.get(&a.id).copied().unwrap_or(0);
+            let u = users_map.get(&a.user_id);
+            let user_summary = u.map(|user| UserSummary {
+                id: user.id.clone(),
+                name: Some(user.name.clone()),
+                email: Some(user.email.clone()),
+                avatar_url: user.avatar_url.clone(),
+                reputation: Some(user.reputation),
+            });
+            let voters_vec: Vec<String> = serde_json::from_value(a.voters).unwrap_or_default();
             AppResponse {
-                id: r.id,
-                user_id: r.user_id.clone(),
-                title: r.title,
-                package_name: r.package_name,
-                play_store_url: r.play_store_url,
-                icon_url: r.icon_url,
-                instructions: r.instructions,
-                required_testers: r.required_testers,
-                current_testers: r.current_testers.unwrap_or(0),
-                status: r.status,
-                completed_at: r.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
-                flag_count: r.flag_count,
-                visibility_status: r.visibility_status,
-                positive_votes: r.positive_votes,
-                negative_votes: r.negative_votes,
+                id: a.id,
+                user_id: a.user_id,
+                title: a.title,
+                package_name: a.package_name,
+                play_store_url: a.play_store_url,
+                icon_url: a.icon_url,
+                instructions: a.instructions,
+                required_testers: a.required_testers,
+                current_testers,
+                status: a.status,
+                completed_at: a.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+                flag_count: a.flag_count,
+                visibility_status: a.visibility_status,
+                positive_votes: a.positive_votes,
+                negative_votes: a.negative_votes,
                 voters: voters_vec,
-                created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
-                updated_at: r.updated_at.format(&Rfc3339).unwrap_or_default(),
-                user: Some(UserSummary {
-                    id: r.user_id.clone(),
-                    name: r.user_name,
-                    email: r.user_email,
-                    avatar_url: r.user_avatar_url,
-                    reputation: r.user_reputation,
-                }),
+                created_at: a.created_at.format(&Rfc3339).unwrap_or_default(),
+                updated_at: a.updated_at.format(&Rfc3339).unwrap_or_default(),
+                user: user_summary,
             }
         })
         .collect();
 
+    // Sort by:
+    // 1. Unfilled first (current_testers < required_testers)
+    // 2. User reputation desc
+    // 3. Created_at desc
+    app_responses.sort_by(|a, b| {
+        let filled_a = a.status == "filled" || a.current_testers >= a.required_testers;
+        let filled_b = b.status == "filled" || b.current_testers >= b.required_testers;
+        if filled_a != filled_b {
+            return filled_a.cmp(&filled_b);
+        }
+        let rep_a = a.user.as_ref().and_then(|u| u.reputation).unwrap_or(100);
+        let rep_b = b.user.as_ref().and_then(|u| u.reputation).unwrap_or(100);
+        if rep_a != rep_b {
+            return rep_b.cmp(&rep_a);
+        }
+        b.created_at.cmp(&a.created_at)
+    });
+
+    let paged_apps = app_responses
+        .into_iter()
+        .skip(offset as usize)
+        .take(limit as usize)
+        .collect();
+
     let response = ListAppsResponse {
-        apps,
-        total: total_count.0,
+        apps: paged_apps,
+        total: total_count,
     };
 
-    // Store in RAM cache for 10 seconds
     if let Ok(json_val) = serde_json::to_value(&response) {
         state.api_cache.insert(cache_key, json_val).await;
     }
@@ -224,57 +259,49 @@ async fn list_my_apps(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<Vec<AppResponse>>, AppError> {
-    let records = sqlx::query_as::<_, MyAppRow>(
-        r#"
-        SELECT 
-            a.id, a.user_id, a.title, a.package_name, a.play_store_url, a.icon_url,
-            a.instructions, a.required_testers, a.status, a.completed_at, a.flag_count,
-            a.visibility_status, a.positive_votes, a.negative_votes, a.voters,
-            a.created_at, a.updated_at,
-            COALESCE((
-                SELECT COUNT(*)::int FROM matches m
-                WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status = 'active'
-            ), 0) as current_testers
-        FROM apps a
-        WHERE a.user_id = $1 AND a.status != 'archived'
-        ORDER BY a.created_at DESC
-        "#,
-    )
-    .bind(&user.id)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let app_models = Apps::find()
+        .filter(apps::Column::UserId.eq(&user.id))
+        .filter(apps::Column::Status.ne("archived"))
+        .order_by_desc(apps::Column::CreatedAt)
+        .all(&state.db)
+        .await?;
 
-    let apps: Vec<AppResponse> = records
+    let app_ids: Vec<String> = app_models.iter().map(|a| a.id.clone()).collect();
+    let counts_map = get_active_tester_counts(&state.db, &app_ids).await;
+
+    let user_summary = UserSummary {
+        id: user.id.clone(),
+        name: Some(user.name.clone()),
+        email: Some(user.email.clone()),
+        avatar_url: user.avatar_url.clone(),
+        reputation: Some(user.reputation),
+    };
+
+    let apps: Vec<AppResponse> = app_models
         .into_iter()
-        .map(|r| {
-            let voters_vec: Vec<String> = serde_json::from_value(r.voters).unwrap_or_default();
+        .map(|a| {
+            let current_testers = counts_map.get(&a.id).copied().unwrap_or(0);
+            let voters_vec: Vec<String> = serde_json::from_value(a.voters).unwrap_or_default();
             AppResponse {
-                id: r.id,
-                user_id: r.user_id,
-                title: r.title,
-                package_name: r.package_name,
-                play_store_url: r.play_store_url,
-                icon_url: r.icon_url,
-                instructions: r.instructions,
-                required_testers: r.required_testers,
-                current_testers: r.current_testers.unwrap_or(0),
-                status: r.status,
-                completed_at: r.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
-                flag_count: r.flag_count,
-                visibility_status: r.visibility_status,
-                positive_votes: r.positive_votes,
-                negative_votes: r.negative_votes,
+                id: a.id,
+                user_id: a.user_id,
+                title: a.title,
+                package_name: a.package_name,
+                play_store_url: a.play_store_url,
+                icon_url: a.icon_url,
+                instructions: a.instructions,
+                required_testers: a.required_testers,
+                current_testers,
+                status: a.status,
+                completed_at: a.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+                flag_count: a.flag_count,
+                visibility_status: a.visibility_status,
+                positive_votes: a.positive_votes,
+                negative_votes: a.negative_votes,
                 voters: voters_vec,
-                created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
-                updated_at: r.updated_at.format(&Rfc3339).unwrap_or_default(),
-                user: Some(UserSummary {
-                    id: user.id.clone(),
-                    name: Some(user.name.clone()),
-                    email: Some(user.email.clone()),
-                    avatar_url: user.avatar_url.clone(),
-                    reputation: Some(user.reputation),
-                }),
+                created_at: a.created_at.format(&Rfc3339).unwrap_or_default(),
+                updated_at: a.updated_at.format(&Rfc3339).unwrap_or_default(),
+                user: Some(user_summary.clone()),
             }
         })
         .collect();
@@ -293,41 +320,37 @@ async fn create_app(
     let clean_pkg = payload.package_name.trim();
 
     // 1. Verify not banned
-    let is_banned: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM app_bans WHERE package_name = $1",
-    )
-    .bind(clean_pkg)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let is_banned = AppBans::find()
+        .filter(app_bans::Column::PackageName.eq(clean_pkg))
+        .one(&state.db)
+        .await?;
 
     if is_banned.is_some() {
         return Err(AppError::BadRequest("This app package has been banned from testing.".to_string()));
     }
 
-    // 2. Verify not duplicate active
-    let existing: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM apps WHERE LOWER(package_name) = LOWER($1) AND status != 'archived'",
-    )
-    .bind(clean_pkg)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    // 2. Verify duplicate registration (case-insensitive)
+    let existing = Apps::find()
+        .filter(apps::Column::PackageName.like(clean_pkg))
+        .filter(apps::Column::Status.ne("archived"))
+        .one(&state.db)
+        .await?;
 
     if existing.is_some() {
-        return Err(AppError::Conflict(format!("An app with package name '{}' is already registered.", clean_pkg)));
+        return Err(AppError::Conflict(format!(
+            "An app with package name '{}' is already registered in the system.",
+            clean_pkg
+        )));
     }
 
     // 3. Verify user slot limit
-    let active_apps_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*)::bigint FROM apps WHERE user_id = $1 AND status != 'archived'",
-    )
-    .bind(&user.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let active_apps_count = Apps::find()
+        .filter(apps::Column::UserId.eq(&user.id))
+        .filter(apps::Column::Status.ne("archived"))
+        .count(&state.db)
+        .await? as i32;
 
-    if (active_apps_count.0 as i32) >= user.unlocked_app_slots {
+    if active_apps_count >= user.unlocked_app_slots {
         return Err(AppError::BadRequest(format!(
             "You have reached your maximum active app limit ({}). Maintain your streak or test other apps to unlock more slots!",
             user.unlocked_app_slots
@@ -335,40 +358,38 @@ async fn create_app(
     }
 
     let new_id = Uuid::new_v4().to_string();
+    let now = OffsetDateTime::now_utc();
     let empty_voters = serde_json::json!([]);
 
-    let app = sqlx::query_as::<_, AppRecord>(
-        r#"
-        INSERT INTO apps (
-            id, user_id, title, package_name, play_store_url, icon_url, instructions,
-            required_testers, status, flag_count, visibility_status, positive_votes,
-            negative_votes, voters, created_at, updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'recruiting', 0, 'unverified', 0, 0, $9, NOW(), NOW())
-        RETURNING id, user_id, title, package_name, play_store_url, icon_url, instructions,
-                  required_testers, status, completed_at, flag_count, visibility_status,
-                  positive_votes, negative_votes, voters, created_at, updated_at
-        "#,
-    )
-    .bind(new_id)
-    .bind(&user.id)
-    .bind(payload.title.trim())
-    .bind(clean_pkg)
-    .bind(payload.play_store_url.trim())
-    .bind(payload.icon_url.trim())
-    .bind(payload.instructions.trim())
-    .bind(payload.required_testers)
-    .bind(empty_voters)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let new_app = apps::ActiveModel {
+        id: Set(new_id),
+        user_id: Set(user.id.clone()),
+        title: Set(payload.title.trim().to_string()),
+        package_name: Set(clean_pkg.to_string()),
+        play_store_url: Set(payload.play_store_url.trim().to_string()),
+        icon_url: Set(payload.icon_url.trim().to_string()),
+        instructions: Set(payload.instructions.trim().to_string()),
+        required_testers: Set(payload.required_testers),
+        status: Set("recruiting".to_string()),
+        completed_at: Set(None),
+        flag_count: Set(0),
+        visibility_status: Set(Some("unverified".to_string())),
+        positive_votes: Set(0),
+        negative_votes: Set(0),
+        voters: Set(empty_voters),
+        created_at: Set(now),
+        updated_at: Set(now),
+    };
+
+    let app = new_app.insert(&state.db).await?;
 
     // Increment user's apps_count
-    sqlx::query("UPDATE users SET apps_count = apps_count + 1 WHERE id = $1")
-        .bind(&user.id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    if let Some(u) = Users::find_by_id(&user.id).one(&state.db).await? {
+        let mut u_act: users::ActiveModel = u.into();
+        u_act.apps_count = Set(u_act.apps_count.as_ref() + 1);
+        u_act.updated_at = Set(now);
+        let _ = u_act.update(&state.db).await;
+    }
 
     // Invalidate public apps list RAM cache
     state.api_cache.invalidate_all();
@@ -407,57 +428,43 @@ async fn get_app_by_id(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<AppResponse>, AppError> {
-    let r = sqlx::query_as::<_, AppListRow>(
-        r#"
-        SELECT 
-            a.id, a.user_id, a.title, a.package_name, a.play_store_url, a.icon_url,
-            a.instructions, a.required_testers, a.status, a.completed_at, a.flag_count,
-            a.visibility_status, a.positive_votes, a.negative_votes, a.voters,
-            a.created_at, a.updated_at,
-            u.name as user_name, u.email as user_email, u.avatar_url as user_avatar_url, u.reputation as user_reputation,
-            COALESCE((
-                SELECT COUNT(*)::int FROM matches m
-                WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status = 'active'
-            ), 0) as current_testers
-        FROM apps a
-        LEFT JOIN users u ON a.user_id = u.id
-        WHERE a.id = $1
-        "#,
-    )
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
+    let a = Apps::find_by_id(&id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
 
-    let voters_vec: Vec<String> = serde_json::from_value(r.voters).unwrap_or_default();
+    let current_testers = count_active_testers_for_app(&state.db, &a.id).await?;
+    let user_model = Users::find_by_id(&a.user_id).one(&state.db).await?;
+    let user_summary = user_model.map(|u| UserSummary {
+        id: u.id,
+        name: Some(u.name),
+        email: Some(u.email),
+        avatar_url: u.avatar_url,
+        reputation: Some(u.reputation),
+    });
+
+    let voters_vec: Vec<String> = serde_json::from_value(a.voters).unwrap_or_default();
 
     Ok(Json(AppResponse {
-        id: r.id,
-        user_id: r.user_id.clone(),
-        title: r.title,
-        package_name: r.package_name,
-        play_store_url: r.play_store_url,
-        icon_url: r.icon_url,
-        instructions: r.instructions,
-        required_testers: r.required_testers,
-        current_testers: r.current_testers.unwrap_or(0),
-        status: r.status,
-        completed_at: r.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
-        flag_count: r.flag_count,
-        visibility_status: r.visibility_status,
-        positive_votes: r.positive_votes,
-        negative_votes: r.negative_votes,
+        id: a.id,
+        user_id: a.user_id,
+        title: a.title,
+        package_name: a.package_name,
+        play_store_url: a.play_store_url,
+        icon_url: a.icon_url,
+        instructions: a.instructions,
+        required_testers: a.required_testers,
+        current_testers,
+        status: a.status,
+        completed_at: a.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+        flag_count: a.flag_count,
+        visibility_status: a.visibility_status,
+        positive_votes: a.positive_votes,
+        negative_votes: a.negative_votes,
         voters: voters_vec,
-        created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
-        updated_at: r.updated_at.format(&Rfc3339).unwrap_or_default(),
-        user: Some(UserSummary {
-            id: r.user_id,
-            name: r.user_name,
-            email: r.user_email,
-            avatar_url: r.user_avatar_url,
-            reputation: r.user_reputation,
-        }),
+        created_at: a.created_at.format(&Rfc3339).unwrap_or_default(),
+        updated_at: a.updated_at.format(&Rfc3339).unwrap_or_default(),
+        user: user_summary,
     }))
 }
 
@@ -468,14 +475,12 @@ async fn vote_app(
     Path(id): Path<String>,
     Json(payload): Json<VoteRequest>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    let app = sqlx::query_as::<_, AppRecord>("SELECT * FROM apps WHERE id = $1")
-        .bind(&id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::Database)?
+    let app = Apps::find_by_id(&id)
+        .one(&state.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
 
-    let mut voters: Vec<String> = serde_json::from_value(app.voters).unwrap_or_default();
+    let mut voters: Vec<String> = serde_json::from_value(app.voters.clone()).unwrap_or_default();
     if voters.contains(&user.id) {
         return Err(AppError::BadRequest("You have already voted on this app".to_string()));
     }
@@ -485,25 +490,21 @@ async fn vote_app(
     let positive_votes = if is_positive { app.positive_votes + 1 } else { app.positive_votes };
     let negative_votes = if !is_positive { app.negative_votes + 1 } else { app.negative_votes };
 
-    let mut visibility = app.visibility_status;
+    let mut visibility = app.visibility_status.clone();
     if positive_votes >= 3 && positive_votes > negative_votes {
         visibility = Some("visible".to_string());
     } else if negative_votes >= 3 && negative_votes > positive_votes {
         visibility = Some("hidden".to_string());
     }
 
-    let voters_json = serde_json::to_value(&voters).unwrap_or_default();
-    sqlx::query(
-        "UPDATE apps SET positive_votes = $1, negative_votes = $2, visibility_status = $3, voters = $4, updated_at = NOW() WHERE id = $5",
-    )
-    .bind(positive_votes)
-    .bind(negative_votes)
-    .bind(visibility)
-    .bind(voters_json)
-    .bind(id)
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let now = OffsetDateTime::now_utc();
+    let mut app_act: apps::ActiveModel = app.into();
+    app_act.positive_votes = Set(positive_votes);
+    app_act.negative_votes = Set(negative_votes);
+    app_act.visibility_status = Set(visibility);
+    app_act.voters = Set(serde_json::to_value(&voters).unwrap_or_default());
+    app_act.updated_at = Set(now);
+    app_act.update(&state.db).await?;
 
     // Invalidate public apps list RAM cache
     state.api_cache.invalidate_all();
@@ -513,23 +514,6 @@ async fn vote_app(
     }))
 }
 
-#[derive(Deserialize)]
-pub struct UpdateAppRequest {
-    pub title: Option<String>,
-    #[serde(rename = "packageName")]
-    pub package_name: Option<String>,
-    #[serde(rename = "playStoreUrl")]
-    pub play_store_url: Option<String>,
-    #[serde(rename = "iconUrl")]
-    pub icon_url: Option<String>,
-    pub instructions: Option<String>,
-    #[serde(rename = "requiredTesters")]
-    pub required_testers: Option<i32>,
-    pub status: Option<String>,
-    #[serde(rename = "isMarketplaceVisible")]
-    pub is_marketplace_visible: Option<bool>,
-}
-
 // PATCH /api/apps/:id
 async fn update_app(
     State(state): State<AppState>,
@@ -537,26 +521,50 @@ async fn update_app(
     Path(id): Path<String>,
     Json(payload): Json<UpdateAppRequest>,
 ) -> Result<Json<AppResponse>, AppError> {
-    let existing = sqlx::query_as::<_, AppRecord>("SELECT * FROM apps WHERE id = $1")
-        .bind(&id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::Database)?
+    let existing = Apps::find_by_id(&id)
+        .one(&state.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
 
     if existing.user_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
         return Err(AppError::Forbidden("Forbidden: Not owner of this app".to_string()));
     }
 
-    let title = payload.title.unwrap_or(existing.title);
-    let package_name = payload.package_name.unwrap_or(existing.package_name);
-    let play_store_url = payload.play_store_url.clone().unwrap_or(existing.play_store_url);
-    let icon_url = payload.icon_url.unwrap_or(existing.icon_url);
-    let instructions = payload.instructions.unwrap_or(existing.instructions);
-    let required_testers = payload.required_testers.unwrap_or(existing.required_testers);
+    let now = OffsetDateTime::now_utc();
+    let mut app_act: apps::ActiveModel = existing.clone().into();
 
-    let mut status = payload.status.unwrap_or(existing.status);
-    let mut visibility_status = existing.visibility_status;
+    if let Some(title) = payload.title {
+        app_act.title = Set(title);
+    }
+    if let Some(ref pkg) = payload.package_name {
+        if !pkg.trim().is_empty() && pkg.trim().to_lowercase() != existing.package_name.to_lowercase() {
+            let conflict = Apps::find()
+                .filter(apps::Column::PackageName.like(pkg.trim()))
+                .filter(apps::Column::Id.ne(&id))
+                .filter(apps::Column::Status.ne("archived"))
+                .one(&state.db)
+                .await?;
+            if conflict.is_some() {
+                return Err(AppError::Conflict(format!("An app with package name '{}' is already registered in the system.", pkg.trim())));
+            }
+        }
+        app_act.package_name = Set(pkg.trim().to_string());
+    }
+    if let Some(ps_url) = payload.play_store_url.clone() {
+        app_act.play_store_url = Set(ps_url.trim().to_string());
+    }
+    if let Some(icon) = payload.icon_url {
+        app_act.icon_url = Set(icon.trim().to_string());
+    }
+    if let Some(instr) = payload.instructions {
+        app_act.instructions = Set(instr);
+    }
+    if let Some(req_t) = payload.required_testers {
+        app_act.required_testers = Set(req_t);
+    }
+
+    let mut status = payload.status.clone().unwrap_or_else(|| existing.status.clone());
+    let mut visibility_status = existing.visibility_status.clone();
 
     if let Some(visible) = payload.is_marketplace_visible {
         if !visible {
@@ -578,34 +586,24 @@ async fn update_app(
         }
     }
 
-    let updated = sqlx::query_as::<_, AppRecord>(
-        r#"
-        UPDATE apps
-        SET title = $1, package_name = $2, play_store_url = $3, icon_url = $4,
-            instructions = $5, required_testers = $6, status = $7, visibility_status = $8,
-            updated_at = NOW()
-        WHERE id = $9
-        RETURNING id, user_id, title, package_name, play_store_url, icon_url, instructions,
-                  required_testers, status, completed_at, flag_count, visibility_status,
-                  positive_votes, negative_votes, voters, created_at, updated_at
-        "#,
-    )
-    .bind(title)
-    .bind(package_name)
-    .bind(play_store_url)
-    .bind(icon_url)
-    .bind(instructions)
-    .bind(required_testers)
-    .bind(status)
-    .bind(visibility_status)
-    .bind(&id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    app_act.status = Set(status.clone());
+    app_act.visibility_status = Set(visibility_status);
+    app_act.updated_at = Set(now);
 
-    // Invalidate public apps list RAM cache
+    // Parity with TS: Reward +20 reputation if status transitions to completed
+    if status == "completed" && existing.status != "completed" {
+        if let Some(u) = Users::find_by_id(&existing.user_id).one(&state.db).await? {
+            let mut u_act: users::ActiveModel = u.into();
+            u_act.reputation = Set(u_act.reputation.as_ref() + 20);
+            u_act.updated_at = Set(now);
+            let _ = u_act.update(&state.db).await;
+        }
+    }
+
+    let updated = app_act.update(&state.db).await?;
     state.api_cache.invalidate_all();
 
+    let current_testers = count_active_testers_for_app(&state.db, &updated.id).await?;
     let voters_vec: Vec<String> = serde_json::from_value(updated.voters).unwrap_or_default();
 
     Ok(Json(AppResponse {
@@ -617,7 +615,7 @@ async fn update_app(
         icon_url: updated.icon_url,
         instructions: updated.instructions,
         required_testers: updated.required_testers,
-        current_testers: 0,
+        current_testers,
         status: updated.status,
         completed_at: updated.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
         flag_count: updated.flag_count,
@@ -643,11 +641,9 @@ async fn delete_app(
     AuthUser(user): AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    let existing = sqlx::query_as::<_, AppRecord>("SELECT * FROM apps WHERE id = $1")
-        .bind(&id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::Database)?
+    let existing = Apps::find_by_id(&id)
+        .one(&state.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
 
     if existing.user_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
@@ -655,39 +651,44 @@ async fn delete_app(
     }
 
     // Cascade delete associated matches, proofs, and messages
-    let _ = sqlx::query(
-        "DELETE FROM proofs WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)",
-    )
-    .bind(&id)
-    .execute(&state.pool)
-    .await;
+    let matches_to_delete = Matches::find()
+        .filter(
+            sea_orm::Condition::any()
+                .add(matches::Column::App1Id.eq(&id))
+                .add(matches::Column::App2Id.eq(&id)),
+        )
+        .all(&state.db)
+        .await?;
 
-    let _ = sqlx::query(
-        "DELETE FROM messages WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)",
-    )
-    .bind(&id)
-    .execute(&state.pool)
-    .await;
+    let match_ids: Vec<String> = matches_to_delete.iter().map(|m| m.id.clone()).collect();
+    if !match_ids.is_empty() {
+        let _ = Proofs::delete_many()
+            .filter(proofs::Column::MatchId.is_in(match_ids.clone()))
+            .exec(&state.db)
+            .await;
 
-    let _ = sqlx::query("DELETE FROM matches WHERE app1_id = $1 OR app2_id = $1")
-        .bind(&id)
-        .execute(&state.pool)
-        .await;
+        let _ = Messages::delete_many()
+            .filter(messages::Column::MatchId.is_in(match_ids.clone()))
+            .exec(&state.db)
+            .await;
 
-    let _ = sqlx::query("DELETE FROM reports WHERE target_id = $1").bind(&id).execute(&state.pool).await;
+        let _ = Matches::delete_many()
+            .filter(matches::Column::Id.is_in(match_ids))
+            .exec(&state.db)
+            .await;
+    }
 
     // Delete the app
-    sqlx::query("DELETE FROM apps WHERE id = $1")
-        .bind(&id)
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+    let app_act: apps::ActiveModel = existing.clone().into();
+    app_act.delete(&state.db).await?;
 
     // Decrement user apps count
-    let _ = sqlx::query("UPDATE users SET apps_count = GREATEST(0, apps_count - 1) WHERE id = $1")
-        .bind(&existing.user_id)
-        .execute(&state.pool)
-        .await;
+    if let Some(u) = Users::find_by_id(&existing.user_id).one(&state.db).await? {
+        let mut u_act: users::ActiveModel = u.into();
+        let new_count = std::cmp::max(0, u_act.apps_count.as_ref() - 1);
+        u_act.apps_count = Set(new_count);
+        let _ = u_act.update(&state.db).await;
+    }
 
     // Invalidate public apps list RAM cache
     state.api_cache.invalidate_all();

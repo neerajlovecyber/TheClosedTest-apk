@@ -3,19 +3,22 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect, Set};
 use serde::{Deserialize, Serialize};
-use time::format_description::well_known::Rfc3339;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::db::models::MessageRecord;
+use crate::entities::prelude::*;
+use crate::entities::{matches, messages};
 use crate::error::AppError;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct ChatHistoryQuery {
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+    pub limit: Option<u64>,
+    pub offset: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -60,6 +63,20 @@ impl From<MessageRecord> for MessageResponse {
     }
 }
 
+impl From<messages::Model> for MessageResponse {
+    fn from(m: messages::Model) -> Self {
+        Self {
+            id: m.id,
+            match_id: m.match_id,
+            sender_id: m.sender_id,
+            content: m.content,
+            r#type: m.r#type,
+            storage_url: m.storage_url,
+            sent_at: m.sent_at.format(&Rfc3339).unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct GenericMessageResponse {
     pub message: String,
@@ -72,36 +89,27 @@ async fn get_chat_history(
     Path(match_id): Path<String>,
     Query(params): Query<ChatHistoryQuery>,
 ) -> Result<Json<Vec<MessageResponse>>, AppError> {
-    // Verify user is in match
-    let match_row: Option<(String, String)> = sqlx::query_as(
-        "SELECT user1_id, user2_id FROM matches WHERE id = $1",
-    )
-    .bind(&match_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let (u1_id, u2_id) = match_row
+    let match_row = Matches::find_by_id(&match_id)
+        .one(&state.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
-    if u1_id != user.id && u2_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
+    if match_row.user1_id != user.id && match_row.user2_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
         return Err(AppError::Forbidden("You are not a participant in this match chat".to_string()));
     }
 
     let limit = params.limit.unwrap_or(50).clamp(1, 100);
-    let offset = params.offset.unwrap_or(0).max(0);
+    let offset = params.offset.unwrap_or(0);
 
-    let records = sqlx::query_as::<_, MessageRecord>(
-        "SELECT id, match_id, sender_id, content, type, storage_url, sent_at FROM messages WHERE match_id = $1 ORDER BY sent_at DESC LIMIT $2 OFFSET $3",
-    )
-    .bind(&match_id)
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let records = Messages::find()
+        .filter(messages::Column::MatchId.eq(&match_id))
+        .order_by_desc(messages::Column::SentAt)
+        .limit(limit)
+        .offset(offset)
+        .all(&state.db)
+        .await?;
 
-    let messages = records.into_iter().rev().map(MessageResponse::from).collect();
+    let messages: Vec<MessageResponse> = records.into_iter().rev().map(MessageResponse::from).collect();
     Ok(Json(messages))
 }
 
@@ -112,86 +120,68 @@ async fn send_message(
     Path(match_id): Path<String>,
     Json(payload): Json<SendMessageRequest>,
 ) -> Result<Json<MessageResponse>, AppError> {
-    let match_row: Option<(String, String)> = sqlx::query_as(
-        "SELECT user1_id, user2_id FROM matches WHERE id = $1",
-    )
-    .bind(&match_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let (u1_id, u2_id) = match_row
+    let match_row = Matches::find_by_id(&match_id)
+        .one(&state.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
-    if u1_id != user.id && u2_id != user.id {
+    let is_user1 = match_row.user1_id == user.id;
+    let is_user2 = match_row.user2_id == user.id;
+    if !is_user1 && !is_user2 {
         return Err(AppError::Forbidden("You are not a participant in this match".to_string()));
     }
 
+    let partner_id = if is_user1 { match_row.user2_id.clone() } else { match_row.user1_id.clone() };
     let new_id = Uuid::new_v4().to_string();
+    let now = OffsetDateTime::now_utc();
 
-    let record = sqlx::query_as::<_, MessageRecord>(
-        r#"
-        INSERT INTO messages (id, match_id, sender_id, content, type, storage_url, sent_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-        RETURNING id, match_id, sender_id, content, type, storage_url, sent_at
-        "#,
-    )
-    .bind(new_id)
-    .bind(&match_id)
-    .bind(&user.id)
-    .bind(payload.content.trim())
-    .bind(payload.r#type)
-    .bind(payload.storage_url)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let msg_act = messages::ActiveModel {
+        id: Set(new_id),
+        match_id: Set(match_id.clone()),
+        sender_id: Set(user.id.clone()),
+        content: Set(payload.content.trim().to_string()),
+        r#type: Set(payload.r#type),
+        storage_url: Set(payload.storage_url),
+        sent_at: Set(now),
+    };
 
-    let is_user1 = u1_id == user.id;
-    let partner_id = if is_user1 { u2_id } else { u1_id };
+    let record = msg_act.insert(&state.db).await?;
 
     // Update match last activity and sender's last read timestamp
+    let mut match_act: matches::ActiveModel = match_row.into();
+    match_act.last_activity = Set(now);
+    match_act.updated_at = Set(now);
     if is_user1 {
-        let _ = sqlx::query("UPDATE matches SET last_activity = NOW(), last_read1 = NOW(), updated_at = NOW() WHERE id = $1")
-            .bind(&match_id)
-            .execute(&state.pool)
-            .await;
+        match_act.last_read1 = Set(Some(now));
     } else {
-        let _ = sqlx::query("UPDATE matches SET last_activity = NOW(), last_read2 = NOW(), updated_at = NOW() WHERE id = $1")
-            .bind(&match_id)
-            .execute(&state.pool)
-            .await;
+        match_act.last_read2 = Set(Some(now));
     }
+    let _ = match_act.update(&state.db).await;
 
     // Send push notification to peer partner
-    let partner_push_token: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT push_token FROM users WHERE id = $1",
-    )
-    .bind(&partner_id)
-    .fetch_optional(&state.pool)
-    .await
-    .unwrap_or(None);
-
-    if let Some((Some(push_token),)) = partner_push_token {
-        let push_client = reqwest::Client::new();
-        let push_title = format!("Message from {}", user.name);
-        let push_body = if record.r#type == "text" {
-            record.content.clone()
-        } else {
-            "Sent an attachment".to_string()
-        };
-        let push_data = serde_json::json!({
-            "matchId": match_id,
-            "messageId": record.id,
-        });
-        tokio::spawn(async move {
-            crate::services::push::send_push_notification(
-                &push_client,
-                &push_token,
-                push_title,
-                push_body,
-                push_data,
-            ).await;
-        });
+    if let Ok(Some(partner_user)) = Users::find_by_id(&partner_id).one(&state.db).await {
+        if let Some(push_token) = partner_user.push_token {
+            let push_client = reqwest::Client::new();
+            let push_title = format!("Message from {}", user.name);
+            let push_body = if record.r#type == "text" {
+                record.content.clone()
+            } else {
+                "Sent an attachment".to_string()
+            };
+            let push_data = serde_json::json!({
+                "matchId": match_id,
+                "messageId": record.id,
+            });
+            tokio::spawn(async move {
+                crate::services::push::send_push_notification(
+                    &push_client,
+                    &push_token,
+                    push_title,
+                    push_body,
+                    push_data,
+                ).await;
+            });
+        }
     }
 
     Ok(Json(record.into()))
@@ -203,32 +193,22 @@ async fn mark_read(
     AuthUser(user): AuthUser,
     Path(match_id): Path<String>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    let match_row: Option<(String, String)> = sqlx::query_as(
-        "SELECT user1_id, user2_id FROM matches WHERE id = $1",
-    )
-    .bind(&match_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let (u1_id, u2_id) = match_row
+    let match_row = Matches::find_by_id(&match_id)
+        .one(&state.db)
+        .await?
         .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
-    if u1_id == user.id {
-        sqlx::query("UPDATE matches SET last_read1 = NOW() WHERE id = $1")
-            .bind(&match_id)
-            .execute(&state.pool)
-            .await
-            .map_err(AppError::Database)?;
-    } else if u2_id == user.id {
-        sqlx::query("UPDATE matches SET last_read2 = NOW() WHERE id = $1")
-            .bind(&match_id)
-            .execute(&state.pool)
-            .await
-            .map_err(AppError::Database)?;
+    let now = OffsetDateTime::now_utc();
+    let mut match_act: matches::ActiveModel = match_row.clone().into();
+    if match_row.user1_id == user.id {
+        match_act.last_read1 = Set(Some(now));
+    } else if match_row.user2_id == user.id {
+        match_act.last_read2 = Set(Some(now));
     } else {
         return Err(AppError::Forbidden("You are not a participant in this match".to_string()));
     }
+
+    match_act.update(&state.db).await?;
 
     Ok(Json(GenericMessageResponse {
         message: "Chat marked as read".to_string(),

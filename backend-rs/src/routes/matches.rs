@@ -51,9 +51,34 @@ pub struct MatchUserSummary {
 }
 
 use std::collections::HashMap;
-use sea_orm::{ColumnTrait, EntityTrait, LoaderTrait, ModelTrait, QueryFilter, QueryOrder};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, LoaderTrait, ModelTrait, PaginatorTrait, QueryFilter, QueryOrder, Set};
+use time::OffsetDateTime;
 use crate::entities::prelude::*;
-use crate::entities::{apps, matches, messages, proofs, users};
+use crate::entities::{apps, matches, messages, notifications, proofs, users};
+
+impl From<matches::Model> for MatchRecord {
+    fn from(m: matches::Model) -> Self {
+        Self {
+            id: m.id,
+            user1_id: m.user1_id,
+            app1_id: m.app1_id,
+            user2_id: m.user2_id,
+            app2_id: m.app2_id,
+            status: m.status,
+            start_date: m.start_date,
+            last_activity: m.last_activity,
+            last_read1: m.last_read1,
+            last_read2: m.last_read2,
+            completed_at: m.completed_at,
+            user1_approved_count: m.user1_approved_count,
+            user2_approved_count: m.user2_approved_count,
+            user1_last_proof: None,
+            user2_last_proof: None,
+            created_at: m.created_at,
+            updated_at: m.updated_at,
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub struct MatchDetailResponse {
@@ -447,172 +472,196 @@ async fn request_match(
     AuthUser(user): AuthUser,
     Json(payload): Json<RequestMatchRequest>,
 ) -> Result<Json<MatchRecord>, AppError> {
-    let app1_id = payload.app1_id.or(payload.my_app_id).ok_or_else(|| {
-        AppError::BadRequest("App 1 ID (app1Id or myAppId) is required".to_string())
+    let mut app1_id = payload.app1_id.or(payload.my_app_id);
+    let target_app_id = payload.target_app_id.or(payload.app2_id).ok_or_else(|| {
+        AppError::BadRequest("Target app ID (targetAppId or app2Id) is required".to_string())
     })?;
 
-    let target_app_id = payload.target_app_id.or(payload.app2_id).ok_or_else(|| {
-        AppError::BadRequest("Target App ID (targetAppId or app2Id) is required".to_string())
-    })?;
+    if app1_id.is_none() {
+        // Look up user's first active app (parity with TS MatchService.requestMatch)
+        let user_app = Apps::find()
+            .filter(apps::Column::UserId.eq(&user.id))
+            .filter(apps::Column::Status.ne("archived"))
+            .one(&state.db)
+            .await?;
+        if let Some(ua) = user_app {
+            app1_id = Some(ua.id);
+        } else {
+            return Err(AppError::BadRequest("You must add at least one app before requesting a swap".to_string()));
+        }
+    }
+    let app1_id = app1_id.unwrap();
 
     // Self-match check
     if app1_id == target_app_id {
-        return Err(AppError::BadRequest("Cannot request a match with your own app".to_string()));
+        return Err(AppError::BadRequest("Cannot match with your own app".to_string()));
     }
 
     // 1. Verify app1 belongs to user
-    let app1: (String, String, String, String, i32) = sqlx::query_as(
-        "SELECT id, user_id, status, title, required_testers FROM apps WHERE id = $1",
-    )
-    .bind(&app1_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::BadRequest("Your selected app was not found".to_string()))?;
+    let app1 = Apps::find_by_id(&app1_id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::BadRequest("Your selected app was not found".to_string()))?;
 
-    if app1.1 != user.id {
+    if app1.user_id != user.id {
         return Err(AppError::Forbidden("You do not own the app you are requesting swap with".to_string()));
     }
 
     // 2. Verify target app
-    let app2: (String, String, String, String, i32) = sqlx::query_as(
-        "SELECT id, user_id, status, title, required_testers FROM apps WHERE id = $1",
-    )
-    .bind(&target_app_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::BadRequest("Target app not found".to_string()))?;
+    let app2 = Apps::find_by_id(&target_app_id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::BadRequest("Target app not found".to_string()))?;
 
-    if app2.1 == user.id {
-        return Err(AppError::BadRequest("Cannot request a match with your own app".to_string()));
+    if app2.user_id == user.id {
+        return Err(AppError::BadRequest("Cannot match with your own app".to_string()));
     }
 
-    if app2.2 == "paused" {
+    if app1.status == "archived" || app2.status == "archived" {
+        return Err(AppError::BadRequest("Cannot request match: One of the apps has been archived or deleted".to_string()));
+    }
+
+    if app2.status == "paused" {
         return Err(AppError::BadRequest(
-            "Target app is currently paused and cannot accept new test swaps right now.".to_string(),
+            "Cannot request match: Target app is currently paused and not accepting new test swaps".to_string(),
         ));
     }
 
-    // 3. Verify neither app has reached required testers limit
-    let count1: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM matches WHERE (app1_id = $1 OR app2_id = $1) AND status NOT IN ('rejected', 'cancelled')",
-    )
-    .bind(&app1_id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    if app1.status == "paused" {
+        return Err(AppError::BadRequest(
+            "Cannot request match: Your app is currently removed from the marketplace. Enable marketplace listing in Edit App to request swaps.".to_string(),
+        ));
+    }
 
-    if count1.0 >= app1.4 as i64 {
+    // 3. Verify neither app has reached required testers limit (active matches only, parity with TS)
+    let count1 = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(matches::Column::App1Id.eq(&app1.id))
+                        .add(matches::Column::App2Id.eq(&app1.id))
+                )
+                .add(matches::Column::Status.eq("active"))
+        )
+        .count(&state.db)
+        .await? as i32;
+
+    if count1 >= app1.required_testers {
         return Err(AppError::BadRequest(format!(
             "Cannot request swap: Your app \"{}\" has reached full tester capacity ({}/{})",
-            app1.3, count1.0, app1.4
+            app1.title, count1, app1.required_testers
         )));
     }
 
-    let count2: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM matches WHERE (app1_id = $1 OR app2_id = $1) AND status NOT IN ('rejected', 'cancelled')",
-    )
-    .bind(&target_app_id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let count2 = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(matches::Column::App1Id.eq(&app2.id))
+                        .add(matches::Column::App2Id.eq(&app2.id))
+                )
+                .add(matches::Column::Status.eq("active"))
+        )
+        .count(&state.db)
+        .await? as i32;
 
-    if count2.0 >= app2.4 as i64 {
+    if count2 >= app2.required_testers {
         return Err(AppError::BadRequest(format!(
             "Cannot request swap: \"{}\" has reached full tester capacity ({}/{})",
-            app2.3, count2.0, app2.4
+            app2.title, count2, app2.required_testers
         )));
     }
 
     // 4. Verify no existing pending or active match
-    let existing: Option<(String,)> = sqlx::query_as(
-        r#"
-        SELECT id FROM matches
-        WHERE ((app1_id = $1 AND app2_id = $2) OR (app1_id = $2 AND app2_id = $1))
-          AND status IN ('pending', 'active')
-        "#,
-    )
-    .bind(&app1_id)
-    .bind(&target_app_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let existing = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(
+                            sea_orm::Condition::all()
+                                .add(matches::Column::App1Id.eq(&app1.id))
+                                .add(matches::Column::App2Id.eq(&app2.id))
+                        )
+                        .add(
+                            sea_orm::Condition::all()
+                                .add(matches::Column::App1Id.eq(&app2.id))
+                                .add(matches::Column::App2Id.eq(&app1.id))
+                        )
+                )
+                .add(matches::Column::Status.is_in(["pending", "active"]))
+        )
+        .one(&state.db)
+        .await?;
 
     if existing.is_some() {
         return Err(AppError::BadRequest("A match request or active test already exists between these apps".to_string()));
     }
 
     let new_id = Uuid::new_v4().to_string();
-    let record = sqlx::query_as::<_, MatchRecord>(
-        r#"
-        INSERT INTO matches (
-            id, user1_id, app1_id, user2_id, app2_id, status,
-            user1_approved_count, user2_approved_count, last_activity,
-            created_at, updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, 'pending', 0, 0, NOW(), NOW(), NOW())
-        RETURNING id, user1_id, app1_id, user2_id, app2_id, status,
-                  start_date, last_activity, last_read1, last_read2, completed_at,
-                  user1_approved_count, user2_approved_count,
-                  user1_last_proof, user2_last_proof, created_at, updated_at
-        "#,
-    )
-    .bind(&new_id)
-    .bind(&user.id)
-    .bind(&app1.0)
-    .bind(&app2.1)
-    .bind(&app2.0)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let now = OffsetDateTime::now_utc();
+    let match_act = matches::ActiveModel {
+        id: Set(new_id.clone()),
+        user1_id: Set(user.id.clone()),
+        app1_id: Set(app1.id.clone()),
+        user2_id: Set(app2.user_id.clone()),
+        app2_id: Set(app2.id.clone()),
+        status: Set("pending".to_string()),
+        start_date: Set(None),
+        last_activity: Set(now),
+        last_read1: Set(None),
+        last_read2: Set(None),
+        completed_at: Set(None),
+        user1_approved_count: Set(0),
+        user2_approved_count: Set(0),
+        created_at: Set(now),
+        updated_at: Set(now),
+    };
+    let new_match = match_act.insert(&state.db).await?;
 
     // 5. Notify target user asynchronously (in-app notification + push)
     let notif_id = Uuid::new_v4().to_string();
     let notif_data = serde_json::json!({
         "matchId": new_id,
-        "app1Id": app1_id,
-        "app2Id": target_app_id,
+        "app1Id": app1.id,
+        "app2Id": app2.id,
     });
-    let notif_title = "New Testing Request!";
-    let notif_body = format!("{} wants to test {} in exchange for {}.", user.name, app2.3, app1.3);
-    let _ = sqlx::query(
-        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'request', $3, $4, $5, false, NOW())",
-    )
-    .bind(notif_id)
-    .bind(&app2.1)
-    .bind(notif_title)
-    .bind(&notif_body)
-    .bind(&notif_data)
-    .execute(&state.pool)
-    .await;
+    let notif_title = "New Testing Request!".to_string();
+    let notif_body = format!("{} wants to test {} in exchange for {}.", user.name, app2.title, app1.title);
+    let notif_act = notifications::ActiveModel {
+        id: Set(notif_id),
+        user_id: Set(app2.user_id.clone()),
+        r#type: Set("request".to_string()),
+        title: Set(notif_title.clone()),
+        body: Set(notif_body.clone()),
+        data: Set(notif_data.clone()),
+        read: Set(false),
+        created_at: Set(now),
+    };
+    let _ = notif_act.insert(&state.db).await;
 
     // Send push notification if recipient has push token
-    let target_push_token: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT push_token FROM users WHERE id = $1",
-    )
-    .bind(&app2.1)
-    .fetch_optional(&state.pool)
-    .await
-    .unwrap_or(None);
-
-    if let Some((Some(push_token),)) = target_push_token {
-        let push_client = reqwest::Client::new();
-        let push_title = "New Testing Request!".to_string();
-        let push_body = format!("{} requested a peer test with {}!", user.name, app2.3);
-        let push_data = notif_data.clone();
-        tokio::spawn(async move {
-            crate::services::push::send_push_notification(
-                &push_client,
-                &push_token,
-                push_title,
-                push_body,
-                push_data,
-            ).await;
-        });
+    if let Ok(Some(target_user)) = Users::find_by_id(&app2.user_id).one(&state.db).await {
+        if let Some(push_token) = target_user.push_token {
+            let push_client = reqwest::Client::new();
+            let push_title = "New Testing Request!".to_string();
+            let push_body = format!("{} requested a peer test with {}!", user.name, app2.title);
+            let push_data = notif_data;
+            tokio::spawn(async move {
+                crate::services::push::send_push_notification(
+                    &push_client,
+                    &push_token,
+                    push_title,
+                    push_body,
+                    push_data,
+                ).await;
+            });
+        }
     }
 
-    Ok(Json(record))
+    Ok(Json(new_match.into()))
 }
 
 #[derive(Serialize)]
@@ -626,76 +675,116 @@ async fn accept_match(
     AuthUser(user): AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<MatchRecord>, AppError> {
-    let match_row = sqlx::query_as::<_, MatchRecord>(
-        "SELECT id, user1_id, app1_id, user2_id, app2_id, status, start_date, last_activity, last_read1, last_read2, completed_at, user1_approved_count, user2_approved_count, user1_last_proof, user2_last_proof, created_at, updated_at FROM matches WHERE id = $1",
-    )
-    .bind(&id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
+    let match_row = Matches::find_by_id(&id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
     if match_row.user2_id != user.id || match_row.status != "pending" {
         return Err(AppError::Forbidden("Only the target recipient can accept a pending match request".to_string()));
     }
 
-    let updated = sqlx::query_as::<_, MatchRecord>(
-        r#"
-        UPDATE matches
-        SET status = 'active', start_date = NOW(), last_activity = NOW(), updated_at = NOW()
-        WHERE id = $1
-        RETURNING id, user1_id, app1_id, user2_id, app2_id, status,
-                  start_date, last_activity, last_read1, last_read2, completed_at,
-                  user1_approved_count, user2_approved_count,
-                  user1_last_proof, user2_last_proof, created_at, updated_at
-        "#,
-    )
-    .bind(&id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let app1 = Apps::find_by_id(&match_row.app1_id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Source app not found".to_string()))?;
 
-    // Send notification to user1
-    let notif_id = Uuid::new_v4().to_string();
-    let notif_data = serde_json::json!({ "matchId": id });
-    let _ = sqlx::query(
-        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'acceptance', 'Match Accepted!', 'Your testing exchange was accepted! Day 1 testing starts today.', $3, false, NOW())",
-    )
-    .bind(notif_id)
-    .bind(&match_row.user1_id)
-    .bind(&notif_data)
-    .execute(&state.pool)
-    .await;
+    let app2 = Apps::find_by_id(&match_row.app2_id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Target app not found".to_string()))?;
 
-    // Send push notification to user1
-    let user1_push_token: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT push_token FROM users WHERE id = $1",
-    )
-    .bind(&match_row.user1_id)
-    .fetch_optional(&state.pool)
-    .await
-    .unwrap_or(None);
-
-    if let Some((Some(push_token),)) = user1_push_token {
-        let push_client = reqwest::Client::new();
-        let push_title = "Match Accepted!".to_string();
-        let push_body = "Your testing exchange was accepted! Day 1 testing starts today.".to_string();
-        let push_data = notif_data.clone();
-        tokio::spawn(async move {
-            crate::services::push::send_push_notification(
-                &push_client,
-                &push_token,
-                push_title,
-                push_body,
-                push_data,
-            ).await;
-        });
+    if app1.status == "archived" || app2.status == "archived" {
+        return Err(AppError::BadRequest("Cannot accept: One of the apps has been archived or deleted".to_string()));
     }
 
-    // Invalidate public apps list RAM cache so marketplace current_testers updates immediately
+    // Verify capacities before accepting (parity with TS match.service.ts)
+    let count1 = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(matches::Column::App1Id.eq(&app1.id))
+                        .add(matches::Column::App2Id.eq(&app1.id))
+                )
+                .add(matches::Column::Status.eq("active"))
+        )
+        .count(&state.db)
+        .await? as i32;
+
+    if count1 >= app1.required_testers {
+        return Err(AppError::BadRequest(format!(
+            "Cannot accept: \"{}\" has reached full tester capacity ({}/{})",
+            app1.title, count1, app1.required_testers
+        )));
+    }
+
+    let count2 = Matches::find()
+        .filter(
+            sea_orm::Condition::all()
+                .add(
+                    sea_orm::Condition::any()
+                        .add(matches::Column::App1Id.eq(&app2.id))
+                        .add(matches::Column::App2Id.eq(&app2.id))
+                )
+                .add(matches::Column::Status.eq("active"))
+        )
+        .count(&state.db)
+        .await? as i32;
+
+    if count2 >= app2.required_testers {
+        return Err(AppError::BadRequest(format!(
+            "Cannot accept: \"{}\" has reached full tester capacity ({}/{})",
+            app2.title, count2, app2.required_testers
+        )));
+    }
+
+    let now = OffsetDateTime::now_utc();
+    let mut match_act: matches::ActiveModel = match_row.clone().into();
+    match_act.status = Set("active".to_string());
+    match_act.start_date = Set(Some(now));
+    match_act.last_activity = Set(now);
+    match_act.updated_at = Set(now);
+    let updated = match_act.update(&state.db).await?;
+
+    // Invalidate public apps RAM cache
     state.api_cache.invalidate_all();
 
-    Ok(Json(updated))
+    // Send in-app notification to requester (user1)
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({ "matchId": id });
+    let notif_act = notifications::ActiveModel {
+        id: Set(notif_id),
+        user_id: Set(match_row.user1_id.clone()),
+        r#type: Set("acceptance".to_string()),
+        title: Set("Match Accepted!".to_string()),
+        body: Set("Your testing exchange was accepted! Day 1 testing starts today.".to_string()),
+        data: Set(notif_data.clone()),
+        read: Set(false),
+        created_at: Set(now),
+    };
+    let _ = notif_act.insert(&state.db).await;
+
+    // Send push notification to user1
+    if let Ok(Some(user1_user)) = Users::find_by_id(&match_row.user1_id).one(&state.db).await {
+        if let Some(push_token) = user1_user.push_token {
+            let push_client = reqwest::Client::new();
+            let push_title = "Match Accepted!".to_string();
+            let push_body = "Your testing exchange was accepted! Day 1 testing starts today.".to_string();
+            let push_data = notif_data;
+            tokio::spawn(async move {
+                crate::services::push::send_push_notification(
+                    &push_client,
+                    &push_token,
+                    push_title,
+                    push_body,
+                    push_data,
+                ).await;
+            });
+        }
+    }
+
+    Ok(Json(updated.into()))
 }
 
 // POST /api/matches/:id/reject or /cancel
@@ -704,50 +793,41 @@ async fn cancel_or_reject_match(
     AuthUser(user): AuthUser,
     Path(id): Path<String>,
 ) -> Result<Json<MatchRecord>, AppError> {
-    let match_row = sqlx::query_as::<_, MatchRecord>(
-        "SELECT id, user1_id, app1_id, user2_id, app2_id, status, start_date, last_activity, last_read1, last_read2, completed_at, user1_approved_count, user2_approved_count, user1_last_proof, user2_last_proof, created_at, updated_at FROM matches WHERE id = $1",
-    )
-    .bind(&id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
+    let match_row = Matches::find_by_id(&id)
+        .one(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
     let is_part = match_row.user1_id == user.id || match_row.user2_id == user.id;
     if !is_part && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
         return Err(AppError::Forbidden("You are not authorized to cancel this match".to_string()));
     }
 
-    let updated = sqlx::query_as::<_, MatchRecord>(
-        r#"
-        UPDATE matches
-        SET status = 'cancelled', updated_at = NOW()
-        WHERE id = $1
-        RETURNING id, user1_id, app1_id, user2_id, app2_id, status,
-                  start_date, last_activity, last_read1, last_read2, completed_at,
-                  user1_approved_count, user2_approved_count,
-                  user1_last_proof, user2_last_proof, created_at, updated_at
-        "#,
-    )
-    .bind(&id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let now = OffsetDateTime::now_utc();
+    let mut match_act: matches::ActiveModel = match_row.clone().into();
+    match_act.status = Set("cancelled".to_string());
+    match_act.updated_at = Set(now);
+    let updated = match_act.update(&state.db).await?;
+
+    state.api_cache.invalidate_all();
 
     // Notify other user
     let other_user_id = if match_row.user1_id == user.id { match_row.user2_id } else { match_row.user1_id };
     let notif_id = Uuid::new_v4().to_string();
     let notif_data = serde_json::json!({ "matchId": id });
-    let _ = sqlx::query(
-        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Testing Match Cancelled', 'A testing match has been cancelled.', $3, false, NOW())",
-    )
-    .bind(notif_id)
-    .bind(other_user_id)
-    .bind(notif_data)
-    .execute(&state.pool)
-    .await;
+    let notif_act = notifications::ActiveModel {
+        id: Set(notif_id),
+        user_id: Set(other_user_id),
+        r#type: Set("match_cancelled".to_string()),
+        title: Set("Testing Match Cancelled".to_string()),
+        body: Set("A testing match has been cancelled.".to_string()),
+        data: Set(notif_data),
+        read: Set(false),
+        created_at: Set(now),
+    };
+    let _ = notif_act.insert(&state.db).await;
 
-    Ok(Json(updated))
+    Ok(Json(updated.into()))
 }
 
 pub fn router() -> Router<AppState> {
