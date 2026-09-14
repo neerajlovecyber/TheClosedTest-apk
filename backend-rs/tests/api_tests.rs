@@ -20,6 +20,7 @@ fn test_config(env: &str) -> Config {
         database_url: "postgres://localhost:5432/theclosedtest_test".to_string(),
         port: 9000,
         clerk_secret_key: None,
+        clerk_jwt_key: None,
         clerk_frontend_api: "clerk.theclosedtest.com".to_string(),
         app_env: env.to_string(),
         rate_limit_per_minute: 300,

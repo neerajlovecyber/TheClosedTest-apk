@@ -11,6 +11,7 @@ pub struct Config {
     pub database_url: String,
     pub port: u16,
     pub clerk_secret_key: Option<String>,
+    pub clerk_jwt_key: Option<String>,
     pub clerk_frontend_api: String,
     pub app_env: String,
     pub rate_limit_per_minute: u32,
@@ -35,8 +36,13 @@ impl Config {
             .unwrap_or(9000);
 
         let clerk_secret_key = env::var("CLERK_SECRET_KEY").ok();
+        let clerk_jwt_key = env::var("CLERK_JWT_KEY").ok();
         let clerk_frontend_api = env::var("CLERK_FRONTEND_API_URL")
-            .unwrap_or_else(|_| "clerk.theclosedtest.neerajlovecyber.com".to_string());
+            .unwrap_or_else(|_| "clerk.theclosedtest.neerajlovecyber.com".to_string())
+            .trim_start_matches("https://")
+            .trim_start_matches("http://")
+            .trim_end_matches('/')
+            .to_string();
         let app_env = env::var("NODE_ENV")
             .or_else(|_| env::var("APP_ENV"))
             .unwrap_or_else(|_| "development".to_string());
@@ -62,6 +68,7 @@ impl Config {
             database_url,
             port,
             clerk_secret_key,
+            clerk_jwt_key,
             clerk_frontend_api,
             app_env,
             rate_limit_per_minute,
