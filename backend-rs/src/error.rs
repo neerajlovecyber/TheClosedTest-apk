@@ -62,8 +62,23 @@ impl IntoResponse for AppError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
             }
             AppError::SeaOrm(err) => {
-                tracing::error!("SeaORM database error: {:?}", err);
-                (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
+                use sea_orm::DbErr;
+                match err {
+                    DbErr::RecordNotFound(msg) => {
+                        (StatusCode::NOT_FOUND, msg.clone())
+                    }
+                    DbErr::Query(sea_orm::RuntimeErr::SqlxError(sqlx_err))
+                        if sqlx_err
+                            .to_string()
+                            .contains("duplicate key value violates unique constraint") =>
+                    {
+                        (StatusCode::CONFLICT, "Record already exists".to_string())
+                    }
+                    _ => {
+                        tracing::error!("SeaORM database error: {:?}", err);
+                        (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
+                    }
+                }
             }
         };
 
