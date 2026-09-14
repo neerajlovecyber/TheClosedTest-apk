@@ -856,3 +856,16 @@ async fn test_rate_limiter_middleware_enforcement() {
     assert_eq!(res.headers().get("x-ratelimit-remaining").unwrap(), "0");
     assert!(res.headers().contains_key("retry-after"));
 }
+
+#[tokio::test]
+async fn test_jsonwebtoken_crypto_provider_no_panic() {
+    let cfg = test_config("production");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://postgres:postgres@localhost:5432/theclosedtest_test")
+        .unwrap();
+    let state = AppState::new(pool, cfg);
+    let token = "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3Qta2lkIn0.eyJzdWIiOiJ1c2VyXzEyMyIsImV4cCI6MTk5OTk5OTk5OX0.dummy";
+    let res = backend_rs::auth::clerk::verify_token_payload(token, &state).await;
+    assert!(res.is_none());
+}
+
