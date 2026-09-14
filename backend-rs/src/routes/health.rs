@@ -83,7 +83,7 @@ pub async fn health_check(
     let start = Instant::now();
     let ping_fut = tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        sqlx::query("SELECT 1").execute(&state.pool),
+        state.db.ping(),
     );
     let db_status = match ping_fut.await {
         Ok(Ok(_)) => "connected".to_string(),

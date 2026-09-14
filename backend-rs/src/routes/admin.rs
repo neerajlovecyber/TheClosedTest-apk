@@ -3,34 +3,43 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, QuerySelect, Set,
+};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::auth::{AdminUser, AuthUser};
+use crate::db::models::UserSummary;
+use crate::entities::{
+    app_bans, apps, matches, messages, prelude::*, reports, user_bans, users,
+};
 use crate::error::AppError;
 use crate::state::AppState;
+
+// ── Response structs ──────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 pub struct PlatformStatsResponse {
     #[serde(rename = "totalUsers")]
-    pub total_users: i64,
+    pub total_users: u64,
     #[serde(rename = "totalApps")]
-    pub total_apps: i64,
+    pub total_apps: u64,
     #[serde(rename = "activeMatches")]
-    pub active_matches: i64,
+    pub active_matches: u64,
     #[serde(rename = "totalProofs")]
-    pub total_proofs: i64,
+    pub total_proofs: u64,
     #[serde(rename = "pendingReports")]
-    pub pending_reports: i64,
+    pub pending_reports: u64,
     #[serde(rename = "activeUsers")]
     pub active_users: i64,
     #[serde(rename = "activeUsers24h")]
     pub active_users_24h: i64,
 }
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize)]
 pub struct ReportItem {
     pub id: String,
     #[serde(rename = "reporterId")]
@@ -46,6 +55,22 @@ pub struct ReportItem {
     pub admin_notes: Option<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+}
+
+impl From<reports::Model> for ReportItem {
+    fn from(r: reports::Model) -> Self {
+        Self {
+            id: r.id,
+            reporter_id: r.reporter_id,
+            r#type: r.r#type,
+            target_id: r.target_id,
+            match_id: r.match_id,
+            description: r.description,
+            status: r.status,
+            admin_notes: r.admin_notes,
+            created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -66,7 +91,7 @@ pub struct CreateReportRequest {
 
 #[derive(Deserialize)]
 pub struct UpdateReportRequest {
-    pub status: String, // "resolved", "dismissed"
+    pub status: String,
     #[serde(rename = "adminNotes")]
     pub admin_notes: Option<String>,
 }
@@ -97,15 +122,15 @@ pub struct BanAppRequest {
 #[derive(Deserialize)]
 pub struct AdminUsersQuery {
     pub search: Option<String>,
-    pub limit: Option<i64>,
+    pub limit: Option<u64>,
 }
 
 #[derive(Deserialize)]
 pub struct AdminAppsQuery {
     pub search: Option<String>,
     pub status: Option<String>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+    pub limit: Option<u64>,
+    pub offset: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -143,7 +168,7 @@ pub struct AdminAppItem {
     pub updated_at: String,
     #[serde(rename = "isDuplicate")]
     pub is_duplicate: bool,
-    pub user: Option<crate::db::models::UserSummary>,
+    pub user: Option<UserSummary>,
 }
 
 #[derive(Serialize)]
@@ -152,281 +177,6 @@ pub struct AdminAppsResponse {
     pub total: usize,
     #[serde(rename = "duplicatePackagesCount")]
     pub duplicate_packages_count: usize,
-}
-
-#[derive(Serialize)]
-pub struct CleanupResultResponse {
-    pub message: String,
-    #[serde(rename = "deletedAppsCount")]
-    pub deleted_apps_count: Option<usize>,
-    #[serde(rename = "deletedUsersCount")]
-    pub deleted_users_count: Option<usize>,
-}
-
-#[derive(Serialize)]
-pub struct GenericMessageResponse {
-    pub message: String,
-}
-
-// GET /api/admin/stats
-async fn get_platform_stats(
-    State(state): State<AppState>,
-    _admin: AdminUser,
-) -> Result<Json<PlatformStatsResponse>, AppError> {
-    let (user_count,): (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM users")
-        .fetch_one(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    let (app_count,): (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM apps")
-        .fetch_one(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    let (match_count,): (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM matches WHERE status = 'active'")
-        .fetch_one(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    let (proof_count,): (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs")
-        .fetch_one(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    let (report_count,): (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM reports WHERE status = 'pending'")
-        .fetch_one(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    let active_users = state.presence_cache.entry_count().max(2) as i64;
-
-    Ok(Json(PlatformStatsResponse {
-        total_users: user_count,
-        total_apps: app_count,
-        active_matches: match_count,
-        total_proofs: proof_count,
-        pending_reports: report_count,
-        active_users,
-        active_users_24h: active_users,
-    }))
-}
-
-// POST /api/reports (Authenticated user)
-async fn create_report(
-    State(state): State<AppState>,
-    AuthUser(user): AuthUser,
-    Json(payload): Json<CreateReportRequest>,
-) -> Result<Json<ReportItem>, AppError> {
-    let report_id = Uuid::new_v4().to_string();
-    let desc = payload.description.unwrap_or_else(|| format!("Reported as {}", payload.r#type));
-    let screenshots_json = serde_json::to_value(&payload.screenshots).unwrap_or_default();
-
-    let record = sqlx::query_as::<_, (String, String, String, String, Option<String>, String, String, Option<String>, OffsetDateTime)>(
-        r#"
-        INSERT INTO reports (id, reporter_id, type, target_id, match_id, reported_user_id, reported_app_id, description, screenshots, status, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
-        RETURNING id, reporter_id, type, target_id, match_id, description, status, admin_notes, created_at
-        "#,
-    )
-    .bind(&report_id)
-    .bind(&user.id)
-    .bind(&payload.r#type)
-    .bind(&payload.target_id)
-    .bind(&payload.match_id)
-    .bind(&payload.reported_user_id)
-    .bind(&payload.reported_app_id)
-    .bind(&desc)
-    .bind(screenshots_json)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    // Automated flag count increment on app: if flagCount >= 3, automatically hide app
-    let target_app_id = payload.reported_app_id.or_else(|| {
-        if payload.r#type == "app_not_visible" || payload.r#type == "app_spam" {
-            Some(payload.target_id)
-        } else {
-            None
-        }
-    });
-
-    if let Some(app_id) = target_app_id {
-        let app_res = sqlx::query_as::<_, (String, i32)>(
-            "SELECT id, flag_count FROM apps WHERE id = $1",
-        )
-        .bind(&app_id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-        if let Some((_, flag_count)) = app_res {
-            let new_flags = flag_count + 1;
-            let should_hide = new_flags >= 3;
-
-            if should_hide {
-                let _ = sqlx::query(
-                    "UPDATE apps SET flag_count = $1, visibility_status = 'hidden', status = 'paused', updated_at = NOW() WHERE id = $2",
-                )
-                .bind(new_flags)
-                .bind(&app_id)
-                .execute(&state.pool)
-                .await;
-            } else {
-                let _ = sqlx::query(
-                    "UPDATE apps SET flag_count = $1, updated_at = NOW() WHERE id = $2",
-                )
-                .bind(new_flags)
-                .bind(&app_id)
-                .execute(&state.pool)
-                .await;
-            }
-        }
-    }
-
-    Ok(Json(ReportItem {
-        id: record.0,
-        reporter_id: record.1,
-        r#type: record.2,
-        target_id: record.3,
-        match_id: record.4,
-        description: record.5,
-        status: record.6,
-        admin_notes: record.7,
-        created_at: record.8.format(&Rfc3339).unwrap_or_default(),
-    }))
-}
-
-// GET /api/admin/reports
-async fn list_reports(
-    State(state): State<AppState>,
-    _admin: AdminUser,
-) -> Result<Json<Vec<ReportItem>>, AppError> {
-    let records = sqlx::query_as::<_, (String, String, String, String, Option<String>, String, String, Option<String>, OffsetDateTime)>(
-        "SELECT id, reporter_id, type, target_id, match_id, description, status, admin_notes, created_at FROM reports ORDER BY created_at DESC LIMIT 50",
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let reports = records
-        .into_iter()
-        .map(|(id, reporter_id, r_type, target_id, match_id, description, status, admin_notes, created_at)| ReportItem {
-            id,
-            reporter_id,
-            r#type: r_type,
-            target_id,
-            match_id,
-            description,
-            status,
-            admin_notes,
-            created_at: created_at.format(&Rfc3339).unwrap_or_default(),
-        })
-        .collect();
-
-    Ok(Json(reports))
-}
-
-// PATCH /api/admin/reports/:id
-async fn update_report(
-    State(state): State<AppState>,
-    _admin: AdminUser,
-    Path(id): Path<String>,
-    Json(payload): Json<UpdateReportRequest>,
-) -> Result<Json<GenericMessageResponse>, AppError> {
-    sqlx::query(
-        "UPDATE reports SET status = $1, admin_notes = $2, resolved_at = NOW() WHERE id = $3",
-    )
-    .bind(payload.status)
-    .bind(payload.admin_notes)
-    .bind(id)
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    Ok(Json(GenericMessageResponse {
-        message: "Report updated successfully".to_string(),
-    }))
-}
-
-// POST /api/admin/bans/user
-async fn ban_user(
-    State(state): State<AppState>,
-    admin: AdminUser,
-    Json(payload): Json<BanUserRequest>,
-) -> Result<Json<GenericMessageResponse>, AppError> {
-    let ban_id = Uuid::new_v4().to_string();
-
-    sqlx::query(
-        r#"
-        INSERT INTO user_bans (id, user_id, banned_by, banned_by_type, reason, permanent, created_at)
-        VALUES ($1, $2, $3, 'manual', $4, $5, NOW())
-        "#,
-    )
-    .bind(ban_id)
-    .bind(&payload.user_id)
-    .bind(&admin.id)
-    .bind(&payload.reason)
-    .bind(payload.permanent)
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let user_token: Option<(Option<String>,)> = sqlx::query_as("SELECT token_identifier FROM users WHERE id = $1")
-        .bind(&payload.user_id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    if let Some((Some(token_id),)) = user_token {
-        state.user_cache.invalidate(&token_id).await;
-    }
-
-    Ok(Json(GenericMessageResponse {
-        message: "User banned successfully".to_string(),
-    }))
-}
-
-// POST /api/admin/bans/app
-async fn ban_app(
-    State(state): State<AppState>,
-    admin: AdminUser,
-    Json(payload): Json<BanAppRequest>,
-) -> Result<Json<GenericMessageResponse>, AppError> {
-    let ban_id = Uuid::new_v4().to_string();
-
-    sqlx::query(
-        r#"
-        INSERT INTO app_bans (id, package_name, title, play_store_url, banned_by, reason, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-        ON CONFLICT (package_name) DO NOTHING
-        "#,
-    )
-    .bind(ban_id)
-    .bind(payload.package_name.trim())
-    .bind(payload.title.trim())
-    .bind(payload.play_store_url.trim())
-    .bind(&admin.id)
-    .bind(&payload.reason)
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    sqlx::query("UPDATE apps SET status = 'archived', updated_at = NOW() WHERE LOWER(package_name) = LOWER($1)")
-        .bind(payload.package_name.trim())
-        .execute(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
-
-    Ok(Json(GenericMessageResponse {
-        message: "App package banned and active apps archived".to_string(),
-    }))
-}
-
-#[derive(Deserialize)]
-pub struct DeleteAppQuery {
-    #[serde(rename = "banPackage")]
-    pub ban_package: Option<String>,
-    pub reason: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -450,6 +200,25 @@ pub struct AdminUserListItem {
     pub best_streak: i32,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+}
+
+impl From<users::Model> for AdminUserListItem {
+    fn from(u: users::Model) -> Self {
+        Self {
+            id: u.id,
+            token_identifier: u.token_identifier,
+            name: u.name,
+            email: u.email,
+            avatar_url: u.avatar_url,
+            reputation: u.reputation,
+            apps_count: u.apps_count,
+            is_admin: u.is_admin,
+            is_group_member: u.is_group_member,
+            streak: u.streak,
+            best_streak: u.best_streak,
+            created_at: u.created_at.format(&Rfc3339).unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -492,7 +261,21 @@ pub struct AdminUserDetailsResponse {
     pub user: AdminUserDetailsUser,
     pub apps: Vec<AdminUserDetailsApp>,
     #[serde(rename = "activeMatchesCount")]
-    pub active_matches_count: i64,
+    pub active_matches_count: u64,
+}
+
+#[derive(Serialize)]
+pub struct CleanupResultResponse {
+    pub message: String,
+    #[serde(rename = "deletedAppsCount")]
+    pub deleted_apps_count: Option<usize>,
+    #[serde(rename = "deletedUsersCount")]
+    pub deleted_users_count: Option<usize>,
+}
+
+#[derive(Serialize)]
+pub struct GenericMessageResponse {
+    pub message: String,
 }
 
 #[derive(Serialize)]
@@ -511,361 +294,570 @@ pub struct CleanTestUsersResponse {
     pub deleted_users_count: usize,
 }
 
-// GET /api/admin/users
+#[derive(Deserialize)]
+pub struct DeleteAppQuery {
+    #[serde(rename = "banPackage")]
+    pub ban_package: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct ListReportsQuery {
+    pub status: Option<String>,
+}
+
+// ── GET /api/admin/stats ───────────────────────────────────────────────────────
+// TS: count users, apps, active matches, proofs, pending reports; presence active 5 & 1440 min
+async fn get_platform_stats(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+) -> Result<Json<PlatformStatsResponse>, AppError> {
+    let total_users = Users::find().count(&state.db).await.map_err(AppError::from)?;
+    let total_apps = Apps::find().count(&state.db).await.map_err(AppError::from)?;
+    let active_matches = Matches::find()
+        .filter(matches::Column::Status.eq("active"))
+        .count(&state.db)
+        .await
+        .map_err(AppError::from)?;
+    let total_proofs = Proofs::find().count(&state.db).await.map_err(AppError::from)?;
+    let pending_reports = Reports::find()
+        .filter(reports::Column::Status.eq("pending"))
+        .count(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    let active_users = state.presence_cache.entry_count().max(2) as i64;
+
+    Ok(Json(PlatformStatsResponse {
+        total_users,
+        total_apps,
+        active_matches,
+        total_proofs,
+        pending_reports,
+        active_users,
+        active_users_24h: active_users,
+    }))
+}
+
+// ── POST /api/reports (Authenticated user) ────────────────────────────────────
+// TS: insert report; auto-increment flagCount; hide app if >= 3 flags
+async fn create_report(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    Json(payload): Json<CreateReportRequest>,
+) -> Result<Json<ReportItem>, AppError> {
+    let desc = payload
+        .description
+        .unwrap_or_else(|| format!("Reported as {}", payload.r#type));
+    let screenshots = serde_json::to_value(&payload.screenshots).unwrap_or_default();
+    let now = OffsetDateTime::now_utc();
+
+    let new_report = reports::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        reporter_id: Set(user.id.clone()),
+        r#type: Set(payload.r#type.clone()),
+        target_id: Set(payload.target_id.clone()),
+        match_id: Set(payload.match_id.clone()),
+        reported_user_id: Set(payload.reported_user_id.clone()),
+        reported_app_id: Set(payload.reported_app_id.clone()),
+        description: Set(desc),
+        screenshots: Set(screenshots),
+        status: Set("pending".to_string()),
+        admin_notes: Set(None),
+        action_taken: Set(None),
+        resolved_at: Set(None),
+        created_at: Set(now),
+    }
+    .insert(&state.db)
+    .await
+    .map_err(AppError::from)?;
+
+    // Automated flag increment on app (matches TS exactly)
+    let target_app_id = payload.reported_app_id.or_else(|| {
+        if payload.r#type == "app_not_visible" || payload.r#type == "app_spam" {
+            Some(payload.target_id.clone())
+        } else {
+            None
+        }
+    });
+
+    if let Some(app_id) = target_app_id {
+        if let Ok(Some(app)) = Apps::find_by_id(&app_id).one(&state.db).await {
+            let new_flag_count = app.flag_count + 1;
+            let should_hide = new_flag_count >= 3;
+            let mut upd = apps::ActiveModel {
+                id: Set(app.id),
+                flag_count: Set(new_flag_count),
+                updated_at: Set(OffsetDateTime::now_utc()),
+                ..Default::default()
+            };
+            if should_hide {
+                upd.visibility_status = Set(Some("hidden".to_string()));
+                upd.status = Set("paused".to_string());
+            }
+            let _ = upd.update(&state.db).await;
+        }
+    }
+
+    Ok(Json(ReportItem::from(new_report)))
+}
+
+// ── GET /api/admin/reports ─────────────────────────────────────────────────────
+// TS: findMany with optional status filter, orderBy createdAt desc
+async fn list_reports(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Query(query): Query<ListReportsQuery>,
+) -> Result<Json<Vec<ReportItem>>, AppError> {
+    let mut q = Reports::find().order_by_desc(reports::Column::CreatedAt);
+
+    if let Some(ref s) = query.status {
+        if s != "all" {
+            q = q.filter(reports::Column::Status.eq(s.as_str()));
+        }
+    } else {
+        // Default: pending (matches TS default)
+        q = q.filter(reports::Column::Status.eq("pending"));
+    }
+
+    let items = q
+        .limit(50)
+        .all(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    Ok(Json(items.into_iter().map(ReportItem::from).collect()))
+}
+
+// ── PATCH /api/admin/reports/:id ──────────────────────────────────────────────
+async fn update_report(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Path(id): Path<String>,
+    Json(payload): Json<UpdateReportRequest>,
+) -> Result<Json<GenericMessageResponse>, AppError> {
+    let report = Reports::find_by_id(&id)
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::NotFound("Report not found".to_string()))?;
+
+    reports::ActiveModel {
+        id: Set(report.id),
+        status: Set(payload.status),
+        admin_notes: Set(payload.admin_notes),
+        resolved_at: Set(Some(OffsetDateTime::now_utc())),
+        ..Default::default()
+    }
+    .update(&state.db)
+    .await
+    .map_err(AppError::from)?;
+
+    Ok(Json(GenericMessageResponse {
+        message: "Report updated successfully".to_string(),
+    }))
+}
+
+// ── POST /api/admin/bans/user ──────────────────────────────────────────────────
+// TS: insert userBans; invalidate cache
+async fn ban_user(
+    State(state): State<AppState>,
+    admin: AdminUser,
+    Json(payload): Json<BanUserRequest>,
+) -> Result<Json<GenericMessageResponse>, AppError> {
+    user_bans::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        user_id: Set(payload.user_id.clone()),
+        banned_by: Set(admin.id.clone()),
+        banned_by_type: Set("manual".to_string()),
+        reason: Set(payload.reason.clone()),
+        permanent: Set(payload.permanent),
+        expires_at: Set(None),
+        created_at: Set(OffsetDateTime::now_utc()),
+    }
+    .insert(&state.db)
+    .await
+    .map_err(AppError::from)?;
+
+    // Invalidate user from auth cache
+    if let Ok(Some(u)) = Users::find_by_id(&payload.user_id).one(&state.db).await {
+        if let Some(tid) = u.token_identifier {
+            state.user_cache.invalidate(&tid).await;
+        }
+    }
+
+    Ok(Json(GenericMessageResponse {
+        message: "User banned successfully".to_string(),
+    }))
+}
+
+// ── POST /api/admin/bans/app ───────────────────────────────────────────────────
+// TS: insert appBans ON CONFLICT DO NOTHING; archive all apps with that packageName
+async fn ban_app(
+    State(state): State<AppState>,
+    admin: AdminUser,
+    Json(payload): Json<BanAppRequest>,
+) -> Result<Json<GenericMessageResponse>, AppError> {
+    let _ = app_bans::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        package_name: Set(payload.package_name.trim().to_string()),
+        title: Set(Some(payload.title.trim().to_string())),
+        play_store_url: Set(Some(payload.play_store_url.trim().to_string())),
+        banned_by: Set(admin.id.clone()),
+        reason: Set(payload.reason.clone()),
+        created_at: Set(OffsetDateTime::now_utc()),
+    }
+    .insert(&state.db)
+    .await; // ignore conflict errors
+
+    // Archive all apps with this package name
+    let pkg_lower = payload.package_name.trim().to_lowercase();
+    let matching_apps = Apps::find()
+        .filter(apps::Column::PackageName.eq(payload.package_name.trim()))
+        .all(&state.db)
+        .await
+        .unwrap_or_default();
+    for app in matching_apps {
+        if app.package_name.trim().to_lowercase() == pkg_lower {
+            let _ = apps::ActiveModel {
+                id: Set(app.id),
+                status: Set("archived".to_string()),
+                updated_at: Set(OffsetDateTime::now_utc()),
+                ..Default::default()
+            }
+            .update(&state.db)
+            .await;
+        }
+    }
+
+    Ok(Json(GenericMessageResponse {
+        message: "App package banned and active apps archived".to_string(),
+    }))
+}
+
+// ── GET /api/admin/users ───────────────────────────────────────────────────────
+// TS: findMany with optional ILIKE search on name/email/tokenIdentifier; limit; orderBy createdAt desc
 async fn list_admin_users(
     State(state): State<AppState>,
     _admin: AdminUser,
     Query(query): Query<AdminUsersQuery>,
 ) -> Result<Json<Vec<AdminUserListItem>>, AppError> {
-    let limit = query.limit.unwrap_or(50).clamp(1, 100);
+    let limit = std::cmp::Ord::min(query.limit.unwrap_or(50), 100);
 
-    let users = if let Some(search) = query.search.filter(|s| !s.trim().is_empty()) {
-        let pattern = format!("%{}%", search.trim());
-        sqlx::query_as::<_, (String, Option<String>, String, String, Option<String>, i32, i32, bool, bool, i32, i32, OffsetDateTime)>(
-            r#"
-            SELECT id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                   is_admin, is_group_member, streak, best_streak, created_at
-            FROM users
-            WHERE name ILIKE $1 OR email ILIKE $1 OR token_identifier ILIKE $1
-            ORDER BY created_at DESC
-            LIMIT $2
-            "#,
-        )
-        .bind(pattern)
-        .bind(limit)
-        .fetch_all(&state.pool)
-        .await
-        .map_err(AppError::Database)?
-    } else {
-        sqlx::query_as::<_, (String, Option<String>, String, String, Option<String>, i32, i32, bool, bool, i32, i32, OffsetDateTime)>(
-            r#"
-            SELECT id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                   is_admin, is_group_member, streak, best_streak, created_at
-            FROM users
-            ORDER BY created_at DESC
-            LIMIT $1
-            "#,
-        )
-        .bind(limit)
-        .fetch_all(&state.pool)
-        .await
-        .map_err(AppError::Database)?
-    };
+    let mut q = Users::find().order_by_desc(users::Column::CreatedAt);
 
-    let result = users
-        .into_iter()
-        .map(|u| AdminUserListItem {
-            id: u.0,
-            token_identifier: u.1,
-            name: u.2,
-            email: u.3,
-            avatar_url: u.4,
-            reputation: u.5,
-            apps_count: u.6,
-            is_admin: u.7,
-            is_group_member: u.8,
-            streak: u.9,
-            best_streak: u.10,
-            created_at: u.11.format(&Rfc3339).unwrap_or_default(),
-        })
-        .collect();
+    if let Some(ref s) = query.search {
+        let term = format!("%{}%", s.trim());
+        use sea_orm::Condition;
+        q = q.filter(
+            Condition::any()
+                .add(users::Column::Name.like(&term))
+                .add(users::Column::Email.like(&term))
+                .add(users::Column::TokenIdentifier.like(&term)),
+        );
+    }
 
-    Ok(Json(result))
+    let list = q.limit(limit).all(&state.db).await.map_err(AppError::from)?;
+    Ok(Json(list.into_iter().map(AdminUserListItem::from).collect()))
 }
 
-// GET /api/admin/users/:userId/details
+// ── GET /api/admin/users/:userId/details ──────────────────────────────────────
+// TS: fetch user + apps (not archived) + activeMatchesCount; enriched with currentTesters
 async fn get_admin_user_details(
     State(state): State<AppState>,
     _admin: AdminUser,
     Path(target_user_id): Path<String>,
 ) -> Result<Json<AdminUserDetailsResponse>, AppError> {
-    let user_row = sqlx::query_as::<_, (String, String, String, Option<String>, i32, i32, bool, OffsetDateTime)>(
-        r#"
-        SELECT id, name, email, avatar_url, reputation, streak, is_group_member, created_at
-        FROM users
-        WHERE id = $1 OR token_identifier = $1
-        "#,
-    )
-    .bind(&target_user_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
-
-    let uid = &user_row.0;
-
-    let apps_rows = sqlx::query_as::<_, (String, String, String, String, String, String, i32, String, OffsetDateTime)>(
-        r#"
-        SELECT id, title, package_name, icon_url, play_store_url, status, required_testers, instructions, created_at
-        FROM apps
-        WHERE user_id = $1 AND status != 'archived'
-        ORDER BY created_at DESC
-        "#,
-    )
-    .bind(uid)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let mut user_apps = Vec::with_capacity(apps_rows.len());
-    for row in apps_rows {
-        let (current_testers,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*)::bigint FROM matches WHERE (app1_id = $1 OR app2_id = $1) AND status != 'rejected'",
+    let target_user = Users::find()
+        .filter(
+            Condition::any()
+                .add(users::Column::Id.eq(&target_user_id))
+                .add(users::Column::TokenIdentifier.eq(&target_user_id)),
         )
-        .bind(&row.0)
-        .fetch_one(&state.pool)
+        .one(&state.db)
         .await
-        .unwrap_or((0,));
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-        user_apps.push(AdminUserDetailsApp {
-            id: row.0,
-            title: row.1,
-            package_name: row.2,
-            icon_url: row.3,
-            play_store_url: row.4,
-            status: row.5,
-            required_testers: row.6,
-            current_testers: current_testers as i32,
-            instructions: row.7,
-            created_at: row.8.format(&Rfc3339).unwrap_or_default(),
+    let user_apps = Apps::find()
+        .filter(apps::Column::UserId.eq(&target_user.id))
+        .filter(apps::Column::Status.ne("archived"))
+        .order_by_desc(apps::Column::CreatedAt)
+        .all(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    let mut detail_apps = Vec::with_capacity(user_apps.len());
+    for app in user_apps {
+        let current_testers = Matches::find()
+            .filter(
+                Condition::any()
+                    .add(matches::Column::App1Id.eq(&app.id))
+                    .add(matches::Column::App2Id.eq(&app.id)),
+            )
+            .filter(matches::Column::Status.ne("rejected"))
+            .count(&state.db)
+            .await
+            .unwrap_or(0) as i32;
+        detail_apps.push(AdminUserDetailsApp {
+            id: app.id,
+            title: app.title,
+            package_name: app.package_name,
+            icon_url: app.icon_url,
+            play_store_url: app.play_store_url,
+            status: app.status,
+            required_testers: app.required_testers,
+            current_testers,
+            instructions: app.instructions,
+            created_at: app.created_at.format(&Rfc3339).unwrap_or_default(),
         });
     }
 
-    let (active_matches_count,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*)::bigint FROM matches WHERE status = 'active' AND (user1_id = $1 OR user2_id = $1)",
-    )
-    .bind(uid)
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or((0,));
+    let active_matches_count = Matches::find()
+        .filter(matches::Column::Status.eq("active"))
+        .filter(
+            Condition::any()
+                .add(matches::Column::User1Id.eq(&target_user.id))
+                .add(matches::Column::User2Id.eq(&target_user.id)),
+        )
+        .count(&state.db)
+        .await
+        .unwrap_or(0);
 
     Ok(Json(AdminUserDetailsResponse {
         user: AdminUserDetailsUser {
-            id: user_row.0,
-            name: Some(user_row.1),
-            email: Some(user_row.2),
-            avatar_url: user_row.3,
-            reputation: user_row.4,
-            streak: user_row.5,
-            is_group_member: user_row.6,
-            created_at: user_row.7.format(&Rfc3339).unwrap_or_default(),
+            id: target_user.id,
+            name: Some(target_user.name),
+            email: Some(target_user.email),
+            avatar_url: target_user.avatar_url,
+            reputation: target_user.reputation,
+            streak: target_user.streak,
+            is_group_member: target_user.is_group_member,
+            created_at: target_user.created_at.format(&Rfc3339).unwrap_or_default(),
         },
-        apps: user_apps,
+        apps: detail_apps,
         active_matches_count,
     }))
 }
 
-// GET /api/admin/apps
+// ── GET /api/admin/apps ────────────────────────────────────────────────────────
+// TS: search + filter; enriched with currentTesters; duplicate detection
 async fn list_admin_apps(
     State(state): State<AppState>,
     _admin: AdminUser,
     Query(params): Query<AdminAppsQuery>,
 ) -> Result<Json<AdminAppsResponse>, AppError> {
-    let limit = params.limit.unwrap_or(50).clamp(1, 200);
-    let offset = params.offset.unwrap_or(0).max(0);
-
-    #[derive(sqlx::FromRow)]
-    struct AdminAppQueryRow {
-        id: String,
-        user_id: String,
-        title: String,
-        package_name: String,
-        play_store_url: String,
-        icon_url: String,
-        instructions: String,
-        required_testers: i32,
-        status: String,
-        completed_at: Option<OffsetDateTime>,
-        flag_count: i32,
-        visibility_status: Option<String>,
-        positive_votes: i32,
-        negative_votes: i32,
-        voters: serde_json::Value,
-        created_at: OffsetDateTime,
-        updated_at: OffsetDateTime,
-        u_id: Option<String>,
-        u_name: Option<String>,
-        u_email: Option<String>,
-        u_avatar_url: Option<String>,
-        u_reputation: Option<i32>,
-        current_testers: Option<i32>,
-    }
-
-    let search_term = params.search.as_ref().map(|s| format!("%{}%", s.trim()));
+    let limit = std::cmp::Ord::min(params.limit.unwrap_or(50), 200);
+    let offset = params.offset.unwrap_or(0);
     let status_filter = params.status.as_deref().filter(|s| *s != "all");
 
-    let rows = sqlx::query_as::<_, AdminAppQueryRow>(
-        r#"
-        SELECT 
-            a.id, a.user_id, a.title, a.package_name, a.play_store_url, a.icon_url,
-            a.instructions, a.required_testers, a.status, a.completed_at, a.flag_count,
-            a.visibility_status, a.positive_votes, a.negative_votes, a.voters,
-            a.created_at, a.updated_at,
-            u.id as u_id, u.name as u_name, u.email as u_email, u.avatar_url as u_avatar_url, u.reputation as u_reputation,
-            COALESCE((
-                SELECT COUNT(*)::int FROM matches m
-                WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status != 'rejected'
-            ), 0) as current_testers
-        FROM apps a
-        LEFT JOIN users u ON a.user_id = u.id
-        WHERE ($1::text IS NULL OR a.status = $1)
-          AND ($2::text IS NULL OR (
-                a.title ILIKE $2 
-                OR a.package_name ILIKE $2 
-                OR u.name ILIKE $2 
-                OR u.email ILIKE $2
-              ))
-        ORDER BY a.created_at DESC
-        LIMIT $3 OFFSET $4
-        "#,
-    )
-    .bind(status_filter)
-    .bind(search_term)
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let mut q = Apps::find().order_by_desc(apps::Column::CreatedAt);
 
-    let all_active_packages = sqlx::query_as::<_, (String,)>(
-        "SELECT LOWER(TRIM(package_name)) FROM apps WHERE status != 'archived'",
-    )
-    .fetch_all(&state.pool)
-    .await
-    .unwrap_or_default();
-
-    let mut pkg_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for (pkg,) in &all_active_packages {
-        *pkg_counts.entry(pkg.clone()).or_insert(0) += 1;
+    if let Some(s) = status_filter {
+        q = q.filter(apps::Column::Status.eq(s));
     }
 
+    if let Some(ref search) = params.search {
+        let term = format!("%{}%", search.trim());
+        use sea_orm::Condition;
+        q = q.filter(
+            Condition::any()
+                .add(apps::Column::Title.like(&term))
+                .add(apps::Column::PackageName.like(&term)),
+        );
+    }
+
+    let raw_apps = q.limit(limit).offset(offset).all(&state.db).await.map_err(AppError::from)?;
+
+    // Duplicate detection across all active apps
+    let all_active = Apps::find()
+        .filter(apps::Column::Status.ne("archived"))
+        .all(&state.db)
+        .await
+        .unwrap_or_default();
+    let mut pkg_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for a in &all_active {
+        *pkg_counts.entry(a.package_name.trim().to_lowercase()).or_insert(0) += 1;
+    }
     let duplicate_packages_count = pkg_counts.values().filter(|&&c| c > 1).count();
 
-    let apps = rows
-        .into_iter()
-        .map(|r| {
-            let is_duplicate = pkg_counts
-                .get(&r.package_name.trim().to_lowercase())
-                .copied()
-                .unwrap_or(0)
-                > 1;
+    let mut result_apps = Vec::with_capacity(raw_apps.len());
+    for app in raw_apps {
+        let current_testers = Matches::find()
+            .filter(
+                Condition::any()
+                    .add(matches::Column::App1Id.eq(&app.id))
+                    .add(matches::Column::App2Id.eq(&app.id)),
+            )
+            .filter(matches::Column::Status.ne("rejected"))
+            .count(&state.db)
+            .await
+            .unwrap_or(0) as i32;
 
-            let voters: Vec<String> = serde_json::from_value(r.voters).unwrap_or_default();
-            let user = r.u_id.map(|uid| crate::db::models::UserSummary {
-                id: uid,
-                name: r.u_name,
-                email: r.u_email,
-                avatar_url: r.u_avatar_url,
-                reputation: r.u_reputation,
+        let user = Users::find_by_id(&app.user_id)
+            .one(&state.db)
+            .await
+            .ok()
+            .flatten()
+            .map(|u| UserSummary {
+                id: u.id,
+                name: Some(u.name),
+                email: Some(u.email),
+                avatar_url: u.avatar_url,
+                reputation: Some(u.reputation),
             });
 
-            AdminAppItem {
-                id: r.id,
-                user_id: r.user_id,
-                title: r.title,
-                package_name: r.package_name,
-                play_store_url: r.play_store_url,
-                icon_url: r.icon_url,
-                instructions: r.instructions,
-                required_testers: r.required_testers,
-                current_testers: r.current_testers.unwrap_or(0),
-                status: r.status,
-                completed_at: r.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
-                flag_count: r.flag_count,
-                visibility_status: r.visibility_status,
-                positive_votes: r.positive_votes,
-                negative_votes: r.negative_votes,
-                voters,
-                created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
-                updated_at: r.updated_at.format(&Rfc3339).unwrap_or_default(),
-                is_duplicate,
-                user,
-            }
-        })
-        .collect::<Vec<_>>();
+        let is_duplicate = pkg_counts
+            .get(&app.package_name.trim().to_lowercase())
+            .copied()
+            .unwrap_or(0)
+            > 1;
+        let voters: Vec<String> = serde_json::from_value(app.voters.clone()).unwrap_or_default();
 
-    let total = apps.len();
+        result_apps.push(AdminAppItem {
+            id: app.id,
+            user_id: app.user_id,
+            title: app.title,
+            package_name: app.package_name,
+            play_store_url: app.play_store_url,
+            icon_url: app.icon_url,
+            instructions: app.instructions,
+            required_testers: app.required_testers,
+            current_testers,
+            status: app.status,
+            completed_at: app.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+            flag_count: app.flag_count,
+            visibility_status: app.visibility_status,
+            positive_votes: app.positive_votes,
+            negative_votes: app.negative_votes,
+            voters,
+            created_at: app.created_at.format(&Rfc3339).unwrap_or_default(),
+            updated_at: app.updated_at.format(&Rfc3339).unwrap_or_default(),
+            is_duplicate,
+            user,
+        });
+    }
+
+    let total = result_apps.len();
     Ok(Json(AdminAppsResponse {
-        apps,
+        apps: result_apps,
         total,
         duplicate_packages_count,
     }))
 }
 
-// DELETE /api/admin/apps/:id
+// ── DELETE /api/admin/apps/:id ─────────────────────────────────────────────────
+// TS: cascade delete proofs/messages/matches/reports for app; decrement appsCount; optional ban
 async fn admin_delete_app(
     State(state): State<AppState>,
     admin: AdminUser,
     Path(id): Path<String>,
     Query(query): Query<DeleteAppQuery>,
 ) -> Result<Json<GenericMessageResponse>, AppError> {
-    let app: (String, String, String) = sqlx::query_as("SELECT title, package_name, user_id FROM apps WHERE id = $1")
-        .bind(&id)
-        .fetch_optional(&state.pool)
+    let app = Apps::find_by_id(&id)
+        .one(&state.db)
         .await
-        .map_err(AppError::Database)?
+        .map_err(AppError::from)?
         .ok_or_else(|| AppError::NotFound("App not found".to_string()))?;
 
-    let _ = sqlx::query("DELETE FROM proofs WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)").bind(&id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM messages WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)").bind(&id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM matches WHERE app1_id = $1 OR app2_id = $1").bind(&id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM reports WHERE target_id = $1").bind(&id).execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM apps WHERE id = $1").bind(&id).execute(&state.pool).await;
+    // Get all matches for this app
+    let app_matches = Matches::find()
+        .filter(
+            Condition::any()
+                .add(matches::Column::App1Id.eq(&id))
+                .add(matches::Column::App2Id.eq(&id)),
+        )
+        .all(&state.db)
+        .await
+        .unwrap_or_default();
 
-    // Decrement user's apps_count
-    let _ = sqlx::query("UPDATE users SET apps_count = GREATEST(0, apps_count - 1), updated_at = NOW() WHERE id = $1")
-        .bind(&app.2)
-        .execute(&state.pool)
+    let match_ids: Vec<String> = app_matches.iter().map(|m| m.id.clone()).collect();
+    for mid in &match_ids {
+        let _ = Proofs::delete_many()
+            .filter(crate::entities::proofs::Column::MatchId.eq(mid.as_str()))
+            .exec(&state.db)
+            .await;
+        let _ = Messages::delete_many()
+            .filter(messages::Column::MatchId.eq(mid.as_str()))
+            .exec(&state.db)
+            .await;
+    }
+    let _ = Matches::delete_many()
+        .filter(
+            Condition::any()
+                .add(matches::Column::App1Id.eq(&id))
+                .add(matches::Column::App2Id.eq(&id)),
+        )
+        .exec(&state.db)
         .await;
+    let _ = Reports::delete_many()
+        .filter(reports::Column::TargetId.eq(&id))
+        .exec(&state.db)
+        .await;
+    let _ = Apps::delete_by_id(&id).exec(&state.db).await;
+
+    // Decrement owner's appsCount
+    if let Ok(Some(owner)) = Users::find_by_id(&app.user_id).one(&state.db).await {
+        if owner.apps_count > 0 {
+            let _ = users::ActiveModel {
+                id: Set(owner.id),
+                apps_count: Set(std::cmp::Ord::max(owner.apps_count - 1, 0)),
+                updated_at: Set(OffsetDateTime::now_utc()),
+                ..Default::default()
+            }
+            .update(&state.db)
+            .await;
+        }
+    }
 
     // Optionally ban the package
     if query.ban_package.as_deref() == Some("true") {
-        let ban_id = Uuid::new_v4().to_string();
         let reason = query.reason.unwrap_or_else(|| "Banned by Admin".to_string());
-        let _ = sqlx::query(
-            r#"
-            INSERT INTO app_bans (id, package_name, title, play_store_url, banned_by, reason, created_at)
-            VALUES ($1, $2, $3, '', $4, $5, NOW())
-            ON CONFLICT (package_name) DO NOTHING
-            "#,
-        )
-        .bind(ban_id)
-        .bind(app.1.trim())
-        .bind(&app.0)
-        .bind(&admin.id)
-        .bind(reason)
-        .execute(&state.pool)
+        let _ = app_bans::ActiveModel {
+            id: Set(Uuid::new_v4().to_string()),
+            package_name: Set(app.package_name.trim().to_string()),
+            title: Set(Some(app.title.clone())),
+            play_store_url: Set(Some(String::new())),
+            banned_by: Set(admin.id.clone()),
+            reason: Set(reason),
+            created_at: Set(OffsetDateTime::now_utc()),
+        }
+        .insert(&state.db)
         .await;
     }
 
     Ok(Json(GenericMessageResponse {
-        message: format!("App \"{}\" ({}) has been deleted successfully.", app.0, app.1),
+        message: format!(
+            "App \"{}\" ({}) has been deleted successfully.",
+            app.title, app.package_name
+        ),
     }))
 }
 
-// POST /api/admin/apps/clean-duplicates
+// ── POST /api/admin/apps/clean-duplicates ─────────────────────────────────────
+// TS: keep oldest per package; delete rest with cascade
 async fn clean_duplicate_apps(
     State(state): State<AppState>,
     _admin: AdminUser,
 ) -> Result<Json<CleanDuplicatesResponse>, AppError> {
-    let all_apps = sqlx::query_as::<_, (String, String)>(
-        "SELECT id, package_name FROM apps WHERE status != 'archived' ORDER BY created_at ASC",
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let all_apps = Apps::find()
+        .filter(apps::Column::Status.ne("archived"))
+        .order_by_asc(apps::Column::CreatedAt)
+        .all(&state.db)
+        .await
+        .map_err(AppError::from)?;
 
     let mut seen_packages = std::collections::HashSet::new();
-    let mut duplicate_app_ids = Vec::new();
-    let mut cleaned_packages = std::collections::HashSet::new();
+    let mut duplicate_app_ids: Vec<String> = Vec::new();
+    let mut cleaned_packages: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    for (id, pkg) in all_apps {
-        let pkg_clean = pkg.trim().to_lowercase();
-        if seen_packages.contains(&pkg_clean) {
-            duplicate_app_ids.push(id);
-            cleaned_packages.insert(pkg);
+    for app in all_apps {
+        let pkg = app.package_name.trim().to_lowercase();
+        if seen_packages.contains(&pkg) {
+            cleaned_packages.insert(app.package_name.clone());
+            duplicate_app_ids.push(app.id);
         } else {
-            seen_packages.insert(pkg_clean);
+            seen_packages.insert(pkg);
         }
     }
 
@@ -878,11 +870,38 @@ async fn clean_duplicate_apps(
     }
 
     for app_id in &duplicate_app_ids {
-        let _ = sqlx::query("DELETE FROM proofs WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)").bind(app_id).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM messages WHERE match_id IN (SELECT id FROM matches WHERE app1_id = $1 OR app2_id = $1)").bind(app_id).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM matches WHERE app1_id = $1 OR app2_id = $1").bind(app_id).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM reports WHERE target_id = $1").bind(app_id).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM apps WHERE id = $1").bind(app_id).execute(&state.pool).await;
+        let app_matches = Matches::find()
+            .filter(
+                Condition::any()
+                    .add(matches::Column::App1Id.eq(app_id.as_str()))
+                    .add(matches::Column::App2Id.eq(app_id.as_str())),
+            )
+            .all(&state.db)
+            .await
+            .unwrap_or_default();
+        for m in &app_matches {
+            let _ = Proofs::delete_many()
+                .filter(crate::entities::proofs::Column::MatchId.eq(m.id.as_str()))
+                .exec(&state.db)
+                .await;
+            let _ = Messages::delete_many()
+                .filter(messages::Column::MatchId.eq(m.id.as_str()))
+                .exec(&state.db)
+                .await;
+        }
+        let _ = Matches::delete_many()
+            .filter(
+                Condition::any()
+                    .add(matches::Column::App1Id.eq(app_id.as_str()))
+                    .add(matches::Column::App2Id.eq(app_id.as_str())),
+            )
+            .exec(&state.db)
+            .await;
+        let _ = Reports::delete_many()
+            .filter(reports::Column::TargetId.eq(app_id.as_str()))
+            .exec(&state.db)
+            .await;
+        let _ = Apps::delete_by_id(app_id.as_str()).exec(&state.db).await;
     }
 
     let count = duplicate_app_ids.len();
@@ -893,7 +912,8 @@ async fn clean_duplicate_apps(
     }))
 }
 
-// POST /api/admin/users/clean-test-users
+// ── POST /api/admin/users/clean-test-users ─────────────────────────────────────
+// TS: delete users matching test/stress/dummy/example.com patterns with full cascade
 async fn clean_test_users(
     State(state): State<AppState>,
     admin: AdminUser,
@@ -904,25 +924,21 @@ async fn clean_test_users(
         "theneerajsec@gmail.com",
     ];
 
-    let all_users = sqlx::query_as::<_, (String, Option<String>, String, String, bool)>(
-        "SELECT id, token_identifier, name, email, is_admin FROM users",
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    let all_users = Users::find().all(&state.db).await.map_err(AppError::from)?;
 
-    let mut test_user_ids = Vec::new();
-
-    for (id, token_id, name, email, is_admin) in all_users {
-        if id == admin.id || is_admin {
+    let mut test_user_ids: Vec<String> = Vec::new();
+    for u in all_users {
+        if u.id == admin.id || u.is_admin {
             continue;
         }
+        let email_lower = u.email.to_lowercase();
+        let token_lower = u.token_identifier.as_deref().unwrap_or("").to_lowercase();
+        let name_lower = u.name.to_lowercase();
 
-        let email_lower = email.to_lowercase();
-        let token_lower = token_id.as_deref().unwrap_or("").to_lowercase();
-        let name_lower = name.to_lowercase();
-
-        if ADMIN_EMAILS.iter().any(|ae| email_lower.contains(ae)) {
+        if ADMIN_EMAILS
+            .iter()
+            .any(|ae| email_lower.contains(&ae.to_lowercase()))
+        {
             continue;
         }
 
@@ -936,12 +952,11 @@ async fn clean_test_users(
             || name_lower.contains("tester #");
 
         if is_test {
-            test_user_ids.push(id);
+            test_user_ids.push(u.id);
         }
     }
 
-    let count = test_user_ids.len();
-    if count == 0 {
+    if test_user_ids.is_empty() {
         return Ok(Json(CleanTestUsersResponse {
             message: "No test users found to delete.".to_string(),
             deleted_users_count: 0,
@@ -949,39 +964,94 @@ async fn clean_test_users(
     }
 
     for uid in &test_user_ids {
-        let _ = sqlx::query("DELETE FROM proofs WHERE uploader_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM messages WHERE sender_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM reports WHERE reporter_id = $1 OR target_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM apps WHERE user_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM admin_messages WHERE sender_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM admin_chats WHERE user_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM user_bans WHERE user_id = $1").bind(uid).execute(&state.pool).await;
-        let _ = sqlx::query("DELETE FROM users WHERE id = $1").bind(uid).execute(&state.pool).await;
+        let _ = Proofs::delete_many()
+            .filter(crate::entities::proofs::Column::UploaderId.eq(uid.as_str()))
+            .exec(&state.db)
+            .await;
+        let _ = Messages::delete_many()
+            .filter(messages::Column::SenderId.eq(uid.as_str()))
+            .exec(&state.db)
+            .await;
+        let _ = Reports::delete_many()
+            .filter(
+                Condition::any()
+                    .add(reports::Column::ReporterId.eq(uid.as_str()))
+                    .add(reports::Column::TargetId.eq(uid.as_str())),
+            )
+            .exec(&state.db)
+            .await;
+        let _ = Matches::delete_many()
+            .filter(
+                Condition::any()
+                    .add(matches::Column::User1Id.eq(uid.as_str()))
+                    .add(matches::Column::User2Id.eq(uid.as_str())),
+            )
+            .exec(&state.db)
+            .await;
+        let _ = Apps::delete_many()
+            .filter(apps::Column::UserId.eq(uid.as_str()))
+            .exec(&state.db)
+            .await;
+        let _ = crate::entities::prelude::AdminMessages::delete_many()
+            .filter(
+                crate::entities::admin_messages::Column::SenderId.eq(uid.as_str()),
+            )
+            .exec(&state.db)
+            .await;
+        let _ = crate::entities::prelude::AdminChats::delete_many()
+            .filter(
+                crate::entities::admin_chats::Column::UserId.eq(uid.as_str()),
+            )
+            .exec(&state.db)
+            .await;
+        let _ = UserBans::delete_many()
+            .filter(user_bans::Column::UserId.eq(uid.as_str()))
+            .exec(&state.db)
+            .await;
+        let _ = Users::delete_by_id(uid.as_str()).exec(&state.db).await;
     }
 
+    let count = test_user_ids.len();
     Ok(Json(CleanTestUsersResponse {
         message: format!("Successfully deleted {} dummy test users.", count),
         deleted_users_count: count,
     }))
 }
 
-// POST /api/admin/apps/clean-all
+// ── POST /api/admin/apps/clean-all ─────────────────────────────────────────────
+// TS: delete proofs, messages, reports, matches, appBans, apps; reset appsCount
 async fn clean_all_apps(
     State(state): State<AppState>,
     _admin: AdminUser,
 ) -> Result<Json<CleanupResultResponse>, AppError> {
-    let _ = sqlx::query("DELETE FROM proofs").execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM messages").execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM reports").execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM matches").execute(&state.pool).await;
-    let _ = sqlx::query("DELETE FROM app_bans").execute(&state.pool).await;
-    let deleted = sqlx::query("DELETE FROM apps").execute(&state.pool).await.map_err(AppError::Database)?;
-    let _ = sqlx::query("UPDATE users SET apps_count = 0").execute(&state.pool).await;
+    let _ = Proofs::delete_many().exec(&state.db).await;
+    let _ = Messages::delete_many().exec(&state.db).await;
+    let _ = Reports::delete_many().exec(&state.db).await;
+    let _ = Matches::delete_many().exec(&state.db).await;
+    let _ = AppBans::delete_many().exec(&state.db).await;
+
+    let deleted = Apps::delete_many()
+        .exec(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    // Reset all users' appsCount = 0
+    let all_users = Users::find().all(&state.db).await.unwrap_or_default();
+    for u in all_users {
+        if u.apps_count != 0 {
+            let _ = users::ActiveModel {
+                id: Set(u.id),
+                apps_count: Set(0),
+                ..Default::default()
+            }
+            .update(&state.db)
+            .await;
+        }
+    }
 
     Ok(Json(CleanupResultResponse {
         message: "All apps, matches, and testing records have been cleanly deleted.".to_string(),
-        deleted_apps_count: Some(deleted.rows_affected() as usize),
+        deleted_apps_count: Some(deleted.rows_affected as usize),
         deleted_users_count: None,
     }))
 }

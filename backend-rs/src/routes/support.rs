@@ -4,14 +4,25 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter,
+    QueryOrder, Set,
+};
 use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::auth::{AdminUser, AuthUser};
-use crate::db::models::{AdminChatRecord, AdminMessageRecord, UserSummary};
+use crate::db::models::UserSummary;
+use crate::entities::{
+    admin_chats, admin_messages,
+    prelude::{AdminChats, AdminMessages, Users},
+    users,
+};
 use crate::error::AppError;
 use crate::state::AppState;
+
+// ── Response shapes ────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 pub struct AdminChatResponse {
@@ -30,8 +41,8 @@ pub struct AdminChatResponse {
     pub has_unread_admin: bool,
 }
 
-impl From<AdminChatRecord> for AdminChatResponse {
-    fn from(c: AdminChatRecord) -> Self {
+impl From<admin_chats::Model> for AdminChatResponse {
+    fn from(c: admin_chats::Model) -> Self {
         Self {
             id: c.id,
             user_id: c.user_id,
@@ -77,8 +88,8 @@ pub struct AdminMessageResponse {
     pub sent_at: String,
 }
 
-impl From<AdminMessageRecord> for AdminMessageResponse {
-    fn from(m: AdminMessageRecord) -> Self {
+impl From<admin_messages::Model> for AdminMessageResponse {
+    fn from(m: admin_messages::Model) -> Self {
         Self {
             id: m.id,
             chat_id: m.chat_id,
@@ -108,361 +119,336 @@ fn default_message_type() -> String {
     "text".to_string()
 }
 
-// POST /api/support/my-chat (Authenticated user)
-async fn get_or_create_my_chat(
+// ── GET /api/admin/support/chats (Admin only) ─────────────────────────────────
+// Matches: list all chats with non-empty last_message, ordered desc, with user join
+// TS: adminChats.findMany({ where: ne(lastMessage,"") & isNotNull(lastMessage), orderBy: desc(updatedAt), with: { user } })
+async fn list_admin_support_chats(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    _admin: AdminUser,
+) -> Result<Json<Vec<AdminChatWithUserResponse>>, AppError> {
+    // Fetch all chats where last_message != '' (matches TS: ne & isNotNull)
+    let chats = AdminChats::find()
+        .filter(admin_chats::Column::LastMessage.ne(""))
+        .order_by_desc(admin_chats::Column::UpdatedAt)
+        .all(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    let mut result = Vec::with_capacity(chats.len());
+    for chat in chats {
+        // LEFT JOIN users ON user_id = users.id (matches TS with: { user: { columns: id, name, email, avatarUrl } })
+        let user = Users::find()
+            .filter(users::Column::Id.eq(&chat.user_id))
+            .one(&state.db)
+            .await
+            .ok()
+            .flatten()
+            .map(|u| UserSummary {
+                id: u.id,
+                name: Some(u.name),
+                email: Some(u.email),
+                avatar_url: u.avatar_url,
+                reputation: Some(u.reputation),
+            });
+
+        result.push(AdminChatWithUserResponse {
+            id: chat.id,
+            user_id: chat.user_id,
+            admin_id: chat.admin_id,
+            last_message: chat.last_message,
+            updated_at: chat.updated_at.format(&Rfc3339).unwrap_or_default(),
+            has_unread_user: chat.has_unread_user,
+            has_unread_admin: chat.has_unread_admin,
+            user,
+        });
+    }
+
+    Ok(Json(result))
+}
+
+// ── POST /api/admin/support/chats/user/:userId (Admin only) ───────────────────
+// TS: get-or-create chat for a specific user
+async fn get_or_create_user_chat_admin(
+    State(state): State<AppState>,
+    admin: AdminUser,
+    Path(target_user_id): Path<String>,
 ) -> Result<Json<AdminChatResponse>, AppError> {
-    let token_id = user.token_identifier.as_deref().unwrap_or("");
-    let existing = sqlx::query_as::<_, AdminChatRecord>(
-        "SELECT * FROM admin_chats WHERE user_id = $1 OR ($2 != '' AND user_id = $2) LIMIT 1",
-    )
-    .bind(&user.id)
-    .bind(token_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    // Verify target user exists (id OR tokenIdentifier – matches TS)
+    let target_user = Users::find()
+        .filter(
+            Condition::any()
+                .add(users::Column::Id.eq(&target_user_id))
+                .add(users::Column::TokenIdentifier.eq(&target_user_id)),
+        )
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    // Look for existing chat (id OR token_identifier as user_id – matches TS)
+    let existing = AdminChats::find()
+        .filter(
+            Condition::any()
+                .add(admin_chats::Column::UserId.eq(&target_user.id))
+                .add(admin_chats::Column::UserId.eq(target_user.token_identifier.as_deref().unwrap_or(""))),
+        )
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?;
 
     if let Some(chat) = existing {
         return Ok(Json(chat.into()));
     }
 
-    let chat_id = Uuid::new_v4().to_string();
-    let new_chat = sqlx::query_as::<_, AdminChatRecord>(
-        r#"
-        INSERT INTO admin_chats (id, user_id, last_message, updated_at, has_unread_user, has_unread_admin)
-        VALUES ($1, $2, '', NOW(), false, false)
-        RETURNING *
-        "#,
-    )
-    .bind(chat_id)
-    .bind(&user.id)
-    .fetch_one(&state.pool)
+    let new_chat = admin_chats::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        user_id: Set(target_user.id),
+        admin_id: Set(Some(admin.id.clone())),
+        last_message: Set(String::new()),
+        updated_at: Set(OffsetDateTime::now_utc()),
+        has_unread_user: Set(false),
+        has_unread_admin: Set(false),
+    }
+    .insert(&state.db)
     .await
-    .map_err(AppError::Database)?;
+    .map_err(AppError::from)?;
 
     Ok(Json(new_chat.into()))
 }
 
-// GET /api/support/chats/{chat_id} (AuthUser: Owner or Admin)
+// ── POST /api/support/my-chat (Authenticated user) ───────────────────────────
+// TS: get-or-create the calling user's own chat
+async fn get_or_create_my_chat(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+) -> Result<Json<AdminChatResponse>, AppError> {
+    // Matches TS: or(eq(userId, user.id), eq(userId, user.tokenIdentifier))
+    let existing = AdminChats::find()
+        .filter(
+            Condition::any()
+                .add(admin_chats::Column::UserId.eq(&user.id))
+                .add(admin_chats::Column::UserId.eq(user.token_identifier.as_deref().unwrap_or(""))),
+        )
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    if let Some(chat) = existing {
+        return Ok(Json(chat.into()));
+    }
+
+    let new_chat = admin_chats::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        user_id: Set(user.id.clone()),
+        admin_id: Set(None),
+        last_message: Set(String::new()),
+        updated_at: Set(OffsetDateTime::now_utc()),
+        has_unread_user: Set(false),
+        has_unread_admin: Set(false),
+    }
+    .insert(&state.db)
+    .await
+    .map_err(AppError::from)?;
+
+    Ok(Json(new_chat.into()))
+}
+
+// ── GET /api/support/chats/:chatId (AuthUser: Owner or Admin) ─────────────────
+// TS: get chat + messages; mark read on open; auth owner or admin
 async fn get_chat_details(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(chat_id): Path<String>,
 ) -> Result<Json<ChatDetailsResponse>, AppError> {
-    let mut chat = sqlx::query_as::<_, AdminChatRecord>(
-        "SELECT * FROM admin_chats WHERE id = $1",
-    )
-    .bind(&chat_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Chat not found".to_string()))?;
+    let mut chat = AdminChats::find_by_id(&chat_id)
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::NotFound("Chat not found".to_string()))?;
 
     let is_admin = user.is_admin;
     let is_owner = chat.user_id == user.id
-        || user.token_identifier.as_deref().map_or(false, |tid| chat.user_id == tid);
+        || user
+            .token_identifier
+            .as_deref()
+            .map_or(false, |tid| chat.user_id == tid);
 
     if !is_owner && !is_admin {
-        return Err(AppError::Forbidden("You do not have access to this support chat".to_string()));
+        return Err(AppError::Forbidden("Forbidden".to_string()));
     }
 
-    // Mark as read when opened
+    // Mark as read when opened (matches TS updateData pattern)
+    let mut update = admin_chats::ActiveModel {
+        id: Set(chat.id.clone()),
+        ..Default::default()
+    };
+    let mut dirty = false;
     if is_admin && chat.has_unread_admin {
+        update.has_unread_admin = Set(false);
         chat.has_unread_admin = false;
-        let _ = sqlx::query("UPDATE admin_chats SET has_unread_admin = false WHERE id = $1")
-            .bind(&chat_id)
-            .execute(&state.pool)
-            .await;
+        dirty = true;
     }
     if is_owner && chat.has_unread_user {
+        update.has_unread_user = Set(false);
         chat.has_unread_user = false;
-        let _ = sqlx::query("UPDATE admin_chats SET has_unread_user = false WHERE id = $1")
-            .bind(&chat_id)
-            .execute(&state.pool)
-            .await;
+        dirty = true;
+    }
+    if dirty {
+        let _ = update.update(&state.db).await;
     }
 
-    let messages = sqlx::query_as::<_, AdminMessageRecord>(
-        "SELECT * FROM admin_messages WHERE chat_id = $1 ORDER BY sent_at ASC",
-    )
-    .bind(&chat_id)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let messages_response = messages.into_iter().map(AdminMessageResponse::from).collect();
+    let messages = AdminMessages::find()
+        .filter(admin_messages::Column::ChatId.eq(&chat_id))
+        .order_by_asc(admin_messages::Column::SentAt)
+        .all(&state.db)
+        .await
+        .map_err(AppError::from)?;
 
     Ok(Json(ChatDetailsResponse {
         chat: chat.into(),
-        messages: messages_response,
+        messages: messages.into_iter().map(AdminMessageResponse::from).collect(),
     }))
 }
 
-// POST /api/support/chats/{chat_id}/messages (AuthUser: Owner or Admin)
+// ── POST /api/support/chats/:chatId/messages (AuthUser: Owner or Admin) ───────
+// TS: isSendingAsAdmin = isAdmin && !isOwner; updates hasUnreadUser/Admin accordingly
 async fn send_support_message(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(chat_id): Path<String>,
     Json(payload): Json<SendMessageRequest>,
 ) -> Result<(StatusCode, Json<AdminMessageResponse>), AppError> {
-    let chat = sqlx::query_as::<_, AdminChatRecord>(
-        "SELECT * FROM admin_chats WHERE id = $1",
-    )
-    .bind(&chat_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("Chat not found".to_string()))?;
+    let chat = AdminChats::find_by_id(&chat_id)
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::NotFound("Chat not found".to_string()))?;
 
     let is_admin = user.is_admin;
     let is_owner = chat.user_id == user.id
-        || user.token_identifier.as_deref().map_or(false, |tid| chat.user_id == tid);
+        || user
+            .token_identifier
+            .as_deref()
+            .map_or(false, |tid| chat.user_id == tid);
 
     if !is_owner && !is_admin {
-        return Err(AppError::Forbidden("You do not have permission to send messages to this support chat".to_string()));
+        return Err(AppError::Forbidden("Forbidden".to_string()));
     }
 
-    // If sender is owner, they are user even if account has admin role
+    // If sender is owner of this chat, they send as user (even if admin role)
     let is_sending_as_admin = is_admin && !is_owner;
-    let msg_id = Uuid::new_v4().to_string();
 
-    let new_msg = sqlx::query_as::<_, AdminMessageRecord>(
-        r#"
-        INSERT INTO admin_messages (id, chat_id, sender_id, content, type, is_admin, sent_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-        RETURNING *
-        "#,
-    )
-    .bind(&msg_id)
-    .bind(&chat_id)
-    .bind(&user.id)
-    .bind(&payload.content)
-    .bind(&payload.r#type)
-    .bind(is_sending_as_admin)
-    .fetch_one(&state.pool)
+    let now = OffsetDateTime::now_utc();
+    let new_msg = admin_messages::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        chat_id: Set(chat_id.clone()),
+        sender_id: Set(user.id.clone()),
+        content: Set(payload.content.clone()),
+        r#type: Set(payload.r#type.clone()),
+        is_admin: Set(is_sending_as_admin),
+        sent_at: Set(now),
+    }
+    .insert(&state.db)
     .await
-    .map_err(AppError::Database)?;
+    .map_err(AppError::from)?;
 
-    let admin_id = if is_sending_as_admin {
-        Some(user.id)
+    // Update chat metadata (matches TS exactly)
+    let admin_id_val = if is_sending_as_admin {
+        Some(user.id.clone())
     } else {
-        chat.admin_id
+        chat.admin_id.clone()
     };
-
-    sqlx::query(
-        r#"
-        UPDATE admin_chats
-        SET last_message = $1,
-            has_unread_user = $2,
-            has_unread_admin = $3,
-            admin_id = $4,
-            updated_at = NOW()
-        WHERE id = $5
-        "#,
-    )
-    .bind(&payload.content)
-    .bind(is_sending_as_admin)
-    .bind(!is_sending_as_admin)
-    .bind(admin_id)
-    .bind(&chat_id)
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    Ok((StatusCode::CREATED, Json(new_msg.into())))
-}
-
-// GET /api/admin/support/chats (Admin only)
-async fn list_admin_support_chats(
-    State(state): State<AppState>,
-    _admin: AdminUser,
-) -> Result<Json<Vec<AdminChatWithUserResponse>>, AppError> {
-    #[derive(sqlx::FromRow)]
-    struct ChatWithUserRow {
-        id: String,
-        user_id: String,
-        admin_id: Option<String>,
-        last_message: String,
-        updated_at: OffsetDateTime,
-        has_unread_user: bool,
-        has_unread_admin: bool,
-        u_id: Option<String>,
-        u_name: Option<String>,
-        u_email: Option<String>,
-        u_avatar_url: Option<String>,
-        u_reputation: Option<i32>,
+    let _ = admin_chats::ActiveModel {
+        id: Set(chat_id.clone()),
+        last_message: Set(payload.content.clone()),
+        has_unread_user: Set(is_sending_as_admin),
+        has_unread_admin: Set(!is_sending_as_admin),
+        admin_id: Set(admin_id_val),
+        updated_at: Set(OffsetDateTime::now_utc()),
+        ..Default::default()
     }
+    .update(&state.db)
+    .await;
 
-    let rows = sqlx::query_as::<_, ChatWithUserRow>(
-        r#"
-        SELECT c.id, c.user_id, c.admin_id, c.last_message, c.updated_at,
-               c.has_unread_user, c.has_unread_admin,
-               u.id as u_id, u.name as u_name, u.email as u_email,
-               u.avatar_url as u_avatar_url, u.reputation as u_reputation
-        FROM admin_chats c
-        LEFT JOIN users u ON (c.user_id = u.id OR c.user_id = u.token_identifier)
-        WHERE c.last_message != '' AND c.last_message IS NOT NULL
-        ORDER BY c.updated_at DESC
-        "#,
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let result = rows
-        .into_iter()
-        .map(|r| AdminChatWithUserResponse {
-            id: r.id,
-            user_id: r.user_id,
-            admin_id: r.admin_id,
-            last_message: r.last_message,
-            updated_at: r.updated_at.format(&Rfc3339).unwrap_or_default(),
-            has_unread_user: r.has_unread_user,
-            has_unread_admin: r.has_unread_admin,
-            user: r.u_id.map(|id| UserSummary {
-                id,
-                name: r.u_name,
-                email: r.u_email,
-                avatar_url: r.u_avatar_url,
-                reputation: r.u_reputation,
-            }),
-        })
-        .collect();
-
-    Ok(Json(result))
+    Ok((StatusCode::CREATED, Json(AdminMessageResponse::from(new_msg))))
 }
 
-// POST /api/admin/support/chats/user/{userId} (Admin only)
-async fn get_or_create_user_chat_admin(
-    State(state): State<AppState>,
-    admin: AdminUser,
-    Path(target_user_id): Path<String>,
-) -> Result<Json<AdminChatResponse>, AppError> {
-    // Verify target user exists
-    let target_user = sqlx::query_as::<_, (String, Option<String>)>(
-        "SELECT id, token_identifier FROM users WHERE id = $1 OR token_identifier = $1",
-    )
-    .bind(&target_user_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
-
-    let token_id = target_user.1.as_deref().unwrap_or("");
-    let existing = sqlx::query_as::<_, AdminChatRecord>(
-        "SELECT * FROM admin_chats WHERE user_id = $1 OR ($2 != '' AND user_id = $2) LIMIT 1",
-    )
-    .bind(&target_user.0)
-    .bind(token_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    if let Some(chat) = existing {
-        return Ok(Json(chat.into()));
-    }
-
-    let chat_id = Uuid::new_v4().to_string();
-    let new_chat = sqlx::query_as::<_, AdminChatRecord>(
-        r#"
-        INSERT INTO admin_chats (id, user_id, admin_id, last_message, updated_at, has_unread_user, has_unread_admin)
-        VALUES ($1, $2, $3, '', NOW(), false, false)
-        RETURNING *
-        "#,
-    )
-    .bind(chat_id)
-    .bind(&target_user.0)
-    .bind(&admin.id)
-    .fetch_one(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    Ok(Json(new_chat.into()))
-}
-
-// POST /api/admin/support/chats/{userId}/messages & /admin/support/chats/{userId}/messages (Admin only)
+// ── POST /api/admin/support/chats/:userId/messages (Admin only) ───────────────
+// TS: get-or-create the user's chat, send an admin message
 async fn send_admin_user_support_message(
     State(state): State<AppState>,
     admin: AdminUser,
     Path(target_user_id): Path<String>,
     Json(payload): Json<SendMessageRequest>,
 ) -> Result<(StatusCode, Json<AdminMessageResponse>), AppError> {
-    let target_user = sqlx::query_as::<_, (String, Option<String>)>(
-        "SELECT id, token_identifier FROM users WHERE id = $1 OR token_identifier = $1",
-    )
-    .bind(&target_user_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?
-    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    let target_user = Users::find()
+        .filter(
+            Condition::any()
+                .add(users::Column::Id.eq(&target_user_id))
+                .add(users::Column::TokenIdentifier.eq(&target_user_id)),
+        )
+        .one(&state.db)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    let token_id = target_user.1.as_deref().unwrap_or("");
-    let existing_chat = sqlx::query_as::<_, AdminChatRecord>(
-        "SELECT * FROM admin_chats WHERE user_id = $1 OR ($2 != '' AND user_id = $2) LIMIT 1",
-    )
-    .bind(&target_user.0)
-    .bind(token_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
-
-    let chat = match existing_chat {
-        Some(c) => c,
-        None => {
-            let chat_id = Uuid::new_v4().to_string();
-            sqlx::query_as::<_, AdminChatRecord>(
-                r#"
-                INSERT INTO admin_chats (id, user_id, admin_id, last_message, updated_at, has_unread_user, has_unread_admin)
-                VALUES ($1, $2, $3, '', NOW(), false, false)
-                RETURNING *
-                "#,
+    // Get or create chat
+    let chat = {
+        let existing = AdminChats::find()
+            .filter(
+                Condition::any()
+                    .add(admin_chats::Column::UserId.eq(&target_user.id))
+                    .add(admin_chats::Column::UserId.eq(target_user.token_identifier.as_deref().unwrap_or(""))),
             )
-            .bind(chat_id)
-            .bind(&target_user.0)
-            .bind(&admin.id)
-            .fetch_one(&state.pool)
+            .one(&state.db)
             .await
-            .map_err(AppError::Database)?
+            .map_err(AppError::from)?;
+
+        match existing {
+            Some(c) => c,
+            None => admin_chats::ActiveModel {
+                id: Set(Uuid::new_v4().to_string()),
+                user_id: Set(target_user.id.clone()),
+                admin_id: Set(Some(admin.id.clone())),
+                last_message: Set(String::new()),
+                updated_at: Set(OffsetDateTime::now_utc()),
+                has_unread_user: Set(false),
+                has_unread_admin: Set(false),
+            }
+            .insert(&state.db)
+            .await
+            .map_err(AppError::from)?,
         }
     };
 
-    let msg_id = Uuid::new_v4().to_string();
-    let new_msg = sqlx::query_as::<_, AdminMessageRecord>(
-        r#"
-        INSERT INTO admin_messages (id, chat_id, sender_id, content, type, is_admin, sent_at)
-        VALUES ($1, $2, $3, $4, $5, true, NOW())
-        RETURNING *
-        "#,
-    )
-    .bind(&msg_id)
-    .bind(&chat.id)
-    .bind(&admin.id)
-    .bind(&payload.content)
-    .bind(&payload.r#type)
-    .fetch_one(&state.pool)
+    let now = OffsetDateTime::now_utc();
+    let new_msg = admin_messages::ActiveModel {
+        id: Set(Uuid::new_v4().to_string()),
+        chat_id: Set(chat.id.clone()),
+        sender_id: Set(admin.id.clone()),
+        content: Set(payload.content.clone()),
+        r#type: Set(payload.r#type.clone()),
+        is_admin: Set(true),
+        sent_at: Set(now),
+    }
+    .insert(&state.db)
     .await
-    .map_err(AppError::Database)?;
+    .map_err(AppError::from)?;
 
-    sqlx::query(
-        r#"
-        UPDATE admin_chats
-        SET last_message = $1,
-            has_unread_user = true,
-            has_unread_admin = false,
-            admin_id = $2,
-            updated_at = NOW()
-        WHERE id = $3
-        "#,
-    )
-    .bind(&payload.content)
-    .bind(&admin.id)
-    .bind(&chat.id)
-    .execute(&state.pool)
-    .await
-    .map_err(AppError::Database)?;
+    // Update chat: admin sent → hasUnreadUser = true, hasUnreadAdmin = false
+    let _ = admin_chats::ActiveModel {
+        id: Set(chat.id.clone()),
+        last_message: Set(payload.content.clone()),
+        has_unread_user: Set(true),
+        has_unread_admin: Set(false),
+        admin_id: Set(Some(admin.id.clone())),
+        updated_at: Set(OffsetDateTime::now_utc()),
+        ..Default::default()
+    }
+    .update(&state.db)
+    .await;
 
-    Ok((StatusCode::CREATED, Json(new_msg.into())))
+    Ok((StatusCode::CREATED, Json(AdminMessageResponse::from(new_msg))))
 }
 
 pub fn router() -> Router<AppState> {

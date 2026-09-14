@@ -6,8 +6,11 @@ use std::ops::Deref;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+
 use crate::auth::clerk::verify_token_payload;
 use crate::db::models::User;
+use crate::entities::{prelude::*, users};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -57,46 +60,56 @@ impl FromRequestParts<AppState> for AuthUser {
             return Ok(AuthUser(cached_user));
         }
 
-        // 2. Query Postgres
-        let user_opt: Option<User> = sqlx::query_as::<_, User>(
-            r#"SELECT id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                      push_token, is_group_member, is_admin, streak, best_streak,
-                      last_check_in_date, unlocked_app_slots, created_at, updated_at
-               FROM users WHERE token_identifier = $1"#,
-        )
-        .bind(&token_identifier)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(AppError::Database)?;
+        // 2. Query Postgres via SeaORM
+        let user_model = Users::find()
+            .filter(users::Column::TokenIdentifier.eq(&token_identifier))
+            .one(&state.db)
+            .await
+            .map_err(AppError::from)?;
 
-        let user = match user_opt {
-            Some(u) => u,
+        let user: User = match user_model {
+            Some(u) => u.into(),
             None => {
-                // 3. Auto-provision user on first valid token
+                // 3. Auto-provision user on first valid token (matches TS auth.ts exactly)
                 let new_id = Uuid::new_v4().to_string();
                 let fallback_email = payload
                     .email
                     .unwrap_or_else(|| format!("{}@theclosedtest.app", token_identifier));
                 let avatar = "https://ui-avatars.com/api/?name=Developer&background=random".to_string();
+                let now = OffsetDateTime::now_utc();
 
-                let inserted = sqlx::query_as::<_, User>(
-                    r#"INSERT INTO users (id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                                          is_group_member, is_admin, streak, best_streak, unlocked_app_slots,
-                                          created_at, updated_at)
-                       VALUES ($1, $2, $3, $4, $5, 100, 0, false, false, 0, 0, 3, NOW(), NOW())
-                       ON CONFLICT (token_identifier) DO UPDATE SET updated_at = NOW()
-                       RETURNING id, token_identifier, name, email, avatar_url, reputation, apps_count,
-                                 push_token, is_group_member, is_admin, streak, best_streak,
-                                 last_check_in_date, unlocked_app_slots, created_at, updated_at"#,
-                )
-                .bind(new_id)
-                .bind(&token_identifier)
-                .bind("Developer")
-                .bind(fallback_email)
-                .bind(avatar)
-                .fetch_one(&state.pool)
-                .await
-                .map_err(AppError::Database)?;
+                let new_user = users::ActiveModel {
+                    id: Set(new_id),
+                    token_identifier: Set(Some(token_identifier.clone())),
+                    name: Set("Developer".to_string()),
+                    email: Set(fallback_email),
+                    avatar_url: Set(Some(avatar)),
+                    reputation: Set(100),
+                    apps_count: Set(0),
+                    push_token: Set(None),
+                    is_group_member: Set(false),
+                    is_admin: Set(false),
+                    streak: Set(0),
+                    best_streak: Set(0),
+                    last_check_in_date: Set(None),
+                    unlocked_app_slots: Set(3),
+                    created_at: Set(now),
+                    updated_at: Set(now),
+                };
+
+                let inserted = match new_user.insert(&state.db).await {
+                    Ok(u) => u.into(),
+                    Err(_) => {
+                        // On race conflict, fetch existing user
+                        Users::find()
+                            .filter(users::Column::TokenIdentifier.eq(&token_identifier))
+                            .one(&state.db)
+                            .await
+                            .map_err(AppError::from)?
+                            .ok_or_else(|| AppError::Internal("Failed to provision user".to_string()))?
+                            .into()
+                    }
+                };
 
                 inserted
             }
