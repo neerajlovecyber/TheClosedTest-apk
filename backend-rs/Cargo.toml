@@ -15,13 +15,13 @@ serde_json = "1.0"
 validator = { version = "0.21", features = ["derive"] }
 thiserror = "2.0"
 
-# Database (Latest SQLx 0.9)
-sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls-ring", "postgres", "macros", "uuid", "chrono", "json"] }
+# Database (Latest SQLx 0.9 + modern time crate)
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls-ring", "postgres", "macros", "uuid", "time", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
+time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
 
 # OpenAPI & Docs
-utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa = { version = "5", features = ["axum_extras", "time", "uuid"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 utoipa-axum = "0.2"
 
@@ -33,9 +33,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 dotenvy = "0.15"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 
+# Maximum Performance Profile (No compromises on speed)
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
