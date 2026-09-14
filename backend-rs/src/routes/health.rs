@@ -82,7 +82,7 @@ pub async fn health_check(
 ) -> Result<Json<HealthResponse>, (StatusCode, Json<serde_json::Value>)> {
     let start = Instant::now();
     let ping_fut = tokio::time::timeout(
-        std::time::Duration::from_millis(500),
+        std::time::Duration::from_secs(5),
         sqlx::query("SELECT 1").execute(&state.pool),
     );
     let db_status = match ping_fut.await {

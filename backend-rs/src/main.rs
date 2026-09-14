@@ -17,6 +17,11 @@ static GLOBAL: MiMalloc = MiMalloc;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
 
+    // Explicitly install pure-Rust crypto provider for jsonwebtoken
+    let _ = jsonwebtoken::crypto::CryptoProvider::install_default(
+        &jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER,
+    );
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
