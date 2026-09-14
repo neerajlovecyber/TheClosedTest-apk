@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use time::OffsetDateTime;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
     #[serde(rename = "tokenIdentifier")]
@@ -66,7 +65,7 @@ pub struct UserSummary {
     pub reputation: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppRecord {
     pub id: String,
     pub user_id: String,
@@ -126,7 +125,7 @@ pub struct AppResponse {
     pub user: Option<UserSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchRecord {
     pub id: String,
@@ -155,7 +154,7 @@ pub struct MatchRecord {
     pub updated_at: OffsetDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofRecord {
     pub id: String,
@@ -173,7 +172,7 @@ pub struct ProofRecord {
     pub reviewed_at: Option<OffsetDateTime>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageRecord {
     pub id: String,
@@ -186,7 +185,7 @@ pub struct MessageRecord {
     pub sent_at: OffsetDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationRecord {
     pub id: String,
@@ -200,7 +199,7 @@ pub struct NotificationRecord {
     pub created_at: OffsetDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminChatRecord {
     pub id: String,
@@ -213,7 +212,7 @@ pub struct AdminChatRecord {
     pub has_unread_admin: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminMessageRecord {
     pub id: String,
