@@ -223,25 +223,15 @@ export default function ManageAccountScreen() {
         {/* Session Management */}
         <View className="gap-2 mb-6">
           <Text className="text-xs font-bold text-muted-foreground px-2 uppercase tracking-widest">Session</Text>
-          <Card className="border-border/70 overflow-hidden">
-            <CardContent className="p-4 flex-row items-center justify-between">
-              <View className="flex-1 pr-4">
-                <Text className="text-base font-semibold text-foreground">Sign Out</Text>
-                <Text className="text-xs text-muted-foreground mt-0.5">
-                  Sign out on this device. You can log back in anytime.
-                </Text>
-              </View>
-              <Button
-                variant="outline"
-                className="flex-row items-center gap-1.5 h-11 px-4 rounded-xl border-border/80 bg-background"
-                onPress={() => setShowLogoutConfirm(true)}
-                disabled={isDeleting}
-              >
-                <Icon as={LogOutIcon} className="size-4 text-foreground" />
-                <Text className="text-foreground font-semibold text-sm">Log Out</Text>
-              </Button>
-            </CardContent>
-          </Card>
+          <Button
+            variant="outline"
+            className="w-full flex-row items-center justify-center gap-2 h-13 rounded-2xl border-border bg-card shadow-sm active:bg-secondary/60"
+            onPress={() => setShowLogoutConfirm(true)}
+            disabled={isDeleting}
+          >
+            <Icon as={LogOutIcon} className="size-5 text-foreground mr-1" />
+            <Text className="text-foreground font-bold text-base">Log Out</Text>
+          </Button>
         </View>
 
         {/* Danger Zone: Account Deletion */}
@@ -263,7 +253,7 @@ export default function ManageAccountScreen() {
 
               <Button
                 variant="destructive"
-                className="w-full flex-row items-center justify-center gap-2 h-12 rounded-xl mt-1 shadow-sm bg-destructive active:bg-destructive/90"
+                className="w-full flex-row items-center justify-center gap-2 h-13 rounded-2xl mt-1 shadow-sm bg-destructive active:bg-destructive/90"
                 onPress={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
               >
@@ -271,8 +261,8 @@ export default function ManageAccountScreen() {
                   <ActivityIndicator color="white" size="small" />
                 ) : (
                   <>
-                    <Icon as={Trash2Icon} className="size-4 text-white" />
-                    <Text className="text-white font-bold text-sm">Delete My Account Permanently</Text>
+                    <Icon as={Trash2Icon} className="size-5 text-white mr-1" />
+                    <Text className="text-white font-bold text-base">Delete Account</Text>
                   </>
                 )}
               </Button>
@@ -292,10 +282,10 @@ export default function ManageAccountScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onPress={() => setShowLogoutConfirm(false)}>
-              <Text className="text-foreground font-semibold text-sm">Cancel</Text>
+              <Text className="text-foreground font-bold text-base">Cancel</Text>
             </AlertDialogCancel>
             <AlertDialogAction onPress={handleLogout}>
-              <Text className="text-white font-bold text-sm">Log Out</Text>
+              <Text className="text-white font-bold text-base">Log Out</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -323,14 +313,14 @@ export default function ManageAccountScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-3">
             <AlertDialogCancel onPress={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
-              <Text className="text-foreground font-semibold text-sm">Keep Account</Text>
+              <Text className="text-foreground font-bold text-base">Keep Account</Text>
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive"
               onPress={handleDeleteAccount}
               disabled={isDeleting}
             >
-              <Text className="text-white font-bold text-sm">
+              <Text className="text-white font-bold text-base">
                 {isDeleting ? "Deleting..." : "Delete Permanently"}
               </Text>
             </AlertDialogAction>

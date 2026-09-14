@@ -100,11 +100,11 @@ function AlertDialogAction({ className, variant, ...props }: AlertDialogActionPr
   const effectiveVariant = variant || (isDestructive ? "destructive" : "default");
 
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant: effectiveVariant, size: "default" })}>
+    <TextClassContext.Provider value={buttonTextVariants({ className, variant: effectiveVariant, size: "lg" })}>
       <AlertDialogPrimitive.Action
         className={cn(
-          buttonVariants({ variant: effectiveVariant, size: "default" }),
-          "flex-1 h-13 py-0 px-3 rounded-2xl items-center justify-center font-semibold active:opacity-85",
+          buttonVariants({ variant: effectiveVariant, size: "lg" }),
+          "flex-1 h-14 px-4 rounded-2xl items-center justify-center font-bold active:opacity-85 shadow-sm",
           className,
         )}
         {...props}
@@ -120,11 +120,11 @@ type AlertDialogCancelProps = AlertDialogPrimitive.CancelProps &
 
 function AlertDialogCancel({ className, variant = "outline", ...props }: AlertDialogCancelProps) {
   return (
-    <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "default" })}>
+    <TextClassContext.Provider value={buttonTextVariants({ className, variant, size: "lg" })}>
       <AlertDialogPrimitive.Cancel
         className={cn(
-          buttonVariants({ variant, size: "default" }),
-          "flex-1 h-13 py-0 px-3 rounded-2xl items-center justify-center border-border/80 active:opacity-85",
+          buttonVariants({ variant, size: "lg" }),
+          "flex-1 h-14 px-4 rounded-2xl items-center justify-center border-border/80 bg-background active:opacity-85 shadow-sm",
           className,
         )}
         {...props}
