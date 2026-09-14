@@ -35,6 +35,8 @@ base64 = "0.23.1"
 cron_tab = { version = "0.2", features = ["async"] }
 chrono = { version = "0.4", features = ["std"] }
 chrono-tz = "0.9"
+jsonwebtoken = "11.0.0"
+rust-s3 = { version = "0.37.2", default-features = false, features = ["with-tokio", "fail-on-err", "tokio-rustls-tls"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

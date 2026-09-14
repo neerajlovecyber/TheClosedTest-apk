@@ -43,7 +43,7 @@ impl FromRequestParts<AppState> for AuthUser {
         }
 
         let raw_token = auth_header.trim_start_matches("Bearer ").trim();
-        let payload = verify_token_payload(raw_token, &state.config.app_env)
+        let payload = verify_token_payload(raw_token, state)
             .await
             .ok_or_else(|| {
                 AppError::Unauthorized("Invalid, unverified, or expired authentication token".to_string())

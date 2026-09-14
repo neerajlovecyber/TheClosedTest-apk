@@ -15,6 +15,11 @@ pub struct Config {
     pub app_env: String,
     pub rate_limit_per_minute: u32,
     pub rate_limit_enabled: bool,
+    pub r2_access_key_id: Option<String>,
+    pub r2_secret_access_key: Option<String>,
+    pub r2_bucket_name: String,
+    pub r2_account_id: Option<String>,
+    pub r2_public_url: String,
 }
 
 impl Config {
@@ -45,6 +50,14 @@ impl Config {
             .map(|v| v != "false" && v != "0")
             .unwrap_or_else(|_| app_env != "test");
 
+        let r2_access_key_id = env::var("CLOUDFLARE_R2_ACCESS_KEY_ID").ok();
+        let r2_secret_access_key = env::var("CLOUDFLARE_R2_SECRET_ACCESS_KEY").ok();
+        let r2_bucket_name = env::var("CLOUDFLARE_R2_BUCKET_NAME")
+            .unwrap_or_else(|_| "theclosedtest".to_string());
+        let r2_account_id = env::var("CLOUDFLARE_R2_ACCOUNT_ID").ok();
+        let r2_public_url = env::var("CLOUDFLARE_R2_PUBLIC_URL")
+            .unwrap_or_else(|_| "https://theclosedtest.neerajlovecyber.com".to_string());
+
         Ok(Self {
             database_url,
             port,
@@ -53,6 +66,11 @@ impl Config {
             app_env,
             rate_limit_per_minute,
             rate_limit_enabled,
+            r2_access_key_id,
+            r2_secret_access_key,
+            r2_bucket_name,
+            r2_account_id,
+            r2_public_url,
         })
     }
 
