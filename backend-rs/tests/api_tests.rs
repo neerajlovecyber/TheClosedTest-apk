@@ -924,4 +924,191 @@ fn test_user_summary_and_admin_app_serialization_camel_case() {
     assert!(user_in_app.get("avatar_url").is_none());
 }
 
+#[test]
+fn test_match_detail_response_serialization_camel_case() {
+    use backend_rs::routes::matches::{MatchAppSummary, MatchDetailResponse, MatchRecordSummary, MatchUserSummary};
+
+    let app1 = MatchAppSummary {
+        id: "app1".into(),
+        title: "App One".into(),
+        package_name: "com.app.one".into(),
+        play_store_url: Some("https://play.google.com/store/apps/details?id=com.app.one".into()),
+        icon_url: "https://example.com/app1.png".into(),
+    };
+    let app2 = MatchAppSummary {
+        id: "app2".into(),
+        title: "App Two".into(),
+        package_name: "com.app.two".into(),
+        play_store_url: Some("https://play.google.com/store/apps/details?id=com.app.two".into()),
+        icon_url: "https://example.com/app2.png".into(),
+    };
+    let user1 = MatchUserSummary {
+        id: "u1".into(),
+        name: "User One".into(),
+        email: "u1@example.com".into(),
+        avatar_url: Some("https://example.com/u1.png".into()),
+    };
+    let user2 = MatchUserSummary {
+        id: "u2".into(),
+        name: "User Two".into(),
+        email: "u2@example.com".into(),
+        avatar_url: Some("https://example.com/u2.png".into()),
+    };
+
+    let match_res = MatchDetailResponse {
+        id: "m123".into(),
+        user1_id: "u1".into(),
+        app1_id: "app1".into(),
+        user2_id: "u2".into(),
+        app2_id: "app2".into(),
+        status: "active".into(),
+        start_date: Some("2026-09-01T00:00:00Z".into()),
+        last_activity: "2026-09-14T00:00:00Z".into(),
+        user1_approved_count: 5,
+        user2_approved_count: 4,
+        user1_last_proof: None,
+        user2_last_proof: None,
+        created_at: "2026-09-01T00:00:00Z".into(),
+        r#match: Some(MatchRecordSummary { id: "m123".into() }),
+        match_obj: Some(MatchRecordSummary { id: "m123".into() }),
+        is_user1: true,
+        my_app: Some(app1.clone()),
+        partner_app: Some(app2.clone()),
+        partner_user: Some(user2.clone()),
+        app1: Some(app1),
+        app2: Some(app2),
+        user1: Some(user1),
+        user2: Some(user2),
+    };
+
+    let val = serde_json::to_value(&match_res).unwrap();
+    assert_eq!(val.get("user1Id").and_then(|v| v.as_str()), Some("u1"));
+    assert_eq!(val.get("user2Id").and_then(|v| v.as_str()), Some("u2"));
+    assert_eq!(val.get("app1Id").and_then(|v| v.as_str()), Some("app1"));
+    assert_eq!(val.get("app2Id").and_then(|v| v.as_str()), Some("app2"));
+    assert_eq!(val.get("startDate").and_then(|v| v.as_str()), Some("2026-09-01T00:00:00Z"));
+    assert_eq!(val.get("lastActivity").and_then(|v| v.as_str()), Some("2026-09-14T00:00:00Z"));
+    assert_eq!(val.get("user1ApprovedCount").and_then(|v| v.as_i64()), Some(5));
+    assert_eq!(val.get("user2ApprovedCount").and_then(|v| v.as_i64()), Some(4));
+    assert_eq!(val.get("isUser1").and_then(|v| v.as_bool()), Some(true));
+    assert!(val.get("myApp").is_some());
+    assert!(val.get("partnerApp").is_some());
+    assert!(val.get("partnerUser").is_some());
+
+    let partner_app = val.get("partnerApp").unwrap();
+    assert_eq!(partner_app.get("packageName").and_then(|v| v.as_str()), Some("com.app.two"));
+    assert_eq!(partner_app.get("iconUrl").and_then(|v| v.as_str()), Some("https://example.com/app2.png"));
+    assert_eq!(partner_app.get("playStoreUrl").and_then(|v| v.as_str()), Some("https://play.google.com/store/apps/details?id=com.app.two"));
+    assert!(partner_app.get("icon_url").is_none());
+    assert!(partner_app.get("package_name").is_none());
+
+    let partner_user = val.get("partnerUser").unwrap();
+    assert_eq!(partner_user.get("avatarUrl").and_then(|v| v.as_str()), Some("https://example.com/u2.png"));
+    assert!(partner_user.get("avatar_url").is_none());
+}
+
+#[test]
+fn test_user_response_serialization_camel_case() {
+    use backend_rs::routes::users::UserResponse;
+
+    let user_res = UserResponse {
+        id: "u_abc".into(),
+        token_identifier: Some("token_123".into()),
+        name: "Alice".into(),
+        email: "alice@example.com".into(),
+        avatar_url: Some("https://example.com/alice.png".into()),
+        reputation: 15,
+        apps_count: 2,
+        push_token: Some("ExponentPushToken[xyz]".into()),
+        is_group_member: true,
+        google_group_confirmed: true,
+        is_admin: false,
+        streak: 7,
+        best_streak: 14,
+        last_check_in_date: Some("2026-09-14".into()),
+        unlocked_app_slots: 3,
+        created_at: "2026-09-01T00:00:00Z".into(),
+        updated_at: "2026-09-14T00:00:00Z".into(),
+    };
+
+    let val = serde_json::to_value(&user_res).unwrap();
+    assert_eq!(val.get("tokenIdentifier").and_then(|v| v.as_str()), Some("token_123"));
+    assert_eq!(val.get("avatarUrl").and_then(|v| v.as_str()), Some("https://example.com/alice.png"));
+    assert_eq!(val.get("appsCount").and_then(|v| v.as_i64()), Some(2));
+    assert_eq!(val.get("pushToken").and_then(|v| v.as_str()), Some("ExponentPushToken[xyz]"));
+    assert_eq!(val.get("isGroupMember").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(val.get("googleGroupConfirmed").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(val.get("isAdmin").and_then(|v| v.as_bool()), Some(false));
+    assert_eq!(val.get("bestStreak").and_then(|v| v.as_i64()), Some(14));
+    assert_eq!(val.get("lastCheckInDate").and_then(|v| v.as_str()), Some("2026-09-14"));
+    assert_eq!(val.get("unlockedAppSlots").and_then(|v| v.as_i64()), Some(3));
+    assert_eq!(val.get("createdAt").and_then(|v| v.as_str()), Some("2026-09-01T00:00:00Z"));
+    assert_eq!(val.get("updatedAt").and_then(|v| v.as_str()), Some("2026-09-14T00:00:00Z"));
+
+    // Ensure no snake_case leaks
+    assert!(val.get("token_identifier").is_none());
+    assert!(val.get("avatar_url").is_none());
+    assert!(val.get("apps_count").is_none());
+    assert!(val.get("push_token").is_none());
+    assert!(val.get("is_group_member").is_none());
+    assert!(val.get("is_admin").is_none());
+    assert!(val.get("best_streak").is_none());
+    assert!(val.get("last_check_in_date").is_none());
+    assert!(val.get("unlocked_app_slots").is_none());
+    assert!(val.get("created_at").is_none());
+    assert!(val.get("updated_at").is_none());
+}
+
+#[test]
+fn test_proof_and_notification_serialization_camel_case() {
+    use backend_rs::routes::proofs::ProofResponse;
+    use backend_rs::routes::notifications::NotificationResponse;
+
+    let proof = ProofResponse {
+        id: "p1".into(),
+        match_id: "m1".into(),
+        uploader_id: "u1".into(),
+        day: 3,
+        r#type: "image".into(),
+        storage_urls: vec!["https://r2.example.com/proof1.png".into()],
+        status: "approved".into(),
+        comment: Some("Great test".into()),
+        rejection_reason: None,
+        submitted_at: "2026-09-03T10:00:00Z".into(),
+        reviewed_at: Some("2026-09-03T11:00:00Z".into()),
+    };
+
+    let p_val = serde_json::to_value(&proof).unwrap();
+    assert_eq!(p_val.get("matchId").and_then(|v| v.as_str()), Some("m1"));
+    assert_eq!(p_val.get("uploaderId").and_then(|v| v.as_str()), Some("u1"));
+    assert_eq!(p_val.get("storageUrls").and_then(|v| v.as_array()).map(|a| a.len()), Some(1));
+    assert_eq!(p_val.get("submittedAt").and_then(|v| v.as_str()), Some("2026-09-03T10:00:00Z"));
+    assert_eq!(p_val.get("reviewedAt").and_then(|v| v.as_str()), Some("2026-09-03T11:00:00Z"));
+    assert!(p_val.get("match_id").is_none());
+    assert!(p_val.get("uploader_id").is_none());
+    assert!(p_val.get("storage_urls").is_none());
+    assert!(p_val.get("submitted_at").is_none());
+    assert!(p_val.get("reviewed_at").is_none());
+
+    let notif = NotificationResponse {
+        id: "n1".into(),
+        user_id: "u1".into(),
+        r#type: "proof_approved".into(),
+        title: "Proof Approved".into(),
+        body: "Your day 3 proof was approved!".into(),
+        data: serde_json::json!({"matchId": "m1"}),
+        read: true,
+        is_read: true,
+        created_at: "2026-09-03T11:00:00Z".into(),
+    };
+
+    let n_val = serde_json::to_value(&notif).unwrap();
+    assert_eq!(n_val.get("userId").and_then(|v| v.as_str()), Some("u1"));
+    assert_eq!(n_val.get("isRead").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(n_val.get("createdAt").and_then(|v| v.as_str()), Some("2026-09-03T11:00:00Z"));
+    assert!(n_val.get("user_id").is_none());
+    assert!(n_val.get("created_at").is_none());
+}
+
+
 

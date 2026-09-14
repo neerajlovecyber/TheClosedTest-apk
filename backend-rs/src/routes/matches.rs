@@ -30,17 +30,19 @@ pub struct RequestMatchRequest {
     pub app2_id: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MatchAppSummary {
     pub id: String,
     pub title: String,
     #[serde(rename = "packageName")]
     pub package_name: String,
+    #[serde(rename = "playStoreUrl")]
+    pub play_store_url: Option<String>,
     #[serde(rename = "iconUrl")]
     pub icon_url: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MatchUserSummary {
     pub id: String,
     pub name: String,
@@ -75,14 +77,24 @@ pub struct MatchDetailResponse {
     pub user2_last_proof: Option<serde_json::Value>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+    #[serde(rename = "match")]
+    pub r#match: Option<MatchRecordSummary>,
     pub match_obj: Option<MatchRecordSummary>,
+    #[serde(rename = "isUser1")]
+    pub is_user1: bool,
+    #[serde(rename = "myApp")]
+    pub my_app: Option<MatchAppSummary>,
+    #[serde(rename = "partnerApp")]
+    pub partner_app: Option<MatchAppSummary>,
+    #[serde(rename = "partnerUser")]
+    pub partner_user: Option<MatchUserSummary>,
     pub app1: Option<MatchAppSummary>,
     pub app2: Option<MatchAppSummary>,
     pub user1: Option<MatchUserSummary>,
     pub user2: Option<MatchUserSummary>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MatchRecordSummary {
     pub id: String,
 }
@@ -105,9 +117,11 @@ struct MatchListRow {
     a1_title: String,
     a1_package: String,
     a1_icon: String,
+    a1_play_store_url: Option<String>,
     a2_title: String,
     a2_package: String,
     a2_icon: String,
+    a2_play_store_url: Option<String>,
     u1_name: String,
     u1_email: String,
     u1_avatar: Option<String>,
@@ -130,8 +144,8 @@ async fn list_matches(
             m.id, m.user1_id, m.app1_id, m.user2_id, m.app2_id, m.status,
             m.start_date, m.last_activity, m.user1_approved_count, m.user2_approved_count,
             m.user1_last_proof, m.user2_last_proof, m.created_at,
-            a1.title as a1_title, a1.package_name as a1_package, a1.icon_url as a1_icon,
-            a2.title as a2_title, a2.package_name as a2_package, a2.icon_url as a2_icon,
+            a1.title as a1_title, a1.package_name as a1_package, a1.icon_url as a1_icon, a1.play_store_url as a1_play_store_url,
+            a2.title as a2_title, a2.package_name as a2_package, a2.icon_url as a2_icon, a2.play_store_url as a2_play_store_url,
             u1.name as u1_name, u1.email as u1_email, u1.avatar_url as u1_avatar,
             u2.name as u2_name, u2.email as u2_email, u2.avatar_url as u2_avatar
         FROM matches m
@@ -152,45 +166,64 @@ async fn list_matches(
 
     let results = records
         .into_iter()
-        .map(|r| MatchDetailResponse {
-            id: r.id.clone(),
-            user1_id: r.user1_id,
-            app1_id: r.app1_id.clone(),
-            user2_id: r.user2_id.clone(),
-            app2_id: r.app2_id.clone(),
-            status: r.status,
-            start_date: r.start_date.map(|t| t.format(&Rfc3339).unwrap_or_default()),
-            last_activity: r.last_activity.format(&Rfc3339).unwrap_or_default(),
-            user1_approved_count: r.user1_approved_count,
-            user2_approved_count: r.user2_approved_count,
-            user1_last_proof: r.user1_last_proof,
-            user2_last_proof: r.user2_last_proof,
-            created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
-            match_obj: Some(MatchRecordSummary { id: r.id }),
-            app1: Some(MatchAppSummary {
-                id: r.app1_id,
+        .map(|r| {
+            let is_user1 = r.user1_id == user.id;
+            let app1 = MatchAppSummary {
+                id: r.app1_id.clone(),
                 title: r.a1_title,
                 package_name: r.a1_package,
+                play_store_url: r.a1_play_store_url,
                 icon_url: r.a1_icon,
-            }),
-            app2: Some(MatchAppSummary {
-                id: r.app2_id,
+            };
+            let app2 = MatchAppSummary {
+                id: r.app2_id.clone(),
                 title: r.a2_title,
                 package_name: r.a2_package,
+                play_store_url: r.a2_play_store_url,
                 icon_url: r.a2_icon,
-            }),
-            user1: Some(MatchUserSummary {
-                id: user.id.clone(),
+            };
+            let user1 = MatchUserSummary {
+                id: r.user1_id.clone(),
                 name: r.u1_name,
                 email: r.u1_email,
                 avatar_url: r.u1_avatar,
-            }),
-            user2: Some(MatchUserSummary {
-                id: r.user2_id,
+            };
+            let user2 = MatchUserSummary {
+                id: r.user2_id.clone(),
                 name: r.u2_name,
                 email: r.u2_email,
                 avatar_url: r.u2_avatar,
-            }),
+            };
+
+            let my_app = if is_user1 { Some(app1.clone()) } else { Some(app2.clone()) };
+            let partner_app = if is_user1 { Some(app2.clone()) } else { Some(app1.clone()) };
+            let partner_user = if is_user1 { Some(user2.clone()) } else { Some(user1.clone()) };
+
+            MatchDetailResponse {
+                id: r.id.clone(),
+                user1_id: r.user1_id,
+                app1_id: r.app1_id,
+                user2_id: r.user2_id,
+                app2_id: r.app2_id,
+                status: r.status,
+                start_date: r.start_date.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+                last_activity: r.last_activity.format(&Rfc3339).unwrap_or_default(),
+                user1_approved_count: r.user1_approved_count,
+                user2_approved_count: r.user2_approved_count,
+                user1_last_proof: r.user1_last_proof,
+                user2_last_proof: r.user2_last_proof,
+                created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
+                r#match: Some(MatchRecordSummary { id: r.id.clone() }),
+                match_obj: Some(MatchRecordSummary { id: r.id }),
+                is_user1,
+                my_app,
+                partner_app,
+                partner_user,
+                app1: Some(app1),
+                app2: Some(app2),
+                user1: Some(user1),
+                user2: Some(user2),
+            }
         })
         .collect();
 
@@ -209,8 +242,8 @@ async fn get_match(
             m.id, m.user1_id, m.app1_id, m.user2_id, m.app2_id, m.status,
             m.start_date, m.last_activity, m.user1_approved_count, m.user2_approved_count,
             m.user1_last_proof, m.user2_last_proof, m.created_at,
-            a1.title as a1_title, a1.package_name as a1_package, a1.icon_url as a1_icon,
-            a2.title as a2_title, a2.package_name as a2_package, a2.icon_url as a2_icon,
+            a1.title as a1_title, a1.package_name as a1_package, a1.icon_url as a1_icon, a1.play_store_url as a1_play_store_url,
+            a2.title as a2_title, a2.package_name as a2_package, a2.icon_url as a2_icon, a2.play_store_url as a2_play_store_url,
             u1.name as u1_name, u1.email as u1_email, u1.avatar_url as u1_avatar,
             u2.name as u2_name, u2.email as u2_email, u2.avatar_url as u2_avatar
         FROM matches m
@@ -232,12 +265,44 @@ async fn get_match(
         return Err(AppError::Forbidden("Forbidden: Not a participant of this match".to_string()));
     }
 
+    let is_user1 = r.user1_id == user.id;
+    let app1 = MatchAppSummary {
+        id: r.app1_id.clone(),
+        title: r.a1_title,
+        package_name: r.a1_package,
+        play_store_url: r.a1_play_store_url,
+        icon_url: r.a1_icon,
+    };
+    let app2 = MatchAppSummary {
+        id: r.app2_id.clone(),
+        title: r.a2_title,
+        package_name: r.a2_package,
+        play_store_url: r.a2_play_store_url,
+        icon_url: r.a2_icon,
+    };
+    let user1 = MatchUserSummary {
+        id: r.user1_id.clone(),
+        name: r.u1_name,
+        email: r.u1_email,
+        avatar_url: r.u1_avatar,
+    };
+    let user2 = MatchUserSummary {
+        id: r.user2_id.clone(),
+        name: r.u2_name,
+        email: r.u2_email,
+        avatar_url: r.u2_avatar,
+    };
+
+    let my_app = if is_user1 { Some(app1.clone()) } else { Some(app2.clone()) };
+    let partner_app = if is_user1 { Some(app2.clone()) } else { Some(app1.clone()) };
+    let partner_user = if is_user1 { Some(user2.clone()) } else { Some(user1.clone()) };
+
     Ok(Json(MatchDetailResponse {
         id: r.id.clone(),
-        user1_id: r.user1_id.clone(),
-        app1_id: r.app1_id.clone(),
-        user2_id: r.user2_id.clone(),
-        app2_id: r.app2_id.clone(),
+        user1_id: r.user1_id,
+        app1_id: r.app1_id,
+        user2_id: r.user2_id,
+        app2_id: r.app2_id,
         status: r.status,
         start_date: r.start_date.map(|t| t.format(&Rfc3339).unwrap_or_default()),
         last_activity: r.last_activity.format(&Rfc3339).unwrap_or_default(),
@@ -246,31 +311,16 @@ async fn get_match(
         user1_last_proof: r.user1_last_proof,
         user2_last_proof: r.user2_last_proof,
         created_at: r.created_at.format(&Rfc3339).unwrap_or_default(),
+        r#match: Some(MatchRecordSummary { id: r.id.clone() }),
         match_obj: Some(MatchRecordSummary { id: r.id }),
-        app1: Some(MatchAppSummary {
-            id: r.app1_id,
-            title: r.a1_title,
-            package_name: r.a1_package,
-            icon_url: r.a1_icon,
-        }),
-        app2: Some(MatchAppSummary {
-            id: r.app2_id,
-            title: r.a2_title,
-            package_name: r.a2_package,
-            icon_url: r.a2_icon,
-        }),
-        user1: Some(MatchUserSummary {
-            id: r.user1_id,
-            name: r.u1_name,
-            email: r.u1_email,
-            avatar_url: r.u1_avatar,
-        }),
-        user2: Some(MatchUserSummary {
-            id: r.user2_id,
-            name: r.u2_name,
-            email: r.u2_email,
-            avatar_url: r.u2_avatar,
-        }),
+        is_user1,
+        my_app,
+        partner_app,
+        partner_user,
+        app1: Some(app1),
+        app2: Some(app2),
+        user1: Some(user1),
+        user2: Some(user2),
     }))
 }
 
