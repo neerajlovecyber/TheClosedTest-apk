@@ -1,7 +1,7 @@
 # ==============================================================================
 # 1. Builder Stage (Debian-based to avoid musl/ring/nasm compilation issues)
 # ==============================================================================
-FROM rust:latest AS builder
+FROM rust:bookworm AS builder
 
 WORKDIR /app
 
