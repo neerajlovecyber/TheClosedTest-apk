@@ -271,8 +271,12 @@ pub async fn run_daily_testing_reminders(pool: &PgPool, http_client: &reqwest::C
 
 pub fn start_background_jobs(pool: PgPool, http_client: reqwest::Client) {
     tokio::spawn(async move {
-        info!("⏰ Background maintenance worker started");
-        let mut interval = tokio::time::interval(Duration::from_secs(6 * 3600));
+        info!("⏰ Background maintenance worker started (first run in 6 hours)");
+        let period = Duration::from_secs(6 * 3600);
+        // interval_at delays the FIRST tick by `period`, preventing notifications
+        // from firing on every deploy/restart
+        let start = tokio::time::Instant::now() + period;
+        let mut interval = tokio::time::interval_at(start, period);
 
         loop {
             interval.tick().await;
