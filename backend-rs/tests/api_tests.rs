@@ -1110,5 +1110,17 @@ fn test_proof_and_notification_serialization_camel_case() {
     assert!(n_val.get("created_at").is_none());
 }
 
+#[test]
+fn test_matches_query_status_all_treated_as_unfiltered() {
+    let raw_status = Some("all".to_string());
+    let status_filter = raw_status.as_deref().filter(|s| *s != "all");
+    assert_eq!(status_filter, None, "Status 'all' must be mapped to None to return all matches");
+
+    let raw_pending = Some("pending".to_string());
+    let pending_filter = raw_pending.as_deref().filter(|s| *s != "all");
+    assert_eq!(pending_filter, Some("pending"));
+}
+
+
 
 

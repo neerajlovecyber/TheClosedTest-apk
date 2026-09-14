@@ -136,7 +136,8 @@ async fn list_matches(
     AuthUser(user): AuthUser,
     Query(params): Query<ListMatchesQuery>,
 ) -> Result<Json<Vec<MatchDetailResponse>>, AppError> {
-    let status_filter = params.status;
+    let status_filter = params.status.as_deref().filter(|s| *s != "all");
+    let is_completed = status_filter == Some("completed");
 
     let records = sqlx::query_as::<_, MatchListRow>(
         r#"
@@ -153,13 +154,19 @@ async fn list_matches(
         JOIN apps a2 ON m.app2_id = a2.id
         JOIN users u1 ON m.user1_id = u1.id
         JOIN users u2 ON m.user2_id = u2.id
-        WHERE (m.user1_id = $1 OR m.user2_id = $1)
-          AND ($2::text IS NULL OR m.status = $2)
+        WHERE (m.user1_id = $1 OR m.user2_id = $1 OR ($2::text IS NOT NULL AND (m.user1_id = $2 OR m.user2_id = $2)))
+          AND (
+            $3::text IS NULL 
+            OR ($4::bool = true AND m.status IN ('completed', 'archived'))
+            OR ($4::bool = false AND m.status = $3)
+          )
         ORDER BY m.last_activity DESC
         "#,
     )
     .bind(&user.id)
+    .bind(user.token_identifier.as_deref())
     .bind(status_filter)
+    .bind(is_completed)
     .fetch_all(&state.pool)
     .await
     .map_err(AppError::Database)?;
