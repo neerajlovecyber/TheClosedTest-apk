@@ -61,10 +61,23 @@ const statsBefore = await getStats();
 console.log(`\n  Before: mem=${statsBefore?.mem.toFixed(1)}MB  cpu=${statsBefore?.cpu.toFixed(1)}%  db=${statsBefore?.dbMs.toFixed(1)}ms\n`);
 
 for (const c of LEVELS) {
+  // Poll stats IN PARALLEL with the load to capture peak CPU/mem during the burst
+  let peakMem = 0, peakCpu = 0;
+  let polling = true;
+  const pollTask = (async () => {
+    while (polling) {
+      const s = await getStats();
+      if (s) { peakMem = Math.max(peakMem, s.mem); peakCpu = Math.max(peakCpu, s.cpu); }
+      await new Promise(r => setTimeout(r, 300));
+    }
+  })();
+
   const r = await runLevel(c, REQUESTS_PER_LEVEL);
-  const s = await getStats();
-  const memStr = s ? `${s.mem.toFixed(0)}MB` : "N/A";
-  const cpuStr = s ? `${s.cpu.toFixed(1)}%` : "N/A";
+  polling = false;
+  await pollTask;
+
+  const memStr = peakMem > 0 ? `${peakMem.toFixed(0)}MB` : "N/A";
+  const cpuStr = peakCpu > 0 ? `${peakCpu.toFixed(1)}%` : "N/A";
 
   const isFailing = r.errPct >= ERROR_THRESHOLD;
   const status = isFailing
