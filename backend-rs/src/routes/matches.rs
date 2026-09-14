@@ -344,8 +344,8 @@ async fn request_match(
     }
 
     // 1. Verify app1 belongs to user
-    let app1: (String, String, String) = sqlx::query_as(
-        "SELECT id, user_id, status FROM apps WHERE id = $1",
+    let app1: (String, String, String, String, i32) = sqlx::query_as(
+        "SELECT id, user_id, status, title, required_testers FROM apps WHERE id = $1",
     )
     .bind(&app1_id)
     .fetch_optional(&state.pool)
@@ -358,8 +358,8 @@ async fn request_match(
     }
 
     // 2. Verify target app
-    let app2: (String, String, String) = sqlx::query_as(
-        "SELECT id, user_id, status FROM apps WHERE id = $1",
+    let app2: (String, String, String, String, i32) = sqlx::query_as(
+        "SELECT id, user_id, status, title, required_testers FROM apps WHERE id = $1",
     )
     .bind(&target_app_id)
     .fetch_optional(&state.pool)
@@ -377,7 +377,38 @@ async fn request_match(
         ));
     }
 
-    // 3. Verify no existing pending or active match
+    // 3. Verify neither app has reached required testers limit
+    let count1: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM matches WHERE (app1_id = $1 OR app2_id = $1) AND status NOT IN ('rejected', 'cancelled')",
+    )
+    .bind(&app1_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    if count1.0 >= app1.4 as i64 {
+        return Err(AppError::BadRequest(format!(
+            "Cannot request swap: Your app \"{}\" has reached full tester capacity ({}/{})",
+            app1.3, count1.0, app1.4
+        )));
+    }
+
+    let count2: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM matches WHERE (app1_id = $1 OR app2_id = $1) AND status NOT IN ('rejected', 'cancelled')",
+    )
+    .bind(&target_app_id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    if count2.0 >= app2.4 as i64 {
+        return Err(AppError::BadRequest(format!(
+            "Cannot request swap: \"{}\" has reached full tester capacity ({}/{})",
+            app2.3, count2.0, app2.4
+        )));
+    }
+
+    // 4. Verify no existing pending or active match
     let existing: Option<(String,)> = sqlx::query_as(
         r#"
         SELECT id FROM matches
@@ -410,7 +441,7 @@ async fn request_match(
                   user1_last_proof, user2_last_proof, created_at, updated_at
         "#,
     )
-    .bind(new_id)
+    .bind(&new_id)
     .bind(&user.id)
     .bind(&app1.0)
     .bind(&app2.1)
@@ -418,6 +449,51 @@ async fn request_match(
     .fetch_one(&state.pool)
     .await
     .map_err(AppError::Database)?;
+
+    // 5. Notify target user asynchronously (in-app notification + push)
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({
+        "matchId": new_id,
+        "app1Id": app1_id,
+        "app2Id": target_app_id,
+    });
+    let notif_title = "New Testing Request!";
+    let notif_body = format!("{} wants to test {} in exchange for {}.", user.name, app2.3, app1.3);
+    let _ = sqlx::query(
+        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'request', $3, $4, $5, false, NOW())",
+    )
+    .bind(notif_id)
+    .bind(&app2.1)
+    .bind(notif_title)
+    .bind(&notif_body)
+    .bind(&notif_data)
+    .execute(&state.pool)
+    .await;
+
+    // Send push notification if recipient has push token
+    let target_push_token: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT push_token FROM users WHERE id = $1",
+    )
+    .bind(&app2.1)
+    .fetch_optional(&state.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some((Some(push_token),)) = target_push_token {
+        let push_client = reqwest::Client::new();
+        let push_title = "New Testing Request!".to_string();
+        let push_body = format!("{} requested a peer test with {}!", user.name, app2.3);
+        let push_data = notif_data.clone();
+        tokio::spawn(async move {
+            crate::services::push::send_push_notification(
+                &push_client,
+                &push_token,
+                push_title,
+                push_body,
+                push_data,
+            ).await;
+        });
+    }
 
     Ok(Json(record))
 }
@@ -470,9 +546,34 @@ async fn accept_match(
     )
     .bind(notif_id)
     .bind(&match_row.user1_id)
-    .bind(notif_data)
+    .bind(&notif_data)
     .execute(&state.pool)
     .await;
+
+    // Send push notification to user1
+    let user1_push_token: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT push_token FROM users WHERE id = $1",
+    )
+    .bind(&match_row.user1_id)
+    .fetch_optional(&state.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some((Some(push_token),)) = user1_push_token {
+        let push_client = reqwest::Client::new();
+        let push_title = "Match Accepted!".to_string();
+        let push_body = "Your testing exchange was accepted! Day 1 testing starts today.".to_string();
+        let push_data = notif_data.clone();
+        tokio::spawn(async move {
+            crate::services::push::send_push_notification(
+                &push_client,
+                &push_token,
+                push_title,
+                push_body,
+                push_data,
+            ).await;
+        });
+    }
 
     // Invalidate public apps list RAM cache so marketplace current_testers updates immediately
     state.api_cache.invalidate_all();

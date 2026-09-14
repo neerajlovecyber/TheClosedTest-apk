@@ -104,6 +104,7 @@ pub struct AppResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchRecord {
     pub id: String,
     pub user1_id: String,
@@ -132,6 +133,7 @@ pub struct MatchRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct ProofRecord {
     pub id: String,
     pub match_id: String,
@@ -149,6 +151,7 @@ pub struct ProofRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageRecord {
     pub id: String,
     pub match_id: String,
@@ -161,6 +164,7 @@ pub struct MessageRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct NotificationRecord {
     pub id: String,
     pub user_id: String,
@@ -174,6 +178,7 @@ pub struct NotificationRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminChatRecord {
     pub id: String,
     pub user_id: String,
@@ -186,6 +191,7 @@ pub struct AdminChatRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminMessageRecord {
     pub id: String,
     pub chat_id: String,
