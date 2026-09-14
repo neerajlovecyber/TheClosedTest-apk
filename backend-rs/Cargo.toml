@@ -31,6 +31,10 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 moka = { version = "0.12.16", features = ["future"] }
 base64 = "0.23.1"
 
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
 # Maximum Performance Profile (No compromises on speed)
 [profile.release]
 opt-level = 3

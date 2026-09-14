@@ -341,9 +341,110 @@ async fn request_match(
     Ok(Json(record))
 }
 
+#[derive(Serialize)]
+pub struct GenericMessageResponse {
+    pub message: String,
+}
+
+// POST /api/matches/:id/accept
+async fn accept_match(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    Path(id): Path<String>,
+) -> Result<Json<MatchRecord>, AppError> {
+    let match_row = sqlx::query_as::<_, MatchRecord>(
+        "SELECT id, user1_id, app1_id, user2_id, app2_id, status, start_date, last_activity, last_read1, last_read2, completed_at, user1_approved_count, user2_approved_count, user1_last_proof, user2_last_proof, created_at, updated_at FROM matches WHERE id = $1",
+    )
+    .bind(&id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(AppError::Database)?
+    .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
+
+    if match_row.user2_id != user.id || match_row.status != "pending" {
+        return Err(AppError::Forbidden("Only the target recipient can accept a pending match request".to_string()));
+    }
+
+    let updated = sqlx::query_as::<_, MatchRecord>(
+        r#"
+        UPDATE matches
+        SET status = 'active', start_date = NOW(), last_activity = NOW(), updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, user1_id, app1_id, user2_id, app2_id, status,
+                  start_date, last_activity, last_read1, last_read2, completed_at,
+                  user1_approved_count, user2_approved_count,
+                  user1_last_proof, user2_last_proof, created_at, updated_at
+        "#,
+    )
+    .bind(&id)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(AppError::Database)?;
+
+    // Send notification to user1
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({ "matchId": id });
+    let _ = sqlx::query(
+        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'acceptance', 'Match Accepted!', 'Your testing exchange was accepted! Day 1 testing starts today.', $3, false, NOW())",
+    )
+    .bind(notif_id)
+    .bind(&match_row.user1_id)
+    .bind(notif_data)
+    .execute(&state.pool)
+    .await;
+
+    Ok(Json(updated))
+}
+
+// POST /api/matches/:id/cancel
+async fn cancel_match(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    Path(id): Path<String>,
+) -> Result<Json<GenericMessageResponse>, AppError> {
+    let match_row = sqlx::query_as::<_, MatchRecord>(
+        "SELECT id, user1_id, app1_id, user2_id, app2_id, status, start_date, last_activity, last_read1, last_read2, completed_at, user1_approved_count, user2_approved_count, user1_last_proof, user2_last_proof, created_at, updated_at FROM matches WHERE id = $1",
+    )
+    .bind(&id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(AppError::Database)?
+    .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
+
+    let is_part = match_row.user1_id == user.id || match_row.user2_id == user.id;
+    if !is_part && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
+        return Err(AppError::Forbidden("You are not authorized to cancel this match".to_string()));
+    }
+
+    sqlx::query("UPDATE matches SET status = 'cancelled', updated_at = NOW() WHERE id = $1")
+        .bind(&id)
+        .execute(&state.pool)
+        .await
+        .map_err(AppError::Database)?;
+
+    // Notify other user
+    let other_user_id = if match_row.user1_id == user.id { match_row.user2_id } else { match_row.user1_id };
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({ "matchId": id });
+    let _ = sqlx::query(
+        "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Testing Match Cancelled', 'A testing match has been cancelled.', $3, false, NOW())",
+    )
+    .bind(notif_id)
+    .bind(other_user_id)
+    .bind(notif_data)
+    .execute(&state.pool)
+    .await;
+
+    Ok(Json(GenericMessageResponse {
+        message: "Match cancelled successfully".to_string(),
+    }))
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/matches", get(list_matches))
         .route("/api/matches/request", post(request_match))
         .route("/api/matches/:id", get(get_match))
+        .route("/api/matches/:id/accept", post(accept_match))
+        .route("/api/matches/:id/cancel", post(cancel_match))
 }

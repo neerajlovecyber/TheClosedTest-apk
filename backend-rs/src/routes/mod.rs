@@ -1,5 +1,7 @@
+pub mod admin;
 pub mod apps;
 pub mod health;
+pub mod leaderboard;
 pub mod matches;
 pub mod messages;
 pub mod notifications;
@@ -20,4 +22,6 @@ pub fn app_router() -> Router<AppState> {
         .merge(messages::router())
         .merge(notifications::router())
         .merge(storage::router())
+        .merge(leaderboard::router())
+        .merge(admin::router())
 }

@@ -1,17 +1,12 @@
-mod auth;
-mod config;
-mod db;
-mod error;
-mod routes;
-mod state;
-
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use config::Config;
-use state::AppState;
+use backend_rs::config::Config;
+use backend_rs::db;
+use backend_rs::routes;
+use backend_rs::state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
