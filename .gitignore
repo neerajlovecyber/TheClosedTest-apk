@@ -50,3 +50,5 @@ cloudflare-expo-ota-updates/**/dist/
 expo-env.d.ts
 # @end expo-cli
 .env.local
+
+backend-rs/target/
