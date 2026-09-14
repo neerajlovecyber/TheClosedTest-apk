@@ -125,9 +125,25 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                   </>
                 )}
                 {isMyApp && (
-                  <View className={`px-2 py-0.5 rounded-full ${isFilled ? "bg-green-100 dark:bg-green-900/30" : "bg-primary/10"}`}>
-                    <Text className={`text-[10px] font-bold uppercase ${isFilled ? "text-green-600 dark:text-green-400" : "text-primary"}`}>
-                      {isFilled ? "Filled" : item.status || "Active"}
+                  <View
+                    className={`px-2 py-0.5 rounded-full ${
+                      item.status === "paused"
+                        ? "bg-amber-100 dark:bg-amber-900/30"
+                        : isFilled
+                          ? "bg-green-100 dark:bg-green-900/30"
+                          : "bg-primary/10"
+                    }`}
+                  >
+                    <Text
+                      className={`text-[10px] font-bold uppercase ${
+                        item.status === "paused"
+                          ? "text-amber-600 dark:text-amber-400"
+                          : isFilled
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-primary"
+                      }`}
+                    >
+                      {item.status === "paused" ? "Paused" : isFilled ? "Filled" : item.status || "Active"}
                     </Text>
                   </View>
                 )}

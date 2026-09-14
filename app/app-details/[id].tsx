@@ -374,6 +374,25 @@ export default function AppDetailsScreen() {
           </View>
         )}
 
+        {/* Paused from Marketplace Banner */}
+        {isMine && app.status === "paused" && (
+          <View className="px-4 pt-4 mb-1">
+            <Card className="border-amber-500/40 bg-amber-500/10">
+              <CardContent className="p-4 flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-full bg-amber-500/20 items-center justify-center">
+                  <Icon as={EyeOffIcon} className="size-5 text-amber-600 dark:text-amber-400" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-bold text-sm text-foreground">Paused from Marketplace</Text>
+                  <Text className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    This app is not visible in the marketplace feed. You can re-enable it anytime by tapping "Edit" below.
+                  </Text>
+                </View>
+              </CardContent>
+            </Card>
+          </View>
+        )}
+
         {/* App Header Card */}
         <View className="px-4 py-4 mb-2">
           <Card className="border-0 overflow-hidden bg-blue-950 shadow-lg">

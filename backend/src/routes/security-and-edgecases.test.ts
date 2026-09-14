@@ -368,6 +368,75 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
     expect(restoredApp2).toBeDefined()
   })
 
+  it("19c. App owner can remove app from marketplace (isMarketplaceVisible: false), preventing swaps, and restore it", async () => {
+    // 1. User 2 removes app2 from marketplace via toggle
+    const pauseRes = await app.request(`/api/apps/${app2Id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${normalUser2Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        isMarketplaceVisible: false,
+      }),
+    })
+    expect(pauseRes.status).toBe(200)
+    const pausedApp = await pauseRes.json()
+    expect(pausedApp.status).toBe("paused")
+    expect(pausedApp.isMarketplaceVisible).toBe(false)
+
+    // 2. Verify app2 is excluded from public marketplace feed
+    const listRes = await app.request("/api/apps", {
+      headers: { Authorization: `Bearer ${normalUser1Token}` },
+    })
+    expect(listRes.status).toBe(200)
+    const list = await listRes.json()
+    const found = list.apps.find((a: any) => a.id === app2Id)
+    expect(found).toBeUndefined()
+
+    // 3. Verify app2 is still listed in User 2's My Apps with paused status
+    const myAppsRes = await app.request("/api/apps/my", {
+      headers: { Authorization: `Bearer ${normalUser2Token}` },
+    })
+    expect(myAppsRes.status).toBe(200)
+    const myApps = await myAppsRes.json()
+    const myApp2 = myApps.find((a: any) => a.id === app2Id)
+    expect(myApp2).toBeDefined()
+    expect(myApp2.status).toBe("paused")
+    expect(myApp2.isMarketplaceVisible).toBe(false)
+
+    // 4. Verify another user cannot request a match with a paused app
+    const matchReqRes = await app.request("/api/matches/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${normalUser1Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        app1Id: app1Id,
+        targetAppId: app2Id,
+      }),
+    })
+    expect(matchReqRes.status).toBe(400)
+    const matchReqErr = await matchReqRes.json()
+    expect(matchReqErr.message).toContain("Target app is currently paused")
+
+    // 5. User 2 restores app2 back to the marketplace
+    const restoreRes = await app.request(`/api/apps/${app2Id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${normalUser2Token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        isMarketplaceVisible: true,
+      }),
+    })
+    expect(restoreRes.status).toBe(200)
+    const restoredApp = await restoreRes.json()
+    expect(restoredApp.status).toBe("recruiting")
+    expect(restoredApp.isMarketplaceVisible).toBe(true)
+
+    // 6. Verify app2 is immediately back in public marketplace feed
+    const listResRestored = await app.request("/api/apps", {
+      headers: { Authorization: `Bearer ${normalUser1Token}` },
+    })
+    const listRestored = await listResRestored.json()
+    const foundRestored = listRestored.apps.find((a: any) => a.id === app2Id)
+    expect(foundRestored).toBeDefined()
+  })
+
   it("20. Admin can fetch all moderation reports via GET /api/admin/reports", async () => {
     const res = await app.request("/api/admin/reports", {
       headers: { Authorization: `Bearer ${adminUserToken}` },

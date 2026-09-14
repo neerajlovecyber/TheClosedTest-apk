@@ -23,6 +23,7 @@ export interface UpdateAppDTO {
   instructions?: string
   requiredTesters?: number
   status?: "recruiting" | "paused" | "archived" | "completed"
+  isMarketplaceVisible?: boolean
 }
 
 export interface ListAppsQuery {
@@ -67,15 +68,22 @@ export class AppService {
       const required = Math.min(12, Math.max(1, (item as any).requiredTesters || 12))
       const rawStatus = (item as any).status
       let dynamicStatus = rawStatus
-      if (rawStatus !== "archived" && rawStatus !== "paused") {
+      if (rawStatus !== "archived" && rawStatus !== "paused" && rawStatus !== "completed") {
         dynamicStatus = current >= required ? "filled" : "recruiting"
       }
+
+      const isMarketplaceVisible =
+        dynamicStatus !== "paused" &&
+        dynamicStatus !== "archived" &&
+        dynamicStatus !== "completed" &&
+        (item as any).visibilityStatus !== "hidden"
 
       return {
         ...item,
         requiredTesters: required,
         currentTesters: current,
         status: dynamicStatus,
+        isMarketplaceVisible,
       }
     })
   }
@@ -104,6 +112,7 @@ export class AppService {
     const conditions = [
       not(eq(apps.status, "archived")),
       not(eq(apps.status, "paused")),
+      not(eq(apps.status, "completed")),
       or(eq(apps.visibilityStatus, "visible"), eq(apps.visibilityStatus, "unverified")),
     ]
 
@@ -291,12 +300,21 @@ export class AppService {
 
     const shouldResetFlags = existing.visibilityStatus === "hidden" || existing.flagCount > 0
 
+    const { isMarketplaceVisible, ...fieldsToUpdate } = dto as any
+    if (isMarketplaceVisible !== undefined && !fieldsToUpdate.status) {
+      if (!isMarketplaceVisible) {
+        fieldsToUpdate.status = "paused"
+      } else if (existing.status === "paused") {
+        fieldsToUpdate.status = "recruiting"
+      }
+    }
+
     let updatedApp: any
     await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(apps)
         .set({
-          ...dto,
+          ...fieldsToUpdate,
           ...(shouldResetFlags ? { flagCount: 0, visibilityStatus: "unverified" } : {}),
           updatedAt: new Date(),
         })
@@ -306,7 +324,7 @@ export class AppService {
       updatedApp = updated
 
       // Reward +20 reputation if status transitions to completed
-      if (dto.status === "completed" && existing.status !== "completed") {
+      if (fieldsToUpdate.status === "completed" && existing.status !== "completed") {
         await ReputationService.changeReputation({
           userId,
           delta: 20,

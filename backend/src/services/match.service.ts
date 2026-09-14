@@ -63,6 +63,14 @@ export class MatchService {
       throw new Error("Cannot request match: One of the apps has been archived or deleted")
     }
 
+    if (app2.status === "paused") {
+      throw new Error("Cannot request match: Target app is currently paused and not accepting new test swaps")
+    }
+
+    if (app1.status === "paused") {
+      throw new Error("Cannot request match: Your app is currently removed from the marketplace. Enable marketplace listing in Edit App to request swaps.")
+    }
+
     // 3. Verify tester capacities
     const [enrichedApp1, enrichedApp2] = await AppService.enrichAppsWithTesterCounts([app1, app2])
     const count1 = (enrichedApp1 as any)?.currentTesters ?? 0

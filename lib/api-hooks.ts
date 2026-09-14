@@ -63,6 +63,7 @@ export interface AppEntity {
   completedAt?: string | null;
   flagCount: number;
   visibilityStatus?: "unverified" | "visible" | "hidden" | null;
+  isMarketplaceVisible?: boolean;
   positiveVotes: number;
   negativeVotes: number;
   voters: string[];
@@ -344,6 +345,7 @@ export function useUpdateApp() {
       playStoreUrl?: string;
       iconUrl?: string;
       status?: "recruiting" | "filled" | "paused" | "archived" | "completed";
+      isMarketplaceVisible?: boolean;
     }) => api.patch<AppEntity>(`/api/apps/${id}`, updates),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["apps"] });

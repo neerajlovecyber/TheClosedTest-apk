@@ -18,8 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeftIcon, UploadIcon, Trash2Icon, AlertTriangleIcon } from "lucide-react-native";
+import { ArrowLeftIcon, UploadIcon, Trash2Icon, AlertTriangleIcon, EyeOffIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
+import { Switch } from "@/components/ui/switch";
 import * as ImagePicker from "expo-image-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -45,6 +46,7 @@ export default function EditAppScreen() {
   const [processedImageUri, setProcessedImageUri] = useState<string | null>(null);
   const [currentIconUrl, setCurrentIconUrl] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isMarketplaceVisible, setIsMarketplaceVisible] = useState(true);
 
   useEffect(() => {
     if (app) {
@@ -54,6 +56,7 @@ export default function EditAppScreen() {
       setInstructions(app.instructions || "");
       setRequiredTesters(String(app.requiredTesters));
       setCurrentIconUrl(app.iconUrl || null);
+      setIsMarketplaceVisible(app.status !== "paused");
     }
   }, [app]);
 
@@ -146,6 +149,8 @@ export default function EditAppScreen() {
         playStoreUrl,
         iconUrl,
         instructions,
+        status: app?.status === "completed" ? "completed" : isMarketplaceVisible ? "recruiting" : "paused",
+        isMarketplaceVisible,
       });
 
       toast.success("Success", { description: "App updated successfully!" });
@@ -260,6 +265,39 @@ export default function EditAppScreen() {
           </CardHeader>
           <CardContent className="gap-4">
             <Textarea nativeID="instructions" value={instructions} onChangeText={setInstructions} maxLength={250} className="h-32" />
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Marketplace Listing</CardTitle>
+          </CardHeader>
+          <CardContent className="gap-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <Text className="text-base font-semibold text-foreground">
+                  List in Marketplace
+                </Text>
+                <Text className="text-sm text-muted-foreground mt-0.5 leading-relaxed">
+                  {isMarketplaceVisible
+                    ? "Your app is currently visible to testers in the marketplace and can receive swap requests."
+                    : "Your app is removed from the marketplace. Other developers cannot see it or request swaps."}
+                </Text>
+              </View>
+              <Switch
+                checked={isMarketplaceVisible}
+                onCheckedChange={setIsMarketplaceVisible}
+              />
+            </View>
+
+            {!isMarketplaceVisible && (
+              <View className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex-row items-center gap-3">
+                <Icon as={EyeOffIcon} className="size-5 text-amber-600 dark:text-amber-400" />
+                <Text className="text-xs text-amber-700 dark:text-amber-400 flex-1 leading-relaxed">
+                  Removed from Marketplace. Existing active test matches will continue, but new testers cannot discover your app.
+                </Text>
+              </View>
+            )}
           </CardContent>
         </Card>
 

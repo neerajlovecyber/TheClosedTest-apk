@@ -24,6 +24,7 @@ export const AppSchema = z.object({
   completedAt: z.string().or(z.date()).nullable().optional(),
   flagCount: z.number(),
   visibilityStatus: z.enum(["unverified", "visible", "hidden"]).nullable().optional(),
+  isMarketplaceVisible: z.boolean().optional(),
   positiveVotes: z.number(),
   negativeVotes: z.number(),
   voters: z.array(z.string()),
@@ -52,6 +53,7 @@ const CreateAppSchema = z.object({
 
 const UpdateAppSchema = CreateAppSchema.partial().extend({
   status: z.enum(["recruiting", "paused", "archived", "completed"]).optional(),
+  isMarketplaceVisible: z.boolean().optional(),
 })
 
 const VoteSchema = z.object({
