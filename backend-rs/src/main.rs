@@ -68,8 +68,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             state.clone(),
             backend_rs::middleware::rate_limit::rate_limiter_middleware,
         ))
-        // 6. Tracing & CORS
-        .layer(TraceLayer::new_for_http())
+        // 6. Tracing & CORS (Structured request/response logging matching TS pino-logger)
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(
+                    tower_http::trace::DefaultMakeSpan::new()
+                        .level(tracing::Level::INFO)
+                        .include_headers(false),
+                )
+                .on_request(|request: &axum::http::Request<_>, _span: &tracing::Span| {
+                    tracing::info!("--> {} {}", request.method(), request.uri().path());
+                })
+                .on_response(
+                    |response: &axum::http::Response<_>, latency: std::time::Duration, _span: &tracing::Span| {
+                        let status = response.status();
+                        let ms = latency.as_millis();
+                        let reason = status.canonical_reason().unwrap_or("");
+                        if status.is_server_error() {
+                            tracing::error!("<-- {} {} ({}ms)", status.as_u16(), reason, ms);
+                        } else if status.is_client_error() {
+                            tracing::warn!("<-- {} {} ({}ms)", status.as_u16(), reason, ms);
+                        } else {
+                            tracing::info!("<-- {} {} ({}ms)", status.as_u16(), reason, ms);
+                        }
+                    },
+                )
+                .on_failure(
+                    |error: tower_http::classify::ServerErrorsFailureClass, latency: std::time::Duration, _span: &tracing::Span| {
+                        tracing::error!("<-- SERVER ERROR: {:?} (after {}ms)", error, latency.as_millis());
+                    },
+                ),
+        )
         .layer(cors)
         .with_state(state);
 
