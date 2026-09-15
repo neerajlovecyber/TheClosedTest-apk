@@ -1056,7 +1056,7 @@ describe("Security, Edge Cases & Extended Business Logic Suite", () => {
       app2Id: partnerApp.id,
       status: "completed",
       startDate: new Date(Date.now() - 15 * 86400000),
-      endDate: new Date(),
+      completedAt: new Date(),
     })
 
     // 3. Fetch app details and verify currentTesters ONLY counts the 1 active match, NOT the completed one

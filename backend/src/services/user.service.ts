@@ -78,7 +78,7 @@ export class UserService {
 
     userAuthCache.delete(dto.tokenIdentifier)
 
-    return { user: newUser, isNew: true }
+    return { user: { ...newUser, appsCount: 0 }, isNew: true }
   }
 
   /**
@@ -218,7 +218,12 @@ export class UserService {
       userAuthCache.delete(updated.tokenIdentifier)
     }
 
-    return updated
+    const [activeApps] = await db
+      .select({ count: count() })
+      .from(apps)
+      .where(and(eq(apps.userId, userId), not(eq(apps.status, "archived"))))
+
+    return { ...updated, appsCount: activeApps?.count ?? 0 }
   }
 
   /**
@@ -238,7 +243,12 @@ export class UserService {
       userAuthCache.delete(updated.tokenIdentifier)
     }
 
-    return updated
+    const [activeApps] = await db
+      .select({ count: count() })
+      .from(apps)
+      .where(and(eq(apps.userId, userId), not(eq(apps.status, "archived"))))
+
+    return { ...updated, appsCount: activeApps?.count ?? 0 }
   }
 
   /**

@@ -74,7 +74,6 @@ export const AdminUserListItemSchema = z.object({
   email: z.string(),
   avatarUrl: z.string().nullable().optional(),
   reputation: z.number(),
-  appsCount: z.number(),
   isAdmin: z.boolean(),
   isGroupMember: z.boolean(),
   streak: z.number(),

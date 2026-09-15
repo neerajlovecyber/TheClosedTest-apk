@@ -68,7 +68,9 @@ export class MatchService {
     }
 
     if (app1.status === "paused") {
-      throw new Error("Cannot request match: Your app is currently removed from the marketplace. Enable marketplace listing in Edit App to request swaps.")
+      throw new Error(
+        "Cannot request match: Your app is currently removed from the marketplace. Enable marketplace listing in Edit App to request swaps.",
+      )
     }
 
     // 3. Verify tester capacities

@@ -429,10 +429,10 @@ export async function runMatchProgressionAndCleanup() {
 
         await db.insert(notifications).values({
           userId: inactiveApp.userId,
-          type: "app_paused_inactivity",
+          type: "reminder",
           title: "App Listing Paused",
           body: `Your app "${inactiveApp.title}" was paused due to 3 days of inactivity. Tap to resume whenever you're ready!`,
-          data: { appId: inactiveApp.id },
+          data: { appId: inactiveApp.id, subtype: "app_paused_inactivity" },
         })
       }
     }
