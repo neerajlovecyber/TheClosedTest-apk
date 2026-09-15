@@ -184,7 +184,7 @@ pub async fn run_match_progression_and_cleanup(pool: &PgPool) -> Result<(), sqlx
         SELECT a.id, a.user_id, a.title
         FROM apps a
         JOIN users u ON a.user_id = u.id
-        WHERE a.status = 'recruiting'
+        WHERE a.status IN ('recruiting', 'filled')
           AND (
             (a.created_at < NOW() - INTERVAL '72 HOURS' AND (u.last_check_in_date IS NULL OR u.last_check_in_date < TO_CHAR(NOW() - INTERVAL '3 DAYS', 'YYYY-MM-DD')))
             OR

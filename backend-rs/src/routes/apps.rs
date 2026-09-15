@@ -196,6 +196,16 @@ async fn list_public_apps(
                 reputation: Some(user.reputation),
             });
             let voters_vec: Vec<String> = serde_json::from_value(a.voters).unwrap_or_default();
+            let req_testers = a.required_testers.max(1);
+            let dynamic_status = if a.status != "archived" && a.status != "paused" && a.status != "completed" {
+                if current_testers >= req_testers {
+                    "filled".to_string()
+                } else {
+                    "recruiting".to_string()
+                }
+            } else {
+                a.status
+            };
             AppResponse {
                 id: a.id,
                 user_id: a.user_id,
@@ -204,9 +214,9 @@ async fn list_public_apps(
                 play_store_url: a.play_store_url,
                 icon_url: a.icon_url,
                 instructions: a.instructions,
-                required_testers: a.required_testers,
+                required_testers: req_testers,
                 current_testers,
-                status: a.status,
+                status: dynamic_status,
                 completed_at: a.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
                 flag_count: a.flag_count,
                 visibility_status: a.visibility_status,
@@ -226,8 +236,8 @@ async fn list_public_apps(
     //    Else: User reputation desc, then created_at desc
     let is_latest_sort = sort_order == "latest";
     app_responses.sort_by(|a, b| {
-        let filled_a = a.status == "filled" || a.current_testers >= a.required_testers;
-        let filled_b = b.status == "filled" || b.current_testers >= b.required_testers;
+        let filled_a = a.status == "filled" || a.current_testers >= a.required_testers.max(1);
+        let filled_b = b.status == "filled" || b.current_testers >= b.required_testers.max(1);
         if filled_a != filled_b {
             return filled_a.cmp(&filled_b);
         }
@@ -287,6 +297,16 @@ async fn list_my_apps(
         .map(|a| {
             let current_testers = counts_map.get(&a.id).copied().unwrap_or(0);
             let voters_vec: Vec<String> = serde_json::from_value(a.voters).unwrap_or_default();
+            let req_testers = a.required_testers.max(1);
+            let dynamic_status = if a.status != "archived" && a.status != "paused" && a.status != "completed" {
+                if current_testers >= req_testers {
+                    "filled".to_string()
+                } else {
+                    "recruiting".to_string()
+                }
+            } else {
+                a.status
+            };
             AppResponse {
                 id: a.id,
                 user_id: a.user_id,
@@ -295,9 +315,9 @@ async fn list_my_apps(
                 play_store_url: a.play_store_url,
                 icon_url: a.icon_url,
                 instructions: a.instructions,
-                required_testers: a.required_testers,
+                required_testers: req_testers,
                 current_testers,
-                status: a.status,
+                status: dynamic_status,
                 completed_at: a.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
                 flag_count: a.flag_count,
                 visibility_status: a.visibility_status,
@@ -441,6 +461,16 @@ async fn get_app_by_id(
     });
 
     let voters_vec: Vec<String> = serde_json::from_value(a.voters).unwrap_or_default();
+    let req_testers = a.required_testers.max(1);
+    let dynamic_status = if a.status != "archived" && a.status != "paused" && a.status != "completed" {
+        if current_testers >= req_testers {
+            "filled".to_string()
+        } else {
+            "recruiting".to_string()
+        }
+    } else {
+        a.status
+    };
 
     Ok(Json(AppResponse {
         id: a.id,
@@ -450,9 +480,9 @@ async fn get_app_by_id(
         play_store_url: a.play_store_url,
         icon_url: a.icon_url,
         instructions: a.instructions,
-        required_testers: a.required_testers,
+        required_testers: req_testers,
         current_testers,
-        status: a.status,
+        status: dynamic_status,
         completed_at: a.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
         flag_count: a.flag_count,
         visibility_status: a.visibility_status,

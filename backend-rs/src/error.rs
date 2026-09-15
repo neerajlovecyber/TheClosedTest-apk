@@ -85,6 +85,10 @@ impl IntoResponse for AppError {
             }
         };
 
+        if status.is_client_error() {
+            tracing::warn!("Client error [{}]: {}", status, message);
+        }
+
         let body = Json(ErrorResponse {
             success: false,
             error: ErrorDetail { message },

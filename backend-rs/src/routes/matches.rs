@@ -565,10 +565,11 @@ async fn request_match(
         .count(&state.db)
         .await? as i32;
 
-    if count1 >= app1.required_testers {
+    let req1 = app1.required_testers.max(1);
+    if count1 >= req1 {
         return Err(AppError::BadRequest(format!(
             "Cannot request swap: Your app \"{}\" has reached full tester capacity ({}/{})",
-            app1.title, count1, app1.required_testers
+            app1.title, count1, req1
         )));
     }
 
@@ -585,10 +586,11 @@ async fn request_match(
         .count(&state.db)
         .await? as i32;
 
-    if count2 >= app2.required_testers {
+    let req2 = app2.required_testers.max(1);
+    if count2 >= req2 {
         return Err(AppError::BadRequest(format!(
             "Cannot request swap: \"{}\" has reached full tester capacity ({}/{})",
-            app2.title, count2, app2.required_testers
+            app2.title, count2, req2
         )));
     }
 
@@ -730,10 +732,11 @@ async fn accept_match(
         .count(&state.db)
         .await? as i32;
 
-    if count1 >= app1.required_testers {
+    let req1 = app1.required_testers.max(1);
+    if count1 >= req1 {
         return Err(AppError::BadRequest(format!(
             "Cannot accept: \"{}\" has reached full tester capacity ({}/{})",
-            app1.title, count1, app1.required_testers
+            app1.title, count1, req1
         )));
     }
 
@@ -750,10 +753,11 @@ async fn accept_match(
         .count(&state.db)
         .await? as i32;
 
-    if count2 >= app2.required_testers {
+    let req2 = app2.required_testers.max(1);
+    if count2 >= req2 {
         return Err(AppError::BadRequest(format!(
             "Cannot accept: \"{}\" has reached full tester capacity ({}/{})",
-            app2.title, count2, app2.required_testers
+            app2.title, count2, req2
         )));
     }
 

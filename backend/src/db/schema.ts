@@ -56,7 +56,7 @@ export const apps = pgTable(
     instructions: text("instructions").notNull(),
     requiredTesters: integer("required_testers").default(12).notNull(),
     status: text("status", {
-      enum: ["recruiting", "paused", "archived", "completed"],
+      enum: ["recruiting", "filled", "paused", "archived", "completed"],
     })
       .default("recruiting")
       .notNull(),
