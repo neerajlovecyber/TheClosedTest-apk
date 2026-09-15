@@ -58,8 +58,13 @@ impl IntoResponse for AppError {
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::Database(err) => {
+                let err_str = err.to_string();
                 tracing::error!("Database error: {:?}", err);
-                (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
+                if err_str.contains("duplicate key value violates unique constraint") {
+                    (StatusCode::CONFLICT, "Record already exists".to_string())
+                } else {
+                    (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", err_str))
+                }
             }
             AppError::SeaOrm(err) => {
                 use sea_orm::DbErr;
@@ -67,16 +72,14 @@ impl IntoResponse for AppError {
                     DbErr::RecordNotFound(msg) => {
                         (StatusCode::NOT_FOUND, msg.clone())
                     }
-                    DbErr::Query(sea_orm::RuntimeErr::SqlxError(sqlx_err))
-                        if sqlx_err
-                            .to_string()
-                            .contains("duplicate key value violates unique constraint") =>
-                    {
-                        (StatusCode::CONFLICT, "Record already exists".to_string())
-                    }
                     _ => {
-                        tracing::error!("SeaORM database error: {:?}", err);
-                        (StatusCode::INTERNAL_SERVER_ERROR, "A database error occurred".to_string())
+                        let err_str = err.to_string();
+                        if err_str.contains("duplicate key value violates unique constraint") {
+                            (StatusCode::CONFLICT, "Record already exists".to_string())
+                        } else {
+                            tracing::error!("SeaORM database error: {:?}", err);
+                            (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", err_str))
+                        }
                     }
                 }
             }

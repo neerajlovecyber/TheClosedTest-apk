@@ -1,4 +1,5 @@
-use sqlx::postgres::PgPoolOptions;
+use std::str::FromStr;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{Executor, PgPool};
 use tokio::sync::OnceCell;
 use backend_rs::config::Config;
@@ -19,9 +20,25 @@ pub async fn get_test_pool() -> (PgPool, bool) {
         let _ = dotenvy::dotenv();
 
         // 1. Check if an explicit TEST_DATABASE_URL or DATABASE_URL is configured
-        if let Ok(url) = std::env::var("TEST_DATABASE_URL").or_else(|_| std::env::var("DATABASE_URL")) {
-            println!("[test] Connecting to test database...");
-            match PgPoolOptions::new().max_connections(5).connect(&url).await {
+        if let Ok(mut url) = std::env::var("TEST_DATABASE_URL").or_else(|_| std::env::var("DATABASE_URL")) {
+            url = url.replace("-pooler.", ".");
+            println!("[test] Connecting to test database (direct endpoint)...");
+            let connect_opts = match PgConnectOptions::from_str(&url) {
+                Ok(opts) => opts,
+                Err(e) => {
+                    eprintln!("[test] Failed to parse database URL: {e}");
+                    return PgPoolOptions::new().connect_lazy(&url).unwrap();
+                }
+            };
+            let pool_res = PgPoolOptions::new()
+                .max_connections(20)
+                .min_connections(2)
+                .acquire_timeout(std::time::Duration::from_secs(30))
+                .idle_timeout(std::time::Duration::from_secs(600))
+                .max_lifetime(std::time::Duration::from_secs(1800))
+                .connect_with(connect_opts)
+                .await;
+            match pool_res {
                 Ok(p) => {
                     println!("[test] Connected to test database! Applying schema migrations...");
                     let sql = include_str!("../../migrations/0001_init.sql");
