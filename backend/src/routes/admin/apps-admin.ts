@@ -180,18 +180,7 @@ router.openapi(
     // 3. Delete the app
     await db.delete(apps).where(eq(apps.id, id))
 
-    // 4. Decrement user's appsCount
-    const owner = await db.query.users.findFirst({
-      where: eq(users.id, targetApp.userId),
-    })
-    if (owner && owner.appsCount > 0) {
-      await db
-        .update(users)
-        .set({ appsCount: Math.max(0, owner.appsCount - 1) })
-        .where(eq(users.id, targetApp.userId))
-    }
-
-    // 5. Optionally ban the package
+    // 4. Optionally ban the package
     if (banPackage === "true") {
       await db
         .insert(appBans)

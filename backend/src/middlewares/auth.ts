@@ -105,7 +105,6 @@ export async function authMiddleware(c: Context<AppBindings>, next: Next) {
             email: fallbackEmail,
             avatarUrl: `https://ui-avatars.com/api/?name=Developer&background=random`,
             reputation: 100,
-            appsCount: 0,
             isGroupMember: false,
             streak: 0,
             bestStreak: 0,

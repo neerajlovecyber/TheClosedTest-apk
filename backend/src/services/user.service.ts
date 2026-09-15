@@ -69,7 +69,6 @@ export class UserService {
         avatarUrl: avatar,
         isAdmin: isUserAdminRole,
         reputation: 100,
-        appsCount: 0,
         isGroupMember: false,
         streak: 0,
         bestStreak: 0,

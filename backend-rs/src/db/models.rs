@@ -11,8 +11,6 @@ pub struct User {
     #[serde(rename = "avatarUrl")]
     pub avatar_url: Option<String>,
     pub reputation: i32,
-    #[serde(rename = "appsCount")]
-    pub apps_count: i32,
     #[serde(rename = "pushToken")]
     pub push_token: Option<String>,
     #[serde(rename = "isGroupMember")]
@@ -41,7 +39,6 @@ impl From<crate::entities::users::Model> for User {
             email: u.email,
             avatar_url: u.avatar_url,
             reputation: u.reputation,
-            apps_count: u.apps_count,
             push_token: u.push_token,
             is_group_member: u.is_group_member,
             is_admin: u.is_admin,

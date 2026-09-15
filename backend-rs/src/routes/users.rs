@@ -24,6 +24,7 @@ pub struct UserResponse {
     #[serde(rename = "avatarUrl")]
     pub avatar_url: Option<String>,
     pub reputation: i32,
+    /// Computed live from SELECT COUNT(*) — not stored in DB
     #[serde(rename = "appsCount")]
     pub apps_count: i32,
     #[serde(rename = "pushToken")]
@@ -56,7 +57,7 @@ impl From<User> for UserResponse {
             email: u.email,
             avatar_url: u.avatar_url,
             reputation: u.reputation,
-            apps_count: u.apps_count,
+            apps_count: 0, // always overridden by live COUNT in route handlers
             push_token: u.push_token,
             is_group_member: u.is_group_member,
             google_group_confirmed: u.is_group_member,
@@ -80,7 +81,7 @@ impl From<users::Model> for UserResponse {
             email: u.email,
             avatar_url: u.avatar_url,
             reputation: u.reputation,
-            apps_count: u.apps_count,
+            apps_count: 0, // always overridden by live COUNT in route handlers
             push_token: u.push_token,
             is_group_member: u.is_group_member,
             google_group_confirmed: u.is_group_member,
@@ -153,7 +154,7 @@ async fn get_me(
         .filter(apps::Column::Status.ne("archived"))
         .count(&state.db)
         .await
-        .unwrap_or(user.apps_count as u64) as i32;
+        .unwrap_or(0) as i32;
 
     let mut resp: UserResponse = user.into();
     resp.apps_count = live_apps_count;
@@ -191,7 +192,7 @@ async fn sync_user(
         .filter(apps::Column::Status.ne("archived"))
         .count(&state.db)
         .await
-        .unwrap_or(updated.apps_count as u64) as i32;
+        .unwrap_or(0) as i32;
 
     if let Some(token_id) = &updated.token_identifier {
         state.user_cache.insert(token_id.clone(), updated.clone().into()).await;

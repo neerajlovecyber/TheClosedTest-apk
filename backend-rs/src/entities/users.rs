@@ -11,7 +11,6 @@ pub struct Model {
     pub email: String,
     pub avatar_url: Option<String>,
     pub reputation: i32,
-    pub apps_count: i32,
     pub push_token: Option<String>,
     pub is_group_member: bool,
     pub is_admin: bool,

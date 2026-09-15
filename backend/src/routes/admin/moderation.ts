@@ -220,7 +220,6 @@ router.openapi(
     await db.delete(matches)
     await db.delete(appBans)
     const deleted = await db.delete(apps).returning()
-    await db.update(users).set({ appsCount: 0 })
 
     return c.json(
       {

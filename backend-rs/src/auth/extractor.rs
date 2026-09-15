@@ -85,7 +85,6 @@ impl FromRequestParts<AppState> for AuthUser {
                     email: Set(fallback_email),
                     avatar_url: Set(Some(avatar)),
                     reputation: Set(100),
-                    apps_count: Set(0),
                     push_token: Set(None),
                     is_group_member: Set(false),
                     is_admin: Set(false),

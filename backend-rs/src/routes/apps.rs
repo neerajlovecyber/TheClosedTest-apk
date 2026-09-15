@@ -383,14 +383,6 @@ async fn create_app(
 
     let app = new_app.insert(&state.db).await?;
 
-    // Increment user's apps_count
-    if let Some(u) = Users::find_by_id(&user.id).one(&state.db).await? {
-        let mut u_act: users::ActiveModel = u.into();
-        u_act.apps_count = Set(u_act.apps_count.as_ref() + 1);
-        u_act.updated_at = Set(now);
-        let _ = u_act.update(&state.db).await;
-    }
-
     // Invalidate public apps list RAM cache
     state.api_cache.invalidate_all();
 
@@ -681,14 +673,6 @@ async fn delete_app(
     // Delete the app
     let app_act: apps::ActiveModel = existing.clone().into();
     app_act.delete(&state.db).await?;
-
-    // Decrement user apps count
-    if let Some(u) = Users::find_by_id(&existing.user_id).one(&state.db).await? {
-        let mut u_act: users::ActiveModel = u.into();
-        let new_count = std::cmp::max(0, u_act.apps_count.as_ref() - 1);
-        u_act.apps_count = Set(new_count);
-        let _ = u_act.update(&state.db).await;
-    }
 
     // Invalidate public apps list RAM cache
     state.api_cache.invalidate_all();

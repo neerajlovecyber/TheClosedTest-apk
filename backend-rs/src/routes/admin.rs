@@ -189,8 +189,6 @@ pub struct AdminUserListItem {
     #[serde(rename = "avatarUrl")]
     pub avatar_url: Option<String>,
     pub reputation: i32,
-    #[serde(rename = "appsCount")]
-    pub apps_count: i32,
     #[serde(rename = "isAdmin")]
     pub is_admin: bool,
     #[serde(rename = "isGroupMember")]
@@ -211,7 +209,6 @@ impl From<users::Model> for AdminUserListItem {
             email: u.email,
             avatar_url: u.avatar_url,
             reputation: u.reputation,
-            apps_count: u.apps_count,
             is_admin: u.is_admin,
             is_group_member: u.is_group_member,
             streak: u.streak,
@@ -796,20 +793,6 @@ async fn admin_delete_app(
         .await;
     let _ = Apps::delete_by_id(&id).exec(&state.db).await;
 
-    // Decrement owner's appsCount
-    if let Ok(Some(owner)) = Users::find_by_id(&app.user_id).one(&state.db).await {
-        if owner.apps_count > 0 {
-            let _ = users::ActiveModel {
-                id: Set(owner.id),
-                apps_count: Set(std::cmp::Ord::max(owner.apps_count - 1, 0)),
-                updated_at: Set(OffsetDateTime::now_utc()),
-                ..Default::default()
-            }
-            .update(&state.db)
-            .await;
-        }
-    }
-
     // Optionally ban the package
     if query.ban_package.as_deref() == Some("true") {
         let reason = query.reason.unwrap_or_else(|| "Banned by Admin".to_string());
@@ -1034,20 +1017,6 @@ async fn clean_all_apps(
         .exec(&state.db)
         .await
         .map_err(AppError::from)?;
-
-    // Reset all users' appsCount = 0
-    let all_users = Users::find().all(&state.db).await.unwrap_or_default();
-    for u in all_users {
-        if u.apps_count != 0 {
-            let _ = users::ActiveModel {
-                id: Set(u.id),
-                apps_count: Set(0),
-                ..Default::default()
-            }
-            .update(&state.db)
-            .await;
-        }
-    }
 
     Ok(Json(CleanupResultResponse {
         message: "All apps, matches, and testing records have been cleanly deleted.".to_string(),

@@ -15,7 +15,6 @@ export const users = pgTable(
     email: text("email").notNull().unique(),
     avatarUrl: text("avatar_url"),
     reputation: integer("reputation").default(100).notNull(),
-    appsCount: integer("apps_count").default(0).notNull(),
     pushToken: text("push_token"),
     isGroupMember: boolean("is_group_member").default(false).notNull(),
     isAdmin: boolean("is_admin").default(false).notNull(),
