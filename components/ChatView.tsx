@@ -1,8 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { View, Pressable, TextInput, ScrollView, ActivityIndicator, Platform, Dimensions, TouchableOpacity } from "react-native";
+import { View, Pressable, TextInput, ScrollView, ActivityIndicator, Platform, Dimensions, TouchableOpacity, FlatList } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
-import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
@@ -283,7 +282,7 @@ export function ChatView({
             <Text className="text-xs text-muted-foreground text-center max-w-[260px] mb-4">{emptyDescription}</Text>
           </View>
         ) : (
-          <FlashList
+          <FlatList
             ref={listRef}
             data={chatItems}
             inverted
