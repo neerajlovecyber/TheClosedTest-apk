@@ -94,8 +94,12 @@ pub struct MatchDetailResponse {
     pub status: String,
     #[serde(rename = "startDate")]
     pub start_date: Option<String>,
+    #[serde(rename = "completedAt")]
+    pub completed_at: Option<String>,
     #[serde(rename = "lastActivity")]
     pub last_activity: String,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: Option<String>,
     #[serde(rename = "user1ApprovedCount")]
     pub user1_approved_count: i32,
     #[serde(rename = "user2ApprovedCount")]
@@ -104,6 +108,10 @@ pub struct MatchDetailResponse {
     pub user1_last_proof: Option<serde_json::Value>,
     #[serde(rename = "user2LastProof")]
     pub user2_last_proof: Option<serde_json::Value>,
+    #[serde(rename = "lastRead1")]
+    pub last_read1: Option<String>,
+    #[serde(rename = "lastRead2")]
+    pub last_read2: Option<String>,
     #[serde(rename = "hasUnreadMessages")]
     pub has_unread_messages: bool,
     #[serde(rename = "latestMessage")]
@@ -293,11 +301,15 @@ async fn list_matches(
             app2_id: m.app2_id,
             status: m.status,
             start_date: m.start_date.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+            completed_at: m.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
             last_activity: m.last_activity.format(&Rfc3339).unwrap_or_default(),
+            updated_at: Some(m.updated_at.format(&Rfc3339).unwrap_or_default()),
             user1_approved_count: m.user1_approved_count,
             user2_approved_count: m.user2_approved_count,
             user1_last_proof,
             user2_last_proof,
+            last_read1: m.last_read1.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+            last_read2: m.last_read2.map(|t| t.format(&Rfc3339).unwrap_or_default()),
             has_unread_messages,
             latest_message,
             proofs: None,
@@ -444,11 +456,15 @@ async fn get_match(
         app2_id: m.app2_id,
         status: m.status,
         start_date: m.start_date.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+        completed_at: m.completed_at.map(|t| t.format(&Rfc3339).unwrap_or_default()),
         last_activity: m.last_activity.format(&Rfc3339).unwrap_or_default(),
+        updated_at: Some(m.updated_at.format(&Rfc3339).unwrap_or_default()),
         user1_approved_count: m.user1_approved_count,
         user2_approved_count: m.user2_approved_count,
         user1_last_proof,
         user2_last_proof,
+        last_read1: m.last_read1.map(|t| t.format(&Rfc3339).unwrap_or_default()),
+        last_read2: m.last_read2.map(|t| t.format(&Rfc3339).unwrap_or_default()),
         has_unread_messages,
         latest_message,
         proofs: Some(proof_responses),
@@ -478,10 +494,12 @@ async fn request_match(
     })?;
 
     if app1_id.is_none() {
-        // Look up user's first active app (parity with TS MatchService.requestMatch)
+        // Look up user's most recently created active app (parity with TS MatchService.requestMatch)
+        use sea_orm::QueryOrder;
         let user_app = Apps::find()
             .filter(apps::Column::UserId.eq(&user.id))
             .filter(apps::Column::Status.ne("archived"))
+            .order_by_desc(apps::Column::CreatedAt)
             .one(&state.db)
             .await?;
         if let Some(ua) = user_app {
