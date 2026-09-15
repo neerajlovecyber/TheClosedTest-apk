@@ -399,12 +399,12 @@ fn test_match_request_self_match_rejected() {
 fn test_proof_submission_day_bounds() {
     let valid_days = [1, 7, 14];
     for day in valid_days {
-        assert!(day >= 1 && day <= 14);
+        assert!((1..=14).contains(&day));
     }
 
     let invalid_days = [0, -1, 15, 99];
     for day in invalid_days {
-        assert!(day < 1 || day > 14);
+        assert!(!(1..=14).contains(&day));
     }
 }
 

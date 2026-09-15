@@ -426,7 +426,7 @@ async fn subtest_proof_submission_bounds_and_review_security(app: &axum::Router)
     let app2_res = app.clone().oneshot(app2_req).await.unwrap();
     let app2_bytes = app2_res.into_body().collect().await.unwrap().to_bytes();
     let app2_body: Value = serde_json::from_slice(&app2_bytes).unwrap();
-    assert_eq!(app2_body.get("id").is_some(), true, "Failed to create app2: {:?}", app2_body);
+    assert!(app2_body.get("id").is_some(), "Failed to create app2: {:?}", app2_body);
     let app2_id = app2_body["id"].as_str().unwrap().to_string();
 
     // Create and activate match

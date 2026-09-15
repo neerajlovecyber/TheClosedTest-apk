@@ -271,7 +271,7 @@ async fn get_chat_details(
         || user
             .token_identifier
             .as_deref()
-            .map_or(false, |tid| chat.user_id == tid);
+            .is_some_and(|tid| chat.user_id == tid);
 
     if !is_owner && !is_admin {
         return Err(AppError::Forbidden("Forbidden".to_string()));
@@ -329,7 +329,7 @@ async fn send_support_message(
         || user
             .token_identifier
             .as_deref()
-            .map_or(false, |tid| chat.user_id == tid);
+            .is_some_and(|tid| chat.user_id == tid);
 
     if !is_owner && !is_admin {
         return Err(AppError::Forbidden("Forbidden".to_string()));

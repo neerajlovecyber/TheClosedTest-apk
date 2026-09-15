@@ -236,15 +236,15 @@ async fn list_matches(
         }));
 
         let mut msgs = match_messages.get(i).cloned().unwrap_or_default();
-        msgs.sort_by(|a, b| b.sent_at.cmp(&a.sent_at));
+        msgs.sort_by_key(|a| std::cmp::Reverse(a.sent_at));
         let latest_msg = msgs.first();
 
-        let is_user1 = m.user1_id == user.id || user.token_identifier.as_deref().map_or(false, |tid| m.user1_id == tid);
+        let is_user1 = m.user1_id == user.id || user.token_identifier.as_deref().is_some_and(|tid| m.user1_id == tid);
         let my_last_read = if is_user1 { m.last_read1 } else { m.last_read2 };
 
-        let is_msg_from_me = latest_msg.map_or(false, |msg| {
+        let is_msg_from_me = latest_msg.is_some_and(|msg| {
             msg.sender_id == user.id 
-                || user.token_identifier.as_deref().map_or(false, |tid| msg.sender_id == tid)
+                || user.token_identifier.as_deref().is_some_and(|tid| msg.sender_id == tid)
                 || msg.sender_id == "me"
         });
 
@@ -341,8 +341,8 @@ async fn get_match(
         .await?
         .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
-    let is_user1 = m.user1_id == user.id || user.token_identifier.as_deref().map_or(false, |tid| m.user1_id == tid);
-    let is_user2 = m.user2_id == user.id || user.token_identifier.as_deref().map_or(false, |tid| m.user2_id == tid);
+    let is_user1 = m.user1_id == user.id || user.token_identifier.as_deref().is_some_and(|tid| m.user1_id == tid);
+    let is_user2 = m.user2_id == user.id || user.token_identifier.as_deref().is_some_and(|tid| m.user2_id == tid);
     if !is_user1 && !is_user2 && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
         return Err(AppError::Forbidden("Forbidden: Not a participant of this match".to_string()));
     }
@@ -392,9 +392,9 @@ async fn get_match(
         .await?;
 
     let my_last_read = if is_user1 { m.last_read1 } else { m.last_read2 };
-    let is_msg_from_me = latest_msg.as_ref().map_or(false, |msg| {
+    let is_msg_from_me = latest_msg.as_ref().is_some_and(|msg| {
         msg.sender_id == user.id 
-            || user.token_identifier.as_deref().map_or(false, |tid| msg.sender_id == tid)
+            || user.token_identifier.as_deref().is_some_and(|tid| msg.sender_id == tid)
             || msg.sender_id == "me"
     });
 

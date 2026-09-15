@@ -225,10 +225,12 @@ pub async fn run_old_matches_cleanup(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+type InactiveMatchReminder = (String, String, String, Option<String>, Option<String>);
+
 /// 6. 10am/3pm/8pm IST — Send daily push reminders for inactive matches
 pub async fn run_daily_testing_reminders(pool: &PgPool, http_client: &reqwest::Client) -> Result<(), sqlx::Error> {
     info!("🔔 Sending daily testing reminders...");
-    let inactive_matches: Vec<(String, String, String, Option<String>, Option<String>)> = sqlx::query_as(
+    let inactive_matches: Vec<InactiveMatchReminder> = sqlx::query_as(
         r#"
         SELECT m.id, m.user1_id, m.user2_id, u1.push_token, u2.push_token
         FROM matches m

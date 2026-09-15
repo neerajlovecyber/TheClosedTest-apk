@@ -23,13 +23,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &jsonwebtoken::crypto::rust_crypto::DEFAULT_PROVIDER,
     );
 
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "backend_rs=debug,tower_http=info,axum=info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let log_format = std::env::var("LOG_FORMAT").unwrap_or_default();
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "backend_rs=debug,tower_http=info,axum=info".into());
+
+    if log_format.eq_ignore_ascii_case("json") {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::layer().json().flatten_event(true))
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
     let config = Config::from_env().map_err(|e| format!("Config error: {}", e))?;
     let port = config.port;
