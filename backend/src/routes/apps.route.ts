@@ -74,6 +74,7 @@ router.openapi(
         search: z.string().optional(),
         limit: z.coerce.number().default(20),
         offset: z.coerce.number().default(0),
+        sort: z.enum(["latest", "reputation"]).default("reputation").optional(),
       }),
     },
     responses: {

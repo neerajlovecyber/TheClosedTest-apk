@@ -296,13 +296,24 @@ export function useRecruitingApps(search?: string, limit = 50, offset = 0) {
   });
 }
 
-export function useInfiniteRecruitingApps(search?: string, pageSize = 20) {
+export function useLatestRecruitingApps(limit = 16) {
+  return useQuery<{ apps: AppEntity[]; total: number }, Error>({
+    queryKey: ["apps", "latest", limit],
+    queryFn: () =>
+      api.get<{ apps: AppEntity[]; total: number }>("/api/apps", {
+        params: { sort: "latest", limit },
+      }),
+    staleTime: 1000 * 10,
+  });
+}
+
+export function useInfiniteRecruitingApps(search?: string, pageSize = 20, sort: "reputation" | "latest" = "reputation") {
   return useInfiniteQuery<{ apps: AppEntity[]; total: number }, Error>({
-    queryKey: ["apps", "infinite", { search, pageSize }],
+    queryKey: ["apps", "infinite", { search, pageSize, sort }],
     initialPageParam: 0,
     queryFn: ({ pageParam }: { pageParam: unknown }) =>
       api.get<{ apps: AppEntity[]; total: number }>("/api/apps", {
-        params: { search, limit: pageSize, offset: pageParam as number },
+        params: { search, limit: pageSize, offset: pageParam as number, sort },
       }),
     getNextPageParam: (lastPage, allPages) => {
       const fetched = allPages.reduce((sum, page) => sum + page.apps.length, 0);

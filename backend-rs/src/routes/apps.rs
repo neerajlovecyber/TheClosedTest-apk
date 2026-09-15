@@ -25,6 +25,7 @@ pub struct ListAppsQuery {
     pub search: Option<String>,
     pub limit: Option<u64>,
     pub offset: Option<u64>,
+    pub sort: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -140,7 +141,8 @@ async fn list_public_apps(
     let limit = params.limit.unwrap_or(20).clamp(1, 100);
     let offset = params.offset.unwrap_or(0);
     let search_str = params.search.as_deref().unwrap_or("").trim();
-    let cache_key = format!("apps_list:{}:{}:{}", search_str, limit, offset);
+    let sort_order = params.sort.as_deref().unwrap_or("reputation");
+    let cache_key = format!("apps_list:{}:{}:{}:{}", search_str, sort_order, limit, offset);
 
     // 1. Check in-memory RAM cache (0 DB queries, 10s TTL)
     if let Some(cached_val) = state.api_cache.get(&cache_key).await {
@@ -220,18 +222,21 @@ async fn list_public_apps(
 
     // Sort by:
     // 1. Unfilled first (current_testers < required_testers)
-    // 2. User reputation desc
-    // 3. Created_at desc
+    // 2. If sort == "latest": created_at desc
+    //    Else: User reputation desc, then created_at desc
+    let is_latest_sort = sort_order == "latest";
     app_responses.sort_by(|a, b| {
         let filled_a = a.status == "filled" || a.current_testers >= a.required_testers;
         let filled_b = b.status == "filled" || b.current_testers >= b.required_testers;
         if filled_a != filled_b {
             return filled_a.cmp(&filled_b);
         }
-        let rep_a = a.user.as_ref().and_then(|u| u.reputation).unwrap_or(100);
-        let rep_b = b.user.as_ref().and_then(|u| u.reputation).unwrap_or(100);
-        if rep_a != rep_b {
-            return rep_b.cmp(&rep_a);
+        if !is_latest_sort {
+            let rep_a = a.user.as_ref().and_then(|u| u.reputation).unwrap_or(100);
+            let rep_b = b.user.as_ref().and_then(|u| u.reputation).unwrap_or(100);
+            if rep_a != rep_b {
+                return rep_b.cmp(&rep_a);
+            }
         }
         b.created_at.cmp(&a.created_at)
     });

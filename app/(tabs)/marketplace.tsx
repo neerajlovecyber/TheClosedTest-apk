@@ -14,7 +14,7 @@ import { GoogleGroupWidget } from "@/components/GoogleGroupWidget";
 import { ReportDialog } from "@/components/ReportDialog";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
-import { useCurrentUser, useInfiniteRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from "@/lib/api-hooks";
+import { useCurrentUser, useInfiniteRecruitingApps, useLatestRecruitingApps, useMatches, useRefreshOnFocus, AppEntity } from "@/lib/api-hooks";
 
 export default function MarketplaceScreen() {
   const router = useRouter();
@@ -44,6 +44,7 @@ export default function MarketplaceScreen() {
   }, [searchQuery]);
 
   const { data: user } = useCurrentUser();
+  const { data: latestData, refetch: refetchLatest } = useLatestRecruitingApps(16);
   const {
     data: appsData,
     isLoading,
@@ -59,8 +60,8 @@ export default function MarketplaceScreen() {
   // Instant refresh when switching to Marketplace tab
   useRefreshOnFocus(
     useCallback(async () => {
-      await Promise.all([refetch(), refetchMatches()]);
-    }, [refetch, refetchMatches]),
+      await Promise.all([refetch(), refetchMatches(), refetchLatest()]);
+    }, [refetch, refetchMatches, refetchLatest]),
   );
 
   const apps = useMemo(() => appsData?.pages.flatMap((page) => page.apps) ?? [], [appsData]);
@@ -74,8 +75,8 @@ export default function MarketplaceScreen() {
   }, [hasMoreApps, isFetchingNextPage, isFetching, fetchNextPage]);
 
   const onRefresh = useCallback(async () => {
-    await Promise.all([refetch(), refetchMatches()]);
-  }, [refetch, refetchMatches]);
+    await Promise.all([refetch(), refetchMatches(), refetchLatest()]);
+  }, [refetch, refetchMatches, refetchLatest]);
 
   const matchStatusMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -107,7 +108,8 @@ export default function MarketplaceScreen() {
 
   // 1. Latest Opportunities: strictly sorted by latest (newest createdAt first)
   const latestOpportunities = useMemo(() => {
-    return apps
+    const rawList = latestData?.apps ?? [];
+    return rawList
       .filter((app: AppEntity) => {
         const isOpen = app.status === "recruiting" && app.currentTesters < app.requiredTesters;
         const isNotMine = !user?.id || app.userId !== user.id;
@@ -115,7 +117,7 @@ export default function MarketplaceScreen() {
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 16);
-  }, [apps, user?.id]);
+  }, [latestData?.apps, user?.id]);
 
   const groupedRecruiting = useMemo(() => {
     const chunked = [];

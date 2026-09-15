@@ -30,6 +30,7 @@ export interface ListAppsQuery {
   search?: string
   limit?: number
   offset?: number
+  sort?: "latest" | "reputation"
 }
 
 export class AppService {
@@ -102,7 +103,9 @@ export class AppService {
     const limit = query.limit ?? 20
     const offset = query.offset ?? 0
     const search = query.search?.trim()
-    const cacheKey = `apps_list:${search || ""}:${limit}:${offset}`
+    const sort = query.sort ?? "reputation"
+    const isLatest = sort === "latest"
+    const cacheKey = `apps_list:${search || ""}:${sort}:${limit}:${offset}`
 
     const cached = memoryCache.get<{ apps: any[]; total: number }>(cacheKey)
     if (cached) {
@@ -141,7 +144,7 @@ export class AppService {
             AND m.status = 'active'
         ) >= LEAST(12, GREATEST(1, COALESCE(${apps.requiredTesters}, 12)))
           OR ${apps.status} = 'filled' THEN 1 ELSE 0 END`,
-        desc(users.reputation),
+        ...(isLatest ? [] : [desc(users.reputation)]),
         desc(apps.createdAt),
       )
       .limit(limit)
@@ -166,9 +169,11 @@ export class AppService {
       if (isFilledA && !isFilledB) return 1
       if (isFilledB && !isFilledA) return -1
 
-      const repA = a.user?.reputation ?? 100
-      const repB = b.user?.reputation ?? 100
-      if (repB !== repA) return repB - repA
+      if (!isLatest) {
+        const repA = a.user?.reputation ?? 100
+        const repB = b.user?.reputation ?? 100
+        if (repB !== repA) return repB - repA
+      }
 
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
