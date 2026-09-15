@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -44,10 +45,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Launch background worker for streaks and match reminders
     backend_rs::jobs::start_background_jobs(state.pool.clone(), state.http_client.clone());
 
+    let x_request_id = axum::http::HeaderName::from_static("x-request-id");
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .expose_headers([x_request_id.clone()]);
 
     let app = routes::app_router()
         // 1. Defend against massive payloads (2 MB limit)
@@ -61,14 +65,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer::new(std::iter::once(
             axum::http::header::AUTHORIZATION,
         )))
-        // 4. Ultra-lightweight Gzip response compression
-        .layer(tower_http::compression::CompressionLayer::new().gzip(true))
+        // 4. Multi-engine compression: Brotli, Zstandard, and Gzip
+        .layer(
+            tower_http::compression::CompressionLayer::new()
+                .gzip(true)
+                .br(true)
+                .zstd(true),
+        )
         // 5. Sliding-window IP rate limiter
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             backend_rs::middleware::rate_limit::rate_limiter_middleware,
         ))
-        // 6. Tracing & CORS (Structured request/response logging matching TS pino-logger)
+        // 6. Propagate request ID into response headers
+        .layer(PropagateRequestIdLayer::new(x_request_id.clone()))
+        // 7. Structured request/response tracing tagged with request ID
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(
@@ -77,19 +88,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .include_headers(false),
                 )
                 .on_request(|request: &axum::http::Request<_>, _span: &tracing::Span| {
-                    tracing::info!("--> {} {}", request.method(), request.uri().path());
+                    let req_id = request
+                        .headers()
+                        .get("x-request-id")
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("-");
+                    tracing::info!("[req_id={}] --> {} {}", req_id, request.method(), request.uri().path());
                 })
                 .on_response(
                     |response: &axum::http::Response<_>, latency: std::time::Duration, _span: &tracing::Span| {
+                        let req_id = response
+                            .headers()
+                            .get("x-request-id")
+                            .and_then(|v| v.to_str().ok())
+                            .unwrap_or("-");
                         let status = response.status();
                         let ms = latency.as_millis();
                         let reason = status.canonical_reason().unwrap_or("");
                         if status.is_server_error() {
-                            tracing::error!("<-- {} {} ({}ms)", status.as_u16(), reason, ms);
+                            tracing::error!("[req_id={}] <-- {} {} ({}ms)", req_id, status.as_u16(), reason, ms);
                         } else if status.is_client_error() {
-                            tracing::warn!("<-- {} {} ({}ms)", status.as_u16(), reason, ms);
+                            tracing::warn!("[req_id={}] <-- {} {} ({}ms)", req_id, status.as_u16(), reason, ms);
                         } else {
-                            tracing::info!("<-- {} {} ({}ms)", status.as_u16(), reason, ms);
+                            tracing::info!("[req_id={}] <-- {} {} ({}ms)", req_id, status.as_u16(), reason, ms);
                         }
                     },
                 )
@@ -99,6 +120,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 ),
         )
+        // 8. Generate or attach x-request-id UUID header for incoming requests
+        .layer(SetRequestIdLayer::new(x_request_id.clone(), MakeRequestUuid))
+        // 9. CORS
         .layer(cors)
         .with_state(state);
 
