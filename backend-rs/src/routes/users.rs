@@ -3,14 +3,14 @@ use axum::{
     routing::{get, patch, post},
     Json, Router,
 };
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::auth::AuthUser;
 use crate::db::models::{User, UserSummary};
 use crate::entities::prelude::*;
-use crate::entities::users;
+use crate::entities::{apps, users};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -143,10 +143,21 @@ pub struct GenericMessageResponse {
 
 // GET /api/users/me
 async fn get_me(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     AuthUser(user): AuthUser,
 ) -> Result<Json<UserResponse>, AppError> {
-    Ok(Json(user.into()))
+    // Compute appsCount live from DB (matches TS getUserProfile exactly).
+    // The cached counter on users.apps_count can drift after admin-delete or archive.
+    let live_apps_count = Apps::find()
+        .filter(apps::Column::UserId.eq(&user.id))
+        .filter(apps::Column::Status.ne("archived"))
+        .count(&state.db)
+        .await
+        .unwrap_or(user.apps_count as u64) as i32;
+
+    let mut resp: UserResponse = user.into();
+    resp.apps_count = live_apps_count;
+    Ok(Json(resp))
 }
 
 // POST /api/users/sync
@@ -174,11 +185,21 @@ async fn sync_user(
     u_act.updated_at = Set(now);
     let updated = u_act.update(&state.db).await?;
 
+    // Compute live appsCount (matches TS syncUser which always does SELECT COUNT)
+    let live_apps_count = Apps::find()
+        .filter(apps::Column::UserId.eq(&updated.id))
+        .filter(apps::Column::Status.ne("archived"))
+        .count(&state.db)
+        .await
+        .unwrap_or(updated.apps_count as u64) as i32;
+
     if let Some(token_id) = &updated.token_identifier {
         state.user_cache.insert(token_id.clone(), updated.clone().into()).await;
     }
 
-    Ok(Json(updated.into()))
+    let mut resp: UserResponse = updated.into();
+    resp.apps_count = live_apps_count;
+    Ok(Json(resp))
 }
 
 // POST /api/users/checkin
