@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm"
+import { and, desc, eq, lt, or, sql } from "drizzle-orm"
 
 import { db } from "../db"
 import { apps, matches, notifications, proofs, users } from "../db/schema"
@@ -413,7 +413,7 @@ export async function runMatchProgressionAndCleanup() {
       .innerJoin(users, eq(apps.userId, users.id))
       .where(
         and(
-          inArray(apps.status, ["recruiting", "filled"]),
+          eq(apps.status, "recruiting"),
           sql`(
             (${apps.createdAt} < ${threeDaysAgo} AND (${users.lastCheckInDate} IS NULL OR ${users.lastCheckInDate} < ${threeDaysAgoStr}))
             OR
