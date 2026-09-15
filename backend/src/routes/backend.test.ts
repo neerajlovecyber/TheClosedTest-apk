@@ -344,11 +344,6 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
   // Cleanup all test records created in this test run
   afterAll(async () => {
     try {
-      const { db } = await import("../db")
-      const { users, apps, matches, proofs, messages, notifications, dailyActivity, adminChats, adminMessages } =
-        await import("../db/schema")
-      const { eq, or, inArray } = await import("drizzle-orm")
-
       if (matchId) {
         await db
           .delete(proofs)

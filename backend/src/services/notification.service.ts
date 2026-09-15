@@ -1,7 +1,5 @@
-import { eq } from "drizzle-orm"
-
 import { db } from "../db"
-import { notifications, users } from "../db/schema"
+import { notifications } from "../db/schema"
 import { sendExpoPushNotification } from "./expo-push"
 
 export type NotificationType = "request" | "acceptance" | "reminder" | "proof_update" | "message" | "match_cancelled"

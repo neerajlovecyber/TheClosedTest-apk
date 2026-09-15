@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm"
 import type { Context, Next } from "hono"
 import { HTTPException } from "hono/http-exception"
 import * as HttpStatusCodes from "stoker/http-status-codes"
@@ -12,10 +11,6 @@ import { isUserAdmin } from "../lib/constants"
 import { presence } from "../lib/presence"
 import type { AppBindings } from "../lib/types"
 
-const CLERK_PUBLISHABLE_KEY =
-  process.env.CLERK_PUBLISHABLE_KEY ||
-  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ||
-  "pk_live_Y2xlcmsudGhlY2xvc2VkdGVzdC5uZWVyYWpsb3ZlY3liZXIuY29tJA"
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY
 const CLERK_JWT_KEY = process.env.CLERK_JWT_KEY
 
