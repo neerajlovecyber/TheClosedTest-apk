@@ -7,7 +7,7 @@ import { env } from "../env"
 async function runMigration() {
   console.log("Connecting to database...")
   const sql = postgres(env.DATABASE_URL, {
-    ssl: env.DATABASE_URL.includes("sslmode=require") ? "require" : undefined,
+    ssl: env.DATABASE_URL.includes("sslmode=require") ? { rejectUnauthorized: false } : undefined,
     max: 1,
   })
 

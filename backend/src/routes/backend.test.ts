@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "bun:test"
 import { eq, inArray } from "drizzle-orm"
 
 import app from "../app"
-import { db } from "../db"
+import { closeDatabase, db } from "../db"
 import { adminChats, apps, dailyActivity, matches, messages, notifications, proofs, users } from "../db/schema"
 
 describe("TheClosedTest Full Backend Integration Test Suite", () => {
@@ -391,6 +391,7 @@ describe("TheClosedTest Full Backend Integration Test Suite", () => {
           .where(inArray(users.id, testUserIds))
           .catch(() => {})
       }
+      await closeDatabase()
     } catch {
       // ignore cleanup errors
     }

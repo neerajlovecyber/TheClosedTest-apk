@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS "users" (
 	"email" text NOT NULL,
 	"avatar_url" text,
 	"reputation" integer DEFAULT 100 NOT NULL,
-	"apps_count" integer DEFAULT 0 NOT NULL,
 	"push_token" text,
 	"is_group_member" boolean DEFAULT false NOT NULL,
 	"is_admin" boolean DEFAULT false NOT NULL,
