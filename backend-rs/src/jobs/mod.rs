@@ -24,9 +24,18 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<(), sqlx::Error>>,
 {
+    let mut conn = match pool.acquire().await {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("❌ Failed to acquire DB connection for '{}': {} — running directly", name, e);
+            let _ = task().await;
+            return;
+        }
+    };
+
     let acquired: Result<(bool,), _> = sqlx::query_as("SELECT pg_try_advisory_lock($1)")
         .bind(lock_id)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await;
 
     match acquired {
@@ -34,7 +43,7 @@ where
             let result = task().await;
             let _ = sqlx::query("SELECT pg_advisory_unlock($1)")
                 .bind(lock_id)
-                .execute(pool)
+                .execute(&mut *conn)
                 .await;
             if let Err(e) = result {
                 warn!("❌ Job '{}' failed: {}", name, e);

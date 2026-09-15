@@ -209,6 +209,14 @@ CREATE INDEX IF NOT EXISTS "apps_status_idx" ON "apps" ("status");
 CREATE INDEX IF NOT EXISTS "matches_user1_idx" ON "matches" ("user1_id");
 CREATE INDEX IF NOT EXISTS "matches_user2_idx" ON "matches" ("user2_id");
 CREATE INDEX IF NOT EXISTS "matches_status_idx" ON "matches" ("status");
+CREATE INDEX IF NOT EXISTS "matches_app1_status_idx" ON "matches" ("app1_id", "status");
+CREATE INDEX IF NOT EXISTS "matches_app2_status_idx" ON "matches" ("app2_id", "status");
 CREATE INDEX IF NOT EXISTS "messages_match_id_idx" ON "messages" ("match_id");
+CREATE INDEX IF NOT EXISTS "messages_match_sent_idx" ON "messages" ("match_id", "sent_at" ASC);
 CREATE INDEX IF NOT EXISTS "notifications_user_read_idx" ON "notifications" ("user_id", "read");
+CREATE INDEX IF NOT EXISTS "notifications_user_created_at_idx" ON "notifications" ("user_id", "created_at" DESC);
 CREATE INDEX IF NOT EXISTS "proofs_match_id_idx" ON "proofs" ("match_id");
+CREATE INDEX IF NOT EXISTS "admin_chats_user_id_idx" ON "admin_chats" ("user_id");
+CREATE INDEX IF NOT EXISTS "admin_messages_chat_sent_idx" ON "admin_messages" ("chat_id", "sent_at" ASC);
+CREATE INDEX IF NOT EXISTS "daily_activity_user_date_idx" ON "daily_activity" ("user_id", "date");
+

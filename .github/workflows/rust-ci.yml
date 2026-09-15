@@ -1,0 +1,55 @@
+name: Rust Backend CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Rust Test Suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/test_db
+      TEST_DATABASE_URL: postgres://postgres:password@localhost:5432/test_db
+      JWT_SECRET: test_jwt_secret_key_minimum_32_chars_long
+      PORT: 9000
+      RUST_BACKTRACE: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend-rs
+
+      - name: Cargo Check
+        run: cargo check --manifest-path backend-rs/Cargo.toml
+
+      - name: Run Integration Tests
+        run: cargo test --manifest-path backend-rs/Cargo.toml --test api_tests

@@ -77,9 +77,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             state.clone(),
             backend_rs::middleware::rate_limit::rate_limiter_middleware,
         ))
-        // 6. Propagate request ID into response headers
+        // 6. OWASP security headers (nosniff, DENY, strict-origin)
+        .layer(axum::middleware::from_fn(
+            backend_rs::middleware::security::security_headers_middleware,
+        ))
+        // 7. Propagate request ID into response headers
         .layer(PropagateRequestIdLayer::new(x_request_id.clone()))
-        // 7. Structured request/response tracing tagged with request ID
+        // 8. Structured request/response tracing tagged with request ID
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(
