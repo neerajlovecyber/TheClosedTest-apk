@@ -5,7 +5,7 @@ import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@/components/ui/icon";
-import { ActivityIcon, UserPlusIcon, ChevronRightIcon, MessageSquareIcon, AlertTriangleIcon, ShieldAlertIcon, LayersIcon } from "lucide-react-native";
+import { ActivityIcon, ChevronRightIcon, MessageSquareIcon, LayersIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAdminStats } from "@/lib/api-hooks";
 import { AdminServerUrlCard } from "@/components/AdminServerUrlCard";
@@ -106,24 +106,6 @@ export default function AdminDashboardScreen() {
         {/* Server & Environment Configuration */}
         <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Server &amp; Environment</Text>
         <AdminServerUrlCard />
-
-        {/* System Maintenance & Dangerous Actions */}
-        <Text className="text-xs font-bold text-red-500 uppercase tracking-wider mb-3 px-1">System &amp; Maintenance</Text>
-
-        <Card className="border-red-200 bg-red-50/40 dark:bg-red-950/10 dark:border-red-900/40 shadow-sm mb-4">
-          <TouchableOpacity className="flex-row items-center justify-between p-4" onPress={() => router.push("/admin/danger-zone" as any)}>
-            <View className="flex-row items-center flex-1 mr-2">
-              <View className="bg-red-500/10 p-2.5 rounded-xl mr-3">
-                <Icon as={ShieldAlertIcon} className="text-red-500 size-5" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-red-700 dark:text-red-400">Danger Zone &amp; Reset</Text>
-                <Text className="text-xs text-red-600/80 dark:text-red-400/70">Clean test accounts, purge dummy users, and reset marketplace</Text>
-              </View>
-            </View>
-            <Icon as={ChevronRightIcon} className="text-red-400 size-5" />
-          </TouchableOpacity>
-        </Card>
       </ScreenScrollView>
     </SafeAreaView>
   );

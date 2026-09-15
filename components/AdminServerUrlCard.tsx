@@ -5,7 +5,6 @@ import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
-import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import Toast from "react-native-toast-message";
 import { getApiBaseUrl, getApiEnv, setCustomApiUrl, setApiEnv, TS_PROD_URL, RUST_PROD_URL, LOCAL_API_URL, type ApiEnv } from "@/lib/api";
@@ -146,42 +145,14 @@ export function AdminServerUrlCard() {
     <Card className="border-border shadow-sm mb-4 bg-card">
       <CardContent className="p-4">
         {/* Header */}
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-row items-center gap-2">
-            <View className={`p-2 rounded-xl ${isRust ? "bg-orange-500/15" : "bg-sky-500/10"}`}>
-              <Icon as={isRust ? ZapIcon : ServerIcon} className={`size-5 ${isRust ? "text-orange-500" : "text-sky-500"}`} />
-            </View>
-            <View>
-              <Text className="font-bold text-foreground">Backend Server Endpoint</Text>
-              <Text className="text-xs text-muted-foreground">Switch between hosted Rust &amp; TS backends live</Text>
-            </View>
+        <View className="flex-row items-center gap-2.5 mb-3">
+          <View className={`p-2 rounded-xl ${isRust ? "bg-orange-500/15" : "bg-sky-500/10"}`}>
+            <Icon as={isRust ? ZapIcon : ServerIcon} className={`size-5 ${isRust ? "text-orange-500" : "text-sky-500"}`} />
           </View>
-          <Badge
-            variant={isRust ? "default" : isCustom ? "outline" : "secondary"}
-            className={
-              isRust
-                ? "bg-orange-500/15 border border-orange-500/40"
-                : isTs
-                ? "bg-sky-500/10 border border-sky-500/30"
-                : isLocal
-                ? "bg-amber-500/10 border border-amber-500/30"
-                : "bg-purple-500/10 border border-purple-500/30"
-            }
-          >
-            <Text
-              className={`text-[10px] font-bold uppercase tracking-wider ${
-                isRust
-                  ? "text-orange-600 dark:text-orange-400"
-                  : isTs
-                  ? "text-sky-600 dark:text-sky-400"
-                  : isLocal
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-purple-600 dark:text-purple-400"
-              }`}
-            >
-              {isRust ? "🦀 Rust (Live)" : isTs ? "TS Backend" : isLocal ? "Local" : "Custom"}
-            </Text>
-          </Badge>
+          <View className="flex-1">
+            <Text className="font-bold text-foreground">Backend Server Endpoint</Text>
+            <Text className="text-xs text-muted-foreground">Switch between hosted Rust &amp; TS backends live</Text>
+          </View>
         </View>
 
         {/* Current Active URL Display */}

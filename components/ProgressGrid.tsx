@@ -166,11 +166,11 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
       {/* Warning Banner for Your Pending Previous Days */}
       {hasMyPendingPreviousDays && (
         <View className="mx-4 mb-3">
-          <Alert icon={AlertCircleIcon} iconClassName="text-orange-500" className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-900/50">
-            <AlertTitle className="text-orange-900 dark:text-orange-200">
+          <Alert icon={AlertCircleIcon} iconClassName="text-orange-500" className="border-orange-400/30 bg-orange-500/5">
+            <AlertTitle className="text-sm font-bold text-foreground">
               Partner hasn't approved {myPendingPreviousDays.length} old {myPendingPreviousDays.length === 1 ? "screenshot" : "screenshots"}
             </AlertTitle>
-            <AlertDescription className="text-orange-700 dark:text-orange-300">
+            <AlertDescription className="text-xs text-muted-foreground">
               Follow up with them or wait for review
             </AlertDescription>
           </Alert>
@@ -180,11 +180,11 @@ function ProgressGridComponent({ days, currentDay, summary, onDayPress, selected
       {/* Warning Banner for Partner's Pending Previous Days */}
       {hasPartnerPendingPreviousDays && (
         <View className="mx-4 mb-3">
-          <Alert icon={AlertCircleIcon} iconClassName="text-blue-500" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/50">
-            <AlertTitle className="text-blue-900 dark:text-blue-200">
+          <Alert icon={AlertCircleIcon} iconClassName="text-blue-500" className="border-blue-400/30 bg-blue-500/5">
+            <AlertTitle className="text-sm font-bold text-foreground">
               You need to approve {partnerPendingPreviousDays.length} old {partnerPendingPreviousDays.length === 1 ? "screenshot" : "screenshots"}
             </AlertTitle>
-            <AlertDescription className="text-blue-700 dark:text-blue-300">
+            <AlertDescription className="text-xs text-muted-foreground">
               Tap day cards below to review and approve
             </AlertDescription>
           </Alert>

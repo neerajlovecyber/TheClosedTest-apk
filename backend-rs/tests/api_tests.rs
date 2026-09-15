@@ -637,13 +637,6 @@ async fn test_unauthorized_admin_delete_app_returns_401() {
     assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 }
 
-#[tokio::test]
-async fn test_unauthorized_admin_clean_all_returns_401() {
-    let app = app_router().with_state(test_app_state());
-    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/apps/clean-all").body(Body::empty()).unwrap()).await.unwrap();
-    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
-}
-
 // ---------------------------------------------------------------------------
 // 9. Business Logic & Calculation Edge Cases
 // ---------------------------------------------------------------------------
@@ -807,13 +800,6 @@ async fn test_unauthorized_admin_user_details_returns_401() {
 async fn test_unauthorized_admin_clean_duplicates_returns_401() {
     let app = app_router().with_state(test_app_state());
     let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/apps/clean-duplicates").body(Body::empty()).unwrap()).await.unwrap();
-    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-async fn test_unauthorized_admin_clean_test_users_returns_401() {
-    let app = app_router().with_state(test_app_state());
-    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/users/clean-test-users").body(Body::empty()).unwrap()).await.unwrap();
     assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
 }
 

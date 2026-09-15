@@ -262,15 +262,6 @@ pub struct AdminUserDetailsResponse {
 }
 
 #[derive(Serialize)]
-pub struct CleanupResultResponse {
-    pub message: String,
-    #[serde(rename = "deletedAppsCount")]
-    pub deleted_apps_count: Option<usize>,
-    #[serde(rename = "deletedUsersCount")]
-    pub deleted_users_count: Option<usize>,
-}
-
-#[derive(Serialize)]
 pub struct GenericMessageResponse {
     pub message: String,
 }
@@ -282,13 +273,6 @@ pub struct CleanDuplicatesResponse {
     pub deleted_apps_count: usize,
     #[serde(rename = "cleanedPackages")]
     pub cleaned_packages: Vec<String>,
-}
-
-#[derive(Serialize)]
-pub struct CleanTestUsersResponse {
-    pub message: String,
-    #[serde(rename = "deletedUsersCount")]
-    pub deleted_users_count: usize,
 }
 
 #[derive(Deserialize)]
@@ -895,136 +879,6 @@ async fn clean_duplicate_apps(
     }))
 }
 
-// ── POST /api/admin/users/clean-test-users ─────────────────────────────────────
-// TS: delete users matching test/stress/dummy/example.com patterns with full cascade
-async fn clean_test_users(
-    State(state): State<AppState>,
-    admin: AdminUser,
-) -> Result<Json<CleanTestUsersResponse>, AppError> {
-    const ADMIN_EMAILS: &[&str] = &[
-        "neerajlovecyber@gmail.com",
-        "futureaistudio41@gmail.com",
-        "theneerajsec@gmail.com",
-    ];
-
-    let all_users = Users::find().all(&state.db).await.map_err(AppError::from)?;
-
-    let mut test_user_ids: Vec<String> = Vec::new();
-    for u in all_users {
-        if u.id == admin.id || u.is_admin {
-            continue;
-        }
-        let email_lower = u.email.to_lowercase();
-        let token_lower = u.token_identifier.as_deref().unwrap_or("").to_lowercase();
-        let name_lower = u.name.to_lowercase();
-
-        if ADMIN_EMAILS
-            .iter()
-            .any(|ae| email_lower.contains(&ae.to_lowercase()))
-        {
-            continue;
-        }
-
-        let is_test = email_lower.contains("test")
-            || email_lower.contains("stress")
-            || email_lower.contains("dummy")
-            || email_lower.contains("example.com")
-            || token_lower.contains("test")
-            || token_lower.contains("stress")
-            || name_lower.contains("test user")
-            || name_lower.contains("tester #");
-
-        if is_test {
-            test_user_ids.push(u.id);
-        }
-    }
-
-    if test_user_ids.is_empty() {
-        return Ok(Json(CleanTestUsersResponse {
-            message: "No test users found to delete.".to_string(),
-            deleted_users_count: 0,
-        }));
-    }
-
-    for uid in &test_user_ids {
-        let _ = Proofs::delete_many()
-            .filter(crate::entities::proofs::Column::UploaderId.eq(uid.as_str()))
-            .exec(&state.db)
-            .await;
-        let _ = Messages::delete_many()
-            .filter(messages::Column::SenderId.eq(uid.as_str()))
-            .exec(&state.db)
-            .await;
-        let _ = Reports::delete_many()
-            .filter(
-                Condition::any()
-                    .add(reports::Column::ReporterId.eq(uid.as_str()))
-                    .add(reports::Column::TargetId.eq(uid.as_str())),
-            )
-            .exec(&state.db)
-            .await;
-        let _ = Matches::delete_many()
-            .filter(
-                Condition::any()
-                    .add(matches::Column::User1Id.eq(uid.as_str()))
-                    .add(matches::Column::User2Id.eq(uid.as_str())),
-            )
-            .exec(&state.db)
-            .await;
-        let _ = Apps::delete_many()
-            .filter(apps::Column::UserId.eq(uid.as_str()))
-            .exec(&state.db)
-            .await;
-        let _ = crate::entities::prelude::AdminMessages::delete_many()
-            .filter(
-                crate::entities::admin_messages::Column::SenderId.eq(uid.as_str()),
-            )
-            .exec(&state.db)
-            .await;
-        let _ = crate::entities::prelude::AdminChats::delete_many()
-            .filter(
-                crate::entities::admin_chats::Column::UserId.eq(uid.as_str()),
-            )
-            .exec(&state.db)
-            .await;
-        let _ = UserBans::delete_many()
-            .filter(user_bans::Column::UserId.eq(uid.as_str()))
-            .exec(&state.db)
-            .await;
-        let _ = Users::delete_by_id(uid.as_str()).exec(&state.db).await;
-    }
-
-    let count = test_user_ids.len();
-    Ok(Json(CleanTestUsersResponse {
-        message: format!("Successfully deleted {} dummy test users.", count),
-        deleted_users_count: count,
-    }))
-}
-
-// ── POST /api/admin/apps/clean-all ─────────────────────────────────────────────
-// TS: delete proofs, messages, reports, matches, appBans, apps; reset appsCount
-async fn clean_all_apps(
-    State(state): State<AppState>,
-    _admin: AdminUser,
-) -> Result<Json<CleanupResultResponse>, AppError> {
-    let _ = Proofs::delete_many().exec(&state.db).await;
-    let _ = Messages::delete_many().exec(&state.db).await;
-    let _ = Reports::delete_many().exec(&state.db).await;
-    let _ = Matches::delete_many().exec(&state.db).await;
-    let _ = AppBans::delete_many().exec(&state.db).await;
-
-    let deleted = Apps::delete_many()
-        .exec(&state.db)
-        .await
-        .map_err(AppError::from)?;
-
-    Ok(Json(CleanupResultResponse {
-        message: "All apps, matches, and testing records have been cleanly deleted.".to_string(),
-        deleted_apps_count: Some(deleted.rows_affected as usize),
-        deleted_users_count: None,
-    }))
-}
-
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/reports", post(create_report))
@@ -1036,8 +890,6 @@ pub fn router() -> Router<AppState> {
         .route("/api/admin/apps", get(list_admin_apps))
         .route("/api/admin/apps/{id}", delete(admin_delete_app))
         .route("/api/admin/apps/clean-duplicates", post(clean_duplicate_apps))
-        .route("/api/admin/apps/clean-all", post(clean_all_apps))
         .route("/api/admin/users", get(list_admin_users))
         .route("/api/admin/users/{userId}/details", get(get_admin_user_details))
-        .route("/api/admin/users/clean-test-users", post(clean_test_users))
 }

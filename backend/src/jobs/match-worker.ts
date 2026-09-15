@@ -395,28 +395,37 @@ export async function runMatchProgressionAndCleanup() {
       }
     }
 
-    // 4. Auto-pause recruiting apps after 72 hours (3 days) of owner inactivity
+    // 4. Auto-pause recruiting apps:
+    // (a) After 72 hours (3 days) of owner inactivity (no check-in for 3+ days)
+    // (b) Stale recruiting apps older than 21 days (3 weeks) with 0 active matches
     const threeDaysAgoStr = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+    const twentyOneDaysAgo = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000)
 
     const inactiveOwnerApps = await db
       .select({
         id: apps.id,
         title: apps.title,
         userId: apps.userId,
+        createdAt: apps.createdAt,
+        lastCheckInDate: users.lastCheckInDate,
       })
       .from(apps)
       .innerJoin(users, eq(apps.userId, users.id))
       .where(
         and(
           eq(apps.status, "recruiting"),
-          lt(apps.createdAt, threeDaysAgo),
-          sql`(${users.lastCheckInDate} IS NULL OR ${users.lastCheckInDate} < ${threeDaysAgoStr})`,
-          lt(users.updatedAt, threeDaysAgo),
+          sql`(
+            (${apps.createdAt} < ${threeDaysAgo} AND (${users.lastCheckInDate} IS NULL OR ${users.lastCheckInDate} < ${threeDaysAgoStr}))
+            OR
+            (${apps.createdAt} < ${twentyOneDaysAgo} AND NOT EXISTS (
+              SELECT 1 FROM matches m WHERE (m.app1_id = ${apps.id} OR m.app2_id = ${apps.id}) AND m.status = 'active'
+            ))
+          )`,
         ),
       )
 
     if (inactiveOwnerApps.length > 0) {
-      console.log(`⏸️ Auto-pausing ${inactiveOwnerApps.length} recruiting apps due to 72h owner inactivity...`)
+      console.log(`⏸️ Auto-pausing ${inactiveOwnerApps.length} recruiting apps due to inactivity or stale listing...`)
 
       for (const inactiveApp of inactiveOwnerApps) {
         await db
@@ -427,12 +436,20 @@ export async function runMatchProgressionAndCleanup() {
           })
           .where(eq(apps.id, inactiveApp.id))
 
+        const isStaleListing =
+          new Date(inactiveApp.createdAt) < twentyOneDaysAgo &&
+          !(inactiveApp.lastCheckInDate && inactiveApp.lastCheckInDate < threeDaysAgoStr)
+
+        const body = isStaleListing
+          ? `Your app "${inactiveApp.title}" was paused after 21 days with no active matches. Tap to resume whenever you're ready!`
+          : `Your app "${inactiveApp.title}" was paused due to 3 days of inactivity. Tap to resume whenever you're ready!`
+
         await db.insert(notifications).values({
           userId: inactiveApp.userId,
           type: "reminder",
           title: "App Listing Paused",
-          body: `Your app "${inactiveApp.title}" was paused due to 3 days of inactivity. Tap to resume whenever you're ready!`,
-          data: { appId: inactiveApp.id, subtype: "app_paused_inactivity" },
+          body,
+          data: { appId: inactiveApp.id, subtype: isStaleListing ? "app_paused_stale" : "app_paused_inactivity" },
         })
       }
     }

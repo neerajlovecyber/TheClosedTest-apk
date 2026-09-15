@@ -178,17 +178,44 @@ pub async fn run_match_progression_and_cleanup(pool: &PgPool) -> Result<(), sqlx
     .execute(pool)
     .await;
 
-    // 2e. Auto-pause apps of inactive owners (72h)
-    let _ = sqlx::query(
+    // 2e. Auto-pause apps of inactive owners (72h) or stale recruiting apps (>21 days with no active matches)
+    let stale_apps = sqlx::query_as::<_, (String, String, String)>(
         r#"
-        UPDATE apps a SET status = 'paused', updated_at = NOW()
-        FROM users u WHERE a.user_id = u.id
-          AND a.status = 'recruiting'
-          AND u.updated_at < NOW() - INTERVAL '72 HOURS'
+        SELECT a.id, a.user_id, a.title
+        FROM apps a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.status = 'recruiting'
+          AND (
+            (a.created_at < NOW() - INTERVAL '72 HOURS' AND (u.last_check_in_date IS NULL OR u.last_check_in_date < TO_CHAR(NOW() - INTERVAL '3 DAYS', 'YYYY-MM-DD')))
+            OR
+            (a.created_at < NOW() - INTERVAL '21 DAYS' AND NOT EXISTS (
+              SELECT 1 FROM matches m WHERE (m.app1_id = a.id OR m.app2_id = a.id) AND m.status = 'active'
+            ))
+          )
         "#,
     )
-    .execute(pool)
-    .await;
+    .fetch_all(pool)
+    .await?;
+
+    for (app_id, user_id, title) in stale_apps {
+        let _ = sqlx::query("UPDATE apps SET status = 'paused', updated_at = NOW() WHERE id = $1")
+            .bind(&app_id)
+            .execute(pool)
+            .await;
+
+        let notif_id = Uuid::new_v4().to_string();
+        let notif_data = serde_json::json!({ "appId": app_id, "subtype": "app_paused_inactivity" });
+        let notif_body = format!("Your app \"{}\" was paused due to inactivity. Tap to resume whenever you're ready!", title);
+        let _ = sqlx::query(
+            "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'reminder', 'App Listing Paused', $3, $4, false, NOW())",
+        )
+        .bind(notif_id)
+        .bind(&user_id)
+        .bind(notif_body)
+        .bind(notif_data)
+        .execute(pool)
+        .await;
+    }
 
     Ok(())
 }

@@ -19,9 +19,9 @@ function Alert({
     iconClassName?: string;
   }) {
   return (
-    <TextClassContext.Provider value={cn("text-sm text-foreground", variant === "destructive" && "text-destructive", className)}>
-      <View role="alert" className={cn("bg-card border-border relative w-full rounded-lg border px-4 pb-2 pt-3.5", className)} {...props}>
-        <View className="absolute left-3.5 top-3">
+    <TextClassContext.Provider value={cn("text-sm text-foreground", variant === "destructive" && "text-destructive")}>
+      <View role="alert" className={cn("bg-card border-border relative w-full rounded-xl border px-4 pb-2 pt-3.5", className)} {...props}>
+        <View className="absolute left-3.5 top-3.5">
           <Icon as={icon} className={cn("size-4", variant === "destructive" && "text-destructive", iconClassName)} />
         </View>
         {children}

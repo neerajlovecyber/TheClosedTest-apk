@@ -1013,32 +1013,6 @@ export function useAdminCleanDuplicates() {
   });
 }
 
-export function useAdminCleanAllApps() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.post<{ message: string; deletedAppsCount: number }>("/api/admin/apps/clean-all", {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["apps"] });
-      queryClient.invalidateQueries({ queryKey: ["myApps"] });
-      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
-      queryClient.invalidateQueries({ queryKey: ["adminApps"] });
-    },
-  });
-}
-
-export function useAdminCleanTestUsers() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.post<{ message: string; deletedUsersCount: number }>("/api/admin/users/clean-test-users", {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
-      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
-      queryClient.invalidateQueries({ queryKey: ["adminSupportChats"] });
-      queryClient.invalidateQueries({ queryKey: ["adminApps"] });
-    },
-  });
-}
-
 export function useAdminStats() {
   return useQuery<{
     totalUsers: number;
