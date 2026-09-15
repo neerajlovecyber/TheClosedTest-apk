@@ -3,4 +3,4 @@
 -- WHERE user_id = ? AND status != 'archived', so this column is unused
 -- and can drift. Removing it prevents any future drift entirely.
 --> statement-breakpoint
-ALTER TABLE "users" DROP COLUMN "apps_count";
+ALTER TABLE "users" DROP COLUMN IF EXISTS "apps_count";
