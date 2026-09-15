@@ -172,6 +172,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
   }
 
   if (!res.ok) {
+    const requestId = res.headers.get("x-request-id");
     let errorMessage = `API Error ${res.status}: ${res.statusText}`;
     try {
       const errorJson = await res.json();
@@ -185,7 +186,15 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     } catch {
       // ignore
     }
-    throw new Error(errorMessage);
+
+    if (requestId) {
+      console.warn(`[API Error ${res.status}] [req_id=${requestId}] ${url}: ${errorMessage}`);
+    }
+
+    const error = new Error(errorMessage) as Error & { status?: number; requestId?: string | null };
+    error.status = res.status;
+    error.requestId = requestId;
+    throw error;
   }
 
   // Handle empty 204 or non-json responses

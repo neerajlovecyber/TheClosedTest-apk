@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use serde::Serialize;
-use std::time::Instant;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use crate::state::AppState;
@@ -39,30 +40,60 @@ fn read_memory_mb() -> f64 {
         .unwrap_or(0.0)
 }
 
-/// Sample process CPU usage over ~200ms using /proc/self/stat
-async fn sample_cpu_percent() -> f64 {
+/// Cached CPU sample state: (timestamp, proc_ticks, cpu_total, last_calculated_pct)
+static CPU_CACHE: Mutex<Option<(Instant, u64, u64, f64)>> = Mutex::new(None);
+
+/// Non-blocking process CPU usage sample (Linux only, fallback 0.0)
+fn sample_cpu_percent() -> f64 {
     fn read_proc_ticks() -> Option<(u64, u64)> {
-        let stat  = std::fs::read_to_string("/proc/self/stat").ok()?;
+        let stat = std::fs::read_to_string("/proc/self/stat").ok()?;
         let total = std::fs::read_to_string("/proc/stat").ok()?;
         let fields: Vec<&str> = stat.split_whitespace().collect();
         let utime: u64 = fields.get(13)?.parse().ok()?;
         let stime: u64 = fields.get(14)?.parse().ok()?;
         let proc_ticks = utime + stime;
-        let cpu_total: u64 = total.lines().next()?
-            .split_whitespace().skip(1)
+        let cpu_total: u64 = total
+            .lines()
+            .next()?
+            .split_whitespace()
+            .skip(1)
             .filter_map(|v| v.parse::<u64>().ok())
             .sum();
         Some((proc_ticks, cpu_total))
     }
 
-    let Some((pt1, ct1)) = read_proc_ticks() else { return 0.0 };
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    let Some((pt2, ct2)) = read_proc_ticks() else { return 0.0 };
+    let Some((proc_ticks, cpu_total)) = read_proc_ticks() else {
+        return 0.0;
+    };
+    let now = Instant::now();
 
-    let d_proc = pt2.saturating_sub(pt1) as f64;
-    let d_cpu  = ct2.saturating_sub(ct1) as f64;
-    if d_cpu == 0.0 { return 0.0; }
-    (d_proc / d_cpu * 100.0 * 10.0).round() / 10.0
+    let mut lock = match CPU_CACHE.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    match *lock {
+        Some((last_time, last_proc, last_cpu, last_pct)) => {
+            let elapsed = now.duration_since(last_time);
+            if elapsed < Duration::from_millis(500) {
+                last_pct
+            } else {
+                let d_proc = proc_ticks.saturating_sub(last_proc) as f64;
+                let d_cpu = cpu_total.saturating_sub(last_cpu) as f64;
+                let pct = if d_cpu > 0.0 {
+                    (d_proc / d_cpu * 100.0 * 10.0).round() / 10.0
+                } else {
+                    0.0
+                };
+                *lock = Some((now, proc_ticks, cpu_total, pct));
+                pct
+            }
+        }
+        None => {
+            *lock = Some((now, proc_ticks, cpu_total, 0.0));
+            0.0
+        }
+    }
 }
 
 static START_TIME: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
@@ -99,7 +130,7 @@ pub async fn health_check(
     let uptime = get_start_time().elapsed().as_secs();
     let now_str = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
     let memory_usage_mb = read_memory_mb();
-    let cpu_percent = sample_cpu_percent().await;
+    let cpu_percent = sample_cpu_percent();
 
     Ok(Json(HealthResponse {
         status: "healthy",
