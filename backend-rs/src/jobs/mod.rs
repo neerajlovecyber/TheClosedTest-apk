@@ -225,6 +225,16 @@ pub async fn run_old_matches_cleanup(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// 6. Nightly — Delete reputation logs older than 60 days
+pub async fn run_reputation_logs_cleanup(pool: &PgPool) -> Result<(), sqlx::Error> {
+    info!("🧹 Cleaning reputation logs older than 60 days...");
+    let res = sqlx::query("DELETE FROM reputation_logs WHERE created_at < NOW() - INTERVAL '60 DAYS'")
+        .execute(pool)
+        .await?;
+    info!("Deleted {} old reputation logs", res.rows_affected());
+    Ok(())
+}
+
 type InactiveMatchReminder = (String, String, String, Option<String>, Option<String>);
 
 /// 6. 10am/3pm/8pm IST — Send daily push reminders for inactive matches
@@ -374,11 +384,29 @@ pub fn start_background_jobs(pool: PgPool, http_client: reqwest::Client) {
                         async move {
                             run_notification_cleanup(&p).await?;
                             run_old_matches_cleanup(&p).await?;
+                            run_reputation_logs_cleanup(&p).await?;
                             Ok(())
                         }
                     }).await;
                 }
             }).await.expect("Failed to schedule db-cleanup job");
+        }
+
+        // 5. Initial maintenance checks on server boot (data cleanups only)
+        {
+            let p = pool.clone();
+            tokio::spawn(async move {
+                with_advisory_lock(&p, LOCK_BOOT_CLEANUP, "Server Boot Cleanup", || {
+                    let p = p.clone();
+                    async move {
+                        let _ = run_notification_cleanup(&p).await;
+                        let _ = run_expired_bans_cleanup(&p).await;
+                        let _ = run_old_matches_cleanup(&p).await;
+                        let _ = run_reputation_logs_cleanup(&p).await;
+                        Ok(())
+                    }
+                }).await;
+            });
         }
 
         info!("✅ All cron jobs scheduled (Asia/Kolkata):");
