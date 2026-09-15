@@ -7,7 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const TS_PROD_URL = "https://p01--tester--7tlh8kl746cq.code.run";
 export const RUST_PROD_URL = "https://p01--backend-rs--7tlh8kl746cq.code.run";
-export const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || TS_PROD_URL;
+export const PROD_API_URL = process.env.EXPO_PUBLIC_API_URL || RUST_PROD_URL;
 export const LOCAL_API_URL = process.env.EXPO_PUBLIC_LOCAL_API_URL || "http://192.168.1.4:9000";
 
 const API_ENV_STORAGE_KEY = "api_env_override";
