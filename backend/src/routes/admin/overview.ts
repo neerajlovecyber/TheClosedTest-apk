@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi"
-import { and, count, desc, eq, ilike, not, or } from "drizzle-orm"
+import { and, count, desc, eq, ilike, not, or, sql } from "drizzle-orm"
 import * as HttpStatusCodes from "stoker/http-status-codes"
 import { jsonContent } from "stoker/openapi/helpers"
 import { createMessageObjectSchema } from "stoker/openapi/schemas"
@@ -32,6 +32,14 @@ router.openapi(
           pendingReports: z.number(),
           activeUsers: z.number(),
           activeUsers24h: z.number(),
+          weeklyActiveUsers: z
+            .array(
+              z.object({
+                date: z.string(),
+                count: z.number(),
+              }),
+            )
+            .optional(),
         }),
         "Platform stats",
       ),
@@ -44,6 +52,37 @@ router.openapi(
     const [proofCount] = await db.select({ value: count() }).from(proofs)
     const [reportCount] = await db.select({ value: count() }).from(reports).where(eq(reports.status, "pending"))
 
+    const weeklyResult = await db.execute<{ day: string; active_users: number }>(sql`
+      SELECT d::date::text as day, COUNT(DISTINCT a.user_id)::int as active_users
+      FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day'::interval) d
+      LEFT JOIN (
+        SELECT user1_id as user_id, last_activity::date as act_date FROM matches
+        UNION
+        SELECT user2_id as user_id, last_activity::date as act_date FROM matches
+        UNION
+        SELECT uploader_id as user_id, submitted_at::date as act_date FROM proofs
+        UNION
+        SELECT sender_id as user_id, sent_at::date as act_date FROM messages
+        UNION
+        SELECT id as user_id, TO_DATE(last_check_in_date, 'YYYY-MM-DD') as act_date FROM users WHERE last_check_in_date IS NOT NULL
+      ) a ON a.act_date = d::date
+      GROUP BY d::date
+      ORDER BY d::date ASC;
+    `)
+
+    const weeklyRows: any[] = (weeklyResult as any)?.rows ?? (weeklyResult as any) ?? []
+    const weeklyActiveUsers = weeklyRows.map((r: any) => ({
+      date: String(r.day),
+      count: Number(r.active_users || 0),
+    }))
+
+    const online5m = presence.getActiveCount(5)
+    const activeUsers24h = Math.max(
+      weeklyActiveUsers[weeklyActiveUsers.length - 1]?.count ?? 0,
+      presence.getActiveCount(1440),
+      online5m,
+    )
+
     return c.json(
       {
         totalUsers: Number(userCount.value),
@@ -51,8 +90,9 @@ router.openapi(
         activeMatches: Number(matchCount.value),
         totalProofs: Number(proofCount.value),
         pendingReports: Number(reportCount.value),
-        activeUsers: presence.getActiveCount(5),
-        activeUsers24h: presence.getActiveCount(1440),
+        activeUsers: online5m,
+        activeUsers24h,
+        weeklyActiveUsers,
       },
       HttpStatusCodes.OK,
     )

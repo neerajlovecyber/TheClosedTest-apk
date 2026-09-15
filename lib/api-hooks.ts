@@ -1024,6 +1024,11 @@ export function useAdminCleanDuplicates() {
   });
 }
 
+export interface DailyActiveUsersPoint {
+  date: string;
+  count: number;
+}
+
 export function useAdminStats() {
   return useQuery<{
     totalUsers: number;
@@ -1033,6 +1038,7 @@ export function useAdminStats() {
     pendingReports: number;
     activeUsers?: number;
     activeUsers24h?: number;
+    weeklyActiveUsers?: DailyActiveUsersPoint[];
   }>({
     queryKey: ["adminStats"],
     queryFn: () => api.get("/api/admin/stats"),

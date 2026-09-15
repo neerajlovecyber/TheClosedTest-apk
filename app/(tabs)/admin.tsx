@@ -5,7 +5,7 @@ import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@/components/ui/icon";
-import { ActivityIcon, ChevronRightIcon, MessageSquareIcon, LayersIcon } from "lucide-react-native";
+import { ActivityIcon, ChevronRightIcon, MessageSquareIcon, LayersIcon, BarChart3Icon, TrendingUpIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAdminStats } from "@/lib/api-hooks";
 import { AdminServerUrlCard } from "@/components/AdminServerUrlCard";
@@ -18,6 +18,7 @@ export default function AdminDashboardScreen() {
   const activeUsers24h = stats?.activeUsers24h ?? activeOnlineUsers;
   const activeMatchesCount = stats?.activeMatches ?? 0;
   const totalAppsCount = stats?.totalApps ?? 0;
+  const weeklyActiveUsers = stats?.weeklyActiveUsers ?? [];
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -29,7 +30,7 @@ export default function AdminDashboardScreen() {
 
       <ScreenScrollView className="flex-1 px-4">
         {/* Key Metrics - Hero Cards */}
-        <View className="flex-row gap-3 mb-6">
+        <View className="flex-row gap-3 mb-4">
           <Card className="border-border shadow-sm h-32 bg-card flex-1">
             <CardContent className="p-4 flex-1 justify-between">
               <View className="flex-row items-start justify-between">
@@ -67,6 +68,76 @@ export default function AdminDashboardScreen() {
             </CardContent>
           </Card>
         </View>
+
+        {/* 7-Day Activity Trend Card */}
+        {weeklyActiveUsers.length > 0 && (
+          <Card className="border-border shadow-sm mb-6 bg-card">
+            <CardContent className="p-4">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center gap-2">
+                  <View className="bg-primary/10 p-1.5 rounded-lg">
+                    <Icon as={BarChart3Icon} className="text-primary size-4" />
+                  </View>
+                  <Text className="font-bold text-sm text-foreground">7-Day Daily Active Users</Text>
+                </View>
+                <View className="flex-row items-center gap-1 bg-muted px-2 py-0.5 rounded-full">
+                  <Icon as={TrendingUpIcon} className="text-emerald-500 size-3" />
+                  <Text className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    Avg {Math.round(weeklyActiveUsers.reduce((sum, d) => sum + d.count, 0) / weeklyActiveUsers.length)}/day
+                  </Text>
+                </View>
+              </View>
+
+              {/* Bar Chart Columns */}
+              <View className="flex-row items-end justify-between h-28 pt-2 px-1">
+                {weeklyActiveUsers.map((item, index) => {
+                  const isToday = index === weeklyActiveUsers.length - 1;
+                  const maxCount = Math.max(...weeklyActiveUsers.map((d) => d.count), 1);
+                  const barHeightPercent = Math.max(10, Math.round((item.count / maxCount) * 100));
+
+                  const dayDate = new Date(item.date + "T00:00:00Z");
+                  const dayName = isToday
+                    ? "Today"
+                    : dayDate.toLocaleDateString("en-US", { weekday: "short" });
+
+                  return (
+                    <View key={item.date} className="items-center flex-1 mx-0.5">
+                      {/* Value label */}
+                      <Text
+                        className={`text-[10px] font-bold mb-1 ${
+                          isToday ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.count}
+                      </Text>
+
+                      {/* Bar Pillar */}
+                      <View className="w-full max-w-[28px] h-16 bg-muted/60 dark:bg-muted/40 rounded-t-md justify-end overflow-hidden">
+                        <View
+                          style={{ height: `${barHeightPercent}%` }}
+                          className={`w-full rounded-t-md ${
+                            isToday ? "bg-primary" : "bg-primary/40 dark:bg-primary/30"
+                          }`}
+                        />
+                      </View>
+
+                      {/* Day Label */}
+                      <Text
+                        className={`text-[10px] mt-1 font-medium ${
+                          isToday
+                            ? "text-primary font-bold"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {dayName}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Management &amp; Controls</Text>

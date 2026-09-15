@@ -21,6 +21,12 @@ use crate::state::AppState;
 
 // ── Response structs ──────────────────────────────────────────────────────────
 
+#[derive(Serialize, Clone)]
+pub struct DailyActiveUsersPoint {
+    pub date: String,
+    pub count: i64,
+}
+
 #[derive(Serialize)]
 pub struct PlatformStatsResponse {
     #[serde(rename = "totalUsers")]
@@ -37,6 +43,8 @@ pub struct PlatformStatsResponse {
     pub active_users: i64,
     #[serde(rename = "activeUsers24h")]
     pub active_users_24h: i64,
+    #[serde(rename = "weeklyActiveUsers")]
+    pub weekly_active_users: Vec<DailyActiveUsersPoint>,
 }
 
 #[derive(Serialize)]
@@ -307,7 +315,42 @@ async fn get_platform_stats(
         .await
         .map_err(AppError::from)?;
 
-    let active_users = state.presence_cache.entry_count().max(2) as i64;
+    let active_users = state.presence_cache.entry_count().max(1) as i64;
+
+    // Real DAU & 7-day activity trend from PostgreSQL activity records
+    let weekly_rows = sqlx::query_as::<_, (String, i64)>(
+        r#"
+        SELECT d::date::text as day, COUNT(DISTINCT a.user_id)::bigint as active_users
+        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day'::interval) d
+        LEFT JOIN (
+            SELECT user1_id as user_id, last_activity::date as act_date FROM matches
+            UNION
+            SELECT user2_id as user_id, last_activity::date as act_date FROM matches
+            UNION
+            SELECT uploader_id as user_id, submitted_at::date as act_date FROM proofs
+            UNION
+            SELECT sender_id as user_id, sent_at::date as act_date FROM messages
+            UNION
+            SELECT id as user_id, TO_DATE(last_check_in_date, 'YYYY-MM-DD') as act_date FROM users WHERE last_check_in_date IS NOT NULL
+        ) a ON a.act_date = d::date
+        GROUP BY d::date
+        ORDER BY d::date ASC;
+        "#,
+    )
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or_default();
+
+    let weekly_active_users: Vec<DailyActiveUsersPoint> = weekly_rows
+        .into_iter()
+        .map(|(date, count)| DailyActiveUsersPoint { date, count })
+        .collect();
+
+    let active_users_24h = weekly_active_users
+        .last()
+        .map(|p| p.count)
+        .unwrap_or(active_users)
+        .max(active_users);
 
     Ok(Json(PlatformStatsResponse {
         total_users,
@@ -316,7 +359,8 @@ async fn get_platform_stats(
         total_proofs,
         pending_reports,
         active_users,
-        active_users_24h: active_users,
+        active_users_24h,
+        weekly_active_users,
     }))
 }
 
