@@ -4,7 +4,7 @@
 
 # TheClosedTest
 
-### _The Open-Source Community Platform for Google Play 14-Day Closed Testing_
+### _Get 12 Testers for 14 Days – Free Google Play Closed Testing Platform_
 
 [![Rust Backend CI](https://github.com/neerajlovecyber/TheClosedTest-apk/actions/workflows/rust-ci.yml/badge.svg)](https://github.com/neerajlovecyber/TheClosedTest-apk/actions/workflows/rust-ci.yml)
 [![License: Source-Available](https://img.shields.io/badge/License-Source--Available-blue.svg)](./LICENSE)
@@ -18,11 +18,6 @@
 [![Support via UPI](https://img.shields.io/badge/Support-UPI-138808?logo=googlepay&logoColor=white)](#support)
 [![Google Play](https://img.shields.io/badge/Google_Play-Get_It_On-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest)
 
-
-<p align="center">
-  <b>Connect with fellow Android developers to ethically test each other's apps and pass Google Play's 14-day 12-tester requirement together.</b>
-</p>
-
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest" target="_blank" rel="noopener noreferrer">
     <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="60" />
@@ -31,11 +26,11 @@
 
 <p align="center">
   <a href="https://ko-fi.com/theneerajsec" target="_blank" rel="noopener noreferrer">
-    <img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_beige.png" alt="Support Me on Ko-fi" height="36" />
+    <img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_beige.png" alt="Support Me on Ko-fi" height="34" />
   </a>
   &nbsp;&nbsp;
   <a href="#support">
-    <img src="https://img.shields.io/badge/Pay%20via-UPI-138808?style=for-the-badge&logo=googlepay&logoColor=white" alt="Pay via UPI" height="36" />
+    <img src="https://img.shields.io/badge/Pay%20via-UPI-138808?style=for-the-badge&logo=googlepay&logoColor=white" alt="Pay via UPI" height="34" />
   </a>
 </p>
 
@@ -43,16 +38,16 @@
 
 ---
 
-## 🌟 Overview
+## 🌟 Overview: Pass Google Play 14-Day Closed Testing
 
-Google Play Console requires personal developer accounts to run a **14-day closed test with at least 12 continuous testers** before requesting production access. Finding genuine, daily testers is difficult for solo indie developers and small startups.
+Google Play Console requires personal developer accounts to run a **14-day closed test with at least 12 continuous testers** before applying for production access. Finding genuine, daily testers who keep your app installed and actively test for two full weeks is the #1 hurdle for indie Android developers and early-stage startups.
 
-**TheClosedTest** solves this problem through an ethical, community-driven **peer testing exchange**:
+**TheClosedTest** is a 100% free, community-driven **peer testing exchange**:
 
-- 🤝 **Reciprocal Testing Swaps**: "I test your app for 14 days, you test mine."
-- 📸 **Daily Proof Verification**: Upload screenshot proofs daily to verify genuine testing engagement.
-- 💬 **In-Match Developer Chat**: Real-time communication and direct feedback sharing between testing partners.
-- 🛡️ **Strict Community Quality**: Built-in reputation system, dispute resolution, and zero tolerance for bots or artificial activity.
+- 🤝 **Reciprocal Testing Swaps**: "I test your app for 14 days, you test mine." Swap testing spots with verified Android developers.
+- 📸 **Daily Proof Verification**: Upload screenshot proofs daily to guarantee genuine testing engagement that Google Play algorithms look for during production access review.
+- 💬 **In-Match Developer Chat**: Real-time messaging between testing partners to share bug reports, ANRs, crash logs, and UX feedback.
+- 🛡️ **Zero Bots or Paid Reviews**: 100% compliant with Google Play Developer Policies — real human developers testing on real physical Android devices.
 
 ---
 
@@ -223,6 +218,31 @@ TheClosedTest strictly adheres to Google Play policies:
 - ❌ **No Automated Bots**: No bot farms, automated scripts, or artificial installs.
 - ❌ **No Paid Reviews**: Users are not compensated with real money for positive reviews.
 - ✅ **Genuine Peer Testing**: Real developers testing real applications, providing constructive bug reports and stability feedback.
+
+---
+
+## ❓ Frequently Asked Questions (FAQ)
+
+<details>
+<summary><b>How does TheClosedTest help me pass Google Play's 14-day 12-tester requirement?</b></summary>
+<br/>
+
+Google Play Console requires at least 12 testers to be actively opted in to your closed testing track for 14 continuous days. TheClosedTest connects you directly with other indie Android developers who need to meet the same requirement. Through 1-on-1 reciprocal swaps, you test their apps daily, and they test yours, ensuring consistent engagement and verified daily screenshot proofs.
+</details>
+
+<details>
+<summary><b>Why should I avoid paid closed testing services or bot farms?</b></summary>
+<br/>
+
+Google Play's review team actively detects artificial installs, bot accounts, and inactive testers. If Google detects unengaged accounts during your 14-day closed test, your application for production access will be rejected with requests for more testing. TheClosedTest enforces real human interaction with daily in-app screenshot proofs on real physical Android devices.
+</details>
+
+<details>
+<summary><b>What should I answer in the Google Play Production Access questionnaire?</b></summary>
+<br/>
+
+When applying for production access after 14 days, Google asks how you recruited testers and what feedback you gathered. With TheClosedTest, you can honestly explain that you engaged an active community of Android developers, collected daily screenshots, and addressed partner bug feedback via direct developer chat.
+</details>
 
 ---
 
