@@ -16,10 +16,17 @@
 [![Cloudflare R2](https://img.shields.io/badge/Storage-Cloudflare_R2-F38020?logo=cloudflare&logoColor=white)](https://www.cloudflare.com/products/r2/)
 [![Support on Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/theneerajsec)
 [![Support via UPI](https://img.shields.io/badge/Support-UPI-138808?logo=googlepay&logoColor=white)](#support)
+[![Google Play](https://img.shields.io/badge/Google_Play-Get_It_On-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest)
 
 
 <p align="center">
   <b>Connect with fellow Android developers to ethically test each other's apps and pass Google Play's 14-day 12-tester requirement together.</b>
+</p>
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.theneerajsec.theclosedtest" target="_blank" rel="noopener noreferrer">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="60" />
+  </a>
 </p>
 
 <p align="center">
