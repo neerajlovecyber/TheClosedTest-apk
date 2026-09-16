@@ -164,11 +164,11 @@ export function RateUsBanner({ userStreak = 0, reputation = 100, hasActiveMatche
                   onPress={handleOpenPlayStore}
                 >
                   <Icon as={StarIcon} className="size-3.5 text-white fill-white" />
-                  <Text className="text-white text-xs font-bold">Rate on Google Play</Text>
+                  <Text className="text-white text-xs font-bold">Rate Us</Text>
                   <Icon as={ExternalLinkIcon} className="size-3 text-white/80" />
                 </Button>
                 <Button size="sm" variant="outline" className="rounded-xl h-9 px-3.5" onPress={handleMaybeLater}>
-                  <Text className="text-xs font-semibold text-foreground">Maybe Later</Text>
+                  <Text className="text-xs font-semibold text-foreground">Later</Text>
                 </Button>
               </>
             ) : isLowRating ? (
@@ -179,15 +179,15 @@ export function RateUsBanner({ userStreak = 0, reputation = 100, hasActiveMatche
                   onPress={handleFeedback}
                 >
                   <Icon as={MessageSquareIcon} className="size-3.5 text-white" />
-                  <Text className="text-white text-xs font-bold">Chat with Support</Text>
+                  <Text className="text-white text-xs font-bold">Get Support</Text>
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="rounded-xl h-9 px-3 border-border/60"
+                  className="rounded-xl h-9 px-3.5 border-border/60"
                   onPress={handleOpenPlayStore}
                 >
-                  <Text className="text-xs font-medium text-muted-foreground">Play Store</Text>
+                  <Text className="text-xs font-medium text-muted-foreground">Rate Us</Text>
                 </Button>
               </>
             ) : (
@@ -198,7 +198,7 @@ export function RateUsBanner({ userStreak = 0, reputation = 100, hasActiveMatche
                   onPress={handleOpenPlayStore}
                 >
                   <Icon as={StarIcon} className="size-3.5 text-white fill-white" />
-                  <Text className="text-white text-xs font-bold">Rate on Google Play</Text>
+                  <Text className="text-white text-xs font-bold">Rate Us</Text>
                   <Icon as={ExternalLinkIcon} className="size-3 text-white/80" />
                 </Button>
                 <Button size="sm" variant="outline" className="rounded-xl h-9 px-3.5" onPress={handleMaybeLater}>
