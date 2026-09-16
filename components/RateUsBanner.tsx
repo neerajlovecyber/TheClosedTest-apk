@@ -73,7 +73,7 @@ export function RateUsBanner({ userStreak = 0, reputation = 100, hasActiveMatche
   const handleFeedback = async () => {
     setIsVisible(false);
     await RatingManager.snoozeBanner(SNOOZE_SHORT_MS);
-    router.push("/help" as any);
+    router.push("/admin-chat" as any);
   };
 
   if (!isVisible) return null;
@@ -117,23 +117,21 @@ export function RateUsBanner({ userStreak = 0, reputation = 100, hasActiveMatche
             <>
               <Text className="text-base font-bold text-foreground mb-1">Help fellow developers find peer testing! ⭐</Text>
               <Text className="text-xs text-muted-foreground leading-relaxed mb-2.5">
-                Google Play weighs reviews from the last 90 days most heavily. A 30-second review mentioning "14-day closed test" keeps this tool 100% free and
-                brings more testers to test your app.
+                A quick 30-second review brings more active developers to the tester pool so everyone passes their 14-day closed test faster.
               </Text>
             </>
           ) : isLowRating ? (
             <>
-              <Text className="text-base font-bold text-foreground mb-1">Help us make The Closed Test better! 🛠️</Text>
+              <Text className="text-base font-bold text-foreground mb-1">How can we make things better? 🛠️</Text>
               <Text className="text-xs text-muted-foreground leading-relaxed mb-2.5">
-                We're sorry your experience hasn't been 5 stars. Send us your feedback directly — our team reviews every ticket so your closed testing isn't
-                delayed.
+                We're sorry things didn't go smoothly! Chat directly with our team so we can resolve your issue right away.
               </Text>
             </>
           ) : (
             <>
               <Text className="text-base font-bold text-foreground mb-1">Enjoying peer testing on The Closed Test? 🚀</Text>
               <Text className="text-xs text-muted-foreground leading-relaxed mb-2.5">
-                Devs helping devs pass Google Play's 20-tester rule. Tap a star below to rate your experience:
+                Devs helping devs pass Google Play's 14-day closed test requirement. Tap a star below to rate your experience:
               </Text>
             </>
           )}
@@ -177,14 +175,19 @@ export function RateUsBanner({ userStreak = 0, reputation = 100, hasActiveMatche
               <>
                 <Button
                   size="sm"
-                  className="flex-1 rounded-xl flex-row items-center justify-center gap-1.5 h-9 bg-secondary active:bg-secondary/80"
+                  className="flex-1 rounded-xl flex-row items-center justify-center gap-1.5 h-9 bg-amber-500 hover:bg-amber-600 active:bg-amber-600"
                   onPress={handleFeedback}
                 >
-                  <Icon as={MessageSquareIcon} className="size-3.5 text-foreground" />
-                  <Text className="text-foreground text-xs font-bold">Send Feedback to Team</Text>
+                  <Icon as={MessageSquareIcon} className="size-3.5 text-white" />
+                  <Text className="text-white text-xs font-bold">Chat with Support</Text>
                 </Button>
-                <Button size="sm" variant="outline" className="rounded-xl h-9 px-3.5" onPress={handleMaybeLater}>
-                  <Text className="text-xs font-semibold text-foreground">Dismiss</Text>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-xl h-9 px-3 border-border/60"
+                  onPress={handleOpenPlayStore}
+                >
+                  <Text className="text-xs font-medium text-muted-foreground">Play Store</Text>
                 </Button>
               </>
             ) : (
