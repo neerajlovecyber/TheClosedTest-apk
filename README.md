@@ -14,10 +14,22 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Bun](https://img.shields.io/badge/Bun-1.1+-fbf0df?logo=bun&logoColor=black)](https://bun.sh/)
 [![Cloudflare R2](https://img.shields.io/badge/Storage-Cloudflare_R2-F38020?logo=cloudflare&logoColor=white)](https://www.cloudflare.com/products/r2/)
+[![Support on Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/theneerajsec)
+[![Support via UPI](https://img.shields.io/badge/Support-UPI-138808?logo=googlepay&logoColor=white)](#support)
 
 
 <p align="center">
   <b>Connect with fellow Android developers to ethically test each other's apps and pass Google Play's 14-day 12-tester requirement together.</b>
+</p>
+
+<p align="center">
+  <a href="https://ko-fi.com/theneerajsec" target="_blank" rel="noopener noreferrer">
+    <img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_beige.png" alt="Support Me on Ko-fi" height="36" />
+  </a>
+  &nbsp;&nbsp;
+  <a href="#support">
+    <img src="https://img.shields.io/badge/Pay%20via-UPI-138808?style=for-the-badge&logo=googlepay&logoColor=white" alt="Pay via UPI" height="36" />
+  </a>
 </p>
 
 </div>
@@ -204,6 +216,38 @@ TheClosedTest strictly adheres to Google Play policies:
 - ❌ **No Automated Bots**: No bot farms, automated scripts, or artificial installs.
 - ❌ **No Paid Reviews**: Users are not compensated with real money for positive reviews.
 - ✅ **Genuine Peer Testing**: Real developers testing real applications, providing constructive bug reports and stability feedback.
+
+---
+
+<span id="support"></span>
+
+## 💖 Support the Project
+
+If **TheClosedTest** helped you pass Google Play's 14-day closed testing requirement and you'd like to support server hosting costs, database infrastructure, and continuous development, you can support us below:
+
+<div align="center">
+
+### ☕ Support on Ko-fi
+<a href="https://ko-fi.com/theneerajsec" target="_blank" rel="noopener noreferrer">
+  <img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_beige.png" alt="Support Me on Ko-fi" height="42" />
+</a>
+
+<br/><br/>
+
+### 🇮🇳 UPI (India)
+Scan with any UPI app (Google Pay, PhonePe, Paytm, BHIM, Navi) or tap to pay:
+
+<br/>
+
+<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3D7988815263%40jupiteraxis%26pn%3DTheClosedTest%26cu%3DINR" alt="UPI QR Code" width="160" height="160" />
+
+<br/><br/>
+
+**UPI ID**: `7988815263@jupiteraxis`
+
+[**👉 Tap to Pay via UPI App (Mobile)**](upi://pay?pa=7988815263@jupiteraxis&pn=TheClosedTest&cu=INR)
+
+</div>
 
 ---
 

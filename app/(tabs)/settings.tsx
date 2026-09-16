@@ -39,7 +39,6 @@ import * as React from "react";
 import { Linking, View, Share, TouchableOpacity, Modal, Pressable } from "react-native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { RatingManager } from "@/lib/rating-manager";
-import { ApiEnvSwitch } from "@/components/ApiEnvSwitch";
 import Constants from "expo-constants";
 import { useCurrentUser, useMySupportChat } from "@/lib/api-hooks";
 
@@ -170,7 +169,6 @@ export default function SettingsScreen() {
       <View className="px-6 py-4 flex-row items-center justify-between">
         <Text className="text-3xl font-extrabold text-foreground tracking-tight">Settings</Text>
         <View className="flex-row items-center gap-2">
-          {isAdmin && <ApiEnvSwitch />}
           {isAdmin && (
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/admin" as any)}
