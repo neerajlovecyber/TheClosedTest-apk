@@ -39,6 +39,11 @@ pub struct MatchAppSummary {
     pub play_store_url: Option<String>,
     #[serde(rename = "iconUrl")]
     pub icon_url: String,
+    #[serde(rename = "currentTesters")]
+    pub current_testers: i32,
+    #[serde(rename = "requiredTesters")]
+    pub required_testers: i32,
+    pub status: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -199,10 +204,14 @@ async fn list_matches(
     user_ids.sort();
     user_ids.dedup();
 
-    let apps_map: HashMap<String, apps::Model> = Apps::find()
-        .filter(apps::Column::Id.is_in(app_ids))
+    let app_models: Vec<apps::Model> = Apps::find()
+        .filter(apps::Column::Id.is_in(app_ids.clone()))
         .all(&state.db)
-        .await?
+        .await?;
+
+    let tester_counts = crate::routes::apps::get_active_tester_counts(&state.db, &app_ids).await;
+
+    let apps_map: HashMap<String, apps::Model> = app_models
         .into_iter()
         .map(|a| (a.id.clone(), a))
         .collect();
@@ -262,19 +271,47 @@ async fn list_matches(
             "senderId": msg.sender_id,
         }));
 
-        let app1 = apps_map.get(&m.app1_id).map(|a| MatchAppSummary {
-            id: a.id.clone(),
-            title: a.title.clone(),
-            package_name: a.package_name.clone(),
-            play_store_url: Some(a.play_store_url.clone()),
-            icon_url: a.icon_url.clone(),
+        let app1 = apps_map.get(&m.app1_id).map(|a| {
+            let current = tester_counts.get(&a.id).copied().unwrap_or(0);
+            let required = a.required_testers.max(1);
+            let dynamic_status = if a.status == "archived" || a.status == "paused" || a.status == "completed" {
+                a.status.clone()
+            } else if current >= required {
+                "filled".to_string()
+            } else {
+                "recruiting".to_string()
+            };
+            MatchAppSummary {
+                id: a.id.clone(),
+                title: a.title.clone(),
+                package_name: a.package_name.clone(),
+                play_store_url: Some(a.play_store_url.clone()),
+                icon_url: a.icon_url.clone(),
+                current_testers: current,
+                required_testers: required,
+                status: dynamic_status,
+            }
         });
-        let app2 = apps_map.get(&m.app2_id).map(|a| MatchAppSummary {
-            id: a.id.clone(),
-            title: a.title.clone(),
-            package_name: a.package_name.clone(),
-            play_store_url: Some(a.play_store_url.clone()),
-            icon_url: a.icon_url.clone(),
+        let app2 = apps_map.get(&m.app2_id).map(|a| {
+            let current = tester_counts.get(&a.id).copied().unwrap_or(0);
+            let required = a.required_testers.max(1);
+            let dynamic_status = if a.status == "archived" || a.status == "paused" || a.status == "completed" {
+                a.status.clone()
+            } else if current >= required {
+                "filled".to_string()
+            } else {
+                "recruiting".to_string()
+            };
+            MatchAppSummary {
+                id: a.id.clone(),
+                title: a.title.clone(),
+                package_name: a.package_name.clone(),
+                play_store_url: Some(a.play_store_url.clone()),
+                icon_url: a.icon_url.clone(),
+                current_testers: current,
+                required_testers: required,
+                status: dynamic_status,
+            }
         });
         let user1 = users_map.get(&m.user1_id).map(|u| MatchUserSummary {
             id: u.id.clone(),
@@ -417,19 +454,50 @@ async fn get_match(
     let user1_model = Users::find_by_id(&m.user1_id).one(&state.db).await?;
     let user2_model = Users::find_by_id(&m.user2_id).one(&state.db).await?;
 
-    let app1 = app1_model.map(|a| MatchAppSummary {
-        id: a.id,
-        title: a.title,
-        package_name: a.package_name,
-        play_store_url: Some(a.play_store_url),
-        icon_url: a.icon_url,
+    let app1_tester_count = crate::routes::apps::count_active_testers_for_app(&state.db, &m.app1_id).await?;
+    let app2_tester_count = crate::routes::apps::count_active_testers_for_app(&state.db, &m.app2_id).await?;
+
+    let app1 = app1_model.map(|a| {
+        let current = app1_tester_count;
+        let required = a.required_testers.max(1);
+        let dynamic_status = if a.status == "archived" || a.status == "paused" || a.status == "completed" {
+            a.status.clone()
+        } else if current >= required {
+            "filled".to_string()
+        } else {
+            "recruiting".to_string()
+        };
+        MatchAppSummary {
+            id: a.id,
+            title: a.title,
+            package_name: a.package_name,
+            play_store_url: Some(a.play_store_url),
+            icon_url: a.icon_url,
+            current_testers: current,
+            required_testers: required,
+            status: dynamic_status,
+        }
     });
-    let app2 = app2_model.map(|a| MatchAppSummary {
-        id: a.id,
-        title: a.title,
-        package_name: a.package_name,
-        play_store_url: Some(a.play_store_url),
-        icon_url: a.icon_url,
+    let app2 = app2_model.map(|a| {
+        let current = app2_tester_count;
+        let required = a.required_testers.max(1);
+        let dynamic_status = if a.status == "archived" || a.status == "paused" || a.status == "completed" {
+            a.status.clone()
+        } else if current >= required {
+            "filled".to_string()
+        } else {
+            "recruiting".to_string()
+        };
+        MatchAppSummary {
+            id: a.id,
+            title: a.title,
+            package_name: a.package_name,
+            play_store_url: Some(a.play_store_url),
+            icon_url: a.icon_url,
+            current_testers: current,
+            required_testers: required,
+            status: dynamic_status,
+        }
     });
     let user1 = user1_model.map(|u| MatchUserSummary {
         id: u.id,
