@@ -121,23 +121,49 @@ pub async fn run_match_progression_and_cleanup(pool: &PgPool) -> Result<(), sqlx
             .bind(&u1_id).bind(&u2_id).execute(pool).await;
     }
 
-    // 2b. Cancel matches inactive > 72h (started > 48h ago)
+    // 2b. Cancel matches where at least one user has been individually inactive for 48h
+    //     Fires at 12:10 AM IST, so inactive users are caught on the morning of day 3.
+    //     Guard: match must have started > 48h ago AND not reached day 14 by either user.
     let abandoned = sqlx::query_as::<_, (String, String, String)>(
         r#"
-        SELECT m.id, m.user1_id, m.user2_id FROM matches m
+        SELECT m.id, m.user1_id, m.user2_id
+        FROM matches m
         WHERE m.status = 'active'
-          AND m.start_date <= NOW() - INTERVAL '72 HOURS'
-          AND m.last_activity <= NOW() - INTERVAL '72 HOURS'
+          AND m.start_date <= NOW() - INTERVAL '48 HOURS'
+          AND (m.start_date IS NULL OR m.start_date > NOW() - INTERVAL '14 DAYS')
+          AND NOT EXISTS (
+              SELECT 1 FROM proofs p
+              WHERE p.match_id = m.id AND p.day >= 14
+          )
+          AND (
+            -- user1 has no proof submitted in the last 48h
+            NOT EXISTS (
+                SELECT 1 FROM proofs p
+                WHERE p.match_id = m.id
+                  AND p.uploader_id = m.user1_id
+                  AND p.submitted_at >= NOW() - INTERVAL '48 HOURS'
+            )
+            OR
+            -- user2 has no proof submitted in the last 48h
+            NOT EXISTS (
+                SELECT 1 FROM proofs p
+                WHERE p.match_id = m.id
+                  AND p.uploader_id = m.user2_id
+                  AND p.submitted_at >= NOW() - INTERVAL '48 HOURS'
+            )
+          )
         "#,
     )
     .fetch_all(pool)
     .await?;
 
     for (match_id, u1_id, u2_id) in abandoned {
-        let u1_recent: (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND submitted_at >= NOW() - INTERVAL '72 HOURS'")
+        // Determine which user(s) are individually inactive
+        let u1_recent: (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND submitted_at >= NOW() - INTERVAL '48 HOURS'")
             .bind(&match_id).bind(&u1_id).fetch_one(pool).await?;
-        let u2_recent: (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND submitted_at >= NOW() - INTERVAL '72 HOURS'")
+        let u2_recent: (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND submitted_at >= NOW() - INTERVAL '48 HOURS'")
             .bind(&match_id).bind(&u2_id).fetch_one(pool).await?;
+
         let _ = sqlx::query("UPDATE matches SET status = 'cancelled', updated_at = NOW() WHERE id = $1")
             .bind(&match_id).execute(pool).await;
         if u1_recent.0 == 0 && u2_recent.0 > 0 {
@@ -149,26 +175,58 @@ pub async fn run_match_progression_and_cleanup(pool: &PgPool) -> Result<(), sqlx
         }
     }
 
-    // 2c. 48h inactivity warning
+    // 2c. 24h inactivity warning — fires on day 2 midnight, warns before the 48h cancel on day 3
+    //     Per-user proof check (same approach as 2b) so one active user doesn't hide the other.
     let warning_matches = sqlx::query_as::<_, (String, String, String)>(
         r#"
         SELECT m.id, m.user1_id, m.user2_id FROM matches m
         WHERE m.status = 'active'
-          AND m.start_date <= NOW() - INTERVAL '48 HOURS'
-          AND m.last_activity <= NOW() - INTERVAL '48 HOURS'
-          AND m.last_activity > NOW() - INTERVAL '72 HOURS'
+          AND m.start_date <= NOW() - INTERVAL '24 HOURS'
+          AND NOT EXISTS (
+              SELECT 1 FROM proofs p WHERE p.match_id = m.id AND p.day >= 14
+          )
+          AND (
+            NOT EXISTS (
+                SELECT 1 FROM proofs p
+                WHERE p.match_id = m.id
+                  AND p.uploader_id = m.user1_id
+                  AND p.submitted_at >= NOW() - INTERVAL '24 HOURS'
+            )
+            OR
+            NOT EXISTS (
+                SELECT 1 FROM proofs p
+                WHERE p.match_id = m.id
+                  AND p.uploader_id = m.user2_id
+                  AND p.submitted_at >= NOW() - INTERVAL '24 HOURS'
+            )
+          )
         "#,
     )
     .fetch_all(pool)
     .await?;
 
-    for (match_id, _u1_id, u2_id) in warning_matches {
-        let notif_id = Uuid::new_v4().to_string();
-        let notif_data = serde_json::json!({ "matchId": match_id, "subtype": "inactivity_warning" });
-        let _ = sqlx::query(
-            "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'reminder', '⚠️ Urgent: Testing Match In Danger', 'Please upload proof within 24 hours to prevent match cancellation.', $3, false, NOW())",
-        )
-        .bind(notif_id).bind(&u2_id).bind(notif_data).execute(pool).await;
+    for (match_id, u1_id, u2_id) in warning_matches {
+        // Notify only the individually inactive user(s)
+        let u1_warn: (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND submitted_at >= NOW() - INTERVAL '24 HOURS'")
+            .bind(&match_id).bind(&u1_id).fetch_one(pool).await.unwrap_or((0,));
+        let u2_warn: (i64,) = sqlx::query_as("SELECT COUNT(*)::bigint FROM proofs WHERE match_id = $1 AND uploader_id = $2 AND submitted_at >= NOW() - INTERVAL '24 HOURS'")
+            .bind(&match_id).bind(&u2_id).fetch_one(pool).await.unwrap_or((0,));
+
+        for (inactive_uid, _active) in [
+            (&u1_id, u1_warn.0 == 0),
+            (&u2_id, u2_warn.0 == 0),
+        ] {
+            if u1_warn.0 == 0 && inactive_uid == &u1_id
+                || u2_warn.0 == 0 && inactive_uid == &u2_id
+            {
+                let notif_id = Uuid::new_v4().to_string();
+                let notif_data = serde_json::json!({ "matchId": match_id, "subtype": "inactivity_warning" });
+                let _ = sqlx::query(
+                    "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'reminder', '⚠️ Upload Today or Match Gets Cancelled', 'You haven\'t submitted a proof in 24h. Upload today to keep your match active!', $3, false, NOW())",
+                )
+                .bind(notif_id).bind(inactive_uid).bind(notif_data).execute(pool).await;
+            }
+        }
     }
 
     // 2d. Expire stale pending match requests > 72h
