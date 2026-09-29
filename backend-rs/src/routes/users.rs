@@ -10,7 +10,7 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use crate::auth::AuthUser;
 use crate::db::models::{User, UserSummary};
 use crate::entities::prelude::*;
-use crate::entities::{apps, users};
+use crate::entities::{apps, user_bans, users};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -42,6 +42,12 @@ pub struct UserResponse {
     pub last_check_in_date: Option<String>,
     #[serde(rename = "unlockedAppSlots")]
     pub unlocked_app_slots: i32,
+    #[serde(rename = "isBanned")]
+    pub is_banned: bool,
+    #[serde(rename = "banReason", skip_serializing_if = "Option::is_none")]
+    pub ban_reason: Option<String>,
+    #[serde(rename = "banExpiresAt", skip_serializing_if = "Option::is_none")]
+    pub ban_expires_at: Option<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     #[serde(rename = "updatedAt")]
@@ -66,6 +72,9 @@ impl From<User> for UserResponse {
             best_streak: u.best_streak,
             last_check_in_date: u.last_check_in_date,
             unlocked_app_slots: u.unlocked_app_slots,
+            is_banned: false,
+            ban_reason: None,
+            ban_expires_at: None,
             created_at: u.created_at.format(&Rfc3339).unwrap_or_default(),
             updated_at: u.updated_at.format(&Rfc3339).unwrap_or_default(),
         }
@@ -90,6 +99,9 @@ impl From<users::Model> for UserResponse {
             best_streak: u.best_streak,
             last_check_in_date: u.last_check_in_date,
             unlocked_app_slots: u.unlocked_app_slots,
+            is_banned: false,
+            ban_reason: None,
+            ban_expires_at: None,
             created_at: u.created_at.format(&Rfc3339).unwrap_or_default(),
             updated_at: u.updated_at.format(&Rfc3339).unwrap_or_default(),
         }
@@ -158,6 +170,26 @@ async fn get_me(
 
     let mut resp: UserResponse = user.into();
     resp.apps_count = live_apps_count;
+
+    // Check active ban
+    let active_ban = UserBans::find()
+        .filter(user_bans::Column::UserId.eq(&resp.id))
+        .filter(
+            sea_orm::Condition::any()
+                .add(user_bans::Column::Permanent.eq(true))
+                .add(user_bans::Column::ExpiresAt.gt(OffsetDateTime::now_utc())),
+        )
+        .one(&state.db)
+        .await
+        .ok()
+        .flatten();
+
+    if let Some(ban) = active_ban {
+        resp.is_banned = true;
+        resp.ban_reason = Some(ban.reason);
+        resp.ban_expires_at = ban.expires_at.map(|t| t.format(&Rfc3339).unwrap_or_default());
+    }
+
     Ok(Json(resp))
 }
 

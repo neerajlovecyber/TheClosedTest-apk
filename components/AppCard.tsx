@@ -200,7 +200,7 @@ export function AppCard({ item, onPress, onReport, variant = "marketplace", acti
                 {/* Reputation */}
                 <View className="flex-row items-center gap-1 shrink-0">
                   <Icon as={StarIcon} className="size-3 text-green-600 dark:text-green-500 fill-green-600 dark:fill-green-500" />
-                  <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation || 100}</Text>
+                  <Text className="text-xs text-green-600 dark:text-green-500 font-bold">{item.reputation ?? 100}</Text>
                 </View>
               </View>
 

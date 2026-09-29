@@ -167,15 +167,76 @@ pub async fn run_match_progression_and_cleanup(pool: &PgPool) -> Result<(), sqlx
         let _ = sqlx::query("UPDATE matches SET status = 'cancelled', updated_at = NOW() WHERE id = $1")
             .bind(&match_id).execute(pool).await;
         if u1_recent.0 == 0 && u2_recent.0 > 0 {
-            let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 10), streak = 0 WHERE id = $1").bind(&u1_id).execute(pool).await;
+            let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 8), streak = 0 WHERE id = $1").bind(&u1_id).execute(pool).await;
         } else if u2_recent.0 == 0 && u1_recent.0 > 0 {
-            let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 10), streak = 0 WHERE id = $1").bind(&u2_id).execute(pool).await;
+            let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 8), streak = 0 WHERE id = $1").bind(&u2_id).execute(pool).await;
         } else if u1_recent.0 == 0 && u2_recent.0 == 0 {
-            let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 10), streak = 0 WHERE id = $1 OR id = $2").bind(&u1_id).bind(&u2_id).execute(pool).await;
+            let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 8), streak = 0 WHERE id = $1 OR id = $2").bind(&u1_id).bind(&u2_id).execute(pool).await;
         }
     }
 
-    // 2c. 24h inactivity warning — fires on day 2 midnight, warns before the 48h cancel on day 3
+    // 2c. Auto-ban users whose reputation has dropped to 0 (Permanent ban until admin review)
+    let zero_rep_users = sqlx::query_as::<_, (String,)>(
+        r#"
+        SELECT u.id
+        FROM users u
+        WHERE u.reputation <= 0
+          AND NOT EXISTS (
+              SELECT 1 FROM user_bans b
+              WHERE b.user_id = u.id AND (b.permanent = true OR b.expires_at > NOW())
+          )
+        "#
+    )
+    .fetch_all(pool)
+    .await?;
+
+    for (uid,) in zero_rep_users {
+        info!("🚫 Permanently auto-banning user {} (reputation reached 0)", uid);
+        let ban_id = Uuid::new_v4().to_string();
+        let _ = sqlx::query(
+            r#"
+            INSERT INTO user_bans (id, user_id, banned_by, banned_by_type, reason, permanent, expires_at, created_at)
+            VALUES ($1, $2, $2, 'auto', 'Account banned: Reputation reached 0 due to inactivity or test abandonment.', true, NULL, NOW())
+            "#
+        )
+        .bind(&ban_id)
+        .bind(&uid)
+        .execute(pool)
+        .await;
+
+        // Auto-pause their recruiting / filled apps
+        let _ = sqlx::query(
+            "UPDATE apps SET status = 'paused', updated_at = NOW() WHERE user_id = $1 AND status IN ('recruiting', 'filled')"
+        )
+        .bind(&uid)
+        .execute(pool)
+        .await;
+
+        // Cancel active matches involving this suspended user
+        let _ = sqlx::query(
+            "UPDATE matches SET status = 'cancelled', updated_at = NOW() WHERE (user1_id = $1 OR user2_id = $1) AND status = 'active'"
+        )
+        .bind(&uid)
+        .execute(pool)
+        .await;
+
+        // Send ban notification
+        let notif_id = Uuid::new_v4().to_string();
+        let notif_data = serde_json::json!({ "type": "auto_ban", "permanent": true });
+        let _ = sqlx::query(
+            r#"
+            INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at)
+            VALUES ($1, $2, 'system', '🚫 Account Banned', 'Your account has been banned because your reputation reached 0 due to inactivity or abandonment. Contact support if you believe this was an error.', $3, false, NOW())
+            "#
+        )
+        .bind(&notif_id)
+        .bind(&uid)
+        .bind(notif_data)
+        .execute(pool)
+        .await;
+    }
+
+    // 2d. 24h inactivity warning — fires on day 2 midnight, warns before the 48h cancel on day 3
     //     Per-user proof check (same approach as 2b) so one active user doesn't hide the other.
     let warning_matches = sqlx::query_as::<_, (String, String, String)>(
         r#"

@@ -8,7 +8,7 @@ import { RateUsBanner } from "@/components/RateUsBanner";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { BellIcon, FlameIcon, StarIcon, PlusIcon, LockIcon } from "lucide-react-native";
+import { BellIcon, FlameIcon, StarIcon, PlusIcon, LockIcon, AlertTriangleIcon } from "lucide-react-native";
 import { useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { toast } from "@/lib/sonner";
@@ -258,6 +258,25 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           </View>
+
+          {currentUser?.isBanned && (
+            <View className="mb-4 p-4 rounded-xl border border-destructive/40 bg-destructive/10">
+              <View className="flex-row items-center gap-2 mb-1.5">
+                <Icon as={AlertTriangleIcon} size={20} className="text-destructive" />
+                <Text className="text-base font-bold text-destructive">Account Banned</Text>
+              </View>
+              <Text className="text-sm text-foreground mb-3 leading-relaxed">
+                {currentUser.banReason || "Your account has been permanently banned because your reputation reached 0 due to inactivity or test abandonment."}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/admin-chat")}
+                activeOpacity={0.8}
+                className="self-start px-3.5 py-2 rounded-lg bg-destructive flex-row items-center gap-1.5"
+              >
+                <Text className="text-xs font-bold text-destructive-foreground">Contact Support to Appeal</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {hasLoadError && (
             <ErrorState

@@ -45,6 +45,8 @@ export interface UserProfile {
   unlockedAppSlots: number;
   googleGroupConfirmed?: boolean;
   pushToken?: string | null;
+  isBanned?: boolean;
+  banReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }

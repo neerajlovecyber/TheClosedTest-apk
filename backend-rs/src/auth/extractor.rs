@@ -10,7 +10,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
 use crate::auth::clerk::verify_token_payload;
 use crate::db::models::User;
-use crate::entities::{prelude::*, users};
+use crate::entities::{prelude::*, user_bans, users};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -114,8 +114,36 @@ impl FromRequestParts<AppState> for AuthUser {
             }
         };
 
-        // Cache in memory for 60s
-        state.user_cache.insert(token_identifier, user.clone()).await;
+        // 4. Verify user is not actively banned
+        // Exempt /api/users/me, /api/notifications, and /api/support so suspended users can inspect their status, read system notices, and appeal
+        let path = parts.uri.path();
+        let is_exempt_path = path == "/api/users/me"
+            || path.starts_with("/api/notifications")
+            || path.starts_with("/api/support");
+
+        let active_ban = UserBans::find()
+            .filter(user_bans::Column::UserId.eq(&user.id))
+            .filter(
+                sea_orm::Condition::any()
+                    .add(user_bans::Column::Permanent.eq(true))
+                    .add(user_bans::Column::ExpiresAt.gt(OffsetDateTime::now_utc())),
+            )
+            .one(&state.db)
+            .await
+            .map_err(AppError::from)?;
+
+        if let Some(ban) = active_ban {
+            if !is_exempt_path {
+                return Err(AppError::Forbidden(format!(
+                    "Account suspended: {}",
+                    ban.reason
+                )));
+            }
+        } else {
+            // Cache in memory for 60s only if user is not banned
+            state.user_cache.insert(token_identifier, user.clone()).await;
+        }
+
         state.presence_cache.insert(user.id.clone(), OffsetDateTime::now_utc()).await;
 
         Ok(AuthUser(user))
