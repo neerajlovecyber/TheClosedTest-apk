@@ -123,8 +123,10 @@ async fn submit_proof(
         return Err(AppError::BadRequest("Match is not active or does not exist".to_string()));
     }
 
-    let is_user1 = match_row.user1_id == user.id;
-    let is_user2 = match_row.user2_id == user.id;
+    let is_user1 = match_row.user1_id == user.id
+        || user.token_identifier.as_deref().is_some_and(|tid| match_row.user1_id == tid);
+    let is_user2 = match_row.user2_id == user.id
+        || user.token_identifier.as_deref().is_some_and(|tid| match_row.user2_id == tid);
     if !is_user1 && !is_user2 {
         return Err(AppError::Forbidden("You are not a participant in this match".to_string()));
     }
@@ -240,7 +242,12 @@ async fn list_match_proofs(
         .await?
         .ok_or_else(|| AppError::NotFound("Match not found".to_string()))?;
 
-    if match_row.user1_id != user.id && match_row.user2_id != user.id && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
+    let is_participant = match_row.user1_id == user.id
+        || match_row.user2_id == user.id
+        || user.token_identifier.as_deref().is_some_and(|tid| {
+            match_row.user1_id == tid || match_row.user2_id == tid
+        });
+    if !is_participant && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
         return Err(AppError::Forbidden("You are not authorized to view proofs for this match".to_string()));
     }
 
@@ -272,8 +279,12 @@ async fn review_proof(
         .await?
         .ok_or_else(|| AppError::NotFound("Associated match not found".to_string()))?;
 
-    let is_reviewer = (proof.uploader_id == match_row.user1_id && user.id == match_row.user2_id)
-        || (proof.uploader_id == match_row.user2_id && user.id == match_row.user1_id);
+    let is_reviewer = (proof.uploader_id == match_row.user1_id
+        && (user.id == match_row.user2_id
+            || user.token_identifier.as_deref().is_some_and(|tid| match_row.user2_id == tid)))
+        || (proof.uploader_id == match_row.user2_id
+            && (user.id == match_row.user1_id
+                || user.token_identifier.as_deref().is_some_and(|tid| match_row.user1_id == tid)));
 
     if !is_reviewer && !state.config.is_user_admin(Some(&user.email), user.is_admin) {
         return Err(AppError::Forbidden("Only your testing partner can review this proof".to_string()));

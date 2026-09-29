@@ -180,7 +180,23 @@ export default function HomeScreen() {
   }, [activeMatches, currentUser?.id, myAppIds]);
 
   const incomingRequests = React.useMemo(() => {
-    return pendingMatches.filter((m) => m.user2Id === currentUser?.id);
+    const isAppFilled = (app?: { currentTesters?: number; requiredTesters?: number; status?: string } | null) => {
+      if (!app) return false;
+      if (app.status === "filled") return true;
+      if (app.currentTesters !== undefined && app.requiredTesters !== undefined) {
+        return app.currentTesters >= app.requiredTesters;
+      }
+      return false;
+    };
+
+    return pendingMatches
+      .filter((m) => m.user2Id === currentUser?.id)
+      .sort((a, b) => {
+        // 0 = available (neither filled), 1 = one filled, 2 = both filled
+        const scoreA = (isAppFilled(a.app1) ? 1 : 0) + (isAppFilled(a.app2) ? 1 : 0);
+        const scoreB = (isAppFilled(b.app1) ? 1 : 0) + (isAppFilled(b.app2) ? 1 : 0);
+        return scoreA - scoreB;
+      });
   }, [pendingMatches, currentUser?.id]);
 
   const onRefresh = React.useCallback(async () => {
