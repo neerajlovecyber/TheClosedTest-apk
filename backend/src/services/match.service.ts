@@ -381,6 +381,8 @@ export class MatchService {
       throw new Error("Forbidden: Not part of match")
     }
 
+    const previousStatus = match.status
+
     const [updated] = await db
       .update(matches)
       .set({
@@ -392,14 +394,18 @@ export class MatchService {
 
     memoryCache.delete("apps_list:")
 
-    const partnerId = match.user1Id === userId ? match.user2Id : match.user1Id
-    NotificationService.send({
-      userId: partnerId,
-      type: "match_cancelled",
-      title: "Testing Ended",
-      body: `${userName || "Your partner"} has left or cancelled the testing match.`,
-      data: { matchId: match.id },
-    }).catch(() => {})
+    // Only notify if the match was in active progress.
+    // If it was still pending (swap request stage), silently cancel without alarming either user.
+    if (previousStatus === "active") {
+      const partnerId = match.user1Id === userId ? match.user2Id : match.user1Id
+      NotificationService.send({
+        userId: partnerId,
+        type: "match_cancelled",
+        title: "Testing Ended",
+        body: `${userName || "Your partner"} has left or cancelled the testing match.`,
+        data: { matchId: match.id },
+      }).catch(() => {})
+    }
 
     return updated
   }

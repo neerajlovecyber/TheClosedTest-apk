@@ -168,10 +168,51 @@ pub async fn run_match_progression_and_cleanup(pool: &PgPool) -> Result<(), sqlx
             .bind(&match_id).execute(pool).await;
         if u1_recent.0 == 0 && u2_recent.0 > 0 {
             let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 8), streak = 0 WHERE id = $1").bind(&u1_id).execute(pool).await;
+
+            // Inactive user 1
+            let notif_id1 = Uuid::new_v4().to_string();
+            let data1 = serde_json::json!({ "matchId": match_id });
+            let _ = sqlx::query(
+                "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Match Cancelled (Inactivity Penalty)', 'Your testing match was cancelled due to 48h of testing inactivity. -8 reputation penalty applied.', $3, false, NOW())"
+            )
+            .bind(notif_id1).bind(&u1_id).bind(&data1).execute(pool).await;
+
+            // Active user 2 (innocent partner)
+            let notif_id2 = Uuid::new_v4().to_string();
+            let data2 = serde_json::json!({ "matchId": match_id });
+            let _ = sqlx::query(
+                "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Partner Inactive — Match Ended', 'Your testing partner stopped submitting daily proofs. The match has ended so you can pair with an active tester.', $3, false, NOW())"
+            )
+            .bind(notif_id2).bind(&u2_id).bind(&data2).execute(pool).await;
         } else if u2_recent.0 == 0 && u1_recent.0 > 0 {
             let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 8), streak = 0 WHERE id = $1").bind(&u2_id).execute(pool).await;
+
+            // Inactive user 2
+            let notif_id2 = Uuid::new_v4().to_string();
+            let data2 = serde_json::json!({ "matchId": match_id });
+            let _ = sqlx::query(
+                "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Match Cancelled (Inactivity Penalty)', 'Your testing match was cancelled due to 48h of testing inactivity. -8 reputation penalty applied.', $3, false, NOW())"
+            )
+            .bind(notif_id2).bind(&u2_id).bind(&data2).execute(pool).await;
+
+            // Active user 1 (innocent partner)
+            let notif_id1 = Uuid::new_v4().to_string();
+            let data1 = serde_json::json!({ "matchId": match_id });
+            let _ = sqlx::query(
+                "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Partner Inactive — Match Ended', 'Your testing partner stopped submitting daily proofs. The match has ended so you can pair with an active tester.', $3, false, NOW())"
+            )
+            .bind(notif_id1).bind(&u1_id).bind(&data1).execute(pool).await;
         } else if u1_recent.0 == 0 && u2_recent.0 == 0 {
             let _ = sqlx::query("UPDATE users SET reputation = GREATEST(0, reputation - 8), streak = 0 WHERE id = $1 OR id = $2").bind(&u1_id).bind(&u2_id).execute(pool).await;
+
+            for uid in [&u1_id, &u2_id] {
+                let notif_id = Uuid::new_v4().to_string();
+                let data = serde_json::json!({ "matchId": match_id });
+                let _ = sqlx::query(
+                    "INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at) VALUES ($1, $2, 'match_cancelled', 'Match Cancelled (Inactivity Penalty)', 'Your testing match was cancelled due to testing inactivity. -8 reputation penalty applied.', $3, false, NOW())"
+                )
+                .bind(notif_id).bind(uid).bind(&data).execute(pool).await;
+            }
         }
     }
 

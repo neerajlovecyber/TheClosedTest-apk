@@ -893,6 +893,7 @@ async fn cancel_or_reject_match(
         return Err(AppError::Forbidden("You are not authorized to cancel this match".to_string()));
     }
 
+    let previous_status = match_row.status.clone();
     let now = OffsetDateTime::now_utc();
     let mut match_act: matches::ActiveModel = match_row.clone().into();
     match_act.status = Set("cancelled".to_string());
@@ -901,21 +902,48 @@ async fn cancel_or_reject_match(
 
     state.api_cache.invalidate_all();
 
-    // Notify other user
-    let other_user_id = if match_row.user1_id == user.id { match_row.user2_id } else { match_row.user1_id };
-    let notif_id = Uuid::new_v4().to_string();
-    let notif_data = serde_json::json!({ "matchId": id });
-    let notif_act = notifications::ActiveModel {
-        id: Set(notif_id),
-        user_id: Set(other_user_id),
-        r#type: Set("match_cancelled".to_string()),
-        title: Set("Testing Match Cancelled".to_string()),
-        body: Set("A testing match has been cancelled.".to_string()),
-        data: Set(notif_data),
-        read: Set(false),
-        created_at: Set(now),
-    };
-    let _ = notif_act.insert(&state.db).await;
+    // Notify other user ONLY if the match was active in progress.
+    // If it was still pending (swap request stage), silently cancel without sending
+    // an alarming "test cancelled" notification to either user.
+    if previous_status == "active" {
+        let other_users = if match_row.user1_id == user.id {
+            vec![match_row.user2_id.clone()]
+        } else if match_row.user2_id == user.id {
+            vec![match_row.user1_id.clone()]
+        } else {
+            // Admin cancelled
+            vec![match_row.user1_id.clone(), match_row.user2_id.clone()]
+        };
+
+        for other_user_id in other_users {
+            let app_title = if other_user_id == match_row.user1_id {
+                Apps::find_by_id(&match_row.app2_id)
+                    .one(&state.db)
+                    .await?
+                    .map(|a| a.title)
+            } else {
+                Apps::find_by_id(&match_row.app1_id)
+                    .one(&state.db)
+                    .await?
+                    .map(|a| a.title)
+            }
+            .unwrap_or_else(|| "the app".to_string());
+
+            let notif_id = Uuid::new_v4().to_string();
+            let notif_data = serde_json::json!({ "matchId": id });
+            let notif_act = notifications::ActiveModel {
+                id: Set(notif_id),
+                user_id: Set(other_user_id),
+                r#type: Set("match_cancelled".to_string()),
+                title: Set("Testing Match Ended".to_string()),
+                body: Set(format!("The testing match for \"{}\" was cancelled or left.", app_title)),
+                data: Set(notif_data),
+                read: Set(false),
+                created_at: Set(now),
+            };
+            let _ = notif_act.insert(&state.db).await;
+        }
+    }
 
     Ok(Json(updated.into()))
 }

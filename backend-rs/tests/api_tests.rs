@@ -920,6 +920,9 @@ fn test_match_detail_response_serialization_camel_case() {
         package_name: "com.app.one".into(),
         play_store_url: Some("https://play.google.com/store/apps/details?id=com.app.one".into()),
         icon_url: "https://example.com/app1.png".into(),
+        current_testers: 5,
+        required_testers: 12,
+        status: "recruiting".into(),
     };
     let app2 = MatchAppSummary {
         id: "app2".into(),
@@ -927,6 +930,9 @@ fn test_match_detail_response_serialization_camel_case() {
         package_name: "com.app.two".into(),
         play_store_url: Some("https://play.google.com/store/apps/details?id=com.app.two".into()),
         icon_url: "https://example.com/app2.png".into(),
+        current_testers: 3,
+        required_testers: 12,
+        status: "recruiting".into(),
     };
     let user1 = MatchUserSummary {
         id: "u1".into(),
@@ -1022,6 +1028,9 @@ fn test_user_response_serialization_camel_case() {
         unlocked_app_slots: 3,
         created_at: "2026-09-01T00:00:00Z".into(),
         updated_at: "2026-09-14T00:00:00Z".into(),
+        is_banned: false,
+        ban_reason: None,
+        ban_expires_at: None,
     };
 
     let val = serde_json::to_value(&user_res).unwrap();
