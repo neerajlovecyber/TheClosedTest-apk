@@ -1099,6 +1099,8 @@ export interface AdminUserContextDetails {
     streak: number;
     isGroupMember: boolean;
     createdAt: string;
+    isBanned?: boolean;
+    banReason?: string | null;
   };
   apps: {
     id: string;
@@ -1121,6 +1123,19 @@ export function useAdminUserDetails(userId?: string) {
     queryFn: () => api.get<AdminUserContextDetails>(`/api/admin/users/${userId}/details`),
     enabled: Boolean(userId),
     staleTime: 1000 * 30,
+  });
+}
+
+export function useAdminUnbanUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { userId?: string; email?: string; restoreReputation?: boolean; unpauseApps?: boolean }) =>
+      api.post<{ message: string }>("/api/admin/bans/user/unban", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUserDetails"] });
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      queryClient.invalidateQueries({ queryKey: ["adminApps"] });
+    },
   });
 }
 

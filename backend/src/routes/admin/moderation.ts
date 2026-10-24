@@ -21,7 +21,7 @@ import {
 import { createRouter } from "../../lib/create-app"
 import { memoryCache } from "../../lib/cache"
 import { adminAuthMiddleware, authMiddleware } from "../../middlewares/auth"
-import { BanAppSchema, BanUserSchema, CreateReportSchema, ReportSchema } from "./schemas"
+import { BanAppSchema, BanUserSchema, CreateReportSchema, ReportSchema, UnbanUserSchema } from "./schemas"
 
 const router = createRouter()
 
@@ -154,6 +154,57 @@ router.openapi(
     })
 
     return c.json({ message: "User banned successfully" }, HttpStatusCodes.OK)
+  },
+)
+
+// 3b. Unban User (Admin Only)
+router.openapi(
+  createRoute({
+    tags: ["Admin"],
+    method: "post",
+    path: "/api/admin/bans/user/unban",
+    summary: "Unban a Suspended User",
+    middleware: [adminAuthMiddleware] as const,
+    request: {
+      body: jsonContentRequired(UnbanUserSchema, "User Unban Payload"),
+    },
+    responses: {
+      [HttpStatusCodes.OK]: jsonContent(createMessageObjectSchema("User unbanned"), "User unbanned successfully"),
+    },
+  }),
+  async (c) => {
+    const body = c.req.valid("json")
+    let targetUser: typeof users.$inferSelect | undefined
+
+    if (body.userId) {
+      targetUser = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.id, body.userId!) })
+    } else if (body.email) {
+      targetUser = await db.query.users.findFirst({ where: (u, { eq }) => eq(u.email, body.email!.toLowerCase()) })
+    }
+
+    if (!targetUser) {
+      return c.json({ message: "User not found" }, HttpStatusCodes.NOT_FOUND)
+    }
+
+    // 1. Delete active bans
+    await db.delete(userBans).where(eq(userBans.userId, targetUser.id))
+
+    // 2. Restore reputation if depleted (<= 0)
+    if (body.restoreReputation && targetUser.reputation <= 0) {
+      await db.update(users).set({ reputation: 100, updatedAt: new Date() }).where(eq(users.id, targetUser.id))
+    }
+
+    // 3. Unpause apps if requested
+    if (body.unpauseApps) {
+      await db.update(apps).set({ status: "recruiting", updatedAt: new Date() }).where(and(eq(apps.userId, targetUser.id), eq(apps.status, "paused")))
+    }
+
+    // 4. Invalidate auth cache
+    if (targetUser.tokenIdentifier) {
+      memoryCache.delete(`user:auth:${targetUser.tokenIdentifier}`)
+    }
+
+    return c.json({ message: "User unbanned successfully" }, HttpStatusCodes.OK)
   },
 )
 

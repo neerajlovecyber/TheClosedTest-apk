@@ -624,6 +624,13 @@ async fn test_unauthorized_admin_ban_user_returns_401() {
 }
 
 #[tokio::test]
+async fn test_unauthorized_admin_unban_user_returns_401() {
+    let app = app_router().with_state(test_app_state());
+    let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/bans/user/unban").header("content-type", "application/json").body(Body::from(r#"{"email":"galaxysoft.connect@gmail.com"}"#)).unwrap()).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
 async fn test_unauthorized_admin_ban_app_returns_401() {
     let app = app_router().with_state(test_app_state());
     let res = app.oneshot(Request::builder().method("POST").uri("/api/admin/bans/app").header("content-type", "application/json").body(Body::from(r#"{"packageName":"com.spam","playStoreUrl":"https://play.google.com","title":"Spam","reason":"malware"}"#)).unwrap()).await.unwrap();

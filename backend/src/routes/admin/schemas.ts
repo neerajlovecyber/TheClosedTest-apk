@@ -31,6 +31,13 @@ export const BanUserSchema = z.object({
   permanent: z.boolean().default(true),
 })
 
+export const UnbanUserSchema = z.object({
+  userId: z.string().optional(),
+  email: z.string().email().optional(),
+  restoreReputation: z.boolean().default(true),
+  unpauseApps: z.boolean().default(true),
+})
+
 export const BanAppSchema = z.object({
   packageName: z.string().min(3),
   playStoreUrl: z.string().url(),

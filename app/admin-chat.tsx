@@ -4,7 +4,7 @@ import { HeadphonesIcon, InfoIcon, XIcon, LayersIcon, StarIcon, FlameIcon, Check
 import { toast } from "@/lib/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useCurrentUser, useMySupportChat, useSupportChatDetails, useSendSupportMessage, useAdminUserDetails } from "@/lib/api-hooks";
+import { useCurrentUser, useMySupportChat, useSupportChatDetails, useSendSupportMessage, useAdminUserDetails, useAdminUnbanUser } from "@/lib/api-hooks";
 import { ChatView, ChatMessageItem } from "@/components/ChatView";
 import { AppCard } from "@/components/AppCard";
 import { View, TouchableOpacity, Modal, ScrollView, Image, ActivityIndicator } from "react-native";
@@ -40,6 +40,29 @@ export default function AdminChatScreen() {
   const { data: userContext, isLoading: isUserContextLoading } = useAdminUserDetails(isTargetUserAdmin ? targetUserId : undefined);
 
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const unbanUserMutation = useAdminUnbanUser();
+  const [isUnbanning, setIsUnbanning] = useState(false);
+
+  const handleUnbanUser = async () => {
+    if (!userContext?.user?.id) return;
+    setIsUnbanning(true);
+    try {
+      const res = await unbanUserMutation.mutateAsync({
+        userId: userContext.user.id,
+        restoreReputation: true,
+        unpauseApps: true,
+      });
+      toast.success("User Unbanned", {
+        description: res.message || "Account reinstated and reputation restored.",
+      });
+    } catch (err: any) {
+      toast.error("Failed to unban user", {
+        description: err.message || "Could not complete unban request.",
+      });
+    } finally {
+      setIsUnbanning(false);
+    }
+  };
 
   // Mark conversation read and refresh query lists
   useEffect(() => {
@@ -198,6 +221,30 @@ export default function AdminChatScreen() {
                       </View>
                     </CardContent>
                   </Card>
+
+                  {/* Suspension & Unban Action */}
+                  {userContext.user.isBanned && (
+                    <Card className="border-red-500/40 bg-red-500/10">
+                      <CardContent className="p-3.5 flex-row items-center justify-between">
+                        <View className="flex-1 mr-3">
+                          <Text className="text-xs font-bold text-red-600 dark:text-red-400">Account Suspended</Text>
+                          <Text className="text-[11px] text-muted-foreground mt-0.5" numberOfLines={2}>
+                            {userContext.user.banReason || "User is currently banned from testing."}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          disabled={isUnbanning}
+                          onPress={handleUnbanUser}
+                          activeOpacity={0.8}
+                          className="bg-red-600 dark:bg-red-500 px-3 py-2 rounded-lg"
+                        >
+                          <Text className="text-xs font-bold text-white">
+                            {isUnbanning ? "Reinstating..." : "Unban User"}
+                          </Text>
+                        </TouchableOpacity>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Registered Apps Section */}
                   <View className="gap-2 mt-1">

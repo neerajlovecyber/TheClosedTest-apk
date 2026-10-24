@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::auth::{AdminUser, AuthUser};
 use crate::db::models::UserSummary;
 use crate::entities::{
-    app_bans, apps, matches, messages, prelude::*, reports, user_bans, users,
+    app_bans, apps, matches, messages, notifications, prelude::*, reports, user_bans, users,
 };
 use crate::error::AppError;
 use crate::state::AppState;
@@ -114,6 +114,21 @@ pub struct BanUserRequest {
 }
 
 fn default_permanent() -> bool {
+    true
+}
+
+#[derive(Deserialize)]
+pub struct UnbanUserRequest {
+    #[serde(rename = "userId")]
+    pub user_id: Option<String>,
+    pub email: Option<String>,
+    #[serde(rename = "restoreReputation", default = "default_true")]
+    pub restore_reputation: bool,
+    #[serde(rename = "unpauseApps", default = "default_true")]
+    pub unpause_apps: bool,
+}
+
+fn default_true() -> bool {
     true
 }
 
@@ -239,6 +254,10 @@ pub struct AdminUserDetailsUser {
     pub is_group_member: bool,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+    #[serde(rename = "isBanned")]
+    pub is_banned: bool,
+    #[serde(rename = "banReason")]
+    pub ban_reason: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -516,6 +535,81 @@ async fn ban_user(
     }))
 }
 
+// ── POST /api/admin/bans/user/unban ──────────────────────────────────────────
+async fn unban_user(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(payload): Json<UnbanUserRequest>,
+) -> Result<Json<GenericMessageResponse>, AppError> {
+    let user_model = if let Some(ref uid) = payload.user_id {
+        Users::find_by_id(uid).one(&state.db).await?
+    } else if let Some(ref email) = payload.email {
+        let clean_email = email.trim().to_lowercase();
+        Users::find()
+            .filter(users::Column::Email.eq(clean_email))
+            .one(&state.db)
+            .await?
+    } else {
+        return Err(AppError::BadRequest("Either userId or email must be provided".to_string()));
+    }
+    .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    // 1. Delete active bans for this user
+    let delete_res = UserBans::delete_many()
+        .filter(user_bans::Column::UserId.eq(&user_model.id))
+        .exec(&state.db)
+        .await
+        .map_err(AppError::from)?;
+
+    let now = OffsetDateTime::now_utc();
+
+    // 2. If reputation was depleted (<= 0), restore to 100 so background cron doesn't re-ban them
+    if payload.restore_reputation && user_model.reputation <= 0 {
+        let mut u_act: users::ActiveModel = user_model.clone().into();
+        u_act.reputation = Set(100);
+        u_act.updated_at = Set(now);
+        let _ = u_act.update(&state.db).await;
+    }
+
+    // 3. Optionally unpause their apps
+    if payload.unpause_apps {
+        let _ = Apps::update_many()
+            .filter(apps::Column::UserId.eq(&user_model.id))
+            .filter(apps::Column::Status.eq("paused"))
+            .col_expr(apps::Column::Status, sea_orm::sea_query::Expr::value("recruiting"))
+            .col_expr(apps::Column::UpdatedAt, sea_orm::sea_query::Expr::value(now))
+            .exec(&state.db)
+            .await;
+    }
+
+    // 4. Invalidate auth cache so user can authenticate immediately
+    if let Some(ref tid) = user_model.token_identifier {
+        state.user_cache.invalidate(tid).await;
+    }
+
+    // 5. Send reinstated notification
+    let notif_id = Uuid::new_v4().to_string();
+    let notif_data = serde_json::json!({ "type": "account_unbanned" });
+    let notif_act = notifications::ActiveModel {
+        id: Set(notif_id),
+        user_id: Set(user_model.id.clone()),
+        r#type: Set("system".to_string()),
+        title: Set("Account Reinstated".to_string()),
+        body: Set("Your account has been unbanned by an administrator. Happy testing!".to_string()),
+        data: Set(notif_data),
+        read: Set(false),
+        created_at: Set(now),
+    };
+    let _ = notif_act.insert(&state.db).await;
+
+    Ok(Json(GenericMessageResponse {
+        message: format!(
+            "User {} ({}) unbanned successfully. {} ban record(s) removed.",
+            user_model.name, user_model.email, delete_res.rows_affected
+        ),
+    }))
+}
+
 // ── POST /api/admin/bans/app ───────────────────────────────────────────────────
 // TS: insert appBans ON CONFLICT DO NOTHING; archive all apps with that packageName
 async fn ban_app(
@@ -649,6 +743,20 @@ async fn get_admin_user_details(
         .await
         .unwrap_or(0);
 
+    let active_ban = UserBans::find()
+        .filter(user_bans::Column::UserId.eq(&target_user.id))
+        .filter(
+            Condition::any()
+                .add(user_bans::Column::Permanent.eq(true))
+                .add(user_bans::Column::ExpiresAt.gt(OffsetDateTime::now_utc())),
+        )
+        .one(&state.db)
+        .await
+        .ok()
+        .flatten();
+    let is_banned = active_ban.is_some();
+    let ban_reason = active_ban.map(|b| b.reason);
+
     Ok(Json(AdminUserDetailsResponse {
         user: AdminUserDetailsUser {
             id: target_user.id,
@@ -659,6 +767,8 @@ async fn get_admin_user_details(
             streak: target_user.streak,
             is_group_member: target_user.is_group_member,
             created_at: target_user.created_at.format(&Rfc3339).unwrap_or_default(),
+            is_banned,
+            ban_reason,
         },
         apps: detail_apps,
         active_matches_count,
@@ -930,6 +1040,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/admin/reports", get(list_reports))
         .route("/api/admin/reports/{id}", patch(update_report))
         .route("/api/admin/bans/user", post(ban_user))
+        .route("/api/admin/bans/user/unban", post(unban_user))
         .route("/api/admin/bans/app", post(ban_app))
         .route("/api/admin/apps", get(list_admin_apps))
         .route("/api/admin/apps/{id}", delete(admin_delete_app))
