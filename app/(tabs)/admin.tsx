@@ -1,14 +1,24 @@
-import React from "react";
-import { View, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, TouchableOpacity, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { Text } from "@/components/ui/text";
 import { Card, CardContent } from "@/components/ui/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "@/components/ui/icon";
-import { ActivityIcon, ChevronRightIcon, MessageSquareIcon, LayersIcon, BarChart3Icon, TrendingUpIcon } from "lucide-react-native";
+import {
+  ActivityIcon,
+  ChevronRightIcon,
+  MessageSquareIcon,
+  LayersIcon,
+  BarChart3Icon,
+  TrendingUpIcon,
+  UserCogIcon,
+  XIcon,
+} from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useAdminStats } from "@/lib/api-hooks";
+import { useAdminStats, useAdminUnbanUser } from "@/lib/api-hooks";
 import { AdminServerUrlCard } from "@/components/AdminServerUrlCard";
+import { toast } from "@/lib/sonner";
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
@@ -19,6 +29,40 @@ export default function AdminDashboardScreen() {
   const activeMatchesCount = stats?.activeMatches ?? 0;
   const totalAppsCount = stats?.totalApps ?? 0;
   const weeklyActiveUsers = stats?.weeklyActiveUsers ?? [];
+
+  const [showUnbanModal, setShowUnbanModal] = useState(false);
+  const [unbanInput, setUnbanInput] = useState("");
+  const [isUnbanning, setIsUnbanning] = useState(false);
+  const unbanMutation = useAdminUnbanUser();
+
+  const handleQuickUnban = async () => {
+    const query = unbanInput.trim();
+    if (!query) {
+      toast.error("Please enter an email or user ID");
+      return;
+    }
+    setIsUnbanning(true);
+    try {
+      const isEmail = query.includes("@");
+      const res = await unbanMutation.mutateAsync({
+        userId: isEmail ? undefined : query,
+        email: isEmail ? query : undefined,
+        restoreReputation: true,
+        unpauseApps: true,
+      });
+      toast.success("User Reinstated", {
+        description: res.message || `${query} has been unbanned with 100 reputation.`,
+      });
+      setUnbanInput("");
+      setShowUnbanModal(false);
+    } catch (err: any) {
+      toast.error("Unban Failed", {
+        description: err.message || "Could not unban user. Please verify the email or ID.",
+      });
+    } finally {
+      setIsUnbanning(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -142,6 +186,22 @@ export default function AdminDashboardScreen() {
         {/* Quick Actions */}
         <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Management &amp; Controls</Text>
 
+        {/* User Moderation & Unban Card */}
+        <Card className="border-border shadow-sm mb-3">
+          <TouchableOpacity className="flex-row items-center justify-between p-4" onPress={() => setShowUnbanModal(true)}>
+            <View className="flex-row items-center flex-1 mr-2">
+              <View className="bg-amber-500/10 p-2.5 rounded-xl mr-3">
+                <Icon as={UserCogIcon} className="text-amber-600 size-5" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-semibold text-foreground">User Moderation &amp; Unban</Text>
+                <Text className="text-xs text-muted-foreground">Reinstate accounts, restore reputation &amp; unpause apps</Text>
+              </View>
+            </View>
+            <Icon as={ChevronRightIcon} className="text-muted-foreground size-5" />
+          </TouchableOpacity>
+        </Card>
+
         {/* App Management */}
         <Card className="border-border shadow-sm mb-3">
           <TouchableOpacity className="flex-row items-center justify-between p-4" onPress={() => router.push("/admin/apps-list" as any)}>
@@ -178,6 +238,75 @@ export default function AdminDashboardScreen() {
         <Text className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Server &amp; Environment</Text>
         <AdminServerUrlCard />
       </ScreenScrollView>
+
+      {/* Quick Unban Modal */}
+      <Modal visible={showUnbanModal} animationType="slide" transparent onRequestClose={() => setShowUnbanModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end bg-black/60">
+          <View className="bg-card rounded-t-3xl border-t border-border shadow-2xl p-6">
+            <View className="flex-row items-center justify-between pb-4 border-b border-border/50">
+              <View className="flex-row items-center gap-2.5">
+                <View className="p-2.5 rounded-xl bg-amber-500/10">
+                  <Icon as={UserCogIcon} className="size-5 text-amber-600" />
+                </View>
+                <View>
+                  <Text className="text-lg font-bold text-foreground">Reinstate / Unban User</Text>
+                  <Text className="text-xs text-muted-foreground">Restore testing access &amp; reset reputation</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowUnbanModal(false)}
+                className="p-2 rounded-full bg-secondary/60 active:bg-secondary"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Icon as={XIcon} className="size-5 text-muted-foreground" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="pt-4 gap-4">
+              <Text className="text-xs text-muted-foreground leading-relaxed">
+                Enter the user's email address or user ID. This will remove all active suspensions, restore reputation to 100 (preventing automatic midnight cron bans), unpause their recruiting apps, and send a reinstatement notification.
+              </Text>
+
+              <View className="gap-1.5">
+                <Text className="text-xs font-semibold text-foreground">User Email or ID</Text>
+                <TextInput
+                  value={unbanInput}
+                  onChangeText={setUnbanInput}
+                  placeholder="e.g. galaxysoft.connect@gmail.com"
+                  placeholderTextColor="#888"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  className="bg-secondary/40 border border-border rounded-xl px-4 py-3 text-sm text-foreground"
+                />
+              </View>
+
+              <View className="flex-row items-center gap-2 pt-2">
+                <TouchableOpacity
+                  onPress={() => setShowUnbanModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-border items-center justify-center bg-secondary/30"
+                >
+                  <Text className="text-sm font-semibold text-foreground">Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  disabled={isUnbanning || !unbanInput.trim()}
+                  onPress={handleQuickUnban}
+                  className={`flex-1 py-3 rounded-xl items-center justify-center ${
+                    !unbanInput.trim() || isUnbanning ? "bg-amber-600/50" : "bg-amber-600 active:bg-amber-700"
+                  }`}
+                >
+                  {isUnbanning ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text className="text-sm font-bold text-white">Unban User</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
